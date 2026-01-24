@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
     PetscCall(PetscInitialize(&argc, &argv, NULL, NULL));
 
     {
-        const int n = 100000; // Global size of the system
+        const int n = 10; // Global size of the system
 
         // 1. Setup the Matrix (Laplacian-like)
         PetscMatrix A(PETSC_DECIDE, n);
@@ -32,8 +32,11 @@ int main(int argc, char **argv) {
 
         // 2. Petsc solver with options
         PetscKSPSolver solver("heat_");
-        solver.addOption("ksp_type", "preonly");
-        solver.addOption("pc_type", "lu");
+        solver.addOption("ksp_type", "cg");
+        solver.addOption("pc_type", "bjacobi");
+        solver.addOption("sub_pc_type", "ilu");
+        solver.addOption("ksp_rtol", "1e-12");
+        solver.addOption("ksp_atol", "1e-12");
         solver.addOption("ksp_view");
         solver.addOption("ksp_monitor");
 
@@ -41,12 +44,18 @@ int main(int argc, char **argv) {
         solver.setOperators(A);
         solver.solve(b, x);
 
+        PetscVector res(PETSC_DECIDE, n);
+        res.setAll(0.0);
+        res.assemble();
+        MatMult(A.getRaw(), x.getRaw(), res.getRaw());
+        res.axpy(-1.0, b);
+
         // 5. Check results
         PetscInt its = solver.getIterationCount();
-        PetscReal final_norm = x.norm(NORM_2);
+        PetscReal final_norm_inf = res.norm(NORM_INFINITY);
 
         PetscPrintf(PETSC_COMM_WORLD, "Solve finished in %d iterations.\n", its);
-        PetscPrintf(PETSC_COMM_WORLD, "L2 Norm of solution: %g\n", (double)final_norm);
+        PetscPrintf(PETSC_COMM_WORLD, "L-inf Norm of the residual Ax-b: %g\n", (double)final_norm_inf);
 
         // View the solution vector if the system is small
         if (n <= 20) {

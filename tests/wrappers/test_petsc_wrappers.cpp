@@ -12,21 +12,6 @@
 #include "PetscKSPSolver.h"
 #include <cmath>
 
-class PetscEnvironment : public ::testing::Environment {
-public:
-    void SetUp() override {
-        int argc = 0;
-        char** argv = nullptr;
-        PetscInitialize(&argc, &argv, nullptr, nullptr);
-    }
-    void TearDown() override {
-        PetscFinalize();
-    }
-};
-
-::testing::Environment* const petsc_env =
-    ::testing::AddGlobalTestEnvironment(new PetscEnvironment);
-
 //-------------------------------------------------------------
 // Linear solver correctness: Identity matrix
 //-------------------------------------------------------------

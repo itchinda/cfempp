@@ -1,0 +1,4 @@
+add_subdirectory(wrappers)
+add_subdirectory(mesh)
+add_subdirectory(fem)
+add_subdirectory(solvers)

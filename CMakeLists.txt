@@ -6,6 +6,14 @@ cmake_minimum_required(VERSION 3.15)
 # Compilation modes:
 #   cmake .. -DCMAKE_BUILD_TYPE=Release
 #   cmake .. -DCMAKE_BUILD_TYPE=Debug
+# ------------------------------------------------------------
+# 1. Build type / PETSc configuration (Must happen before project())
+# ------------------------------------------------------------
+cmake_minimum_required(VERSION 3.15)
+
+# ------------------------------------------------------------
+# 1. Build type / PETSc configuration (Must happen before project())
+# ------------------------------------------------------------
 if(NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(TARGET_PETSC_ARCH "arch-linux-c-debug")
     add_definitions(-DPETSC_USE_DEBUG)
@@ -13,7 +21,6 @@ else()
     set(TARGET_PETSC_ARCH "arch-linux-c-opt")
 endif()
 
-# Force PETSC_ARCH to match CMake build type
 set(ENV{PETSC_ARCH} ${TARGET_PETSC_ARCH})
 
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
@@ -30,83 +37,45 @@ if(PETSC_CXX)
 endif()
 
 # ------------------------------------------------------------
-# Project
+# 2. Project Initialization
 # ------------------------------------------------------------
-project(odepp LANGUAGES CXX)
+project(cfem LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-# ------------------------------------------------------------
-# Library
-# ------------------------------------------------------------
-add_library(odepp_lib
-    src/PetscMatrix.cpp
-    src/PetscVector.cpp
-    src/PetscKSPSolver.cpp
-)
-
-target_include_directories(odepp_lib
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-pkg_search_module(PETSC REQUIRED IMPORTED_TARGET petsc)
-
-target_link_libraries(odepp_lib
-    PUBLIC
-        PkgConfig::PETSC
-)
-
-# ------------------------------------------------------------
-# Application
-# ------------------------------------------------------------
+# Define the App name here so it's available in the subdirectories
 if(TARGET_PETSC_ARCH STREQUAL "arch-linux-c-debug")
-    set(APP_PROJECT_NAME odepp_app_dev)
+    set(APP_PROJECT_NAME cfem_app_dev)
 else()
-    set(APP_PROJECT_NAME odepp_app_opt)
+    set(APP_PROJECT_NAME cfem_app_opt)
 endif()
 
-add_executable(${APP_PROJECT_NAME}
-    apps/main.cpp
-)
-
-target_link_libraries(${APP_PROJECT_NAME}
-    PRIVATE
-        odepp_lib
-)
+# Global PETSc target available to all subdirectories
+pkg_search_module(PETSC REQUIRED IMPORTED_TARGET petsc)
 
 # ------------------------------------------------------------
-# Testing / GoogleTest
+# 3. Add Modular Libraries & Applications
 # ------------------------------------------------------------
-include(CTest)   # enables BUILD_TESTING + enable_testing()
+add_subdirectory(libs)
+add_subdirectory(apps) # This will look for apps/CMakeLists.txt
+
+# ------------------------------------------------------------
+# 4. Testing / GoogleTest
+# ------------------------------------------------------------
+include(CTest)
 
 if(BUILD_TESTING)
-
     include(FetchContent)
-
     FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG        v1.17.0
+        GIT_TAG         v1.17.0
     )
-
-    # Prevent overriding parent project's compiler/linker settings
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-
     FetchContent_MakeAvailable(googletest)
 
-    add_executable(unit_tests
-        tests/test_petsc_solver.cpp
-    )
-
-    target_link_libraries(unit_tests
-        PRIVATE
-            odepp_lib
-            GTest::gtest_main
-    )
-
-    add_test(NAME lib_gtest COMMAND unit_tests)
-
+    include(GoogleTest)
+    add_subdirectory(tests)
 endif()

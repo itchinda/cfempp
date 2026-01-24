@@ -72,5 +72,5 @@ jobs:
         export PATH=$PETSC_DIR/$PETSC_ARCH/bin:$PATH
         cd build
         echo "Running unit tests with ${{ matrix.mpi_ranks }} MPI ranks"
-        mpiexec -n ${{ matrix.mpi_ranks }} ./unit_tests
+        mpiexec -n ${{ matrix.mpi_ranks }} tests/unit_tests
 
