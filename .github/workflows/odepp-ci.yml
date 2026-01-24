@@ -1,0 +1,73 @@
+name: ODEPP Project CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mpi_ranks: [2, 4]  # test with 2 and 4 MPI ranks
+
+    steps:
+    # 1- Checkout code
+    - name: Checkout Project Code
+      uses: actions/checkout@v4
+
+    # 2- Install dependencies
+    - name: Install System Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential gfortran cmake python3 m4 wget
+
+    # 3- Cache PETSc
+    - name: Cache PETSc
+      id: cache-petsc
+      uses: actions/cache@v3
+      with:
+        path: $HOME/petsc
+        key: ${{ runner.os }}-petsc-3.24-opt-${{ hashFiles('**/CMakeLists.txt') }}
+
+    # 4- Clone and build PETSc if not cached
+    - name: Build PETSc
+      if: steps.cache-petsc.outputs.cache-hit != 'true'
+      run: |
+        git clone -b release https://gitlab.com/petsc/petsc.git $HOME/petsc
+        cd $HOME/petsc
+        ./configure --with-debugging=no \
+                    --download-fblaslapack \
+                    --download-mpich \
+                    --with-shared-libraries=1 \
+                    --PETSC_ARCH=arch-linux-c-opt
+        make PETSC_DIR=$HOME/petsc PETSC_ARCH=arch-linux-c-opt all
+
+    # 5- Configure and build project
+    - name: Configure and Build Project
+      run: |
+        export PETSC_DIR=$HOME/petsc
+        export PETSC_ARCH=arch-linux-c-opt
+        mkdir -p build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release \
+                 -DPETSC_DIR=$PETSC_DIR \
+                 -DPETSC_ARCH=$PETSC_ARCH
+        make -j$(nproc)
+
+    # 6- Run unit tests with MPI
+    - name: Run Unit Tests
+      env:
+        PETSC_DIR: $HOME/petsc
+        PETSC_ARCH: arch-linux-c-opt
+        PATH: $HOME/petsc/arch-linux-c-opt/bin:$PATH
+      run: |
+        export PETSC_DIR=$HOME/petsc
+        export PETSC_ARCH=arch-linux-c-opt
+        export PATH=$PETSC_DIR/$PETSC_ARCH/bin:$PATH
+        cd build
+        echo "Running unit tests with ${{ matrix.mpi_ranks }} MPI ranks"
+        mpiexec -n ${{ matrix.mpi_ranks }} ./unit_tests
+
