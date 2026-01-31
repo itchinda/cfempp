@@ -638,7 +638,7 @@ inline void DiskMeshBuilder::projectBoundaryMidNodes(Mesh &mesh, const Vector3D 
 
 inline void DiskMeshBuilder::relaxMesh(Mesh &mesh, int iterations)
 {
-    MeshEntity *boundary = mesh.getEntity("Boundary");
+    MeshEntity *boundary = mesh.getEntity(cfem::SYS_BOUNDARY_ID);
     if (!boundary)
         return;
 

@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
 
     //-----------------------------------------------------------------------------
     //------------------------------ Mesh class -----------------------------------
-    Mesh lMail(2, 1);
+    Mesh lMail(3, 1);
 
     // LineMeshBuilder lLine;
     // lLine.build(lMail, 10, Vector3D{1.0, 0.0,0.0}, Vector3D{0.5, 0, 1});
@@ -30,11 +30,11 @@ int main(int argc, char **argv) {
     //                                 Vector3D{0,0,1}, Vector3D{1,0,1}, Vector3D{1,1,1}, Vector3D{0,1,1} },
     //                                 CubicMeshBuilder::SubdivisionType::SixTet);
 
-    DiskMeshBuilder lDisk;
-    double radius {1.0};
-    double target_mesh_size {radius / 1000};
-    CfemInt order {1};
-    lDisk.build(lMail, order, target_mesh_size, Vector3D{0,0,0}, radius, DiskMeshBuilder::ElementType::Triangle);
+    // DiskMeshBuilder lDisk;
+    // double radius {1.0};
+    // double target_mesh_size {radius / 1000};
+    // CfemInt order {1};
+    // lDisk.build(lMail, order, target_mesh_size, Vector3D{0,0,0}, radius, DiskMeshBuilder::ElementType::Triangle);
     
     // SphereMeshBuilder lSphere;
     // double radius {1.0};
@@ -42,20 +42,20 @@ int main(int argc, char **argv) {
     // CfemInt order {1};
     // lSphere.build(lMail, order, target_mesh_size, Vector3D{0,0,0}, radius, SphereMeshBuilder::ElementType::Tetrahedron);
 
-    // GmshParser lMshParser;
-    // lMshParser.read(lMail, "bunny.msh");
+    GmshParser lMshParser;
+    lMshParser.load(lMail, "hex.msh");
     VTKExporter vtk_exporter (lMail);
-    vtk_exporter.setExportedEntities({"Boundary"});
+    vtk_exporter.setExportedEntities({"Boundary", "Bottom", "Top", "Right", "Left", "Front", "Back"});
     vtk_exporter.setExportQuality(true);
-    vtk_exporter.write("maillage2.vtk");
+    vtk_exporter.write("hex.vtk");
 
     auto report = MeshQualityTool::analyze(lMail);
     MeshQualityTool::printSummary(report);
 
     // std::cout << lMail.getMeshFormat() << std::endl;
 
-    // MeshEntity* lEntity {lMail.getEntity("Boundary")};
-    // if (lEntity) std::cout << lEntity->getEntityFormat() << std::endl;
+    MeshEntity* lEntity {lMail.getEntity("Bottom")};
+    if (lEntity) std::cout << lEntity->getEntityFormat() << std::endl;
 
     //-------------------------------------------------------------------------------
     //----------------------------- Vector3D struct ---------------------------------

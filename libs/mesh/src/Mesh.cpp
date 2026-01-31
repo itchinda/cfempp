@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <map>
 
+
 Mesh::Mesh(CfemInt p_meshDim, CfemInt p_meshOrder) : m_meshDim(p_meshDim) , m_meshOrder(p_meshOrder){
     CFEM_PRECONDITION(p_meshDim >= 1 && p_meshDim <= 3);
     CFEM_PRECONDITION(p_meshOrder >= 1 && p_meshOrder <= 3);
@@ -153,7 +154,7 @@ void Mesh::buildMesh() {
     // Total mesh universe entity
     MeshEntity& universe = createInternalEntity(cfem::UNIVERSE_ID, "Universe", m_meshDim);
     // Domain Boundary
-    MeshEntity& boundary = createInternalEntity(cfem::BOUNDARY_ID, "Boundary", m_meshDim - 1);
+    MeshEntity& boundary = createInternalEntity(cfem::SYS_BOUNDARY_ID, "Boundary", m_meshDim - 1);
 
     for (CfemInt i = 0; i < static_cast<CfemInt>(m_vertices.size()); ++i) {
         universe.addVertex(i);

@@ -1,3 +1,14 @@
+/**
+ * @file Mesh.h
+ * @author your name (you@domain.com)
+ * @brief 
+ * @version 0.2
+ * @date 2026-01-31
+ * 
+ * @copyright Copyright (c) 2026
+ * 
+ */
+
 #ifndef CFEMPP_MESH
 #define CFEMPP_MESH
 
@@ -45,6 +56,11 @@ struct Facet {
     bool isBoundary() const { return right_cell < 0; }
 };
 
+struct TagGroup {
+    std::vector<int> gmsh_tags;
+    int internal_id;
+};
+
 class Mesh {
 public:
     explicit Mesh(CfemInt p_meshDim, CfemInt p_meshOrder);
@@ -70,9 +86,12 @@ public:
     const Vertex& getVertex(CfemInt id) const { return m_vertices.at(id); }
     Vertex& getVertex(CfemInt vid) {  return m_vertices.at(vid); }
     const Cell&   getCell(CfemInt id)   const { return m_cells.at(id); }
+    Cell&   getCell(CfemInt id) { return m_cells.at(id); }
     const Facet&  getFacet(CfemInt id)  const { return m_facets.at(id); }
+    Facet&  getFacet(CfemInt id) { return m_facets.at(id); }
 
     void setOrder(int newOrder);
+    void setDimension(int newOrder);
 
     CfemInt createEntity(const std::string& name, CfemInt dim);
 
@@ -123,6 +142,8 @@ private:
     std::vector<std::unique_ptr<MeshEntity>> m_entities;
 
     std::unordered_set<CfemInt> m_entity_ids;
+
+    std::map<std::vector<int>, int> m_tag_combination_to_id;
 
     void checkInvariant() const{
         CFEM_INVARIANT(m_meshDim >= 1 && m_meshDim <= 3);
