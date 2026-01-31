@@ -2,67 +2,89 @@
 #include "PetscMatrix.h"
 #include "PetscVector.h"
 #include "PetscKSPSolver.h"
+
+#include "cfemutils.h"
+#include "Mesh.h"
+#include "Vector3D.h"
+#include "VTKExporter.h"
+#include "GmshParser.h"
+
 #include <iostream>
 
 int main(int argc, char **argv) {
+
+    //-----------------------------------------------------------------------------
+    //------------------------------ Mesh class -----------------------------------
+    Mesh lMail(2, 1);
+
+    // LineMeshBuilder lLine;
+    // lLine.build(lMail, 10, Vector3D{1.0, 0.0,0.0}, Vector3D{0.5, 0, 1});
+
+    // QuadMeshBuilder lRectangle;
+    // lRectangle.build(lMail, 1, 1, {Vector3D{0,0,0}, Vector3D{1,0,0}, Vector3D{1,1,0}, Vector3D{0,0.5,0} }, QuadMeshBuilder::SubdivisionType::CrissCross);
+    // lMail.upgradeToQuadratic();
+
+    // CubicMeshBuilder lCube;
+    // CfemInt N {5};
+    // lCube.build(lMail, N, N, N, {Vector3D{0,0,0}, Vector3D{1,0,0}, Vector3D{1,1,0}, Vector3D{0,1,0},
+    //                                 Vector3D{0,0,1}, Vector3D{1,0,1}, Vector3D{1,1,1}, Vector3D{0,1,1} },
+    //                                 CubicMeshBuilder::SubdivisionType::SixTet);
+
+    DiskMeshBuilder lDisk;
+    double radius {1.0};
+    double target_mesh_size {radius / 1000};
+    CfemInt order {1};
+    lDisk.build(lMail, order, target_mesh_size, Vector3D{0,0,0}, radius, DiskMeshBuilder::ElementType::Triangle);
     
-    PetscCall(PetscInitialize(&argc, &argv, NULL, NULL));
+    // SphereMeshBuilder lSphere;
+    // double radius {1.0};
+    // double target_mesh_size {radius / 20};
+    // CfemInt order {1};
+    // lSphere.build(lMail, order, target_mesh_size, Vector3D{0,0,0}, radius, SphereMeshBuilder::ElementType::Tetrahedron);
 
-    {
-        const int n = 10; // Global size of the system
+    // GmshParser lMshParser;
+    // lMshParser.read(lMail, "bunny.msh");
+    VTKExporter vtk_exporter (lMail);
+    vtk_exporter.setExportedEntities({"Boundary"});
+    vtk_exporter.setExportQuality(true);
+    vtk_exporter.write("maillage2.vtk");
 
-        // 1. Setup the Matrix (Laplacian-like)
-        PetscMatrix A(PETSC_DECIDE, n);
-        
-        std::pair<PetscInt, PetscInt> ownership_range {A.getOwnershipRange()};
-        for (PetscInt i = ownership_range.first; i < ownership_range.second; i++) {
-            A.setValue(i, i, 2.0); // Diagonal
-            if (i > 0)     A.setValue(i, i - 1, -1.0); // Left neighbor
-            if (i < n - 1) A.setValue(i, i + 1, -1.0); // Right neighbor
-        }
-        A.assemble();
+    auto report = MeshQualityTool::analyze(lMail);
+    MeshQualityTool::printSummary(report);
 
-        PetscVector b(PETSC_DECIDE, n);
-        PetscVector x(PETSC_DECIDE, n);
+    // std::cout << lMail.getMeshFormat() << std::endl;
 
-        b.setAll(1.0); // Solve A*x = [1, 1, 1...]
-        b.assemble();
-        x.setAll(0.0); // Initial guess
-        x.assemble();
+    // MeshEntity* lEntity {lMail.getEntity("Boundary")};
+    // if (lEntity) std::cout << lEntity->getEntityFormat() << std::endl;
 
-        // 2. Petsc solver with options
-        PetscKSPSolver solver("heat_");
-        solver.addOption("ksp_type", "cg");
-        solver.addOption("pc_type", "bjacobi");
-        solver.addOption("sub_pc_type", "ilu");
-        solver.addOption("ksp_rtol", "1e-12");
-        solver.addOption("ksp_atol", "1e-12");
-        solver.addOption("ksp_view");
-        solver.addOption("ksp_monitor");
+    //-------------------------------------------------------------------------------
+    //----------------------------- Vector3D struct ---------------------------------
+    // Vector3D v1 {1.0, 2.0, 3.0};
+    // Vector3D v2 {3.0, 2.0, 1.0};
+    // Vector3D v3 = v1+v2;
+    // Vector3D v4 = 4.0*v2;
+    // Vector3D v5 = v2*4.0;
 
-        // 3. Finalize and Solve
-        solver.setOperators(A);
-        solver.solve(b, x);
+    // std::cout << "v1 = " << v1 << std::endl;
+    // std::cout << "v2 = " << v2 << std::endl;
+    // std::cout << "v1+v2 = " << v3 << std::endl;
+    // std::cout << "4*v2 = " << v4 << std::endl;
+    // std::cout << "v2*4 = " << v5 << std::endl;
 
-        PetscVector res(PETSC_DECIDE, n);
-        res.setAll(0.0);
-        res.assemble();
-        MatMult(A.getRaw(), x.getRaw(), res.getRaw());
-        res.axpy(-1.0, b);
+    // std::cout << "norm(v1) = " << norm(v1) << std::endl;
 
-        // 5. Check results
-        PetscInt its = solver.getIterationCount();
-        PetscReal final_norm_inf = res.norm(NORM_INFINITY);
+    // std::cout << "dot(v1,v2) = " << dot(v1,v2) << std::endl;
+    // std::cout << "v1.dot(v2) = " << v1.dot(v2) << std::endl;
 
-        PetscPrintf(PETSC_COMM_WORLD, "Solve finished in %d iterations.\n", its);
-        PetscPrintf(PETSC_COMM_WORLD, "L-inf Norm of the residual Ax-b: %g\n", (double)final_norm_inf);
+    // std::cout << "cross(v1,v2) = " << cross(v1,v2) << std::endl;
+    // std::cout << "v2.cross(v1) = " << v2.cross(v1) << std::endl;
+    //---------------------------------------------------------------------------------
 
-        // View the solution vector if the system is small
-        if (n <= 20) {
-            VecView(x.getRaw(), PETSC_VIEWER_STDOUT_WORLD);
-        }
-    } 
 
-    PetscCall(PetscFinalize());
+
+
+
     return 0;
+
+
 }

@@ -1,5 +1,7 @@
 add_library(cfem_mesh
     src/Mesh.cpp
+    src/MeshEntity.cpp
+    src/GmshParser.cpp
 )
 
 target_include_directories(cfem_mesh
@@ -7,5 +9,5 @@ target_include_directories(cfem_mesh
 )
 
 target_link_libraries(cfem_mesh
-    PUBLIC cfem_petsc_wrappers
+    PUBLIC cfem_petsc_wrappers cfem_utils
 )
