@@ -1,3 +1,5 @@
 add_subdirectory(assembly)
 add_subdirectory(integration)
 add_subdirectory(formulation)
+add_subdirectory(fields)
+add_subdirectory(exportation)

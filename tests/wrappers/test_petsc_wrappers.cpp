@@ -12,16 +12,18 @@
 #include "PetscKSPSolver.h"
 #include <cmath>
 
+#include "cfemutils.h"
+
 //-------------------------------------------------------------
 // Linear solver correctness: Identity matrix
 //-------------------------------------------------------------
-TEST(SolverTest, IdentitySolutionCorrectness) {
-    const PetscInt n = 10;
+TEST(PetscKSPSolverTest, IdentitySolutionCorrectness) {
+    const CfemInt n = 10;
     PetscMatrix A(PETSC_DECIDE, n);
     A.preallocate(1, 0);
 
     auto [rstart, rend] = A.getOwnershipRange();
-    for (PetscInt i = rstart; i < rend; ++i)
+    for (CfemInt i = rstart; i < rend; ++i)
         A.setValue(i, i, 1.0);
     A.assemble();
 
@@ -51,13 +53,13 @@ TEST(SolverTest, IdentitySolutionCorrectness) {
 //-------------------------------------------------------------
 // 1D Laplacian test
 //-------------------------------------------------------------
-TEST(SolverTest, Laplacian1D) {
-    const PetscInt n = 10;
+TEST(PetscKSPSolverTest, Laplacian1D) {
+    const CfemInt n = 10;
     PetscMatrix A(PETSC_DECIDE, n);
     A.preallocate(3, 3);
 
     auto [rstart, rend] = A.getOwnershipRange();
-    for (PetscInt i = rstart; i < rend; ++i) {
+    for (CfemInt i = rstart; i < rend; ++i) {
         A.setValue(i, i, 2.0);
         if (i > 0) A.setValue(i, i - 1, -1.0);
         if (i < n - 1) A.setValue(i, i + 1, -1.0);
@@ -89,7 +91,7 @@ TEST(SolverTest, Laplacian1D) {
 //-------------------------------------------------------------
 // Vec axpy test
 //-------------------------------------------------------------
-TEST(VectorTest, AxpyWorks) {
+TEST(PetscVectorTest, AxpyWorks) {
     PetscVector x(PETSC_DECIDE, 5);
     PetscVector y(PETSC_DECIDE, 5);
 
@@ -106,13 +108,13 @@ TEST(VectorTest, AxpyWorks) {
 //-------------------------------------------------------------
 // Diagonal matrix multiplication test
 //-------------------------------------------------------------
-TEST(MatrixTest, DiagonalMatMult) {
-    const PetscInt n = 4;
+TEST(PetscMatrixTest, DiagonalMatMult) {
+    const CfemInt n = 4;
     PetscMatrix A(PETSC_DECIDE, n);
     A.preallocate(1, 0);
 
     auto [rstart, rend] = A.getOwnershipRange();
-    for (PetscInt i = rstart; i < rend; ++i)
+    for (CfemInt i = rstart; i < rend; ++i)
         A.setValue(i, i, i + 1);
     A.assemble();
 
