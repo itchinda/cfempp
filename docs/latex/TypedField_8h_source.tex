@@ -1,0 +1,48 @@
+\doxysection{Typed\+Field.\+h}
+\hypertarget{TypedField_8h_source}{}\label{TypedField_8h_source}\index{/home/itchinda/projects/odepp/libs/fem/fields/include/TypedField.h@{/home/itchinda/projects/odepp/libs/fem/fields/include/TypedField.h}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ CFEM\_TYPEDFIELD\_H}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ CFEM\_TYPEDFIELD\_H}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ "{}Field.h"{}}}
+\DoxyCodeLine{00005\ }
+\DoxyCodeLine{00011\ \textcolor{keyword}{template}\ <\textcolor{keyword}{typename}\ T>}
+\DoxyCodeLine{00012\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classTypedField}{TypedField}}\ :\ \textcolor{keyword}{public}\ \mbox{\hyperlink{classField}{Field}}\ \{}
+\DoxyCodeLine{00013\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00014\ \ \ \ \ \mbox{\hyperlink{classTypedField}{TypedField}}(std::shared\_ptr<FESpace>\ space,\ \textcolor{keyword}{const}\ std::string\&\ name)}
+\DoxyCodeLine{00015\ \ \ \ \ \ \ \ \ :\ \mbox{\hyperlink{classField}{Field}}(space,\ name)\ \{}
+\DoxyCodeLine{00016\ \ \ \ \ \ \ \ \ m\_data.resize(\mbox{\hyperlink{classField_acb9e6d8505d0f9e6a7a191f045728e88}{m\_space}}-\/>getGlobalNumDofs(),\ 0.0);}
+\DoxyCodeLine{00017\ \ \ \ \ \}}
+\DoxyCodeLine{00018\ }
+\DoxyCodeLine{00019\ \ \ \ \ std::vector<CfemReal>\&\ \mbox{\hyperlink{classTypedField_a4da209687be6c7b9318d2eacf9ea67c4}{data}}()\textcolor{keyword}{\ override\ }\{\ \textcolor{keywordflow}{return}\ m\_data;\ \}}
+\DoxyCodeLine{00020\ \ \ \ \ \textcolor{keyword}{const}\ std::vector<CfemReal>\&\ \mbox{\hyperlink{classTypedField_a4da209687be6c7b9318d2eacf9ea67c4}{data}}()\textcolor{keyword}{\ const\ override\ }\{\ \textcolor{keywordflow}{return}\ m\_data;\ \}}
+\DoxyCodeLine{00021\ }
+\DoxyCodeLine{00024\ \ \ \ \ \textcolor{keyword}{virtual}\ T\ \mbox{\hyperlink{classTypedField_ae48de61354aeb0415bd71e23029b9852}{evaluateAt}}(CfemInt\ cellId,\ \textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ xi)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00025\ \ \ \ \ \ \ \ \ std::vector<CfemInt>\ dofs;}
+\DoxyCodeLine{00026\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classField_acb9e6d8505d0f9e6a7a191f045728e88}{m\_space}}-\/>getElementDofs(cellId,\ dofs);}
+\DoxyCodeLine{00027\ }
+\DoxyCodeLine{00028\ \ \ \ \ \ \ \ \ std::vector<CfemReal>\ basis;}
+\DoxyCodeLine{00029\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classField_acb9e6d8505d0f9e6a7a191f045728e88}{m\_space}}-\/>evaluateBasis(m\_mesh.getCell(cellId).type,\ xi,\ basis);}
+\DoxyCodeLine{00030\ }
+\DoxyCodeLine{00031\ \ \ \ \ \ \ \ \ T\ result\ =\ T\{\};\ \textcolor{comment}{//\ Assumes\ T\ has\ a\ default\ constructor\ and\ supports\ +=\ /\ *\ operators}}
+\DoxyCodeLine{00032\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ nNodes\ =\ basis.size();}
+\DoxyCodeLine{00033\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ dim\ =\ \mbox{\hyperlink{classField_acb9e6d8505d0f9e6a7a191f045728e88}{m\_space}}-\/>getDimension();}
+\DoxyCodeLine{00034\ }
+\DoxyCodeLine{00035\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ nNodes;\ ++i)\ \{}
+\DoxyCodeLine{00036\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ This\ logic\ maps\ the\ flat\ m\_data\ to\ the\ type\ T}}
+\DoxyCodeLine{00037\ \ \ \ \ \ \ \ \ \ \ \ \ result\ +=\ getComponentValue(dofs,\ i)\ *\ basis[i];}
+\DoxyCodeLine{00038\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00039\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ result;}
+\DoxyCodeLine{00040\ \ \ \ \ \}}
+\DoxyCodeLine{00041\ }
+\DoxyCodeLine{00042\ \textcolor{keyword}{protected}:}
+\DoxyCodeLine{00043\ \ \ \ \ std::vector<CfemReal>\ m\_data;}
+\DoxyCodeLine{00044\ }
+\DoxyCodeLine{00045\ \ \ \ \ \textcolor{comment}{//\ Internal\ helper\ to\ extract\ the\ T-\/sized\ chunk\ of\ data\ for\ node\ i}}
+\DoxyCodeLine{00046\ \ \ \ \ \textcolor{keyword}{virtual}\ T\ getComponentValue(\textcolor{keyword}{const}\ std::vector<CfemInt>\&\ dofs,\ \textcolor{keywordtype}{int}\ localNodeIdx)\ \textcolor{keyword}{const}\ =\ 0;}
+\DoxyCodeLine{00047\ \};}
+\DoxyCodeLine{00048\ }
+\DoxyCodeLine{00049\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

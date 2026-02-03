@@ -1,0 +1,88 @@
+\doxysection{cfem\+::Contract\+Exception Class Reference}
+\hypertarget{classcfem_1_1ContractException}{}\label{classcfem_1_1ContractException}\index{cfem::ContractException@{cfem::ContractException}}
+
+
+Base class for all contract violations.  
+
+
+
+
+{\ttfamily \#include $<$Contract\+Exception.\+h$>$}
+
+
+
+Inheritance diagram for cfem\+::Contract\+Exception\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classcfem_1_1ContractException__inherit__graph}
+\end{center}
+\end{figure}
+
+
+Collaboration diagram for cfem\+::Contract\+Exception\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=288pt]{classcfem_1_1ContractException__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classcfem_1_1ContractException_ac96f2e704cd4e69b1df4bfb96bcc96e9}{Contract\+Exception}} (const char \texorpdfstring{$\ast$}{*}file, int line, const char \texorpdfstring{$\ast$}{*}expr, const char \texorpdfstring{$\ast$}{*}kind)
+\begin{DoxyCompactList}\small\item\em Constructs a \doxylink{classcfem_1_1ContractException}{Contract\+Exception}. \end{DoxyCompactList}\item 
+\Hypertarget{classcfem_1_1ContractException_a76fbc3917609ee59e2c319189f1250e9}\label{classcfem_1_1ContractException_a76fbc3917609ee59e2c319189f1250e9} 
+const char \texorpdfstring{$\ast$}{*} {\bfseries what} () const noexcept override
+\begin{DoxyCompactList}\small\item\em Return formatted diagnostic message. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classcfem_1_1ContractException_a735e05be8262effc530ae521763da44f}\label{classcfem_1_1ContractException_a735e05be8262effc530ae521763da44f} 
+std\+::string {\bfseries m\+\_\+report}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Base class for all contract violations. 
+
+This class stores detailed information about a violated contract, including\+:
+\begin{DoxyItemize}
+\item Source file name
+\item Line number
+\item Failed logical expression
+\item Descriptive error message
+\end{DoxyItemize}
+
+It derives from std\+::logic\+\_\+error since contract violations represent programming errors rather than runtime failures. 
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\Hypertarget{classcfem_1_1ContractException_ac96f2e704cd4e69b1df4bfb96bcc96e9}\label{classcfem_1_1ContractException_ac96f2e704cd4e69b1df4bfb96bcc96e9} 
+\index{cfem::ContractException@{cfem::ContractException}!ContractException@{ContractException}}
+\index{ContractException@{ContractException}!cfem::ContractException@{cfem::ContractException}}
+\doxysubsubsection{\texorpdfstring{ContractException()}{ContractException()}}
+{\footnotesize\ttfamily cfem\+::\+Contract\+Exception\+::\+Contract\+Exception (\begin{DoxyParamCaption}\item[{const char \texorpdfstring{$\ast$}{*}}]{file,  }\item[{int}]{line,  }\item[{const char \texorpdfstring{$\ast$}{*}}]{expr,  }\item[{const char \texorpdfstring{$\ast$}{*}}]{kind }\end{DoxyParamCaption})}
+
+
+
+Constructs a \doxylink{classcfem_1_1ContractException}{Contract\+Exception}. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em file} & Source file where the violation occurred. \\
+\hline
+{\em line} & Line number of the violation. \\
+\hline
+{\em expression} & Logical expression that failed. \\
+\hline
+{\em kind} & Type of contract (Precondition, Postcondition, etc.) \\
+\hline
+\end{DoxyParams}
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+/home/itchinda/projects/odepp/libs/utils/include/\mbox{\hyperlink{ContractException_8h}{Contract\+Exception.\+h}}\item 
+/home/itchinda/projects/odepp/libs/utils/src/Contract\+Exception.\+cpp\end{DoxyCompactItemize}

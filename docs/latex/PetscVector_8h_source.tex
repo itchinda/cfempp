@@ -1,0 +1,43 @@
+\doxysection{Petsc\+Vector.\+h}
+\hypertarget{PetscVector_8h_source}{}\label{PetscVector_8h_source}\index{/home/itchinda/projects/odepp/libs/wrappers/petsc/include/PetscVector.h@{/home/itchinda/projects/odepp/libs/wrappers/petsc/include/PetscVector.h}}
+\mbox{\hyperlink{PetscVector_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00012\ \textcolor{preprocessor}{\#ifndef\ PETSCVECTOR\_H}}
+\DoxyCodeLine{00013\ \textcolor{preprocessor}{\#define\ PETSCVECTOR\_H}}
+\DoxyCodeLine{00014\ }
+\DoxyCodeLine{00015\ \textcolor{preprocessor}{\#include\ <petscvec.h>}}
+\DoxyCodeLine{00016\ }
+\DoxyCodeLine{00017\ }
+\DoxyCodeLine{00036\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classPetscVector}{PetscVector}}\ \{}
+\DoxyCodeLine{00037\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00038\ \ \ \ \ \mbox{\hyperlink{classPetscVector}{PetscVector}}(\textcolor{keywordtype}{int}\ local\_size,\ \textcolor{keywordtype}{int}\ global\_size);}
+\DoxyCodeLine{00039\ \ \ \ \ \mbox{\hyperlink{classPetscVector_a04b2b65615bd1bbfaf74f58d44410d58}{\string~PetscVector}}();}
+\DoxyCodeLine{00040\ }
+\DoxyCodeLine{00041\ \ \ \ \ \mbox{\hyperlink{classPetscVector}{PetscVector}}(\mbox{\hyperlink{classPetscVector}{PetscVector}}\&\&\ other)\ \textcolor{keyword}{noexcept};}
+\DoxyCodeLine{00042\ \ \ \ \ \mbox{\hyperlink{classPetscVector}{PetscVector}}\&\ \mbox{\hyperlink{classPetscVector_a18afb607360d9e54f7887cd7b91c39ca}{operator=}}(\mbox{\hyperlink{classPetscVector}{PetscVector}}\&\&\ other)\ \textcolor{keyword}{noexcept};}
+\DoxyCodeLine{00043\ }
+\DoxyCodeLine{00044\ }
+\DoxyCodeLine{00045\ \ \ \ \ \mbox{\hyperlink{classPetscVector}{PetscVector}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classPetscVector}{PetscVector}}\&)\ =\ \textcolor{keyword}{delete};}
+\DoxyCodeLine{00046\ \ \ \ \ \mbox{\hyperlink{classPetscVector}{PetscVector}}\&\ \mbox{\hyperlink{classPetscVector_a18afb607360d9e54f7887cd7b91c39ca}{operator=}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classPetscVector}{PetscVector}}\&)\ =\ \textcolor{keyword}{delete};}
+\DoxyCodeLine{00047\ }
+\DoxyCodeLine{00048\ \ \ \ \ Vec\&\ \ \ \ \ \ \ getRaw()\ \ \ \ \ \ \ \{\ \textcolor{keywordflow}{return}\ m\_Vec;\ \}}
+\DoxyCodeLine{00049\ \ \ \ \ \textcolor{keyword}{const}\ Vec\&\ getRaw()\textcolor{keyword}{\ const\ }\{\ \textcolor{keywordflow}{return}\ m\_Vec;\ \}}
+\DoxyCodeLine{00050\ \ \ \ \ }
+\DoxyCodeLine{00051\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classPetscVector_a07334b2f925b66d33915b24a53f64fd3}{setValue}}(\textcolor{keywordtype}{int}\ i,\ PetscScalar\ val,\ InsertMode\ mode\ =\ INSERT\_VALUES);}
+\DoxyCodeLine{00052\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classPetscVector_a7146d35e30cd139500141fe35f2a3048}{assemble}}();}
+\DoxyCodeLine{00053\ }
+\DoxyCodeLine{00054\ \ \ \ \ \textcolor{comment}{//\ Helpful\ math\ wrappers}}
+\DoxyCodeLine{00055\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classPetscVector_aabe2bcf63e038f2e0fb839109f6d319e}{setAll}}(PetscScalar\ val);}
+\DoxyCodeLine{00056\ \ \ \ \ PetscReal\ \mbox{\hyperlink{classPetscVector_ae057831ce60e0a36d810f13026b12c7e}{norm}}(NormType\ type\ =\ NORM\_2)\ \textcolor{keyword}{const};}
+\DoxyCodeLine{00057\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classPetscVector_a081dbda28f41759850c6457bdd9d6890}{axpy}}(PetscScalar\ alpha,\ \textcolor{keyword}{const}\ \mbox{\hyperlink{classPetscVector}{PetscVector}}\&\ x);\ \textcolor{comment}{//\ y\ =\ alpha*x\ +\ y}}
+\DoxyCodeLine{00058\ }
+\DoxyCodeLine{00059\ \ \ \ \ PetscInt\ \mbox{\hyperlink{classPetscVector_ab568448f3f341927aa0bbe89ba8edb03}{globalSize}}()\ \textcolor{keyword}{const};}
+\DoxyCodeLine{00060\ \ \ \ \ PetscInt\ \mbox{\hyperlink{classPetscVector_ab580f8c25d114af8e1f26f4e7fc74aac}{localSize}}()\ \textcolor{keyword}{const};}
+\DoxyCodeLine{00061\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00062\ \ \ \ \ Vec\ m\_Vec\ \{\textcolor{keyword}{nullptr}\};}
+\DoxyCodeLine{00063\ \};}
+\DoxyCodeLine{00064\ }
+\DoxyCodeLine{00065\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

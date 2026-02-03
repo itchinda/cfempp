@@ -1,0 +1,109 @@
+\doxysection{Sym\+Tensor\+O2 Struct Reference}
+\hypertarget{structSymTensorO2}{}\label{structSymTensorO2}\index{SymTensorO2@{SymTensorO2}}
+
+
+Stores a symmetric 3x3 tensor using only 6 values. Storage order (Voigt)\+: \mbox{[}0\mbox{]}=xx, \mbox{[}1\mbox{]}=yy, \mbox{[}2\mbox{]}=zz, \mbox{[}3\mbox{]}=yz, \mbox{[}4\mbox{]}=xz, \mbox{[}5\mbox{]}=xy.  
+
+
+
+
+{\ttfamily \#include $<$Sym\+Tensor\+O2.\+h$>$}
+
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structSymTensorO2_ac627f7f1f054070b25267c60d760a9b1}\label{structSymTensorO2_ac627f7f1f054070b25267c60d760a9b1} 
+{\bfseries Sym\+Tensor\+O2} (std\+::initializer\+\_\+list$<$ Cfem\+Real $>$ list)
+\item 
+\Hypertarget{structSymTensorO2_a71788dcad6515a6eef72f0a755f26005}\label{structSymTensorO2_a71788dcad6515a6eef72f0a755f26005} 
+Cfem\+Real \& {\bfseries operator\mbox{[}$\,$\mbox{]}} (int i)
+\begin{DoxyCompactList}\small\item\em Access by component index (0 to 5). \end{DoxyCompactList}\item 
+\Hypertarget{structSymTensorO2_a3991f4d3d43d479bc77b454fd14c024b}\label{structSymTensorO2_a3991f4d3d43d479bc77b454fd14c024b} 
+const Cfem\+Real \& {\bfseries operator\mbox{[}$\,$\mbox{]}} (int i) const
+\item 
+\Hypertarget{structSymTensorO2_afdf7fba0c2a11220dcb315a012bd00a5}\label{structSymTensorO2_afdf7fba0c2a11220dcb315a012bd00a5} 
+Cfem\+Real {\bfseries operator()} (int i, int j) const
+\begin{DoxyCompactList}\small\item\em Map 3x3 indices to the symmetric storage. \end{DoxyCompactList}\item 
+\Hypertarget{structSymTensorO2_ad098f9c425f0a1710b678b42eaddb56d}\label{structSymTensorO2_ad098f9c425f0a1710b678b42eaddb56d} 
+\mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} {\bfseries operator-\/} () const
+\item 
+\Hypertarget{structSymTensorO2_ae08d61363542b45b2fac2dae1e5a699e}\label{structSymTensorO2_ae08d61363542b45b2fac2dae1e5a699e} 
+void {\bfseries to\+Matrix} (Cfem\+Real M\mbox{[}3\mbox{]}\mbox{[}3\mbox{]}) const
+\item 
+\Hypertarget{structSymTensorO2_ad7c86688780b4129c551e1e51cf87842}\label{structSymTensorO2_ad7c86688780b4129c551e1e51cf87842} 
+\mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} {\bfseries operator+} (const \mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} \&other) const
+\item 
+\Hypertarget{structSymTensorO2_a7b3d2b7fee9320a670b497a4530e512b}\label{structSymTensorO2_a7b3d2b7fee9320a670b497a4530e512b} 
+\mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} {\bfseries operator-\/} (const \mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} \&other) const
+\item 
+\Hypertarget{structSymTensorO2_a4fc3da86cc2d7b47a212a987def9db0c}\label{structSymTensorO2_a4fc3da86cc2d7b47a212a987def9db0c} 
+\mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} {\bfseries operator\texorpdfstring{$\ast$}{*}} (Cfem\+Real scalar) const
+\item 
+\Hypertarget{structSymTensorO2_ab3a2cf8f9c6bf73b0d3060486ff388b4}\label{structSymTensorO2_ab3a2cf8f9c6bf73b0d3060486ff388b4} 
+\mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} {\bfseries operator/} (Cfem\+Real scalar) const
+\item 
+\Hypertarget{structSymTensorO2_a7536f4d5c8b4dc560842c0c1205050e9}\label{structSymTensorO2_a7536f4d5c8b4dc560842c0c1205050e9} 
+\mbox{\hyperlink{structVector3D}{Vector3D}} {\bfseries operator\texorpdfstring{$\ast$}{*}} (const \mbox{\hyperlink{structVector3D}{Vector3D}} \&v) const
+\item 
+\Hypertarget{structSymTensorO2_a23ce7cfca280f96c8913384d5e4e4a8e}\label{structSymTensorO2_a23ce7cfca280f96c8913384d5e4e4a8e} 
+\mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} \& {\bfseries operator+=} (const \mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} \&other)
+\item 
+\Hypertarget{structSymTensorO2_a1bdf9b6a16153c9ffd35aff63f692120}\label{structSymTensorO2_a1bdf9b6a16153c9ffd35aff63f692120} 
+\mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} \& {\bfseries operator-\/=} (const \mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} \&other)
+\item 
+\Hypertarget{structSymTensorO2_a886ce1bfa120e45056d3f44ca4bc98ab}\label{structSymTensorO2_a886ce1bfa120e45056d3f44ca4bc98ab} 
+\mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} \& {\bfseries operator\texorpdfstring{$\ast$}{*}=} (Cfem\+Real scalar)
+\item 
+\Hypertarget{structSymTensorO2_a927d1d0662d7e3b32c874a7d42bf5a28}\label{structSymTensorO2_a927d1d0662d7e3b32c874a7d42bf5a28} 
+\mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} \& {\bfseries operator/=} (Cfem\+Real scalar)
+\item 
+\Hypertarget{structSymTensorO2_ad916064e520556e64c4224a01d3611bb}\label{structSymTensorO2_ad916064e520556e64c4224a01d3611bb} 
+bool {\bfseries operator==} (const \mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} \&other) const
+\item 
+\Hypertarget{structSymTensorO2_a06d9c169611d3f6debe7ede288ebfe7b}\label{structSymTensorO2_a06d9c169611d3f6debe7ede288ebfe7b} 
+bool {\bfseries operator!=} (const \mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} \&other) const
+\item 
+\Hypertarget{structSymTensorO2_a2fdae8b55ae90d1afd8edf1d55d8c32f}\label{structSymTensorO2_a2fdae8b55ae90d1afd8edf1d55d8c32f} 
+Cfem\+Real {\bfseries trace} () const
+\begin{DoxyCompactList}\small\item\em Trace of the tensor (sum of diagonals). \end{DoxyCompactList}\item 
+\Hypertarget{structSymTensorO2_a23be26a74fb0c74a71d31b193977de25}\label{structSymTensorO2_a23be26a74fb0c74a71d31b193977de25} 
+Cfem\+Real {\bfseries mean} () const
+\begin{DoxyCompactList}\small\item\em Mean (hydrostatic) component\+: p = tr(sigma)/3. \end{DoxyCompactList}\item 
+\Hypertarget{structSymTensorO2_a00e4977b641fb0cc2bc2fa4e1c4f9836}\label{structSymTensorO2_a00e4977b641fb0cc2bc2fa4e1c4f9836} 
+\mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} {\bfseries deviator} () const
+\begin{DoxyCompactList}\small\item\em Returns the deviatoric part\+: s = sigma -\/ p\texorpdfstring{$\ast$}{*}I. \end{DoxyCompactList}\item 
+\Hypertarget{structSymTensorO2_ad0e9903c02c374630bb050c70f860831}\label{structSymTensorO2_ad0e9903c02c374630bb050c70f860831} 
+Cfem\+Real {\bfseries dot\+Dot} (const \mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} \&other) const
+\begin{DoxyCompactList}\small\item\em Double contraction with another symmetric tensor (A \+: B). \end{DoxyCompactList}\item 
+\Hypertarget{structSymTensorO2_a70fdbb6d33df28006568441544ac9142}\label{structSymTensorO2_a70fdbb6d33df28006568441544ac9142} 
+Cfem\+Real {\bfseries J2} () const
+\begin{DoxyCompactList}\small\item\em Second invariant of deviatoric tensor\+: J2 = 0.\+5 \texorpdfstring{$\ast$}{*} (s \+: s) \end{DoxyCompactList}\item 
+\Hypertarget{structSymTensorO2_a74ccb52154b2f717cc6fb33029078e25}\label{structSymTensorO2_a74ccb52154b2f717cc6fb33029078e25} 
+Cfem\+Real {\bfseries von\+Mises} () const
+\begin{DoxyCompactList}\small\item\em Computes Von Mises equivalent stress (if this is a stress tensor). \end{DoxyCompactList}\item 
+\Hypertarget{structSymTensorO2_a7dd46273a6e38990f2117937edc37b6d}\label{structSymTensorO2_a7dd46273a6e38990f2117937edc37b6d} 
+Cfem\+Real {\bfseries norm} () const
+\begin{DoxyCompactList}\small\item\em Norm of the tensor (Frobenius norm) \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Static Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structSymTensorO2_aa554fb25bb94921a48aeadcf43609d3e}\label{structSymTensorO2_aa554fb25bb94921a48aeadcf43609d3e} 
+static \mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} {\bfseries Identity} ()
+\item 
+\Hypertarget{structSymTensorO2_a22de00068a9d85d56e17b80eb465a1db}\label{structSymTensorO2_a22de00068a9d85d56e17b80eb465a1db} 
+static \mbox{\hyperlink{structSymTensorO2}{Sym\+Tensor\+O2}} {\bfseries Zero} ()
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structSymTensorO2_acd5686dc5102d26bf237cf9d41c71190}\label{structSymTensorO2_acd5686dc5102d26bf237cf9d41c71190} 
+Cfem\+Real {\bfseries data} \mbox{[}6\mbox{]} = \{0\}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Stores a symmetric 3x3 tensor using only 6 values. Storage order (Voigt)\+: \mbox{[}0\mbox{]}=xx, \mbox{[}1\mbox{]}=yy, \mbox{[}2\mbox{]}=zz, \mbox{[}3\mbox{]}=yz, \mbox{[}4\mbox{]}=xz, \mbox{[}5\mbox{]}=xy. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/itchinda/projects/odepp/libs/utils/include/\mbox{\hyperlink{SymTensorO2_8h}{Sym\+Tensor\+O2.\+h}}\end{DoxyCompactItemize}

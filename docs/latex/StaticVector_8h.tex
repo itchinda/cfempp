@@ -1,0 +1,56 @@
+\doxysection{/home/itchinda/projects/odepp/libs/utils/include/\+Static\+Vector.h File Reference}
+\hypertarget{StaticVector_8h}{}\label{StaticVector_8h}\index{/home/itchinda/projects/odepp/libs/utils/include/StaticVector.h@{/home/itchinda/projects/odepp/libs/utils/include/StaticVector.h}}
+
+
+Fixed-\/size stack-\/allocated vector for Finite Element local operations.  
+
+
+{\ttfamily \#include "{}cfemutils.\+h"{}}\newline
+{\ttfamily \#include "{}Vector3\+D.\+h"{}}\newline
+{\ttfamily \#include $<$iostream$>$}\newline
+{\ttfamily \#include $<$cmath$>$}\newline
+{\ttfamily \#include $<$initializer\+\_\+list$>$}\newline
+Include dependency graph for Static\+Vector.\+h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{StaticVector_8h__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=212pt]{StaticVector_8h__dep__incl}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structStaticVector}{Static\+Vector$<$ T, N $>$}}
+\begin{DoxyCompactList}\small\item\em A fixed-\/size column vector of size N. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{StaticVector_8h_aac7165d2e7d649cd3354cff1168a33d8}\label{StaticVector_8h_aac7165d2e7d649cd3354cff1168a33d8} 
+{\footnotesize template$<$typename T , int N$>$ }\\\mbox{\hyperlink{structStaticVector}{Static\+Vector}}$<$ T, N $>$ {\bfseries operator\texorpdfstring{$\ast$}{*}} (T scalar, const \mbox{\hyperlink{structStaticVector}{Static\+Vector}}$<$ T, N $>$ \&v)
+\begin{DoxyCompactList}\small\item\em Left-\/side scalar multiplication (e.\+g., scalar \texorpdfstring{$\ast$}{*} vector). \end{DoxyCompactList}\item 
+\Hypertarget{StaticVector_8h_aa6d20e7bea410ee206a71817d0a09b7c}\label{StaticVector_8h_aa6d20e7bea410ee206a71817d0a09b7c} 
+{\footnotesize template$<$typename T , int N$>$ }\\std\+::ostream \& {\bfseries operator$<$$<$} (std\+::ostream \&os, const \mbox{\hyperlink{structStaticVector}{Static\+Vector}}$<$ T, N $>$ \&v)
+\begin{DoxyCompactList}\small\item\em Formats the vector for standard output. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Fixed-\/size stack-\/allocated vector for Finite Element local operations. 
+
+\begin{DoxyAuthor}{Author}
+Itchinda 
+\end{DoxyAuthor}
+\begin{DoxyVersion}{Version}
+0.\+1 
+\end{DoxyVersion}
+\begin{DoxyDate}{Date}
+2026-\/01-\/27 
+\end{DoxyDate}

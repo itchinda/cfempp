@@ -1,0 +1,31 @@
+\doxysection{Field.\+h}
+\hypertarget{Field_8h_source}{}\label{Field_8h_source}\index{/home/itchinda/projects/odepp/libs/fem/fields/include/Field.h@{/home/itchinda/projects/odepp/libs/fem/fields/include/Field.h}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ FIELD\_H}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ FIELD\_H}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ "{}FESpace.h"{}}}
+\DoxyCodeLine{00009\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classField}{Field}}\ \{}
+\DoxyCodeLine{00010\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00011\ \ \ \ \ \mbox{\hyperlink{classField}{Field}}(std::shared\_ptr<FESpace>\ space,\ \textcolor{keyword}{const}\ std::string\&\ name)}
+\DoxyCodeLine{00012\ \ \ \ \ \ \ \ \ :\ \mbox{\hyperlink{classField_acb9e6d8505d0f9e6a7a191f045728e88}{m\_space}}(space),\ m\_name(name)\ \{\}}
+\DoxyCodeLine{00013\ }
+\DoxyCodeLine{00014\ \ \ \ \ \textcolor{keyword}{virtual}\ \mbox{\hyperlink{classField}{\string~Field}}()\ =\ \textcolor{keywordflow}{default};}
+\DoxyCodeLine{00015\ }
+\DoxyCodeLine{00016\ \ \ \ \ std::string\ getName()\textcolor{keyword}{\ const\ }\{\ \textcolor{keywordflow}{return}\ m\_name;\ \}}
+\DoxyCodeLine{00017\ \ \ \ \ std::shared\_ptr<FESpace>\ getSpace()\textcolor{keyword}{\ const\ }\{\ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{classField_acb9e6d8505d0f9e6a7a191f045728e88}{m\_space}};\ \}}
+\DoxyCodeLine{00018\ }
+\DoxyCodeLine{00020\ \ \ \ \ \textcolor{keyword}{virtual}\ std::vector<CfemReal>\&\ \mbox{\hyperlink{classField_a84f421bbeddbaa1843b3677dc8767e2b}{data}}()\ =\ 0;}
+\DoxyCodeLine{00021\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keyword}{const}\ std::vector<CfemReal>\&\ \mbox{\hyperlink{classField_a84f421bbeddbaa1843b3677dc8767e2b}{data}}()\ \textcolor{keyword}{const}\ =\ 0;}
+\DoxyCodeLine{00022\ }
+\DoxyCodeLine{00024\ \ \ \ \ \textcolor{comment}{//\ This\ will\ be\ implemented\ in\ the\ derived\ typed\ fields.}}
+\DoxyCodeLine{00025\ \ \ \ \ }
+\DoxyCodeLine{00026\ \textcolor{keyword}{protected}:}
+\DoxyCodeLine{00027\ \ \ \ \ std::shared\_ptr<FESpace>\ \mbox{\hyperlink{classField_acb9e6d8505d0f9e6a7a191f045728e88}{m\_space}};}
+\DoxyCodeLine{00028\ \ \ \ \ std::string\ m\_name;}
+\DoxyCodeLine{00029\ \};}
+\DoxyCodeLine{00030\ }
+\DoxyCodeLine{00031\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

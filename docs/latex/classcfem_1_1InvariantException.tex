@@ -1,0 +1,78 @@
+\doxysection{cfem\+::Invariant\+Exception Class Reference}
+\hypertarget{classcfem_1_1InvariantException}{}\label{classcfem_1_1InvariantException}\index{cfem::InvariantException@{cfem::InvariantException}}
+
+
+Exception for invariant violations.  
+
+
+
+
+{\ttfamily \#include $<$Contract\+Exception.\+h$>$}
+
+
+
+Inheritance diagram for cfem\+::Invariant\+Exception\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=219pt]{classcfem_1_1InvariantException__inherit__graph}
+\end{center}
+\end{figure}
+
+
+Collaboration diagram for cfem\+::Invariant\+Exception\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=288pt]{classcfem_1_1InvariantException__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classcfem_1_1InvariantException_a38d825358828c9297182591327b4abfb}{Invariant\+Exception}} (const char \texorpdfstring{$\ast$}{*}file, int line, const char \texorpdfstring{$\ast$}{*}expr)
+\begin{DoxyCompactList}\small\item\em Constructs an \doxylink{classcfem_1_1InvariantException}{Invariant\+Exception}. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Public Member Functions inherited from \mbox{\hyperlink{classcfem_1_1ContractException}{cfem\+::\+Contract\+Exception}}}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classcfem_1_1ContractException_ac96f2e704cd4e69b1df4bfb96bcc96e9}{Contract\+Exception}} (const char \texorpdfstring{$\ast$}{*}file, int line, const char \texorpdfstring{$\ast$}{*}expr, const char \texorpdfstring{$\ast$}{*}kind)
+\begin{DoxyCompactList}\small\item\em Constructs a \doxylink{classcfem_1_1ContractException}{Contract\+Exception}. \end{DoxyCompactList}\item 
+const char \texorpdfstring{$\ast$}{*} {\bfseries what} () const noexcept override
+\begin{DoxyCompactList}\small\item\em Return formatted diagnostic message. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Exception for invariant violations. 
+
+Thrown when a CFEM\+\_\+\+INVARIANT condition fails.
+
+Invariants define conditions that must always hold for an object during its lifetime. 
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\Hypertarget{classcfem_1_1InvariantException_a38d825358828c9297182591327b4abfb}\label{classcfem_1_1InvariantException_a38d825358828c9297182591327b4abfb} 
+\index{cfem::InvariantException@{cfem::InvariantException}!InvariantException@{InvariantException}}
+\index{InvariantException@{InvariantException}!cfem::InvariantException@{cfem::InvariantException}}
+\doxysubsubsection{\texorpdfstring{InvariantException()}{InvariantException()}}
+{\footnotesize\ttfamily cfem\+::\+Invariant\+Exception\+::\+Invariant\+Exception (\begin{DoxyParamCaption}\item[{const char \texorpdfstring{$\ast$}{*}}]{file,  }\item[{int}]{line,  }\item[{const char \texorpdfstring{$\ast$}{*}}]{expr }\end{DoxyParamCaption})}
+
+
+
+Constructs an \doxylink{classcfem_1_1InvariantException}{Invariant\+Exception}. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em file} & Source file where the violation occurred. \\
+\hline
+{\em line} & Line number of the violation. \\
+\hline
+{\em expr} & Failed logical expression. \\
+\hline
+\end{DoxyParams}
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+/home/itchinda/projects/odepp/libs/utils/include/\mbox{\hyperlink{ContractException_8h}{Contract\+Exception.\+h}}\item 
+/home/itchinda/projects/odepp/libs/utils/src/Contract\+Exception.\+cpp\end{DoxyCompactItemize}

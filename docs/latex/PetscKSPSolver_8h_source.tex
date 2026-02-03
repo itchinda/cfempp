@@ -1,0 +1,45 @@
+\doxysection{Petsc\+KSPSolver.\+h}
+\hypertarget{PetscKSPSolver_8h_source}{}\label{PetscKSPSolver_8h_source}\index{/home/itchinda/projects/odepp/libs/wrappers/petsc/include/PetscKSPSolver.h@{/home/itchinda/projects/odepp/libs/wrappers/petsc/include/PetscKSPSolver.h}}
+\mbox{\hyperlink{PetscKSPSolver_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00012\ \textcolor{preprocessor}{\#ifndef\ PETSCKSPSOLVER\_H}}
+\DoxyCodeLine{00013\ \textcolor{preprocessor}{\#define\ PETSCKSPSOLVER\_H}}
+\DoxyCodeLine{00014\ }
+\DoxyCodeLine{00015\ \textcolor{preprocessor}{\#include\ <petscksp.h>}}
+\DoxyCodeLine{00016\ \textcolor{preprocessor}{\#include\ <string>}}
+\DoxyCodeLine{00017\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{PetscMatrix_8h}{PetscMatrix.h}}"{}}}
+\DoxyCodeLine{00018\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{PetscVector_8h}{PetscVector.h}}"{}}}
+\DoxyCodeLine{00019\ }
+\DoxyCodeLine{00039\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classPetscKSPSolver}{PetscKSPSolver}}\ \{}
+\DoxyCodeLine{00040\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00041\ \ \ \ \ \mbox{\hyperlink{classPetscKSPSolver}{PetscKSPSolver}}(\textcolor{keyword}{const}\ std::string\&\ prefix\ =\ \textcolor{stringliteral}{"{}"{}});}
+\DoxyCodeLine{00042\ \ \ \ \ \mbox{\hyperlink{classPetscKSPSolver_a2f1ae7c55ad9e29fe4ff821376d5041e}{\string~PetscKSPSolver}}();}
+\DoxyCodeLine{00043\ }
+\DoxyCodeLine{00044\ \ \ \ \ \mbox{\hyperlink{classPetscKSPSolver}{PetscKSPSolver}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classPetscKSPSolver}{PetscKSPSolver}}\&)\ =\ \textcolor{keyword}{delete};}
+\DoxyCodeLine{00045\ \ \ \ \ \mbox{\hyperlink{classPetscKSPSolver}{PetscKSPSolver}}\&\ operator=(\textcolor{keyword}{const}\ \mbox{\hyperlink{classPetscKSPSolver}{PetscKSPSolver}}\&)\ =\ \textcolor{keyword}{delete};}
+\DoxyCodeLine{00046\ }
+\DoxyCodeLine{00047\ \ \ \ \ \mbox{\hyperlink{classPetscKSPSolver}{PetscKSPSolver}}(\mbox{\hyperlink{classPetscKSPSolver}{PetscKSPSolver}}\&\&\ other)\ \textcolor{keyword}{noexcept};}
+\DoxyCodeLine{00048\ \ \ \ \ \mbox{\hyperlink{classPetscKSPSolver}{PetscKSPSolver}}\&\ operator=(\mbox{\hyperlink{classPetscKSPSolver}{PetscKSPSolver}}\&\&\ other)\ \textcolor{keyword}{noexcept};}
+\DoxyCodeLine{00049\ }
+\DoxyCodeLine{00050\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classPetscKSPSolver_aff466fe61ff4ea91b6e5bd2f480b2a15}{addOption}}(\textcolor{keyword}{const}\ std::string\&\ name,\ \textcolor{keyword}{const}\ std::string\&\ value\ =\ \textcolor{stringliteral}{"{}"{}});}
+\DoxyCodeLine{00051\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classPetscKSPSolver_a1d2e8751cb63d84be13201c7f27a3f63}{setOperators}}(\mbox{\hyperlink{classPetscMatrix}{PetscMatrix}}\&\ Amat,\ \mbox{\hyperlink{classPetscMatrix}{PetscMatrix}}\&\ Pmat);}
+\DoxyCodeLine{00052\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classPetscKSPSolver_a1d2e8751cb63d84be13201c7f27a3f63}{setOperators}}(\mbox{\hyperlink{classPetscMatrix}{PetscMatrix}}\&\ A);}
+\DoxyCodeLine{00053\ }
+\DoxyCodeLine{00054\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classPetscKSPSolver_a78f73216e8d622c582ce563271f89903}{solve}}(\mbox{\hyperlink{classPetscVector}{PetscVector}}\&\ b,\ \mbox{\hyperlink{classPetscVector}{PetscVector}}\&\ x);}
+\DoxyCodeLine{00055\ }
+\DoxyCodeLine{00056\ \ \ \ \ PetscInt\ \mbox{\hyperlink{classPetscKSPSolver_aa7d94db438a385e3e82f576d45fb9905}{getIterationCount}}()\ \textcolor{keyword}{const};}
+\DoxyCodeLine{00057\ \ \ \ \ KSP\ getRaw()\ \{\ \textcolor{keywordflow}{return}\ m\_ksp;\ \}}
+\DoxyCodeLine{00058\ }
+\DoxyCodeLine{00059\ \ \ \ \ KSPConvergedReason\ \mbox{\hyperlink{classPetscKSPSolver_aa439836d62f58c83b2c2c35d1fb30b9a}{getConvergedReason}}()\ \textcolor{keyword}{const};}
+\DoxyCodeLine{00060\ \ \ \ \ \textcolor{keywordtype}{bool}\ \mbox{\hyperlink{classPetscKSPSolver_aaa95a491881b1f6e627a1ab1b0315ac4}{hasConverged}}()\ \textcolor{keyword}{const};}
+\DoxyCodeLine{00061\ \ \ \ \ PetscReal\ \mbox{\hyperlink{classPetscKSPSolver_a25940026685d8718f586701d4ddbf65f}{getResidualNorm}}()\ \textcolor{keyword}{const};}
+\DoxyCodeLine{00062\ }
+\DoxyCodeLine{00063\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00064\ \ \ \ \ KSP\ m\_ksp\ \{\textcolor{keyword}{nullptr}\};}
+\DoxyCodeLine{00065\ \ \ \ \ std::string\ m\_prefix;}
+\DoxyCodeLine{00066\ \};}
+\DoxyCodeLine{00067\ }
+\DoxyCodeLine{00068\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

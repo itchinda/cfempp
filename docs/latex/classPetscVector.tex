@@ -1,0 +1,267 @@
+\doxysection{Petsc\+Vector Class Reference}
+\hypertarget{classPetscVector}{}\label{classPetscVector}\index{PetscVector@{PetscVector}}
+
+
+RAII wrapper around PETSc Vec.  
+
+
+
+
+{\ttfamily \#include $<$Petsc\+Vector.\+h$>$}
+
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classPetscVector_ab2a89011c663a92544341598b8e2f502}{Petsc\+Vector}} (int local\+\_\+size, int global\+\_\+size)
+\begin{DoxyCompactList}\small\item\em Construct a distributed PETSc vector. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{classPetscVector_a04b2b65615bd1bbfaf74f58d44410d58}{\texorpdfstring{$\sim$}{\string~}\+Petsc\+Vector}} ()
+\begin{DoxyCompactList}\small\item\em Destroy the \doxylink{classPetscVector}{Petsc\+Vector} object and free PETSc resources. Ensures that Vec\+Destroy is called to prevent memory leaks in the underlying PETSc C library. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{classPetscVector_aed0a6b828a2895e2e7a96f2e638aeb5f}{Petsc\+Vector}} (\mbox{\hyperlink{classPetscVector}{Petsc\+Vector}} \&\&other) noexcept
+\begin{DoxyCompactList}\small\item\em Move constructor. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{classPetscVector}{Petsc\+Vector}} \& \mbox{\hyperlink{classPetscVector_a18afb607360d9e54f7887cd7b91c39ca}{operator=}} (\mbox{\hyperlink{classPetscVector}{Petsc\+Vector}} \&\&other) noexcept
+\begin{DoxyCompactList}\small\item\em Move assignment. \end{DoxyCompactList}\item 
+\Hypertarget{classPetscVector_a30623258a0a638b47d85a8a7007d4281}\label{classPetscVector_a30623258a0a638b47d85a8a7007d4281} 
+{\bfseries Petsc\+Vector} (const \mbox{\hyperlink{classPetscVector}{Petsc\+Vector}} \&)=delete
+\item 
+\Hypertarget{classPetscVector_ac3c3b77160045d5dc7548dddafee664e}\label{classPetscVector_ac3c3b77160045d5dc7548dddafee664e} 
+\mbox{\hyperlink{classPetscVector}{Petsc\+Vector}} \& {\bfseries operator=} (const \mbox{\hyperlink{classPetscVector}{Petsc\+Vector}} \&)=delete
+\item 
+\Hypertarget{classPetscVector_a1fdf7a356b6c23eb817bb548384914b1}\label{classPetscVector_a1fdf7a356b6c23eb817bb548384914b1} 
+Vec \& {\bfseries get\+Raw} ()
+\item 
+\Hypertarget{classPetscVector_ad444b780325e9759f22cb37e1928c121}\label{classPetscVector_ad444b780325e9759f22cb37e1928c121} 
+const Vec \& {\bfseries get\+Raw} () const
+\item 
+void \mbox{\hyperlink{classPetscVector_a07334b2f925b66d33915b24a53f64fd3}{set\+Value}} (int i, Petsc\+Scalar val, Insert\+Mode mode=INSERT\+\_\+\+VALUES)
+\begin{DoxyCompactList}\small\item\em Set a single value in the vector. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classPetscVector_a7146d35e30cd139500141fe35f2a3048}{assemble}} ()
+\begin{DoxyCompactList}\small\item\em Assemble the vector. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classPetscVector_aabe2bcf63e038f2e0fb839109f6d319e}{set\+All}} (Petsc\+Scalar val)
+\begin{DoxyCompactList}\small\item\em Set all entries to a constant value. \end{DoxyCompactList}\item 
+Petsc\+Real \mbox{\hyperlink{classPetscVector_ae057831ce60e0a36d810f13026b12c7e}{norm}} (Norm\+Type type=NORM\+\_\+2) const
+\begin{DoxyCompactList}\small\item\em Compute the vector norm. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classPetscVector_a081dbda28f41759850c6457bdd9d6890}{axpy}} (Petsc\+Scalar alpha, const \mbox{\hyperlink{classPetscVector}{Petsc\+Vector}} \&x)
+\begin{DoxyCompactList}\small\item\em Perform the operation y = alpha \texorpdfstring{$\ast$}{*} x + y. \end{DoxyCompactList}\item 
+Petsc\+Int \mbox{\hyperlink{classPetscVector_ab568448f3f341927aa0bbe89ba8edb03}{global\+Size}} () const
+\begin{DoxyCompactList}\small\item\em Return the full vector size (The total number of elements across all MPI ranks). \end{DoxyCompactList}\item 
+Petsc\+Int \mbox{\hyperlink{classPetscVector_ab580f8c25d114af8e1f26f4e7fc74aac}{local\+Size}} () const
+\begin{DoxyCompactList}\small\item\em Return the number of local elements on this MPI rank. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classPetscVector_a1ed19d2f8595ba1ee6430c95073e0da6}\label{classPetscVector_a1ed19d2f8595ba1ee6430c95073e0da6} 
+Vec {\bfseries m\+\_\+\+Vec} \{nullptr\}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+RAII wrapper around PETSc Vec. 
+
+\DoxyHorRuler{0}
+
+
+This class manages the lifetime of a distributed PETSc vector. It follows PETSc ownership semantics and must be used collectively on PETSC\+\_\+\+COMM\+\_\+\+WORLD.
+
+Copying is disabled to prevent double-\/free; move semantics are supported.
+
+Typical usage\+: 
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\mbox{\hyperlink{classPetscVector}{PetscVector}}\ x(PETSC\_DECIDE,\ n);}
+\DoxyCodeLine{x.setAll(0.0);}
+\DoxyCodeLine{x.assemble();}
+
+\end{DoxyCode}
+ 
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\Hypertarget{classPetscVector_ab2a89011c663a92544341598b8e2f502}\label{classPetscVector_ab2a89011c663a92544341598b8e2f502} 
+\index{PetscVector@{PetscVector}!PetscVector@{PetscVector}}
+\index{PetscVector@{PetscVector}!PetscVector@{PetscVector}}
+\doxysubsubsection{\texorpdfstring{PetscVector()}{PetscVector()}\hspace{0.1cm}{\footnotesize\ttfamily [1/2]}}
+{\footnotesize\ttfamily Petsc\+Vector\+::\+Petsc\+Vector (\begin{DoxyParamCaption}\item[{int}]{local\+\_\+size,  }\item[{int}]{global\+\_\+size }\end{DoxyParamCaption})}
+
+
+
+Construct a distributed PETSc vector. 
+
+\DoxyHorRuler{0}
+ 
+
+Collective on PETSC\+\_\+\+COMM\+\_\+\+WORLD. 
+\begin{DoxyParams}{Parameters}
+{\em local\+\_\+size} & Number of local elements on this MPI rank \\
+\hline
+{\em global\+\_\+size} & Total number of elements across all MPI ranks \\
+\hline
+\end{DoxyParams}
+\Hypertarget{classPetscVector_a04b2b65615bd1bbfaf74f58d44410d58}\label{classPetscVector_a04b2b65615bd1bbfaf74f58d44410d58} 
+\index{PetscVector@{PetscVector}!````~PetscVector@{\texorpdfstring{$\sim$}{\string~}PetscVector}}
+\index{````~PetscVector@{\texorpdfstring{$\sim$}{\string~}PetscVector}!PetscVector@{PetscVector}}
+\doxysubsubsection{\texorpdfstring{\texorpdfstring{$\sim$}{\string~}PetscVector()}{\string~PetscVector()}}
+{\footnotesize\ttfamily Petsc\+Vector\+::\texorpdfstring{$\sim$}{\string~}\+Petsc\+Vector (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+Destroy the \doxylink{classPetscVector}{Petsc\+Vector} object and free PETSc resources. Ensures that Vec\+Destroy is called to prevent memory leaks in the underlying PETSc C library. 
+
+\DoxyHorRuler{0}
+  \Hypertarget{classPetscVector_aed0a6b828a2895e2e7a96f2e638aeb5f}\label{classPetscVector_aed0a6b828a2895e2e7a96f2e638aeb5f} 
+\index{PetscVector@{PetscVector}!PetscVector@{PetscVector}}
+\index{PetscVector@{PetscVector}!PetscVector@{PetscVector}}
+\doxysubsubsection{\texorpdfstring{PetscVector()}{PetscVector()}\hspace{0.1cm}{\footnotesize\ttfamily [2/2]}}
+{\footnotesize\ttfamily Petsc\+Vector\+::\+Petsc\+Vector (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classPetscVector}{Petsc\+Vector}} \&\&}]{other }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [noexcept]}}
+
+
+
+Move constructor. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em other} & \\
+\hline
+\end{DoxyParams}
+
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{classPetscVector_a7146d35e30cd139500141fe35f2a3048}\label{classPetscVector_a7146d35e30cd139500141fe35f2a3048} 
+\index{PetscVector@{PetscVector}!assemble@{assemble}}
+\index{assemble@{assemble}!PetscVector@{PetscVector}}
+\doxysubsubsection{\texorpdfstring{assemble()}{assemble()}}
+{\footnotesize\ttfamily void Petsc\+Vector\+::assemble (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+Assemble the vector. 
+
+\DoxyHorRuler{0}
+ 
+
+Collective on PETSC\+\_\+\+COMM\+\_\+\+WORLD. \Hypertarget{classPetscVector_a081dbda28f41759850c6457bdd9d6890}\label{classPetscVector_a081dbda28f41759850c6457bdd9d6890} 
+\index{PetscVector@{PetscVector}!axpy@{axpy}}
+\index{axpy@{axpy}!PetscVector@{PetscVector}}
+\doxysubsubsection{\texorpdfstring{axpy()}{axpy()}}
+{\footnotesize\ttfamily void Petsc\+Vector\+::axpy (\begin{DoxyParamCaption}\item[{Petsc\+Scalar}]{alpha,  }\item[{const \mbox{\hyperlink{classPetscVector}{Petsc\+Vector}} \&}]{x }\end{DoxyParamCaption})}
+
+
+
+Perform the operation y = alpha \texorpdfstring{$\ast$}{*} x + y. 
+
+\DoxyHorRuler{0}
+ 
+
+Both vectors must be compatible (same global size and layout).
+
+
+\begin{DoxyParams}{Parameters}
+{\em alpha} & Scaling factor. \\
+\hline
+{\em x} & Vector to be added. \\
+\hline
+\end{DoxyParams}
+\Hypertarget{classPetscVector_ab568448f3f341927aa0bbe89ba8edb03}\label{classPetscVector_ab568448f3f341927aa0bbe89ba8edb03} 
+\index{PetscVector@{PetscVector}!globalSize@{globalSize}}
+\index{globalSize@{globalSize}!PetscVector@{PetscVector}}
+\doxysubsubsection{\texorpdfstring{globalSize()}{globalSize()}}
+{\footnotesize\ttfamily Petsc\+Int Petsc\+Vector\+::global\+Size (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+
+
+Return the full vector size (The total number of elements across all MPI ranks). 
+
+\DoxyHorRuler{0}
+  \Hypertarget{classPetscVector_ab580f8c25d114af8e1f26f4e7fc74aac}\label{classPetscVector_ab580f8c25d114af8e1f26f4e7fc74aac} 
+\index{PetscVector@{PetscVector}!localSize@{localSize}}
+\index{localSize@{localSize}!PetscVector@{PetscVector}}
+\doxysubsubsection{\texorpdfstring{localSize()}{localSize()}}
+{\footnotesize\ttfamily Petsc\+Int Petsc\+Vector\+::local\+Size (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+
+
+Return the number of local elements on this MPI rank. 
+
+\DoxyHorRuler{0}
+  \Hypertarget{classPetscVector_ae057831ce60e0a36d810f13026b12c7e}\label{classPetscVector_ae057831ce60e0a36d810f13026b12c7e} 
+\index{PetscVector@{PetscVector}!norm@{norm}}
+\index{norm@{norm}!PetscVector@{PetscVector}}
+\doxysubsubsection{\texorpdfstring{norm()}{norm()}}
+{\footnotesize\ttfamily Petsc\+Real Petsc\+Vector\+::norm (\begin{DoxyParamCaption}\item[{Norm\+Type}]{type = {\ttfamily NORM\+\_\+2} }\end{DoxyParamCaption}) const}
+
+
+
+Compute the vector norm. 
+
+\DoxyHorRuler{0}
+ 
+
+
+\begin{DoxyParams}{Parameters}
+{\em type} & Norm type (default NORM\+\_\+2) \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+Petsc\+Real Norm value 
+\end{DoxyReturn}
+\Hypertarget{classPetscVector_a18afb607360d9e54f7887cd7b91c39ca}\label{classPetscVector_a18afb607360d9e54f7887cd7b91c39ca} 
+\index{PetscVector@{PetscVector}!operator=@{operator=}}
+\index{operator=@{operator=}!PetscVector@{PetscVector}}
+\doxysubsubsection{\texorpdfstring{operator=()}{operator=()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classPetscVector}{Petsc\+Vector}} \& Petsc\+Vector\+::operator= (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classPetscVector}{Petsc\+Vector}} \&\&}]{other }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [noexcept]}}
+
+
+
+Move assignment. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em other} & \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+\doxylink{classPetscVector}{Petsc\+Vector}\& 
+\end{DoxyReturn}
+\Hypertarget{classPetscVector_aabe2bcf63e038f2e0fb839109f6d319e}\label{classPetscVector_aabe2bcf63e038f2e0fb839109f6d319e} 
+\index{PetscVector@{PetscVector}!setAll@{setAll}}
+\index{setAll@{setAll}!PetscVector@{PetscVector}}
+\doxysubsubsection{\texorpdfstring{setAll()}{setAll()}}
+{\footnotesize\ttfamily void Petsc\+Vector\+::set\+All (\begin{DoxyParamCaption}\item[{Petsc\+Scalar}]{val }\end{DoxyParamCaption})}
+
+
+
+Set all entries to a constant value. 
+
+\DoxyHorRuler{0}
+ 
+
+
+\begin{DoxyParams}{Parameters}
+{\em val} & \\
+\hline
+\end{DoxyParams}
+\Hypertarget{classPetscVector_a07334b2f925b66d33915b24a53f64fd3}\label{classPetscVector_a07334b2f925b66d33915b24a53f64fd3} 
+\index{PetscVector@{PetscVector}!setValue@{setValue}}
+\index{setValue@{setValue}!PetscVector@{PetscVector}}
+\doxysubsubsection{\texorpdfstring{setValue()}{setValue()}}
+{\footnotesize\ttfamily void Petsc\+Vector\+::set\+Value (\begin{DoxyParamCaption}\item[{int}]{i,  }\item[{Petsc\+Scalar}]{val,  }\item[{Insert\+Mode}]{mode = {\ttfamily INSERT\+\_\+VALUES} }\end{DoxyParamCaption})}
+
+
+
+Set a single value in the vector. 
+
+\DoxyHorRuler{0}
+ 
+
+
+\begin{DoxyParams}{Parameters}
+{\em i} & Global index \\
+\hline
+{\em val} & Value to set \\
+\hline
+{\em mode} & INSERT\+\_\+\+VALUES or ADD\+\_\+\+VALUES \\
+\hline
+\end{DoxyParams}
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+/home/itchinda/projects/odepp/libs/wrappers/petsc/include/\mbox{\hyperlink{PetscVector_8h}{Petsc\+Vector.\+h}}\item 
+/home/itchinda/projects/odepp/libs/wrappers/petsc/src/\mbox{\hyperlink{PetscVector_8cpp}{Petsc\+Vector.\+cpp}}\end{DoxyCompactItemize}

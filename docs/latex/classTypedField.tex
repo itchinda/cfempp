@@ -1,0 +1,131 @@
+\doxysection{Typed\+Field\texorpdfstring{$<$}{<} T \texorpdfstring{$>$}{>} Class Template Reference}
+\hypertarget{classTypedField}{}\label{classTypedField}\index{TypedField$<$ T $>$@{TypedField$<$ T $>$}}
+
+
+Intermediate template to handle data storage and interpolation logic.  
+
+
+
+
+{\ttfamily \#include $<$Typed\+Field.\+h$>$}
+
+
+
+Inheritance diagram for Typed\+Field\texorpdfstring{$<$}{<} T \texorpdfstring{$>$}{>}\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classTypedField__inherit__graph}
+\end{center}
+\end{figure}
+
+
+Collaboration diagram for Typed\+Field\texorpdfstring{$<$}{<} T \texorpdfstring{$>$}{>}\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classTypedField__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classTypedField_a9fc6c1582b66cda193b6b4ae365ce527}\label{classTypedField_a9fc6c1582b66cda193b6b4ae365ce527} 
+{\bfseries Typed\+Field} (std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classFESpace}{FESpace}} $>$ space, const std\+::string \&name)
+\item 
+std\+::vector$<$ Cfem\+Real $>$ \& \mbox{\hyperlink{classTypedField_a4da209687be6c7b9318d2eacf9ea67c4}{data}} () override
+\begin{DoxyCompactList}\small\item\em Returns the raw data vector for linear algebra solvers. \end{DoxyCompactList}\item 
+const std\+::vector$<$ Cfem\+Real $>$ \& \mbox{\hyperlink{classTypedField_ad65c3a613bfc21f5041529613125a9f1}{data}} () const override
+\item 
+virtual T \mbox{\hyperlink{classTypedField_ae48de61354aeb0415bd71e23029b9852}{evaluate\+At}} (Cfem\+Int cell\+Id, const \mbox{\hyperlink{structVector3D}{Vector3D}} \&xi) const
+\begin{DoxyCompactList}\small\item\em The core FEM interpolation\+: u(xi) = sum( Ni(xi) \texorpdfstring{$\ast$}{*} ui ) \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Public Member Functions inherited from \mbox{\hyperlink{classField}{Field}}}
+\begin{DoxyCompactItemize}
+\item 
+{\bfseries Field} (std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classFESpace}{FESpace}} $>$ space, const std\+::string \&name)
+\item 
+std\+::string {\bfseries get\+Name} () const
+\item 
+std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classFESpace}{FESpace}} $>$ {\bfseries get\+Space} () const
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Protected Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classTypedField_a8e0b2cf7154b934192298f6be34c74f7}\label{classTypedField_a8e0b2cf7154b934192298f6be34c74f7} 
+virtual T {\bfseries get\+Component\+Value} (const std\+::vector$<$ Cfem\+Int $>$ \&dofs, int local\+Node\+Idx) const =0
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Protected Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classTypedField_ae1e44b77c5c5f8c97eb06cbbeb56d420}\label{classTypedField_ae1e44b77c5c5f8c97eb06cbbeb56d420} 
+std\+::vector$<$ Cfem\+Real $>$ {\bfseries m\+\_\+data}
+\end{DoxyCompactItemize}
+\doxysubsection*{Protected Attributes inherited from \mbox{\hyperlink{classField}{Field}}}
+\begin{DoxyCompactItemize}
+\item 
+std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classFESpace}{FESpace}} $>$ {\bfseries m\+\_\+space}
+\begin{DoxyCompactList}\small\item\em Interpolates the field value at a physical point using a cell\textquotesingle{}s local coords. \end{DoxyCompactList}\item 
+std\+::string {\bfseries m\+\_\+name}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\subsubsection*{template$<$typename T$>$\newline
+class Typed\+Field$<$ T $>$}
+Intermediate template to handle data storage and interpolation logic. 
+
+
+\begin{DoxyTemplParams}{Template Parameters}
+{\em T} & The physical type (Cfem\+Real, \doxylink{structVector3D}{Vector3D}, etc.) \\
+\hline
+\end{DoxyTemplParams}
+
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{classTypedField_ad65c3a613bfc21f5041529613125a9f1}\label{classTypedField_ad65c3a613bfc21f5041529613125a9f1} 
+\index{TypedField$<$ T $>$@{TypedField$<$ T $>$}!data@{data}}
+\index{data@{data}!TypedField$<$ T $>$@{TypedField$<$ T $>$}}
+\doxysubsubsection{\texorpdfstring{data()}{data()}\hspace{0.1cm}{\footnotesize\ttfamily [1/2]}}
+{\footnotesize\ttfamily template$<$typename T $>$ \\
+const std\+::vector$<$ Cfem\+Real $>$ \& \mbox{\hyperlink{classTypedField}{Typed\+Field}}$<$ T $>$\+::data (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [override]}, {\ttfamily [virtual]}}
+
+
+
+Implements \mbox{\hyperlink{classField}{Field}}.
+
+\Hypertarget{classTypedField_a4da209687be6c7b9318d2eacf9ea67c4}\label{classTypedField_a4da209687be6c7b9318d2eacf9ea67c4} 
+\index{TypedField$<$ T $>$@{TypedField$<$ T $>$}!data@{data}}
+\index{data@{data}!TypedField$<$ T $>$@{TypedField$<$ T $>$}}
+\doxysubsubsection{\texorpdfstring{data()}{data()}\hspace{0.1cm}{\footnotesize\ttfamily [2/2]}}
+{\footnotesize\ttfamily template$<$typename T $>$ \\
+std\+::vector$<$ Cfem\+Real $>$ \& \mbox{\hyperlink{classTypedField}{Typed\+Field}}$<$ T $>$\+::data (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [override]}, {\ttfamily [virtual]}}
+
+
+
+Returns the raw data vector for linear algebra solvers. 
+
+
+
+Implements \mbox{\hyperlink{classField_a84f421bbeddbaa1843b3677dc8767e2b}{Field}}.
+
+\Hypertarget{classTypedField_ae48de61354aeb0415bd71e23029b9852}\label{classTypedField_ae48de61354aeb0415bd71e23029b9852} 
+\index{TypedField$<$ T $>$@{TypedField$<$ T $>$}!evaluateAt@{evaluateAt}}
+\index{evaluateAt@{evaluateAt}!TypedField$<$ T $>$@{TypedField$<$ T $>$}}
+\doxysubsubsection{\texorpdfstring{evaluateAt()}{evaluateAt()}}
+{\footnotesize\ttfamily template$<$typename T $>$ \\
+virtual T \mbox{\hyperlink{classTypedField}{Typed\+Field}}$<$ T $>$\+::evaluate\+At (\begin{DoxyParamCaption}\item[{Cfem\+Int}]{cell\+Id,  }\item[{const \mbox{\hyperlink{structVector3D}{Vector3D}} \&}]{xi }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [virtual]}}
+
+
+
+The core FEM interpolation\+: u(xi) = sum( Ni(xi) \texorpdfstring{$\ast$}{*} ui ) 
+
+
+\begin{DoxyItemize}
+\item 
+\end{DoxyItemize}
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/itchinda/projects/odepp/libs/fem/fields/include/Typed\+Field.\+h\end{DoxyCompactItemize}

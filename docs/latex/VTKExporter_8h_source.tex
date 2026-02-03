@@ -1,0 +1,40 @@
+\doxysection{VTKExporter.\+h}
+\hypertarget{VTKExporter_8h_source}{}\label{VTKExporter_8h_source}\index{/home/itchinda/projects/odepp/libs/fem/exportation/include/VTKExporter.h@{/home/itchinda/projects/odepp/libs/fem/exportation/include/VTKExporter.h}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ CFEM\_VTKEXPORTER\_H}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ CFEM\_VTKEXPORTER\_H}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ <fstream>}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#include\ <vector>}}
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{Mesh_8h}{Mesh.h}}"{}}}
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\#include\ "{}Field.h"{}}\ \textcolor{comment}{//\ Assuming\ this\ is\ where\ your\ Field\ base\ class\ lives}}
+\DoxyCodeLine{00008\ }
+\DoxyCodeLine{00009\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classVTKExporter}{VTKExporter}}\ \{}
+\DoxyCodeLine{00010\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00011\ \ \ \ \ \mbox{\hyperlink{classVTKExporter}{VTKExporter}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classMesh}{Mesh}}\&\ mesh)\ :\ m\_mesh(mesh)\ \{\}}
+\DoxyCodeLine{00012\ }
+\DoxyCodeLine{00013\ \ \ \ \ \textcolor{keywordtype}{void}\ addField(std::shared\_ptr<Field>\ field)\ \{}
+\DoxyCodeLine{00014\ \ \ \ \ \ \ \ \ m\_fields.push\_back(field);}
+\DoxyCodeLine{00015\ \ \ \ \ \}}
+\DoxyCodeLine{00016\ }
+\DoxyCodeLine{00017\ \ \ \ \ \textcolor{keywordtype}{void}\ setExportedEntities(\textcolor{keyword}{const}\ std::vector<std::string>\&\ entityNames)\ \{}
+\DoxyCodeLine{00018\ \ \ \ \ \ \ \ \ m\_exportedEntityNames\ =\ entityNames;}
+\DoxyCodeLine{00019\ \ \ \ \ \}}
+\DoxyCodeLine{00020\ \ \ \ \ \textcolor{keywordtype}{void}\ setExportQuality(\textcolor{keywordtype}{bool}\ enable)\ \{\ m\_exportQuality\ =\ enable;\ \}}
+\DoxyCodeLine{00021\ }
+\DoxyCodeLine{00022\ \ \ \ \ \textcolor{keywordtype}{void}\ write(\textcolor{keyword}{const}\ std::string\&\ filename);}
+\DoxyCodeLine{00023\ }
+\DoxyCodeLine{00024\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00025\ \ \ \ \ \textcolor{keyword}{const}\ \mbox{\hyperlink{classMesh}{Mesh}}\&\ m\_mesh;}
+\DoxyCodeLine{00026\ \ \ \ \ \textcolor{keywordtype}{bool}\ m\_exportQuality;}
+\DoxyCodeLine{00027\ \ \ \ \ std::vector<std::shared\_ptr<Field>>\ m\_fields;}
+\DoxyCodeLine{00028\ \ \ \ \ std::vector<std::string>\ m\_exportedEntityNames;}
+\DoxyCodeLine{00029\ }
+\DoxyCodeLine{00030\ \ \ \ \ \textcolor{comment}{//\ Helper\ to\ map\ CellType\ to\ VTK\ cell\ identifiers}}
+\DoxyCodeLine{00031\ \ \ \ \ \textcolor{keywordtype}{int}\ getVTKCellType(CellType\ type)\ \textcolor{keyword}{const};}
+\DoxyCodeLine{00032\ \};}
+\DoxyCodeLine{00033\ }
+\DoxyCodeLine{00034\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

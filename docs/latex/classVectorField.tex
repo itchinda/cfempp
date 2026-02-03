@@ -1,0 +1,78 @@
+\doxysection{Vector\+Field Class Reference}
+\hypertarget{classVectorField}{}\label{classVectorField}\index{VectorField@{VectorField}}
+
+
+Inheritance diagram for Vector\+Field\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=257pt]{classVectorField__inherit__graph}
+\end{center}
+\end{figure}
+
+
+Collaboration diagram for Vector\+Field\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classVectorField__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Protected Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{structVector3D}{Vector3D}} \mbox{\hyperlink{classVectorField_a77e4a85df0f95d6094c9ccc0eb405cfd}{get\+Component\+Value}} (const std\+::vector$<$ Cfem\+Int $>$ \&dofs, int local\+Node\+Idx) const override
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Additional Inherited Members}
+\doxysubsection*{Public Member Functions inherited from \mbox{\hyperlink{classTypedField}{Typed\+Field$<$ Vector3\+D $>$}}}
+\begin{DoxyCompactItemize}
+\item 
+{\bfseries Typed\+Field} (std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classFESpace}{FESpace}} $>$ space, const std\+::string \&name)
+\item 
+std\+::vector$<$ Cfem\+Real $>$ \& \mbox{\hyperlink{classTypedField_a4da209687be6c7b9318d2eacf9ea67c4}{data}} () override
+\begin{DoxyCompactList}\small\item\em Returns the raw data vector for linear algebra solvers. \end{DoxyCompactList}\item 
+const std\+::vector$<$ Cfem\+Real $>$ \& \mbox{\hyperlink{classTypedField_ad65c3a613bfc21f5041529613125a9f1}{data}} () const override
+\item 
+virtual \mbox{\hyperlink{structVector3D}{Vector3D}} \mbox{\hyperlink{classTypedField_ae48de61354aeb0415bd71e23029b9852}{evaluate\+At}} (Cfem\+Int cell\+Id, const \mbox{\hyperlink{structVector3D}{Vector3D}} \&xi) const
+\begin{DoxyCompactList}\small\item\em The core FEM interpolation\+: u(xi) = sum( Ni(xi) \texorpdfstring{$\ast$}{*} ui ) \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Public Member Functions inherited from \mbox{\hyperlink{classField}{Field}}}
+\begin{DoxyCompactItemize}
+\item 
+{\bfseries Field} (std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classFESpace}{FESpace}} $>$ space, const std\+::string \&name)
+\item 
+std\+::string {\bfseries get\+Name} () const
+\item 
+std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classFESpace}{FESpace}} $>$ {\bfseries get\+Space} () const
+\end{DoxyCompactItemize}
+\doxysubsection*{Protected Attributes inherited from \mbox{\hyperlink{classTypedField}{Typed\+Field$<$ Vector3\+D $>$}}}
+\begin{DoxyCompactItemize}
+\item 
+std\+::vector$<$ Cfem\+Real $>$ {\bfseries m\+\_\+data}
+\end{DoxyCompactItemize}
+\doxysubsection*{Protected Attributes inherited from \mbox{\hyperlink{classField}{Field}}}
+\begin{DoxyCompactItemize}
+\item 
+std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{classFESpace}{FESpace}} $>$ {\bfseries m\+\_\+space}
+\begin{DoxyCompactList}\small\item\em Interpolates the field value at a physical point using a cell\textquotesingle{}s local coords. \end{DoxyCompactList}\item 
+std\+::string {\bfseries m\+\_\+name}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{classVectorField_a77e4a85df0f95d6094c9ccc0eb405cfd}\label{classVectorField_a77e4a85df0f95d6094c9ccc0eb405cfd} 
+\index{VectorField@{VectorField}!getComponentValue@{getComponentValue}}
+\index{getComponentValue@{getComponentValue}!VectorField@{VectorField}}
+\doxysubsubsection{\texorpdfstring{getComponentValue()}{getComponentValue()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{structVector3D}{Vector3D}} Vector\+Field\+::get\+Component\+Value (\begin{DoxyParamCaption}\item[{const std\+::vector$<$ Cfem\+Int $>$ \&}]{dofs,  }\item[{int}]{local\+Node\+Idx }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [override]}, {\ttfamily [protected]}, {\ttfamily [virtual]}}
+
+
+
+Implements \mbox{\hyperlink{classTypedField}{Typed\+Field$<$ Vector3\+D $>$}}.
+
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/itchinda/projects/odepp/libs/fem/fields/include/Vector\+Field.\+h\end{DoxyCompactItemize}

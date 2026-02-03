@@ -1,0 +1,150 @@
+\doxysection{Vector3\+D.\+h}
+\hypertarget{Vector3D_8h_source}{}\label{Vector3D_8h_source}\index{/home/itchinda/projects/odepp/libs/utils/include/Vector3D.h@{/home/itchinda/projects/odepp/libs/utils/include/Vector3D.h}}
+\mbox{\hyperlink{Vector3D_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00012\ \textcolor{preprocessor}{\#ifndef\ CFEM\_VECTOR3D}}
+\DoxyCodeLine{00013\ \textcolor{preprocessor}{\#define\ CFEM\_VECTOR3D}}
+\DoxyCodeLine{00014\ }
+\DoxyCodeLine{00015\ \textcolor{preprocessor}{\#include\ "{}cfemutils.h"{}}}
+\DoxyCodeLine{00016\ \textcolor{preprocessor}{\#include\ <cmath>}}
+\DoxyCodeLine{00017\ \textcolor{preprocessor}{\#include\ <sstream>}}
+\DoxyCodeLine{00018\ }
+\DoxyCodeLine{00025\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structVector3D}{Vector3D}}\ \{}
+\DoxyCodeLine{00026\ \ \ \ \ CfemReal\ \mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ =\ 0.0;\ }
+\DoxyCodeLine{00027\ \ \ \ \ CfemReal\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ =\ 0.0;\ }
+\DoxyCodeLine{00028\ \ \ \ \ CfemReal\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ =\ 0.0;\ }
+\DoxyCodeLine{00029\ }
+\DoxyCodeLine{00030\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keyword}{constexpr}\ \textcolor{keywordtype}{int}\ size\ =\ 3;}
+\DoxyCodeLine{00031\ }
+\DoxyCodeLine{00032\ \ \ \ \ \textcolor{comment}{//\ -\/-\/-\/\ Basic\ Arithmetic\ Operators\ -\/-\/-\/}}
+\DoxyCodeLine{00033\ }
+\DoxyCodeLine{00035\ \ \ \ \ \mbox{\hyperlink{structVector3D}{Vector3D}}\ \mbox{\hyperlink{structVector3D_ae5153e5e26852627ccea88d399e13c6e}{operator+}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ other)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00036\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \{\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ +\ other.\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}},\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ +\ other.\mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}},\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ +\ other.\mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\};}
+\DoxyCodeLine{00037\ \ \ \ \ \}}
+\DoxyCodeLine{00038\ }
+\DoxyCodeLine{00040\ \ \ \ \ \mbox{\hyperlink{structVector3D}{Vector3D}}\ \mbox{\hyperlink{structVector3D_a2d77fde2d4f484a639cb4dfd500c3540}{operator-\/}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ other)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00041\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \{\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ -\/\ other.\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}},\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ -\/\ other.\mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}},\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ -\/\ other.\mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\};}
+\DoxyCodeLine{00042\ \ \ \ \ \}}
+\DoxyCodeLine{00043\ }
+\DoxyCodeLine{00045\ \ \ \ \ \mbox{\hyperlink{structVector3D}{Vector3D}}\ \mbox{\hyperlink{structVector3D_a5d4769565ee5d4869319fa5ae85b6c9a}{operator*}}(CfemReal\ scalar)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00046\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \{\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ *\ scalar,\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ *\ scalar,\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ *\ scalar\};}
+\DoxyCodeLine{00047\ \ \ \ \ \}}
+\DoxyCodeLine{00048\ }
+\DoxyCodeLine{00050\ \ \ \ \ \mbox{\hyperlink{structVector3D}{Vector3D}}\ \mbox{\hyperlink{structVector3D_abd6449ee3589afb117333145d500e817}{operator/}}(CfemReal\ scalar)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00051\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (std::abs(scalar)\ <\ cfem::ZERO\_TOLERANCE)}
+\DoxyCodeLine{00052\ \ \ \ \ \ \ \ \ \ \ \ \ CFEM\_ERROR(\textcolor{stringliteral}{"{}Division\ by\ zero\ in\ Vector3D\ operator/"{}});}
+\DoxyCodeLine{00053\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \{\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ /\ scalar,\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ /\ scalar,\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ /\ scalar\};}
+\DoxyCodeLine{00054\ \ \ \ \ \}}
+\DoxyCodeLine{00055\ }
+\DoxyCodeLine{00056\ \ \ \ \ \textcolor{comment}{//\ -\/-\/-\/\ Compound\ Assignment\ Operators\ -\/-\/-\/}}
+\DoxyCodeLine{00057\ }
+\DoxyCodeLine{00058\ \ \ \ \ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ operator+=(\textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ other)\ \{}
+\DoxyCodeLine{00059\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ +=\ other.\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}};\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ +=\ other.\mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}};\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ +=\ other.\mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}};}
+\DoxyCodeLine{00060\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ *\textcolor{keyword}{this};}
+\DoxyCodeLine{00061\ \ \ \ \ \}}
+\DoxyCodeLine{00062\ }
+\DoxyCodeLine{00063\ \ \ \ \ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ operator-\/=(\textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ other)\ \{}
+\DoxyCodeLine{00064\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ -\/=\ other.\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}};\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ -\/=\ other.\mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}};\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ -\/=\ other.\mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}};}
+\DoxyCodeLine{00065\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ *\textcolor{keyword}{this};}
+\DoxyCodeLine{00066\ \ \ \ \ \}}
+\DoxyCodeLine{00067\ }
+\DoxyCodeLine{00068\ \ \ \ \ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ operator*=(CfemReal\ scalar)\ \{}
+\DoxyCodeLine{00069\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ *=\ scalar;\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ *=\ scalar;\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ *=\ scalar;}
+\DoxyCodeLine{00070\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ *\textcolor{keyword}{this};}
+\DoxyCodeLine{00071\ \ \ \ \ \}}
+\DoxyCodeLine{00072\ }
+\DoxyCodeLine{00073\ \ \ \ \ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ operator/=(CfemReal\ scalar)\ \{}
+\DoxyCodeLine{00074\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (std::abs(scalar)\ <\ cfem::ZERO\_TOLERANCE)}
+\DoxyCodeLine{00075\ \ \ \ \ \ \ \ \ \ \ \ \ CFEM\_ERROR(\textcolor{stringliteral}{"{}Division\ by\ zero\ in\ Vector3D\ operator/="{}});}
+\DoxyCodeLine{00076\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ /=\ scalar;\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ /=\ scalar;\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ /=\ scalar;}
+\DoxyCodeLine{00077\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ *\textcolor{keyword}{this};}
+\DoxyCodeLine{00078\ \ \ \ \ \}}
+\DoxyCodeLine{00079\ \ \ \ \ }
+\DoxyCodeLine{00080\ \ \ \ \ \textcolor{comment}{//\ -\/-\/-\/\ Accessors\ -\/-\/-\/}}
+\DoxyCodeLine{00081\ }
+\DoxyCodeLine{00083\ \ \ \ \ CfemReal\ \mbox{\hyperlink{structVector3D_a88d36e2731951c3ecda352dc488733e3}{operator[]}}(\textcolor{keywordtype}{int}\ i)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00084\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (i\ ==\ 0)\ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}};}
+\DoxyCodeLine{00085\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (i\ ==\ 1)\ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}};}
+\DoxyCodeLine{00086\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (i\ ==\ 2)\ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}};}
+\DoxyCodeLine{00087\ \ \ \ \ \ \ \ \ CFEM\_ERROR(\textcolor{stringliteral}{"{}Index\ out\ of\ bound\ in\ Vector3D::operator[]\ const."{}});}
+\DoxyCodeLine{00088\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ 0.0;\ }
+\DoxyCodeLine{00089\ \ \ \ \ \}}
+\DoxyCodeLine{00090\ }
+\DoxyCodeLine{00092\ \ \ \ \ CfemReal\&\ \mbox{\hyperlink{structVector3D_ab0123cc34e0eaeb14d89c934d6f0eb0e}{operator[]}}(\textcolor{keywordtype}{int}\ i)\ \{}
+\DoxyCodeLine{00093\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (i\ ==\ 0)\ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}};}
+\DoxyCodeLine{00094\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (i\ ==\ 1)\ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}};}
+\DoxyCodeLine{00095\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (i\ ==\ 2)\ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}};}
+\DoxyCodeLine{00096\ \ \ \ \ \ \ \ \ CFEM\_ERROR(\textcolor{stringliteral}{"{}Index\ out\ of\ bound\ in\ Vector3D::operator[]."{}});}
+\DoxyCodeLine{00097\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}};\ }
+\DoxyCodeLine{00098\ \ \ \ \ \}}
+\DoxyCodeLine{00099\ \ \ \ \ }
+\DoxyCodeLine{00100\ \ \ \ \ \textcolor{comment}{//\ -\/-\/-\/\ Vector\ Calculus\ -\/-\/-\/}}
+\DoxyCodeLine{00101\ }
+\DoxyCodeLine{00105\ \ \ \ \ CfemReal\ \mbox{\hyperlink{structVector3D_afbea23a17b9395a40c34a3e75e92b2ca}{dot}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ other)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00106\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ *\ other.\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ +\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ *\ other.\mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ +\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ *\ other.\mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}};}
+\DoxyCodeLine{00107\ \ \ \ \ \}}
+\DoxyCodeLine{00108\ }
+\DoxyCodeLine{00112\ \ \ \ \ \mbox{\hyperlink{structVector3D}{Vector3D}}\ \mbox{\hyperlink{structVector3D_af1b13ca0a65eea7431bfbcd96dcacdee}{cross}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ other)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00113\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \{}
+\DoxyCodeLine{00114\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ *\ other.\mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ -\/\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ *\ other.\mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}},}
+\DoxyCodeLine{00115\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ *\ other.\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ -\/\ \mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ *\ other.\mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}},}
+\DoxyCodeLine{00116\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ *\ other.\mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ -\/\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ *\ other.\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}}
+\DoxyCodeLine{00117\ \ \ \ \ \ \ \ \ \};}
+\DoxyCodeLine{00118\ \ \ \ \ \}}
+\DoxyCodeLine{00119\ \ \ \ \ }
+\DoxyCodeLine{00121\ \ \ \ \ CfemReal\ \mbox{\hyperlink{structVector3D_a7766818648d39e95d60de041eb91ff67}{normSquare}}()\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00122\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ \mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ *\ \mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ +\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ *\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ +\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ *\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}};}
+\DoxyCodeLine{00123\ \ \ \ \ \}}
+\DoxyCodeLine{00124\ }
+\DoxyCodeLine{00126\ \ \ \ \ CfemReal\ \mbox{\hyperlink{structVector3D_a6e198d955955b4e60c59714a648f8cc0}{norm}}()\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00127\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ std::sqrt(\mbox{\hyperlink{structVector3D_a7766818648d39e95d60de041eb91ff67}{normSquare}}());}
+\DoxyCodeLine{00128\ \ \ \ \ \}}
+\DoxyCodeLine{00129\ }
+\DoxyCodeLine{00133\ \ \ \ \ \mbox{\hyperlink{structVector3D}{Vector3D}}\ \mbox{\hyperlink{structVector3D_aac87aef508e65eb8ada23346b5e552c3}{normalized}}()\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00134\ \ \ \ \ \ \ \ \ CfemReal\ n\ =\ \mbox{\hyperlink{structVector3D_a6e198d955955b4e60c59714a648f8cc0}{norm}}();}
+\DoxyCodeLine{00135\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (n\ <\ cfem::ZERO\_TOLERANCE)\ \textcolor{keywordflow}{return}\ \{0,\ 0,\ 0\};}
+\DoxyCodeLine{00136\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (*\textcolor{keyword}{this})\ /\ n;}
+\DoxyCodeLine{00137\ \ \ \ \ \}}
+\DoxyCodeLine{00138\ }
+\DoxyCodeLine{00139\ \ \ \ \ \textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ normalize()\ \{}
+\DoxyCodeLine{00140\ \ \ \ \ \ \ \ \ CfemReal\ n\ =\ \mbox{\hyperlink{structVector3D_a6e198d955955b4e60c59714a648f8cc0}{norm}}();}
+\DoxyCodeLine{00141\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (n\ >\ cfem::ZERO\_TOLERANCE)\ \{}
+\DoxyCodeLine{00142\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ /=\ n;\ \mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ /=\ n;\ \mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ /=\ n;}
+\DoxyCodeLine{00143\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00144\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ *\textcolor{keyword}{this};}
+\DoxyCodeLine{00145\ \ \ \ \ \}}
+\DoxyCodeLine{00146\ }
+\DoxyCodeLine{00147\ \ \ \ \ \textcolor{keywordtype}{bool}\ isClose(\textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ other,\ CfemReal\ tol\ =\ cfem::ZERO\_TOLERANCE)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00148\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ (std::abs(\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ -\/\ other.\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}})\ <\ tol\ \&\&\ }
+\DoxyCodeLine{00149\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::abs(\mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ -\/\ other.\mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}})\ <\ tol\ \&\&\ }
+\DoxyCodeLine{00150\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::abs(\mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ -\/\ other.\mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}})\ <\ tol);}
+\DoxyCodeLine{00151\ \ \ \ \ \}}
+\DoxyCodeLine{00152\ \};}
+\DoxyCodeLine{00153\ }
+\DoxyCodeLine{00154\ \textcolor{comment}{//\ -\/-\/-\/\ Non-\/member\ Helper\ Functions\ -\/-\/-\/}}
+\DoxyCodeLine{00155\ }
+\DoxyCodeLine{00157\ \textcolor{keyword}{inline}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\ \mbox{\hyperlink{Vector3D_8h_a2532ac866ff3f7eff2bf73fa6efb04ef}{operator*}}(CfemReal\ scalar,\ \textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ p)\ \{}
+\DoxyCodeLine{00158\ \ \ \ \ \textcolor{keywordflow}{return}\ \{p.\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ *\ scalar,\ p.\mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ *\ scalar,\ p.\mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ *\ scalar\};}
+\DoxyCodeLine{00159\ \}}
+\DoxyCodeLine{00160\ }
+\DoxyCodeLine{00162\ \textcolor{keyword}{inline}\ CfemReal\ \mbox{\hyperlink{Vector3D_8h_a4803d772130bf70421df9fe89a9a8ec6}{norm}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ v)\ \ \{}
+\DoxyCodeLine{00163\ \ \ \ \ \textcolor{keywordflow}{return}\ v.\mbox{\hyperlink{structVector3D_a6e198d955955b4e60c59714a648f8cc0}{norm}}();}
+\DoxyCodeLine{00164\ \}}
+\DoxyCodeLine{00165\ }
+\DoxyCodeLine{00167\ \textcolor{keyword}{inline}\ CfemReal\ \mbox{\hyperlink{Vector3D_8h_a721348ccb78f7eeb227c601b5521e3f2}{dot}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ a,\ \textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ b)\ \{}
+\DoxyCodeLine{00168\ \ \ \ \ \textcolor{keywordflow}{return}\ a.\mbox{\hyperlink{structVector3D_afbea23a17b9395a40c34a3e75e92b2ca}{dot}}(b);}
+\DoxyCodeLine{00169\ \}}
+\DoxyCodeLine{00170\ }
+\DoxyCodeLine{00172\ \textcolor{keyword}{inline}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\ \mbox{\hyperlink{Vector3D_8h_a098c65b80ec865f21eb305b289a9458f}{cross}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ a,\ \textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ b)\ \{}
+\DoxyCodeLine{00173\ \ \ \ \ \textcolor{keywordflow}{return}\ a.\mbox{\hyperlink{structVector3D_af1b13ca0a65eea7431bfbcd96dcacdee}{cross}}(b);}
+\DoxyCodeLine{00174\ \}}
+\DoxyCodeLine{00175\ }
+\DoxyCodeLine{00181\ \textcolor{keyword}{inline}\ std::ostream\&\ \mbox{\hyperlink{Vector3D_8h_a3c760aab0f7c267291d2c6d1ea2a789a}{operator<<}}(std::ostream\&\ os,\ \textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ p)\ \{}
+\DoxyCodeLine{00182\ \ \ \ \ \textcolor{keywordflow}{return}\ os\ <<\ \textcolor{stringliteral}{"{}("{}}\ <<\ p.\mbox{\hyperlink{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}{x}}\ <<\ \textcolor{stringliteral}{"{},\ "{}}\ <<\ p.\mbox{\hyperlink{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}{y}}\ <<\ \textcolor{stringliteral}{"{},\ "{}}\ <<\ p.\mbox{\hyperlink{structVector3D_a9ae6d5656af323a55b9589263460c72f}{z}}\ <<\ \textcolor{stringliteral}{"{})"{}};}
+\DoxyCodeLine{00183\ \}}
+\DoxyCodeLine{00184\ }
+\DoxyCodeLine{00185\ }
+\DoxyCodeLine{00186\ \textcolor{preprocessor}{\#endif\ }\textcolor{comment}{//\ CFEM\_VECTOR3D}}
+
+\end{DoxyCode}

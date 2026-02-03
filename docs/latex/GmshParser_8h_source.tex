@@ -1,0 +1,57 @@
+\doxysection{Gmsh\+Parser.\+h}
+\hypertarget{GmshParser_8h_source}{}\label{GmshParser_8h_source}\index{/home/itchinda/projects/odepp/libs/mesh/include/GmshParser.h@{/home/itchinda/projects/odepp/libs/mesh/include/GmshParser.h}}
+\mbox{\hyperlink{GmshParser_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00035\ \textcolor{preprocessor}{\#ifndef\ CFEM\_GMSH\_PARSER\_H}}
+\DoxyCodeLine{00036\ \textcolor{preprocessor}{\#define\ CFEM\_GMSH\_PARSER\_H}}
+\DoxyCodeLine{00037\ }
+\DoxyCodeLine{00038\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{Mesh_8h}{Mesh.h}}"{}}}
+\DoxyCodeLine{00039\ \textcolor{preprocessor}{\#include\ <fstream>}}
+\DoxyCodeLine{00040\ \textcolor{preprocessor}{\#include\ <map>}}
+\DoxyCodeLine{00041\ \textcolor{preprocessor}{\#include\ <unordered\_map>}}
+\DoxyCodeLine{00042\ \textcolor{preprocessor}{\#include\ <vector>}}
+\DoxyCodeLine{00043\ \textcolor{preprocessor}{\#include\ <string>}}
+\DoxyCodeLine{00044\ \textcolor{preprocessor}{\#include\ <algorithm>}}
+\DoxyCodeLine{00045\ \textcolor{preprocessor}{\#include\ <iostream>}}
+\DoxyCodeLine{00046\ \textcolor{preprocessor}{\#include\ <set>}}
+\DoxyCodeLine{00047\ }
+\DoxyCodeLine{00052\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structVectorHash}{VectorHash}}\ \{}
+\DoxyCodeLine{00053\ \ \ \ \ \textcolor{keywordtype}{size\_t}\ operator()(\textcolor{keyword}{const}\ std::vector<CfemInt>\&\ v)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00054\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{size\_t}\ seed\ =\ v.size();}
+\DoxyCodeLine{00055\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keyword}{auto}\ x\ :\ v)\ \{}
+\DoxyCodeLine{00056\ \ \ \ \ \ \ \ \ \ \ \ \ seed\ \string^=\ std::hash<CfemInt>\{\}(x)\ +\ 0x9e3779b9\ +\ (seed\ <<\ 6)\ +\ (seed\ >>\ 2);}
+\DoxyCodeLine{00057\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00058\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ seed;}
+\DoxyCodeLine{00059\ \ \ \ \ \}}
+\DoxyCodeLine{00060\ \};}
+\DoxyCodeLine{00061\ }
+\DoxyCodeLine{00065\ \textcolor{keyword}{static}\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ GMSH\_TO\_ODE\_HEX27[]\ =\ \{}
+\DoxyCodeLine{00066\ \ \ \ \ \ \ \ \ 0,\ 1,\ 2,\ 3,\ 4,\ 5,\ 6,\ 7,\ 8,\ \ \ \textcolor{comment}{//\ 0-\/8\ (No\ change)}}
+\DoxyCodeLine{00067\ \ \ \ \ \ \ \ \ 11,\ 13,\ 9,\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ 9-\/11\ }}
+\DoxyCodeLine{00068\ \ \ \ \ \ \ \ \ 16,\ 18,\ 19,\ 17,\ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ 12-\/15\ }}
+\DoxyCodeLine{00069\ \ \ \ \ \ \ \ \ 10,\ 12,\ 14,\ 15,\ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ 16-\/19\ }}
+\DoxyCodeLine{00070\ \ \ \ \ \ \ \ \ 22,\ 23,\ 21,\ 24,\ 20,\ 25,\ \ \textcolor{comment}{//\ 20-\/25}}
+\DoxyCodeLine{00071\ \ \ \ \ \ \ \ \ 26\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ 26\ (No\ change)}}
+\DoxyCodeLine{00072\ \ \ \ \ \};}
+\DoxyCodeLine{00073\ }
+\DoxyCodeLine{00074\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classGmshParser}{GmshParser}}\ \{}
+\DoxyCodeLine{00075\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00079\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structGmshParser_1_1GMSHElemData}{GMSHElemData}}\ \{}
+\DoxyCodeLine{00080\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{structGmshParser_1_1GMSHElemData_a6751f004ce38e1d575ace6af37aa5345}{type}};\ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00081\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ \mbox{\hyperlink{structGmshParser_1_1GMSHElemData_a328b8009dc2f49fd610f65c5239b836b}{entityTag}};\ \ \ \ \ \ }
+\DoxyCodeLine{00082\ \ \ \ \ \ \ \ \ std::vector<int>\ \mbox{\hyperlink{structGmshParser_1_1GMSHElemData_a1d9cdfb20cc63b9bd57913f7c7504ef5}{gmshNodeIds}};\ }
+\DoxyCodeLine{00083\ \ \ \ \ \};}
+\DoxyCodeLine{00084\ }
+\DoxyCodeLine{00091\ \ \ \ \ \textcolor{keywordtype}{bool}\ \mbox{\hyperlink{classGmshParser_abfacecd9c59d6f5d78cbd1dd75a469a4}{load}}(\mbox{\hyperlink{classMesh}{Mesh}}\&\ mesh,\ \textcolor{keyword}{const}\ std::string\&\ filename);}
+\DoxyCodeLine{00092\ }
+\DoxyCodeLine{00093\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00094\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classGmshParser_a64937e9311902ae3cd40aa21bcee701d}{parsePhysicalNames}}(std::ifstream\&\ f,\ std::map<std::pair<int,\ int>,\ std::string>\&\ names);}
+\DoxyCodeLine{00095\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classGmshParser_ac4e3f780bfa16aa173326fd5d84bafef}{parseEntities}}(std::ifstream\&\ f,\ std::map<\textcolor{keywordtype}{int},\ std::map<\textcolor{keywordtype}{int},\ std::vector<int>>>\&\ entMap);}
+\DoxyCodeLine{00096\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classGmshParser_afc1a9c73c602d70df45133da8985c5e5}{parseNodes}}(std::ifstream\&\ f,\ \mbox{\hyperlink{classMesh}{Mesh}}\&\ mesh,\ std::map<int,\ int>\&\ nodeMap);}
+\DoxyCodeLine{00097\ \ \ \ \ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{classGmshParser_aadeb9d25d74861a97f8bc0d73bdec256}{parseElements}}(std::ifstream\&\ f,\ std::vector<GMSHElemData>\&\ raw,\ \textcolor{keywordtype}{int}\&\ maxDim);}
+\DoxyCodeLine{00098\ \};}
+\DoxyCodeLine{00099\ }
+\DoxyCodeLine{00100\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

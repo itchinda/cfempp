@@ -1,0 +1,82 @@
+\doxysection{/home/itchinda/projects/odepp/libs/utils/include/\+Contract\+Exception.h File Reference}
+\hypertarget{ContractException_8h}{}\label{ContractException_8h}\index{/home/itchinda/projects/odepp/libs/utils/include/ContractException.h@{/home/itchinda/projects/odepp/libs/utils/include/ContractException.h}}
+
+
+Contract-\/based exception hierarchy for error handling.  
+
+
+{\ttfamily \#include $<$stdexcept$>$}\newline
+{\ttfamily \#include $<$string$>$}\newline
+{\ttfamily \#include $<$sstream$>$}\newline
+Include dependency graph for Contract\+Exception.\+h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=282pt]{ContractException_8h__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{ContractException_8h__dep__incl}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+class \mbox{\hyperlink{classcfem_1_1ContractException}{cfem\+::\+Contract\+Exception}}
+\begin{DoxyCompactList}\small\item\em Base class for all contract violations. \end{DoxyCompactList}\item 
+class \mbox{\hyperlink{classcfem_1_1AssertionException}{cfem\+::\+Assertion\+Exception}}
+\begin{DoxyCompactList}\small\item\em Exception for assertion violations. \end{DoxyCompactList}\item 
+class \mbox{\hyperlink{classcfem_1_1PreconditionException}{cfem\+::\+Precondition\+Exception}}
+\begin{DoxyCompactList}\small\item\em Exception for precondition violations. \end{DoxyCompactList}\item 
+class \mbox{\hyperlink{classcfem_1_1PostconditionException}{cfem\+::\+Postcondition\+Exception}}
+\begin{DoxyCompactList}\small\item\em Exception for postcondition violations. \end{DoxyCompactList}\item 
+class \mbox{\hyperlink{classcfem_1_1InvariantException}{cfem\+::\+Invariant\+Exception}}
+\begin{DoxyCompactList}\small\item\em Exception for invariant violations. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{ContractException_8h_a2dc94fb4a8e658b643093aef988a9322}\label{ContractException_8h_a2dc94fb4a8e658b643093aef988a9322} 
+\#define {\bfseries CFEM\+\_\+\+ASSERT}(expr)~    if (!(expr)) throw \mbox{\hyperlink{classcfem_1_1AssertionException}{cfem\+::\+Assertion\+Exception}}(\+\_\+\+\_\+\+FILE\+\_\+\+\_\+, \+\_\+\+\_\+\+LINE\+\_\+\+\_\+, \#expr)
+\begin{DoxyCompactList}\small\item\em Verifies an internal consistency condition. \end{DoxyCompactList}\item 
+\Hypertarget{ContractException_8h_aa86d2ae5c135d7183daa23784ae5e38f}\label{ContractException_8h_aa86d2ae5c135d7183daa23784ae5e38f} 
+\#define {\bfseries CFEM\+\_\+\+PRECONDITION}(expr)~    if (!(expr)) throw \mbox{\hyperlink{classcfem_1_1PreconditionException}{cfem\+::\+Precondition\+Exception}}(\+\_\+\+\_\+\+FILE\+\_\+\+\_\+, \+\_\+\+\_\+\+LINE\+\_\+\+\_\+, \#expr)
+\begin{DoxyCompactList}\small\item\em Verifies a function precondition. \end{DoxyCompactList}\item 
+\Hypertarget{ContractException_8h_a67e06272070004dce74359b4b4cc051e}\label{ContractException_8h_a67e06272070004dce74359b4b4cc051e} 
+\#define {\bfseries CFEM\+\_\+\+POSTCONDITION}(expr)~    if (!(expr)) throw \mbox{\hyperlink{classcfem_1_1PostconditionException}{cfem\+::\+Postcondition\+Exception}}(\+\_\+\+\_\+\+FILE\+\_\+\+\_\+, \+\_\+\+\_\+\+LINE\+\_\+\+\_\+, \#expr)
+\begin{DoxyCompactList}\small\item\em Verifies a function postcondition. \end{DoxyCompactList}\item 
+\Hypertarget{ContractException_8h_a9511cfbee649b6ed6e8826014c5c10a1}\label{ContractException_8h_a9511cfbee649b6ed6e8826014c5c10a1} 
+\#define {\bfseries CFEM\+\_\+\+INVARIANT}(expr)~    if (!(expr)) throw \mbox{\hyperlink{classcfem_1_1InvariantException}{cfem\+::\+Invariant\+Exception}}(\+\_\+\+\_\+\+FILE\+\_\+\+\_\+, \+\_\+\+\_\+\+LINE\+\_\+\+\_\+, \#expr)
+\begin{DoxyCompactList}\small\item\em Verifies an object invariant. \end{DoxyCompactList}\item 
+\Hypertarget{ContractException_8h_afd0c84fd9cc587e9c2ce1e0c9f152e0c}\label{ContractException_8h_afd0c84fd9cc587e9c2ce1e0c9f152e0c} 
+\#define {\bfseries CFEM\+\_\+\+CHECK\+\_\+\+INVARIANTS}()~    check\+Invariant()
+\begin{DoxyCompactList}\small\item\em Calls the invariant verification function. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Contract-\/based exception hierarchy for error handling. 
+
+This file defines a hierarchy of exception classes used to implement Design by Contract (DbC) in the CFEM framework.
+
+The purpose of this system is to\+:
+\begin{DoxyItemize}
+\item Enforce preconditions, postconditions, and invariants
+\item Detect logical programming errors
+\item Provide detailed diagnostic information
+\item Improve robustness and maintainability
+\end{DoxyItemize}
+
+In release mode (NDEBUG defined), all contract checks are disabled.
+
+This design is inspired by\+: Horstmann, "{}\+Mastering Object-\/\+Oriented Design in C++"{}
+
+\begin{DoxyAuthor}{Author}
+Ismael Tchinda Ngueyong 
+\end{DoxyAuthor}
+\begin{DoxyVersion}{Version}
+2.\+0 
+\end{DoxyVersion}
