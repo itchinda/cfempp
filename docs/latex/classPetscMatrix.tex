@@ -1,0 +1,279 @@
+\doxysection{Petsc\+Matrix Class Reference}
+\hypertarget{classPetscMatrix}{}\label{classPetscMatrix}\index{PetscMatrix@{PetscMatrix}}
+
+
+RAII wrapper around PETSc Mat.  
+
+
+
+
+{\ttfamily \#include $<$Petsc\+Matrix.\+h$>$}
+
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classPetscMatrix_aea822bfe1ed6202e31a51e6f11297f81}{Petsc\+Matrix}} (int local\+\_\+rows, int global\+\_\+rows)
+\begin{DoxyCompactList}\small\item\em Construct a new \doxylink{classPetscMatrix}{Petsc\+Matrix} and allocate memory. This constructor initializes a square sparse matrix distributed across the PETSC\+\_\+\+COMM\+\_\+\+WORLD communicator. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{classPetscMatrix_ad5de413e2487fb52ec62ec2b243d3403}{\texorpdfstring{$\sim$}{\string~}\+Petsc\+Matrix}} ()
+\begin{DoxyCompactList}\small\item\em Destroy the matrix (never throws) \end{DoxyCompactList}\item 
+\Hypertarget{classPetscMatrix_a0d53a60a30063de91ba516738af18555}\label{classPetscMatrix_a0d53a60a30063de91ba516738af18555} 
+{\bfseries Petsc\+Matrix} (const \mbox{\hyperlink{classPetscMatrix}{Petsc\+Matrix}} \&)=delete
+\item 
+\Hypertarget{classPetscMatrix_a2f46b8557630cc26b9be6403de6c3510}\label{classPetscMatrix_a2f46b8557630cc26b9be6403de6c3510} 
+\mbox{\hyperlink{classPetscMatrix}{Petsc\+Matrix}} \& {\bfseries operator=} (const \mbox{\hyperlink{classPetscMatrix}{Petsc\+Matrix}} \&)=delete
+\item 
+\mbox{\hyperlink{classPetscMatrix_a9d868a8bf91705c3fc2a59fc00e57d77}{Petsc\+Matrix}} (\mbox{\hyperlink{classPetscMatrix}{Petsc\+Matrix}} \&\&other) noexcept
+\begin{DoxyCompactList}\small\item\em Move constructor. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{classPetscMatrix}{Petsc\+Matrix}} \& \mbox{\hyperlink{classPetscMatrix_a3d8cf271fad3922a319f9f069a6a8851}{operator=}} (\mbox{\hyperlink{classPetscMatrix}{Petsc\+Matrix}} \&\&other) noexcept
+\begin{DoxyCompactList}\small\item\em Move assignment operator. \end{DoxyCompactList}\item 
+Mat \& \mbox{\hyperlink{classPetscMatrix_a010c8dd7cb513a26cdf6ed23e02b0c94}{get\+Raw}} ()
+\begin{DoxyCompactList}\small\item\em Returns a reference to the underlying PETSc Mat object. \end{DoxyCompactList}\item 
+const Mat \& \mbox{\hyperlink{classPetscMatrix_aeef99c8cb8405c5367d806c26e19b9bb}{get\+Raw}} () const
+\begin{DoxyCompactList}\small\item\em Returns a const reference to the underlying PETSc Mat object. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classPetscMatrix_a16e6b764b5957fb898c3a0815d352c2c}{set\+Value}} (int row, int col, Petsc\+Scalar value, Insert\+Mode mode=INSERT\+\_\+\+VALUES)
+\begin{DoxyCompactList}\small\item\em Sets a single value in the matrix. Note\+: Values are cached locally. You must call \doxylink{classPetscMatrix_afd44b9d9f88c84124ad54f68a69b0c48}{assemble()} before the matrix can be used in computations. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classPetscMatrix_afd44b9d9f88c84124ad54f68a69b0c48}{assemble}} ()
+\begin{DoxyCompactList}\small\item\em Synchronizes the matrix across all processors. This is a collective operation that performs the necessary MPI communication to move entries to their home processors and finalizes the sparse matrix structure. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{classPetscMatrix_a05b028073f036f6a329faa4e161ae8c6}{preallocate}} (Petsc\+Int d\+\_\+nz=DEFAULT\+\_\+\+D\+\_\+\+NZ, Petsc\+Int o\+\_\+nz=DEFAULT\+\_\+\+O\+\_\+\+NZ)
+\begin{DoxyCompactList}\small\item\em Preallocate AIJ storage. \end{DoxyCompactList}\item 
+std\+::pair$<$ Petsc\+Int, Petsc\+Int $>$ \mbox{\hyperlink{classPetscMatrix_aa31728f4a83206eb4bc43e29513b43a4}{get\+Global\+Size}} () const
+\begin{DoxyCompactList}\small\item\em Return the number of global rows and columns across all MPI ranks in a std\+::pair. \end{DoxyCompactList}\item 
+std\+::pair$<$ Petsc\+Int, Petsc\+Int $>$ \mbox{\hyperlink{classPetscMatrix_a4b5e3bbb8f0fa306bb16df4dd49d67a2}{get\+Local\+Size}} () const
+\begin{DoxyCompactList}\small\item\em Return the number of local rows and columns on this MPI rank. \end{DoxyCompactList}\item 
+std\+::pair$<$ Petsc\+Int, Petsc\+Int $>$ \mbox{\hyperlink{classPetscMatrix_a473229bd4124cc754ce7c00b5291581c}{get\+Ownership\+Range}} () const
+\begin{DoxyCompactList}\small\item\em Return ownership range \mbox{[}rstart, rend) \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classPetscMatrix_aba96ec1a7e34553ff793c1edf04ed0b4}\label{classPetscMatrix_aba96ec1a7e34553ff793c1edf04ed0b4} 
+Mat {\bfseries m\+\_\+\+Matrix} \{nullptr\}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+RAII wrapper around PETSc Mat. 
+
+\DoxyHorRuler{0}
+
+
+This class manages the lifetime of a distributed PETSc Matrix. It follows PETSc ownership semantics and must be used collectively on PETSC\+\_\+\+COMM\+\_\+\+WORLD.
+
+Copying is disabled to prevent double-\/free; move semantics are supported.
+
+Typical usage\+: 
+\begin{DoxyCode}{0}
+\DoxyCodeLine{PetscInt\ n\ \{10\};}
+\DoxyCodeLine{\mbox{\hyperlink{classPetscMatrix}{PetscMatrix}}\ A(PETSC\_DECIDE,\ n);}
+\DoxyCodeLine{A.preallocate(3,3)}
+\DoxyCodeLine{PetscInt\ rstart,\ rend;}
+\DoxyCodeLine{MatGetOwnershipRange(A.getRaw(),\ \&rstart,\ \&rend);}
+\DoxyCodeLine{\textcolor{keywordflow}{for}\ (PetscInt\ i\ =\ rstart;\ i\ <\ rend;\ ++i)}
+\DoxyCodeLine{\ \ \ \ \ A.setValue(i,\ i,\ 2.0);}
+\DoxyCodeLine{\ \ \ \ \ \textcolor{keywordflow}{if}\ (i>0)\ A.setValue(i,\ i-\/1,\ -\/1.0);}
+\DoxyCodeLine{\ \ \ \ \ \textcolor{keywordflow}{if}\ (i<n-\/1)\ A.setValue(i,\ i+1,\ -\/1.0);}
+\DoxyCodeLine{A.assemble();}
+
+\end{DoxyCode}
+ 
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\Hypertarget{classPetscMatrix_aea822bfe1ed6202e31a51e6f11297f81}\label{classPetscMatrix_aea822bfe1ed6202e31a51e6f11297f81} 
+\index{PetscMatrix@{PetscMatrix}!PetscMatrix@{PetscMatrix}}
+\index{PetscMatrix@{PetscMatrix}!PetscMatrix@{PetscMatrix}}
+\doxysubsubsection{\texorpdfstring{PetscMatrix()}{PetscMatrix()}\hspace{0.1cm}{\footnotesize\ttfamily [1/2]}}
+{\footnotesize\ttfamily Petsc\+Matrix\+::\+Petsc\+Matrix (\begin{DoxyParamCaption}\item[{int}]{local\+\_\+rows,  }\item[{int}]{global\+\_\+rows }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [explicit]}}
+
+
+
+Construct a new \doxylink{classPetscMatrix}{Petsc\+Matrix} and allocate memory. This constructor initializes a square sparse matrix distributed across the PETSC\+\_\+\+COMM\+\_\+\+WORLD communicator. 
+
+\DoxyHorRuler{0}
+ 
+\begin{DoxyParams}{Parameters}
+{\em local\+\_\+rows} & Number of rows to be stored on the local processor. \\
+\hline
+{\em global\+\_\+rows} & Total number of rows across all processors. \\
+\hline
+\end{DoxyParams}
+\Hypertarget{classPetscMatrix_ad5de413e2487fb52ec62ec2b243d3403}\label{classPetscMatrix_ad5de413e2487fb52ec62ec2b243d3403} 
+\index{PetscMatrix@{PetscMatrix}!````~PetscMatrix@{\texorpdfstring{$\sim$}{\string~}PetscMatrix}}
+\index{````~PetscMatrix@{\texorpdfstring{$\sim$}{\string~}PetscMatrix}!PetscMatrix@{PetscMatrix}}
+\doxysubsubsection{\texorpdfstring{\texorpdfstring{$\sim$}{\string~}PetscMatrix()}{\string~PetscMatrix()}}
+{\footnotesize\ttfamily Petsc\+Matrix\+::\texorpdfstring{$\sim$}{\string~}\+Petsc\+Matrix (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+Destroy the matrix (never throws) 
+
+\DoxyHorRuler{0}
+  \Hypertarget{classPetscMatrix_a9d868a8bf91705c3fc2a59fc00e57d77}\label{classPetscMatrix_a9d868a8bf91705c3fc2a59fc00e57d77} 
+\index{PetscMatrix@{PetscMatrix}!PetscMatrix@{PetscMatrix}}
+\index{PetscMatrix@{PetscMatrix}!PetscMatrix@{PetscMatrix}}
+\doxysubsubsection{\texorpdfstring{PetscMatrix()}{PetscMatrix()}\hspace{0.1cm}{\footnotesize\ttfamily [2/2]}}
+{\footnotesize\ttfamily Petsc\+Matrix\+::\+Petsc\+Matrix (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classPetscMatrix}{Petsc\+Matrix}} \&\&}]{other }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [noexcept]}}
+
+
+
+Move constructor. 
+
+\DoxyHorRuler{0}
+ 
+
+
+\begin{DoxyParams}{Parameters}
+{\em other} & \\
+\hline
+\end{DoxyParams}
+
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{classPetscMatrix_afd44b9d9f88c84124ad54f68a69b0c48}\label{classPetscMatrix_afd44b9d9f88c84124ad54f68a69b0c48} 
+\index{PetscMatrix@{PetscMatrix}!assemble@{assemble}}
+\index{assemble@{assemble}!PetscMatrix@{PetscMatrix}}
+\doxysubsubsection{\texorpdfstring{assemble()}{assemble()}}
+{\footnotesize\ttfamily void Petsc\+Matrix\+::assemble (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+Synchronizes the matrix across all processors. This is a collective operation that performs the necessary MPI communication to move entries to their home processors and finalizes the sparse matrix structure. 
+
+\DoxyHorRuler{0}
+  \Hypertarget{classPetscMatrix_aa31728f4a83206eb4bc43e29513b43a4}\label{classPetscMatrix_aa31728f4a83206eb4bc43e29513b43a4} 
+\index{PetscMatrix@{PetscMatrix}!getGlobalSize@{getGlobalSize}}
+\index{getGlobalSize@{getGlobalSize}!PetscMatrix@{PetscMatrix}}
+\doxysubsubsection{\texorpdfstring{getGlobalSize()}{getGlobalSize()}}
+{\footnotesize\ttfamily std\+::pair$<$ Petsc\+Int, Petsc\+Int $>$ Petsc\+Matrix\+::get\+Global\+Size (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+
+
+Return the number of global rows and columns across all MPI ranks in a std\+::pair. 
+
+\DoxyHorRuler{0}
+  \Hypertarget{classPetscMatrix_a4b5e3bbb8f0fa306bb16df4dd49d67a2}\label{classPetscMatrix_a4b5e3bbb8f0fa306bb16df4dd49d67a2} 
+\index{PetscMatrix@{PetscMatrix}!getLocalSize@{getLocalSize}}
+\index{getLocalSize@{getLocalSize}!PetscMatrix@{PetscMatrix}}
+\doxysubsubsection{\texorpdfstring{getLocalSize()}{getLocalSize()}}
+{\footnotesize\ttfamily std\+::pair$<$ Petsc\+Int, Petsc\+Int $>$ Petsc\+Matrix\+::get\+Local\+Size (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+
+
+Return the number of local rows and columns on this MPI rank. 
+
+\DoxyHorRuler{0}
+  \Hypertarget{classPetscMatrix_a473229bd4124cc754ce7c00b5291581c}\label{classPetscMatrix_a473229bd4124cc754ce7c00b5291581c} 
+\index{PetscMatrix@{PetscMatrix}!getOwnershipRange@{getOwnershipRange}}
+\index{getOwnershipRange@{getOwnershipRange}!PetscMatrix@{PetscMatrix}}
+\doxysubsubsection{\texorpdfstring{getOwnershipRange()}{getOwnershipRange()}}
+{\footnotesize\ttfamily std\+::pair$<$ Petsc\+Int, Petsc\+Int $>$ Petsc\+Matrix\+::get\+Ownership\+Range (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+
+
+Return ownership range \mbox{[}rstart, rend) 
+
+Ownership range \mbox{[}rstart, rend)
+
+\DoxyHorRuler{0}
+  \Hypertarget{classPetscMatrix_a010c8dd7cb513a26cdf6ed23e02b0c94}\label{classPetscMatrix_a010c8dd7cb513a26cdf6ed23e02b0c94} 
+\index{PetscMatrix@{PetscMatrix}!getRaw@{getRaw}}
+\index{getRaw@{getRaw}!PetscMatrix@{PetscMatrix}}
+\doxysubsubsection{\texorpdfstring{getRaw()}{getRaw()}\hspace{0.1cm}{\footnotesize\ttfamily [1/2]}}
+{\footnotesize\ttfamily Mat \& Petsc\+Matrix\+::get\+Raw (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+Returns a reference to the underlying PETSc Mat object. 
+
+\DoxyHorRuler{0}
+ \begin{DoxyReturn}{Returns}
+Mat\& The raw PETSc Matrix handle. 
+\end{DoxyReturn}
+Here is the caller graph for this function\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classPetscMatrix_a010c8dd7cb513a26cdf6ed23e02b0c94_icgraph}
+\end{center}
+\end{figure}
+\Hypertarget{classPetscMatrix_aeef99c8cb8405c5367d806c26e19b9bb}\label{classPetscMatrix_aeef99c8cb8405c5367d806c26e19b9bb} 
+\index{PetscMatrix@{PetscMatrix}!getRaw@{getRaw}}
+\index{getRaw@{getRaw}!PetscMatrix@{PetscMatrix}}
+\doxysubsubsection{\texorpdfstring{getRaw()}{getRaw()}\hspace{0.1cm}{\footnotesize\ttfamily [2/2]}}
+{\footnotesize\ttfamily const Mat \& Petsc\+Matrix\+::get\+Raw (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+
+
+Returns a const reference to the underlying PETSc Mat object. 
+
+\DoxyHorRuler{0}
+ \begin{DoxyReturn}{Returns}
+const Mat\& The raw PETSc Matrix handle. 
+\end{DoxyReturn}
+\Hypertarget{classPetscMatrix_a3d8cf271fad3922a319f9f069a6a8851}\label{classPetscMatrix_a3d8cf271fad3922a319f9f069a6a8851} 
+\index{PetscMatrix@{PetscMatrix}!operator=@{operator=}}
+\index{operator=@{operator=}!PetscMatrix@{PetscMatrix}}
+\doxysubsubsection{\texorpdfstring{operator=()}{operator=()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classPetscMatrix}{Petsc\+Matrix}} \& Petsc\+Matrix\+::operator= (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classPetscMatrix}{Petsc\+Matrix}} \&\&}]{other }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [noexcept]}}
+
+
+
+Move assignment operator. 
+
+\DoxyHorRuler{0}
+ 
+
+
+\begin{DoxyParams}{Parameters}
+{\em other} & \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+\doxylink{classPetscMatrix}{Petsc\+Matrix}\& 
+\end{DoxyReturn}
+\Hypertarget{classPetscMatrix_a05b028073f036f6a329faa4e161ae8c6}\label{classPetscMatrix_a05b028073f036f6a329faa4e161ae8c6} 
+\index{PetscMatrix@{PetscMatrix}!preallocate@{preallocate}}
+\index{preallocate@{preallocate}!PetscMatrix@{PetscMatrix}}
+\doxysubsubsection{\texorpdfstring{preallocate()}{preallocate()}}
+{\footnotesize\ttfamily void Petsc\+Matrix\+::preallocate (\begin{DoxyParamCaption}\item[{Petsc\+Int}]{d\+\_\+nz = {\ttfamily DEFAULT\+\_\+D\+\_\+NZ},  }\item[{Petsc\+Int}]{o\+\_\+nz = {\ttfamily DEFAULT\+\_\+O\+\_\+NZ} }\end{DoxyParamCaption})}
+
+
+
+Preallocate AIJ storage. 
+
+Preallocate matrix storage (AIJ)
+
+
+\begin{DoxyParams}{Parameters}
+{\em d\+\_\+nz} & Number of nonzeros per row on-\/diagonal \\
+\hline
+{\em o\+\_\+nz} & Number of nonzeros per row off-\/diagonal \\
+\hline
+\end{DoxyParams}
+\Hypertarget{classPetscMatrix_a16e6b764b5957fb898c3a0815d352c2c}\label{classPetscMatrix_a16e6b764b5957fb898c3a0815d352c2c} 
+\index{PetscMatrix@{PetscMatrix}!setValue@{setValue}}
+\index{setValue@{setValue}!PetscMatrix@{PetscMatrix}}
+\doxysubsubsection{\texorpdfstring{setValue()}{setValue()}}
+{\footnotesize\ttfamily void Petsc\+Matrix\+::set\+Value (\begin{DoxyParamCaption}\item[{int}]{row,  }\item[{int}]{col,  }\item[{Petsc\+Scalar}]{value,  }\item[{Insert\+Mode}]{mode = {\ttfamily INSERT\+\_\+VALUES} }\end{DoxyParamCaption})}
+
+
+
+Sets a single value in the matrix. Note\+: Values are cached locally. You must call \doxylink{classPetscMatrix_afd44b9d9f88c84124ad54f68a69b0c48}{assemble()} before the matrix can be used in computations. 
+
+\DoxyHorRuler{0}
+ 
+\begin{DoxyParams}{Parameters}
+{\em row} & The global row index. \\
+\hline
+{\em col} & The global column index. \\
+\hline
+{\em value} & The scalar value to insert. \\
+\hline
+{\em mode} & Either INSERT\+\_\+\+VALUES or ADD\+\_\+\+VALUES. \\
+\hline
+\end{DoxyParams}
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+/home/itchinda/projects/odepp/libs/wrappers/petsc/include/\mbox{\hyperlink{PetscMatrix_8h}{Petsc\+Matrix.\+h}}\item 
+/home/itchinda/projects/odepp/libs/wrappers/petsc/src/\mbox{\hyperlink{PetscMatrix_8cpp}{Petsc\+Matrix.\+cpp}}\end{DoxyCompactItemize}

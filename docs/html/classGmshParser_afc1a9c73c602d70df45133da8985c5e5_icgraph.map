@@ -1,0 +1,5 @@
+<map id="GmshParser::parseNodes" name="GmshParser::parseNodes">
+<area shape="rect" id="Node000001" title="Parses the $Nodes section and populates the Mesh vertices." alt="" coords="189,5,375,31"/>
+<area shape="rect" id="Node000002" href="$classGmshParser.html#abfacecd9c59d6f5d78cbd1dd75a469a4" title="Primary entry point for loading .msh files." alt="" coords="5,5,141,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="176,21,142,21,142,15,176,15"/>
+</map>

@@ -1,0 +1,134 @@
+\doxysection{Static\+Vector\texorpdfstring{$<$}{<} T, N \texorpdfstring{$>$}{>} Struct Template Reference}
+\hypertarget{structStaticVector}{}\label{structStaticVector}\index{StaticVector$<$ T, N $>$@{StaticVector$<$ T, N $>$}}
+
+
+A fixed-\/size column vector of size N.  
+
+
+
+
+{\ttfamily \#include $<$Static\+Vector.\+h$>$}
+
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structStaticVector_ac5166b2ece8bb33b8eff082b737bff9b}\label{structStaticVector_ac5166b2ece8bb33b8eff082b737bff9b} 
+{\bfseries Static\+Vector} ()=default
+\begin{DoxyCompactList}\small\item\em Default constructor (initializes to zero). \end{DoxyCompactList}\item 
+\Hypertarget{structStaticVector_acfbef274e92af6a93bae76d39f4e4dd5}\label{structStaticVector_acfbef274e92af6a93bae76d39f4e4dd5} 
+{\bfseries Static\+Vector} (std\+::initializer\+\_\+list$<$ T $>$ list)
+\begin{DoxyCompactList}\small\item\em Initializer list constructor for syntax\+: \doxylink{structStaticVector}{Static\+Vector} v = \{1, 2, 3\};. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{structStaticVector_af589412f43ba719659dfbf0d2589b151}{Static\+Vector}} (const \mbox{\hyperlink{structVector3D}{Vector3D}} \&v)
+\begin{DoxyCompactList}\small\item\em Conversion Constructor from \doxylink{structVector3D}{Vector3D}. Only available when N == 3 via static\+\_\+assert. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{structStaticVector_a2f9dad9f665341a971542e14a3fd2c96}{operator Vector3D}} () const
+\begin{DoxyCompactList}\small\item\em Implicit conversion to \doxylink{structVector3D}{Vector3D}. Allows seamless transition between algebraic and geometric logic. \end{DoxyCompactList}\item 
+\Hypertarget{structStaticVector_a9458a4e5e41dd588692f2221f419fa9d}\label{structStaticVector_a9458a4e5e41dd588692f2221f419fa9d} 
+T \& {\bfseries operator\mbox{[}$\,$\mbox{]}} (int i)
+\begin{DoxyCompactList}\small\item\em Access element with \mbox{[}\mbox{]} notation. \end{DoxyCompactList}\item 
+\Hypertarget{structStaticVector_a581e74c9d446f53838db82db25983325}\label{structStaticVector_a581e74c9d446f53838db82db25983325} 
+const T \& {\bfseries operator\mbox{[}$\,$\mbox{]}} (int i) const
+\begin{DoxyCompactList}\small\item\em Read-\/only access element with \mbox{[}\mbox{]} notation. \end{DoxyCompactList}\item 
+\Hypertarget{structStaticVector_addc18f99c2b49fe9046a1d00bcf923b3}\label{structStaticVector_addc18f99c2b49fe9046a1d00bcf923b3} 
+void {\bfseries set\+Zero} ()
+\begin{DoxyCompactList}\small\item\em Resets all components to zero. \end{DoxyCompactList}\item 
+\Hypertarget{structStaticVector_a42badc1a5efbc7afed897ed2c6fd9f47}\label{structStaticVector_a42badc1a5efbc7afed897ed2c6fd9f47} 
+\mbox{\hyperlink{structStaticVector}{Static\+Vector}} {\bfseries operator+} (const \mbox{\hyperlink{structStaticVector}{Static\+Vector}} \&other) const
+\item 
+\Hypertarget{structStaticVector_a37d9b4962d673bdea89ef0580854776a}\label{structStaticVector_a37d9b4962d673bdea89ef0580854776a} 
+\mbox{\hyperlink{structStaticVector}{Static\+Vector}} {\bfseries operator-\/} (const \mbox{\hyperlink{structStaticVector}{Static\+Vector}} \&other) const
+\item 
+\Hypertarget{structStaticVector_a8198584b9301dd7c645ec6ba82a1494c}\label{structStaticVector_a8198584b9301dd7c645ec6ba82a1494c} 
+\mbox{\hyperlink{structStaticVector}{Static\+Vector}} {\bfseries operator\texorpdfstring{$\ast$}{*}} (T scalar) const
+\item 
+\Hypertarget{structStaticVector_a2e27c3e56f403056019926b3ec9f3fea}\label{structStaticVector_a2e27c3e56f403056019926b3ec9f3fea} 
+\mbox{\hyperlink{structStaticVector}{Static\+Vector}} {\bfseries operator/} (T scalar) const
+\item 
+\Hypertarget{structStaticVector_ac061e3602c83537e7e5e16a829f8b826}\label{structStaticVector_ac061e3602c83537e7e5e16a829f8b826} 
+\mbox{\hyperlink{structStaticVector}{Static\+Vector}} \& {\bfseries operator+=} (const \mbox{\hyperlink{structStaticVector}{Static\+Vector}} \&other)
+\item 
+\Hypertarget{structStaticVector_a027f8e439599219751a063d2383b270e}\label{structStaticVector_a027f8e439599219751a063d2383b270e} 
+\mbox{\hyperlink{structStaticVector}{Static\+Vector}} \& {\bfseries operator-\/=} (const \mbox{\hyperlink{structStaticVector}{Static\+Vector}} \&other)
+\item 
+\Hypertarget{structStaticVector_ae1b06bd6672a87213d8488e7054365c4}\label{structStaticVector_ae1b06bd6672a87213d8488e7054365c4} 
+\mbox{\hyperlink{structStaticVector}{Static\+Vector}} \& {\bfseries operator\texorpdfstring{$\ast$}{*}=} (T scalar)
+\item 
+\Hypertarget{structStaticVector_aea8fb42882894a1ce575ea8c7293575b}\label{structStaticVector_aea8fb42882894a1ce575ea8c7293575b} 
+\mbox{\hyperlink{structStaticVector}{Static\+Vector}} \& {\bfseries operator/=} (T scalar)
+\item 
+\Hypertarget{structStaticVector_af4d3fcaeed38a81ec53b37af4c2bb2af}\label{structStaticVector_af4d3fcaeed38a81ec53b37af4c2bb2af} 
+T {\bfseries dot} (const \mbox{\hyperlink{structStaticVector}{Static\+Vector}}$<$ T, N $>$ \&other) const
+\begin{DoxyCompactList}\small\item\em Computes the dot (inner) product. \end{DoxyCompactList}\item 
+\Hypertarget{structStaticVector_af6b15906f6a73ba49be7394aaf451575}\label{structStaticVector_af6b15906f6a73ba49be7394aaf451575} 
+T {\bfseries norm\+Square} () const
+\begin{DoxyCompactList}\small\item\em Returns squared Euclidean norm. \end{DoxyCompactList}\item 
+\Hypertarget{structStaticVector_a76de8d0f5925b1e6bf10e882eccda18d}\label{structStaticVector_a76de8d0f5925b1e6bf10e882eccda18d} 
+T {\bfseries norm} () const
+\begin{DoxyCompactList}\small\item\em Returns Euclidean norm (length). \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Static Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structStaticVector_a031f88f48e291bf6f09320f80b0e209e}\label{structStaticVector_a031f88f48e291bf6f09320f80b0e209e} 
+static constexpr int {\bfseries size} () noexcept
+\begin{DoxyCompactList}\small\item\em Returns the fixed size of the vector. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structStaticVector_a83274ebeac61a46271e4fed43639fc59}\label{structStaticVector_a83274ebeac61a46271e4fed43639fc59} 
+T {\bfseries data} \mbox{[}N\mbox{]} = \{0\}
+\begin{DoxyCompactList}\small\item\em Contiguous data storage on the stack. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\subsubsection*{template$<$typename T, int N$>$\newline
+struct Static\+Vector$<$ T, N $>$}
+A fixed-\/size column vector of size N. 
+
+
+\begin{DoxyTemplParams}{Template Parameters}
+{\em T} & The numeric type (e.\+g., Cfem\+Real). \\
+\hline
+{\em N} & Dimension of the vector.
+\begin{DoxyItemize}
+\item This class is intended for small, element-\/level algebraic operations (local residuals, shape function values, etc.) where stack allocation and compile-\/time size checking are critical for performance. 
+\end{DoxyItemize}\\
+\hline
+\end{DoxyTemplParams}
+
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\Hypertarget{structStaticVector_af589412f43ba719659dfbf0d2589b151}\label{structStaticVector_af589412f43ba719659dfbf0d2589b151} 
+\index{StaticVector$<$ T, N $>$@{StaticVector$<$ T, N $>$}!StaticVector@{StaticVector}}
+\index{StaticVector@{StaticVector}!StaticVector$<$ T, N $>$@{StaticVector$<$ T, N $>$}}
+\doxysubsubsection{\texorpdfstring{StaticVector()}{StaticVector()}}
+{\footnotesize\ttfamily template$<$typename T , int N$>$ \\
+\mbox{\hyperlink{structStaticVector}{Static\+Vector}}$<$ T, N $>$\mbox{\hyperlink{structStaticVector}{\+::\+Static\+Vector}} (\begin{DoxyParamCaption}\item[{const \mbox{\hyperlink{structVector3D}{Vector3D}} \&}]{v }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+
+
+Conversion Constructor from \doxylink{structVector3D}{Vector3D}. Only available when N == 3 via static\+\_\+assert. 
+
+
+\begin{DoxyItemize}
+\item 
+\end{DoxyItemize}
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{structStaticVector_a2f9dad9f665341a971542e14a3fd2c96}\label{structStaticVector_a2f9dad9f665341a971542e14a3fd2c96} 
+\index{StaticVector$<$ T, N $>$@{StaticVector$<$ T, N $>$}!operator Vector3D@{operator Vector3D}}
+\index{operator Vector3D@{operator Vector3D}!StaticVector$<$ T, N $>$@{StaticVector$<$ T, N $>$}}
+\doxysubsubsection{\texorpdfstring{operator Vector3D()}{operator Vector3D()}}
+{\footnotesize\ttfamily template$<$typename T , int N$>$ \\
+\mbox{\hyperlink{structStaticVector}{Static\+Vector}}$<$ T, N $>$\+::operator \mbox{\hyperlink{structVector3D}{Vector3D}} (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [inline]}}
+
+
+
+Implicit conversion to \doxylink{structVector3D}{Vector3D}. Allows seamless transition between algebraic and geometric logic. 
+
+
+\begin{DoxyItemize}
+\item 
+\end{DoxyItemize}
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/itchinda/projects/odepp/libs/utils/include/\mbox{\hyperlink{StaticVector_8h}{Static\+Vector.\+h}}\end{DoxyCompactItemize}

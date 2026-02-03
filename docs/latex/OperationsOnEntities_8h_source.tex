@@ -1,0 +1,45 @@
+\doxysection{Operations\+On\+Entities.\+h}
+\hypertarget{OperationsOnEntities_8h_source}{}\label{OperationsOnEntities_8h_source}\index{/home/itchinda/projects/odepp/libs/mesh/include/OperationsOnEntities.h@{/home/itchinda/projects/odepp/libs/mesh/include/OperationsOnEntities.h}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ CFEM\_OPERATIONSONENTITIES\_}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ CFEM\_OPERATIONSONENTITIES\_}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ <vector>}}
+\DoxyCodeLine{00005\ }
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#include\ "{}cfemutils.h"{}}}
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\#include\ "{}MeshEntity.h"{}}}
+\DoxyCodeLine{00008\ }
+\DoxyCodeLine{00009\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classMesh}{Mesh}};}
+\DoxyCodeLine{00010\ }
+\DoxyCodeLine{00011\ }
+\DoxyCodeLine{00012\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classOperationsOnEntities}{OperationsOnEntities}}\ \{}
+\DoxyCodeLine{00013\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00014\ }
+\DoxyCodeLine{00015\ \ \ \ \ \textcolor{keyword}{explicit}\ \mbox{\hyperlink{classOperationsOnEntities}{OperationsOnEntities}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classMesh}{Mesh}}*\ mesh,}
+\DoxyCodeLine{00016\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{const}\ std::vector<const\ MeshEntity*>\&\ entities);}
+\DoxyCodeLine{00017\ }
+\DoxyCodeLine{00018\ \ \ \ \ \textcolor{keyword}{explicit}\ \mbox{\hyperlink{classOperationsOnEntities}{OperationsOnEntities}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classMesh}{Mesh}}*\ mesh,}
+\DoxyCodeLine{00019\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{const}\ \mbox{\hyperlink{classMeshEntity}{MeshEntity}}*\ a,}
+\DoxyCodeLine{00020\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{const}\ \mbox{\hyperlink{classMeshEntity}{MeshEntity}}*\ b);}
+\DoxyCodeLine{00021\ }
+\DoxyCodeLine{00022\ \ \ \ \ \textcolor{keyword}{explicit}\ \mbox{\hyperlink{classOperationsOnEntities}{OperationsOnEntities}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classMesh}{Mesh}}*\ mesh,}
+\DoxyCodeLine{00023\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{const}\ \mbox{\hyperlink{classMeshEntity}{MeshEntity}}*\ entity);}
+\DoxyCodeLine{00024\ }
+\DoxyCodeLine{00025\ }
+\DoxyCodeLine{00026\ \ \ \ \ \textcolor{keywordtype}{void}\ computeUnion(\mbox{\hyperlink{classMeshEntity}{MeshEntity}}\&\ target);}
+\DoxyCodeLine{00027\ \ \ \ \ \textcolor{keywordtype}{void}\ computeIntersection(\mbox{\hyperlink{classMeshEntity}{MeshEntity}}\&\ target);}
+\DoxyCodeLine{00028\ \ \ \ \ \textcolor{keywordtype}{void}\ computeDifference(\mbox{\hyperlink{classMeshEntity}{MeshEntity}}\&\ target);}
+\DoxyCodeLine{00029\ \ \ \ \ \textcolor{keywordtype}{void}\ computeComplement(\mbox{\hyperlink{classMeshEntity}{MeshEntity}}\&\ target);}
+\DoxyCodeLine{00030\ }
+\DoxyCodeLine{00031\ \ \ \ \ CfemInt\ resultingDimension()\ \textcolor{keyword}{const};}
+\DoxyCodeLine{00032\ }
+\DoxyCodeLine{00033\ }
+\DoxyCodeLine{00034\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00035\ \ \ \ \ std::vector<const\ MeshEntity*>\ m\_sources;}
+\DoxyCodeLine{00036\ \ \ \ \ \textcolor{keyword}{const}\ \mbox{\hyperlink{classMesh}{Mesh}}*\ m\_mesh\ \{\textcolor{keyword}{nullptr}\};}
+\DoxyCodeLine{00037\ \};}
+\DoxyCodeLine{00038\ }
+\DoxyCodeLine{00039\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

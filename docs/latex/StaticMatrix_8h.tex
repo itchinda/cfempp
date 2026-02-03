@@ -1,0 +1,64 @@
+\doxysection{/home/itchinda/projects/odepp/libs/utils/include/\+Static\+Matrix.h File Reference}
+\hypertarget{StaticMatrix_8h}{}\label{StaticMatrix_8h}\index{/home/itchinda/projects/odepp/libs/utils/include/StaticMatrix.h@{/home/itchinda/projects/odepp/libs/utils/include/StaticMatrix.h}}
+
+
+Fixed-\/size dense matrix for local element operations.  
+
+
+{\ttfamily \#include "{}cfemutils.\+h"{}}\newline
+{\ttfamily \#include "{}Static\+Vector.\+h"{}}\newline
+{\ttfamily \#include $<$iostream$>$}\newline
+{\ttfamily \#include $<$utility$>$}\newline
+Include dependency graph for Static\+Matrix.\+h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{StaticMatrix_8h__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=212pt]{StaticMatrix_8h__dep__incl}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structStaticMatrix}{Static\+Matrix$<$ T, R, C $>$}}
+\begin{DoxyCompactList}\small\item\em A stack-\/allocated, fixed-\/size dense matrix. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{StaticMatrix_8h_a4a034726a9170cf73d2d5220f813124f}\label{StaticMatrix_8h_a4a034726a9170cf73d2d5220f813124f} 
+{\footnotesize template$<$typename T , int R, int C$>$ }\\\mbox{\hyperlink{structStaticVector}{Static\+Vector}}$<$ T, R $>$ {\bfseries operator\texorpdfstring{$\ast$}{*}} (const \mbox{\hyperlink{structStaticMatrix}{Static\+Matrix}}$<$ T, R, C $>$ \&m, const \mbox{\hyperlink{structStaticVector}{Static\+Vector}}$<$ T, C $>$ \&v)
+\begin{DoxyCompactList}\small\item\em Matrix-\/\+Vector Product\+: res(\+R) = Mat(\+R,\+C) \texorpdfstring{$\ast$}{*} Vec(\+C) \end{DoxyCompactList}\item 
+\Hypertarget{StaticMatrix_8h_a98a52f1dec0baace54fba22da0813b75}\label{StaticMatrix_8h_a98a52f1dec0baace54fba22da0813b75} 
+{\footnotesize template$<$typename T , int R, int Inner, int C2$>$ }\\\mbox{\hyperlink{structStaticMatrix}{Static\+Matrix}}$<$ T, R, C2 $>$ {\bfseries operator\texorpdfstring{$\ast$}{*}} (const \mbox{\hyperlink{structStaticMatrix}{Static\+Matrix}}$<$ T, R, Inner $>$ \&A, const \mbox{\hyperlink{structStaticMatrix}{Static\+Matrix}}$<$ T, Inner, C2 $>$ \&B)
+\begin{DoxyCompactList}\small\item\em Matrix-\/\+Matrix Product\+: res(\+R, Inner2) = A(\+R, Inner1) \texorpdfstring{$\ast$}{*} B(\+Inner1, Inner2) \end{DoxyCompactList}\item 
+\Hypertarget{StaticMatrix_8h_a8f9aab5c5695342947c0d735aa576004}\label{StaticMatrix_8h_a8f9aab5c5695342947c0d735aa576004} 
+{\footnotesize template$<$typename T , int R, int C$>$ }\\\mbox{\hyperlink{structStaticMatrix}{Static\+Matrix}}$<$ T, R, C $>$ {\bfseries operator\texorpdfstring{$\ast$}{*}} (T scalar, const \mbox{\hyperlink{structStaticMatrix}{Static\+Matrix}}$<$ T, R, C $>$ \&m)
+\begin{DoxyCompactList}\small\item\em Scalar multiplication (left side) \end{DoxyCompactList}\item 
+\Hypertarget{StaticMatrix_8h_a3e38cfa1cafa929dd1663b55af95015d}\label{StaticMatrix_8h_a3e38cfa1cafa929dd1663b55af95015d} 
+{\footnotesize template$<$typename T $>$ }\\T {\bfseries det} (const \mbox{\hyperlink{structStaticMatrix}{Static\+Matrix}}$<$ T, 2, 2 $>$ \&m)
+\begin{DoxyCompactList}\small\item\em Determinant for 2x2. \end{DoxyCompactList}\item 
+\Hypertarget{StaticMatrix_8h_a8293eb8375e9773bc7a6e2a4f809c2ec}\label{StaticMatrix_8h_a8293eb8375e9773bc7a6e2a4f809c2ec} 
+{\footnotesize template$<$typename T $>$ }\\T {\bfseries det} (const \mbox{\hyperlink{structStaticMatrix}{Static\+Matrix}}$<$ T, 3, 3 $>$ \&m)
+\begin{DoxyCompactList}\small\item\em Determinant for 3x3. \end{DoxyCompactList}\item 
+\Hypertarget{StaticMatrix_8h_aa2947f9aaf32819077cbfe969b5787b1}\label{StaticMatrix_8h_aa2947f9aaf32819077cbfe969b5787b1} 
+{\footnotesize template$<$typename T , int R, int C$>$ }\\std\+::ostream \& {\bfseries operator$<$$<$} (std\+::ostream \&os, const \mbox{\hyperlink{structStaticMatrix}{Static\+Matrix}}$<$ T, R, C $>$ \&m)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Fixed-\/size dense matrix for local element operations. 
+
+\begin{DoxyAuthor}{Author}
+Itchinda 
+\end{DoxyAuthor}
+\begin{DoxyDate}{Date}
+2026-\/01-\/27 
+\end{DoxyDate}

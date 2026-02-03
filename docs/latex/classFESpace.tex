@@ -1,0 +1,77 @@
+\doxysection{FESpace Class Reference}
+\hypertarget{classFESpace}{}\label{classFESpace}\index{FESpace@{FESpace}}
+
+
+Inheritance diagram for FESpace\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=171pt]{classFESpace__inherit__graph}
+\end{center}
+\end{figure}
+
+
+Collaboration diagram for FESpace\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classFESpace__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classFESpace_a3824ebb1ed3253dfb236a0d8dbc559a3}\label{classFESpace_a3824ebb1ed3253dfb236a0d8dbc559a3} 
+enum class {\bfseries Order} \{ {\bfseries P0} = 0
+, {\bfseries P1} = 1
+, {\bfseries P2} = 2
+ \}
+\item 
+\Hypertarget{classFESpace_a9aaef7a0137c1b86d84dbab566c66938}\label{classFESpace_a9aaef7a0137c1b86d84dbab566c66938} 
+enum class {\bfseries Continuity} \{ {\bfseries CG}
+, {\bfseries DG}
+ \}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classFESpace_ad8680b610c02691e14c5374fe7848adf}\label{classFESpace_ad8680b610c02691e14c5374fe7848adf} 
+{\bfseries FESpace} (const \mbox{\hyperlink{classMesh}{Mesh}} \&mesh, Order order, Continuity cont, int dimension=1)
+\item 
+\Hypertarget{classFESpace_a533e401c82f54c1755c9779ab32e448d}\label{classFESpace_a533e401c82f54c1755c9779ab32e448d} 
+Cfem\+Int {\bfseries get\+Dimension} () const
+\item 
+\Hypertarget{classFESpace_a37db5a88543c455e281cab0e69e237cd}\label{classFESpace_a37db5a88543c455e281cab0e69e237cd} 
+virtual Cfem\+Int {\bfseries get\+Global\+Num\+Dofs} () const =0
+\item 
+\Hypertarget{classFESpace_a889c3423c9a94427efa8ff04f407c0a2}\label{classFESpace_a889c3423c9a94427efa8ff04f407c0a2} 
+virtual int {\bfseries get\+Dofs\+Per\+Cell} (Cell\+Type type) const =0
+\item 
+\Hypertarget{classFESpace_af4d845811d7409f41bdf4e217c753f66}\label{classFESpace_af4d845811d7409f41bdf4e217c753f66} 
+virtual void {\bfseries get\+Element\+Dofs} (Cfem\+Int cell\+Id, std\+::vector$<$ Cfem\+Int $>$ \&global\+Indices) const =0
+\item 
+\Hypertarget{classFESpace_a7524472c170c48d97652d7c3deb3e7d0}\label{classFESpace_a7524472c170c48d97652d7c3deb3e7d0} 
+virtual void {\bfseries evaluate\+Basis} (Cell\+Type type, const \mbox{\hyperlink{structVector3D}{Vector3D}} \&xi, std\+::vector$<$ Cfem\+Real $>$ \&values) const =0
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Protected Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classFESpace_ac12ee6354e029d1ea4eb1a23d020d9b1}\label{classFESpace_ac12ee6354e029d1ea4eb1a23d020d9b1} 
+const \mbox{\hyperlink{classMesh}{Mesh}} \& {\bfseries m\+\_\+mesh}
+\item 
+\Hypertarget{classFESpace_a19295c29e908378a2010b3044aed5ace}\label{classFESpace_a19295c29e908378a2010b3044aed5ace} 
+Order {\bfseries m\+\_\+order}
+\item 
+\Hypertarget{classFESpace_a8b6291bbb2bfffeb211f62cdb7eaf69c}\label{classFESpace_a8b6291bbb2bfffeb211f62cdb7eaf69c} 
+Continuity {\bfseries m\+\_\+continuity}
+\item 
+\Hypertarget{classFESpace_a151f197ac67775ccd2ead4f25f9f87bf}\label{classFESpace_a151f197ac67775ccd2ead4f25f9f87bf} 
+int {\bfseries m\+\_\+dimension}
+\end{DoxyCompactItemize}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/itchinda/projects/odepp/libs/fem/fields/include/FESpace.\+h\end{DoxyCompactItemize}

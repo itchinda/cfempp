@@ -1,0 +1,116 @@
+\doxysection{Contract\+Exception.\+h}
+\hypertarget{ContractException_8h_source}{}\label{ContractException_8h_source}\index{/home/itchinda/projects/odepp/libs/utils/include/ContractException.h@{/home/itchinda/projects/odepp/libs/utils/include/ContractException.h}}
+\mbox{\hyperlink{ContractException_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ CFEM\_CONTRACT\_EXCEPTION\_H}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ CFEM\_CONTRACT\_EXCEPTION\_H}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ <stdexcept>}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#include\ <string>}}
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#include\ <sstream>}}
+\DoxyCodeLine{00007\ }
+\DoxyCodeLine{00008\ \textcolor{keyword}{namespace\ }cfem}
+\DoxyCodeLine{00009\ \{}
+\DoxyCodeLine{00010\ }
+\DoxyCodeLine{00048\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classcfem_1_1ContractException}{ContractException}}\ :\ \textcolor{keyword}{public}\ std::logic\_error}
+\DoxyCodeLine{00049\ \{}
+\DoxyCodeLine{00050\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00051\ }
+\DoxyCodeLine{00060\ \ \ \ \ \mbox{\hyperlink{classcfem_1_1ContractException}{ContractException}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ file,}
+\DoxyCodeLine{00061\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ line,}
+\DoxyCodeLine{00062\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ expr,}
+\DoxyCodeLine{00063\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ kind);}
+\DoxyCodeLine{00064\ }
+\DoxyCodeLine{00068\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ \mbox{\hyperlink{classcfem_1_1ContractException_a76fbc3917609ee59e2c319189f1250e9}{what}}()\ \textcolor{keyword}{const}\ \textcolor{keyword}{noexcept}\ \textcolor{keyword}{override};}
+\DoxyCodeLine{00069\ }
+\DoxyCodeLine{00070\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00071\ \ \ \ \ std::string\ m\_report;}
+\DoxyCodeLine{00072\ \};}
+\DoxyCodeLine{00073\ }
+\DoxyCodeLine{00074\ }
+\DoxyCodeLine{00075\ }
+\DoxyCodeLine{00085\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classcfem_1_1AssertionException}{AssertionException}}\ :\ \textcolor{keyword}{public}\ \mbox{\hyperlink{classcfem_1_1ContractException}{ContractException}}}
+\DoxyCodeLine{00086\ \{}
+\DoxyCodeLine{00087\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00088\ }
+\DoxyCodeLine{00096\ \ \ \ \ \mbox{\hyperlink{classcfem_1_1AssertionException}{AssertionException}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ \ file,}
+\DoxyCodeLine{00097\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ line,}
+\DoxyCodeLine{00098\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ \ expr);}
+\DoxyCodeLine{00099\ \};}
+\DoxyCodeLine{00100\ }
+\DoxyCodeLine{00101\ }
+\DoxyCodeLine{00102\ }
+\DoxyCodeLine{00112\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classcfem_1_1PreconditionException}{PreconditionException}}\ :\ \textcolor{keyword}{public}\ \mbox{\hyperlink{classcfem_1_1ContractException}{ContractException}}}
+\DoxyCodeLine{00113\ \{}
+\DoxyCodeLine{00114\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00115\ }
+\DoxyCodeLine{00123\ \ \ \ \ \mbox{\hyperlink{classcfem_1_1PreconditionException}{PreconditionException}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ \ file,}
+\DoxyCodeLine{00124\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ line,}
+\DoxyCodeLine{00125\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ \ expr);}
+\DoxyCodeLine{00126\ \};}
+\DoxyCodeLine{00127\ }
+\DoxyCodeLine{00128\ }
+\DoxyCodeLine{00129\ }
+\DoxyCodeLine{00139\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classcfem_1_1PostconditionException}{PostconditionException}}\ :\ \textcolor{keyword}{public}\ \mbox{\hyperlink{classcfem_1_1ContractException}{ContractException}}}
+\DoxyCodeLine{00140\ \{}
+\DoxyCodeLine{00141\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00142\ }
+\DoxyCodeLine{00150\ \ \ \ \ \mbox{\hyperlink{classcfem_1_1PostconditionException}{PostconditionException}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ \ file,}
+\DoxyCodeLine{00151\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ line,}
+\DoxyCodeLine{00152\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ \ expr);}
+\DoxyCodeLine{00153\ \};}
+\DoxyCodeLine{00154\ }
+\DoxyCodeLine{00155\ }
+\DoxyCodeLine{00156\ }
+\DoxyCodeLine{00166\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classcfem_1_1InvariantException}{InvariantException}}\ :\ \textcolor{keyword}{public}\ \mbox{\hyperlink{classcfem_1_1ContractException}{ContractException}}}
+\DoxyCodeLine{00167\ \{}
+\DoxyCodeLine{00168\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00169\ }
+\DoxyCodeLine{00177\ \ \ \ \ \mbox{\hyperlink{classcfem_1_1InvariantException}{InvariantException}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ \ file,}
+\DoxyCodeLine{00178\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ line,}
+\DoxyCodeLine{00179\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ \ expr);}
+\DoxyCodeLine{00180\ \};}
+\DoxyCodeLine{00181\ }
+\DoxyCodeLine{00182\ \}\ \textcolor{comment}{//\ namespace\ cfem}}
+\DoxyCodeLine{00183\ }
+\DoxyCodeLine{00184\ }
+\DoxyCodeLine{00185\ }
+\DoxyCodeLine{00186\ \textcolor{comment}{//\ ============================================================================}}
+\DoxyCodeLine{00187\ \textcolor{comment}{//\ Contract\ Verification\ Macros}}
+\DoxyCodeLine{00188\ \textcolor{comment}{//\ ============================================================================}}
+\DoxyCodeLine{00189\ }
+\DoxyCodeLine{00216\ \textcolor{preprocessor}{\#ifndef\ NDEBUG\ \ \ }\textcolor{comment}{//\ Debug\ mode\ enabled}}
+\DoxyCodeLine{00217\ }
+\DoxyCodeLine{00218\ }
+\DoxyCodeLine{00219\ \textcolor{preprocessor}{\#define\ CFEM\_ASSERT(expr)\ \(\backslash\)}}
+\DoxyCodeLine{00220\ \textcolor{preprocessor}{\ \ \ \ if\ (!(expr))\ throw\ cfem::AssertionException(\_\_FILE\_\_,\ \_\_LINE\_\_,\ \#expr)}}
+\DoxyCodeLine{00221\ }
+\DoxyCodeLine{00222\ \textcolor{preprocessor}{\#define\ CFEM\_PRECONDITION(expr)\ \(\backslash\)}}
+\DoxyCodeLine{00223\ \textcolor{preprocessor}{\ \ \ \ if\ (!(expr))\ throw\ cfem::PreconditionException(\_\_FILE\_\_,\ \_\_LINE\_\_,\ \#expr)}}
+\DoxyCodeLine{00224\ }
+\DoxyCodeLine{00225\ \textcolor{preprocessor}{\#define\ CFEM\_POSTCONDITION(expr)\ \(\backslash\)}}
+\DoxyCodeLine{00226\ \textcolor{preprocessor}{\ \ \ \ if\ (!(expr))\ throw\ cfem::PostconditionException(\_\_FILE\_\_,\ \_\_LINE\_\_,\ \#expr)}}
+\DoxyCodeLine{00227\ }
+\DoxyCodeLine{00228\ \textcolor{preprocessor}{\#define\ CFEM\_INVARIANT(expr)\ \(\backslash\)}}
+\DoxyCodeLine{00229\ \textcolor{preprocessor}{\ \ \ \ if\ (!(expr))\ throw\ cfem::InvariantException(\_\_FILE\_\_,\ \_\_LINE\_\_,\ \#expr)}}
+\DoxyCodeLine{00230\ }
+\DoxyCodeLine{00231\ \textcolor{preprocessor}{\#define\ CFEM\_CHECK\_INVARIANTS()\ \(\backslash\)}}
+\DoxyCodeLine{00232\ \textcolor{preprocessor}{\ \ \ \ checkInvariant()}}
+\DoxyCodeLine{00233\ }
+\DoxyCodeLine{00234\ }
+\DoxyCodeLine{00235\ \textcolor{preprocessor}{\#else\ \ \ }\textcolor{comment}{//\ Release\ mode}}
+\DoxyCodeLine{00236\ }
+\DoxyCodeLine{00237\ }
+\DoxyCodeLine{00238\ \textcolor{preprocessor}{\#define\ CFEM\_ASSERT(expr)\ \ \ \ \ \ \ \ \ ((void)0)}}
+\DoxyCodeLine{00239\ \textcolor{preprocessor}{\#define\ CFEM\_PRECONDITION(expr)\ \ ((void)0)}}
+\DoxyCodeLine{00240\ \textcolor{preprocessor}{\#define\ CFEM\_POSTCONDITION(expr)\ ((void)0)}}
+\DoxyCodeLine{00241\ \textcolor{preprocessor}{\#define\ CFEM\_INVARIANT(expr)\ \ \ \ \ ((void)0)}}
+\DoxyCodeLine{00242\ \textcolor{preprocessor}{\#define\ CFEM\_CHECK\_INVARIANTS()\ \ ((void)0)}}
+\DoxyCodeLine{00243\ }
+\DoxyCodeLine{00244\ }
+\DoxyCodeLine{00245\ \textcolor{preprocessor}{\#endif\ }\textcolor{comment}{//\ NDEBUG}}
+\DoxyCodeLine{00246\ }
+\DoxyCodeLine{00247\ }
+\DoxyCodeLine{00248\ \textcolor{preprocessor}{\#endif\ }\textcolor{comment}{//\ CFEM\_CONTRACT\_EXCEPTION\_H}}
+
+\end{DoxyCode}

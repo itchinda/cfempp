@@ -1,0 +1,181 @@
+\doxysection{Static\+Matrix.\+h}
+\hypertarget{StaticMatrix_8h_source}{}\label{StaticMatrix_8h_source}\index{/home/itchinda/projects/odepp/libs/utils/include/StaticMatrix.h@{/home/itchinda/projects/odepp/libs/utils/include/StaticMatrix.h}}
+\mbox{\hyperlink{StaticMatrix_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#ifndef\ CFEM\_STATIC\_MATRIX}}
+\DoxyCodeLine{00009\ \textcolor{preprocessor}{\#define\ CFEM\_STATIC\_MATRIX}}
+\DoxyCodeLine{00010\ }
+\DoxyCodeLine{00011\ \textcolor{preprocessor}{\#include\ "{}cfemutils.h"{}}}
+\DoxyCodeLine{00012\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{StaticVector_8h}{StaticVector.h}}"{}}}
+\DoxyCodeLine{00013\ \textcolor{preprocessor}{\#include\ <iostream>}}
+\DoxyCodeLine{00014\ \textcolor{preprocessor}{\#include\ <utility>}}
+\DoxyCodeLine{00015\ }
+\DoxyCodeLine{00016\ }
+\DoxyCodeLine{00023\ \textcolor{keyword}{template}\ <\textcolor{keyword}{typename}\ T,\ \textcolor{keywordtype}{int}\ R,\ \textcolor{keywordtype}{int}\ C>}
+\DoxyCodeLine{00024\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structStaticMatrix}{StaticMatrix}}\ \{}
+\DoxyCodeLine{00025\ \ \ \ \ T\ data[R\ *\ C]\ =\ \{0\};}
+\DoxyCodeLine{00026\ }
+\DoxyCodeLine{00027\ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix}}()\ =\ \textcolor{keywordflow}{default};}
+\DoxyCodeLine{00028\ }
+\DoxyCodeLine{00029\ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix}}(std::initializer\_list<T>\ list)\ \{}
+\DoxyCodeLine{00030\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{ContractException_8h_a2dc94fb4a8e658b643093aef988a9322}{CFEM\_ASSERT}}(list.size()\ ==\ R\ *\ C);}
+\DoxyCodeLine{00031\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{int}\ i\ =\ 0;}
+\DoxyCodeLine{00032\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keyword}{auto}\ val\ :\ list)\ data[i++]\ =\ val;}
+\DoxyCodeLine{00033\ \ \ \ \ \}}
+\DoxyCodeLine{00034\ }
+\DoxyCodeLine{00035\ \ \ \ \ \textcolor{comment}{//\ -\/-\/-\/\ Accessors\ -\/-\/-\/}}
+\DoxyCodeLine{00036\ }
+\DoxyCodeLine{00037\ \ \ \ \ \textcolor{keyword}{inline}\ T\&\ operator()(\textcolor{keywordtype}{int}\ r,\ \textcolor{keywordtype}{int}\ c)\ \{}
+\DoxyCodeLine{00038\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{ContractException_8h_a2dc94fb4a8e658b643093aef988a9322}{CFEM\_ASSERT}}(r\ <\ R\ \&\&\ c\ <\ C);}
+\DoxyCodeLine{00039\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ data[r\ *\ C\ +\ c];}
+\DoxyCodeLine{00040\ \ \ \ \ \}}
+\DoxyCodeLine{00041\ }
+\DoxyCodeLine{00042\ \ \ \ \ \textcolor{keyword}{inline}\ \textcolor{keyword}{const}\ T\&\ operator()(\textcolor{keywordtype}{int}\ r,\ \textcolor{keywordtype}{int}\ c)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00043\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{ContractException_8h_a2dc94fb4a8e658b643093aef988a9322}{CFEM\_ASSERT}}(r\ <\ R\ \&\&\ c\ <\ C);}
+\DoxyCodeLine{00044\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ data[r\ *\ C\ +\ c];}
+\DoxyCodeLine{00045\ \ \ \ \ \}}
+\DoxyCodeLine{00046\ }
+\DoxyCodeLine{00047\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keyword}{constexpr}\ \textcolor{keywordtype}{int}\ rows()\ \textcolor{keyword}{noexcept}\ \{\ \textcolor{keywordflow}{return}\ R;\ \}}
+\DoxyCodeLine{00048\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keyword}{constexpr}\ \textcolor{keywordtype}{int}\ cols()\ \textcolor{keyword}{noexcept}\ \{\ \textcolor{keywordflow}{return}\ C;\ \}}
+\DoxyCodeLine{00049\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keyword}{constexpr}\ std::pair<int,int>\ dimensions()\ \textcolor{keyword}{noexcept}\ \{\ \textcolor{keywordflow}{return}\ \{R,\ C\};\ \}}
+\DoxyCodeLine{00050\ }
+\DoxyCodeLine{00051\ \ \ \ \ \textcolor{comment}{//\ -\/-\/-\/\ Basic\ Operations\ -\/-\/-\/}}
+\DoxyCodeLine{00052\ }
+\DoxyCodeLine{00053\ \ \ \ \ \textcolor{keywordtype}{void}\ setZero()\ \{}
+\DoxyCodeLine{00054\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ R\ *\ C;\ ++i)\ data[i]\ =\ static\_cast<T>(0);}
+\DoxyCodeLine{00055\ \ \ \ \ \}}
+\DoxyCodeLine{00056\ }
+\DoxyCodeLine{00057\ \ \ \ \ \textcolor{keywordtype}{void}\ setIdentity()\ \{}
+\DoxyCodeLine{00058\ \ \ \ \ \ \ \ \ \textcolor{keyword}{static\_assert}(R\ ==\ C,\ \textcolor{stringliteral}{"{}Identity\ matrix\ must\ be\ square."{}});}
+\DoxyCodeLine{00059\ \ \ \ \ \ \ \ \ setZero();}
+\DoxyCodeLine{00060\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ R;\ ++i)\ (*this)(i,\ i)\ =\ static\_cast<T>(1);}
+\DoxyCodeLine{00061\ \ \ \ \ \}}
+\DoxyCodeLine{00062\ }
+\DoxyCodeLine{00063\ \ \ \ \ \textcolor{comment}{//\ -\/-\/-\/\ Arithmetic\ -\/-\/-\/}}
+\DoxyCodeLine{00064\ }
+\DoxyCodeLine{00065\ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\ operator*(T\ scalar)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00066\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\ res;}
+\DoxyCodeLine{00067\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ R\ *\ C;\ ++i)\ res.data[i]\ =\ data[i]\ *\ scalar;}
+\DoxyCodeLine{00068\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ res;}
+\DoxyCodeLine{00069\ \ \ \ \ \}}
+\DoxyCodeLine{00070\ }
+\DoxyCodeLine{00071\ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\ operator/(T\ scalar)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00072\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{ContractException_8h_a2dc94fb4a8e658b643093aef988a9322}{CFEM\_ASSERT}}(std::abs(scalar)\ >\ cfem::ZERO\_TOLERANCE);}
+\DoxyCodeLine{00073\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\ res;}
+\DoxyCodeLine{00074\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ R\ *\ C;\ ++i)\ res.data[i]\ =\ data[i]\ /\ scalar;}
+\DoxyCodeLine{00075\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ res;}
+\DoxyCodeLine{00076\ \ \ \ \ \}}
+\DoxyCodeLine{00077\ }
+\DoxyCodeLine{00078\ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\ operator+(\textcolor{keyword}{const}\ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix}}\&\ other)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00079\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\ res;}
+\DoxyCodeLine{00080\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ R\ *\ C;\ ++i)\ res.data[i]\ =\ data[i]\ +\ other.data[i];}
+\DoxyCodeLine{00081\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ res;}
+\DoxyCodeLine{00082\ \ \ \ \ \}}
+\DoxyCodeLine{00083\ }
+\DoxyCodeLine{00084\ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\ operator-\/(\textcolor{keyword}{const}\ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix}}\&\ other)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00085\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\ res;}
+\DoxyCodeLine{00086\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ R\ *\ C;\ ++i)\ res.data[i]\ =\ data[i]\ -\/\ other.data[i];}
+\DoxyCodeLine{00087\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ res;}
+\DoxyCodeLine{00088\ \ \ \ \ \}}
+\DoxyCodeLine{00089\ }
+\DoxyCodeLine{00090\ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\&\ operator*=(T\ scalar)\ \{}
+\DoxyCodeLine{00091\ }
+\DoxyCodeLine{00092\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ R\ *\ C;\ ++i)\ data[i]\ *=\ scalar;}
+\DoxyCodeLine{00093\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ *\textcolor{keyword}{this};}
+\DoxyCodeLine{00094\ \ \ \ \ \}}
+\DoxyCodeLine{00095\ }
+\DoxyCodeLine{00096\ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\&\ operator/=(T\ scalar)\ \{}
+\DoxyCodeLine{00097\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{ContractException_8h_a2dc94fb4a8e658b643093aef988a9322}{CFEM\_ASSERT}}(std::abs(scalar)\ >\ cfem::ZERO\_TOLERANCE);}
+\DoxyCodeLine{00098\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ R\ *\ C;\ ++i)\ data[i]\ /=\ scalar;}
+\DoxyCodeLine{00099\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ *\textcolor{keyword}{this};}
+\DoxyCodeLine{00100\ \ \ \ \ \}}
+\DoxyCodeLine{00101\ }
+\DoxyCodeLine{00102\ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\&\ operator+=(\textcolor{keyword}{const}\ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix}}\&\ other)\ \{}
+\DoxyCodeLine{00103\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ R\ *\ C;\ ++i)\ data[i]\ +=\ other.data[i];}
+\DoxyCodeLine{00104\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ *\textcolor{keyword}{this};}
+\DoxyCodeLine{00105\ \ \ \ \ \}}
+\DoxyCodeLine{00106\ }
+\DoxyCodeLine{00107\ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\&\ operator-\/=(\textcolor{keyword}{const}\ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix}}\&\ other)\ \{}
+\DoxyCodeLine{00108\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ R\ *\ C;\ ++i)\ data[i]\ -\/=\ other.data[i];}
+\DoxyCodeLine{00109\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ *\textcolor{keyword}{this};}
+\DoxyCodeLine{00110\ \ \ \ \ \}}
+\DoxyCodeLine{00111\ }
+\DoxyCodeLine{00112\ }
+\DoxyCodeLine{00113\ \ \ \ \ \textcolor{comment}{//\ -\/-\/-\/\ Transpose\ -\/-\/-\/}}
+\DoxyCodeLine{00114\ }
+\DoxyCodeLine{00116\ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ C,\ R>}}\ \mbox{\hyperlink{structStaticMatrix_a9bc440160b18e1b27c1a1a957cbb7786}{transpose}}()\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00117\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ C,\ R>}}\ res;}
+\DoxyCodeLine{00118\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ R;\ ++i)}
+\DoxyCodeLine{00119\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ j\ =\ 0;\ j\ <\ C;\ ++j)}
+\DoxyCodeLine{00120\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ res(j,\ i)\ =\ (*this)(i,\ j);}
+\DoxyCodeLine{00121\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ res;}
+\DoxyCodeLine{00122\ \ \ \ \ \}}
+\DoxyCodeLine{00123\ \};}
+\DoxyCodeLine{00124\ }
+\DoxyCodeLine{00125\ \textcolor{comment}{//\ -\/-\/-\/\ Multiplications\ (Non-\/member\ for\ template\ flexibility)\ -\/-\/-\/}}
+\DoxyCodeLine{00126\ }
+\DoxyCodeLine{00128\ \textcolor{keyword}{template}\ <\textcolor{keyword}{typename}\ T,\ \textcolor{keywordtype}{int}\ R,\ \textcolor{keywordtype}{int}\ C>}
+\DoxyCodeLine{00129\ \textcolor{keyword}{inline}\ \mbox{\hyperlink{structStaticVector}{StaticVector<T,\ R>}}\ \mbox{\hyperlink{StaticMatrix_8h_a4a034726a9170cf73d2d5220f813124f}{operator*}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\&\ m,\ \textcolor{keyword}{const}\ \mbox{\hyperlink{structStaticVector}{StaticVector<T,\ C>}}\&\ v)\ \{}
+\DoxyCodeLine{00130\ \ \ \ \ \mbox{\hyperlink{structStaticVector}{StaticVector<T,\ R>}}\ res;}
+\DoxyCodeLine{00131\ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ R;\ ++i)\ \{}
+\DoxyCodeLine{00132\ \ \ \ \ \ \ \ \ T\ sum\ =\ 0;}
+\DoxyCodeLine{00133\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ j\ =\ 0;\ j\ <\ C;\ ++j)\ \{}
+\DoxyCodeLine{00134\ \ \ \ \ \ \ \ \ \ \ \ \ sum\ +=\ m(i,\ j)\ *\ v[j];}
+\DoxyCodeLine{00135\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00136\ \ \ \ \ \ \ \ \ res[i]\ =\ sum;}
+\DoxyCodeLine{00137\ \ \ \ \ \}}
+\DoxyCodeLine{00138\ \ \ \ \ \textcolor{keywordflow}{return}\ res;}
+\DoxyCodeLine{00139\ \}}
+\DoxyCodeLine{00140\ }
+\DoxyCodeLine{00142\ \textcolor{keyword}{template}\ <\textcolor{keyword}{typename}\ T,\ \textcolor{keywordtype}{int}\ R,\ \textcolor{keywordtype}{int}\ Inner,\ \textcolor{keywordtype}{int}\ C2>}
+\DoxyCodeLine{00143\ \textcolor{keyword}{inline}\ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C2>}}\ \mbox{\hyperlink{StaticMatrix_8h_a4a034726a9170cf73d2d5220f813124f}{operator*}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ Inner>}}\&\ A,\ \textcolor{keyword}{const}\ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ Inner,\ C2>}}\&\ B)\ \{}
+\DoxyCodeLine{00144\ \ \ \ \ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C2>}}\ res;}
+\DoxyCodeLine{00145\ \ \ \ \ res.setZero();}
+\DoxyCodeLine{00146\ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ R;\ ++i)\ \{}
+\DoxyCodeLine{00147\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ k\ =\ 0;\ k\ <\ Inner;\ ++k)\ \{}
+\DoxyCodeLine{00148\ \ \ \ \ \ \ \ \ \ \ \ \ T\ val\ =\ A(i,\ k);}
+\DoxyCodeLine{00149\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ j\ =\ 0;\ j\ <\ C2;\ ++j)\ \{}
+\DoxyCodeLine{00150\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ res(i,\ j)\ +=\ val\ *\ B(k,\ j);}
+\DoxyCodeLine{00151\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00152\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00153\ \ \ \ \ \}}
+\DoxyCodeLine{00154\ \ \ \ \ \textcolor{keywordflow}{return}\ res;}
+\DoxyCodeLine{00155\ \}}
+\DoxyCodeLine{00156\ }
+\DoxyCodeLine{00158\ \textcolor{keyword}{template}\ <\textcolor{keyword}{typename}\ T,\ \textcolor{keywordtype}{int}\ R,\ \textcolor{keywordtype}{int}\ C>}
+\DoxyCodeLine{00159\ \textcolor{keyword}{inline}\ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\ \mbox{\hyperlink{StaticMatrix_8h_a4a034726a9170cf73d2d5220f813124f}{operator*}}(T\ scalar,\ \textcolor{keyword}{const}\ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\&\ m)\ \{}
+\DoxyCodeLine{00160\ \ \ \ \ \textcolor{keywordflow}{return}\ m\ *\ scalar;}
+\DoxyCodeLine{00161\ \}}
+\DoxyCodeLine{00162\ }
+\DoxyCodeLine{00163\ \textcolor{comment}{//\ -\/-\/-\/\ Specialized\ Tools\ for\ Jacobians\ -\/-\/-\/}}
+\DoxyCodeLine{00164\ }
+\DoxyCodeLine{00166\ \textcolor{keyword}{template}\ <\textcolor{keyword}{typename}\ T>}
+\DoxyCodeLine{00167\ \textcolor{keyword}{inline}\ T\ \mbox{\hyperlink{StaticMatrix_8h_a3e38cfa1cafa929dd1663b55af95015d}{det}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ 2,\ 2>}}\&\ m)\ \{}
+\DoxyCodeLine{00168\ \ \ \ \ \textcolor{keywordflow}{return}\ m(0,0)*m(1,1)\ -\/\ m(0,1)*m(1,0);}
+\DoxyCodeLine{00169\ \}}
+\DoxyCodeLine{00170\ }
+\DoxyCodeLine{00172\ \textcolor{keyword}{template}\ <\textcolor{keyword}{typename}\ T>}
+\DoxyCodeLine{00173\ \textcolor{keyword}{inline}\ T\ \mbox{\hyperlink{StaticMatrix_8h_a3e38cfa1cafa929dd1663b55af95015d}{det}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ 3,\ 3>}}\&\ m)\ \{}
+\DoxyCodeLine{00174\ \ \ \ \ \textcolor{keywordflow}{return}\ m(0,0)*(m(1,1)*m(2,2)\ -\/\ m(1,2)*m(2,1))\ -\/}
+\DoxyCodeLine{00175\ \ \ \ \ \ \ \ \ \ \ \ m(0,1)*(m(1,0)*m(2,2)\ -\/\ m(1,2)*m(2,0))\ +}
+\DoxyCodeLine{00176\ \ \ \ \ \ \ \ \ \ \ \ m(0,2)*(m(1,0)*m(2,1)\ -\/\ m(1,1)*m(2,0));}
+\DoxyCodeLine{00177\ \}}
+\DoxyCodeLine{00178\ }
+\DoxyCodeLine{00179\ \textcolor{comment}{//\ -\/-\/-\/\ Output\ Stream\ -\/-\/-\/}}
+\DoxyCodeLine{00180\ }
+\DoxyCodeLine{00181\ \textcolor{keyword}{template}\ <\textcolor{keyword}{typename}\ T,\ \textcolor{keywordtype}{int}\ R,\ \textcolor{keywordtype}{int}\ C>}
+\DoxyCodeLine{00182\ \textcolor{keyword}{inline}\ std::ostream\&\ operator<<(std::ostream\&\ os,\ \textcolor{keyword}{const}\ \mbox{\hyperlink{structStaticMatrix}{StaticMatrix<T,\ R,\ C>}}\&\ m)\ \{}
+\DoxyCodeLine{00183\ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ i\ =\ 0;\ i\ <\ R;\ ++i)\ \{}
+\DoxyCodeLine{00184\ \ \ \ \ \ \ \ \ os\ <<\ \textcolor{stringliteral}{"{}|\ "{}};}
+\DoxyCodeLine{00185\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (\textcolor{keywordtype}{int}\ j\ =\ 0;\ j\ <\ C;\ ++j)\ \{}
+\DoxyCodeLine{00186\ \ \ \ \ \ \ \ \ \ \ \ \ os\ <<\ m(i,\ j)\ <<\ (j\ ==\ C\ -\/\ 1\ ?\ \textcolor{stringliteral}{"{}"{}}\ :\ \textcolor{stringliteral}{"{},\ "{}});}
+\DoxyCodeLine{00187\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00188\ \ \ \ \ \ \ \ \ os\ <<\ \textcolor{stringliteral}{"{}\ |\(\backslash\)n"{}};}
+\DoxyCodeLine{00189\ \ \ \ \ \}}
+\DoxyCodeLine{00190\ \ \ \ \ \textcolor{keywordflow}{return}\ os;}
+\DoxyCodeLine{00191\ \}}
+\DoxyCodeLine{00192\ }
+\DoxyCodeLine{00193\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

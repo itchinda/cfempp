@@ -1,0 +1,107 @@
+\chapter{CFEM++}
+\hypertarget{index}{}\label{index}\index{CFEM++@{CFEM++}}
+\label{index_md__2home_2itchinda_2projects_2odepp_2README}%
+\Hypertarget{index_md__2home_2itchinda_2projects_2odepp_2README}%
+ \href{https://github.com/itchinda/odepp/actions/workflows/ci.yml}{\texttt{ }}\hypertarget{index_autotoc_md0}{}\doxysection{\texorpdfstring{CFEM++\+: High-\/\+Performance Finite Element Solver}{CFEM++: High-Performance Finite Element Solver}}\label{index_autotoc_md0}
+{\bfseries{CFEM++}} is a research-\/grade C++ library designed for large-\/scale computational mechanics. It bridges the gap between complex geometric preprocessing in {\bfseries{Gmsh}} and high-\/performance linear algebra via the {\bfseries{PETSc}} framework.
+
+Designed to handle {\bfseries{10\texorpdfstring{$^\wedge$}{\string^}7+ Degrees of Freedom (Do\+Fs)}}, the project focuses on topological robustness, memory-\/efficient assembly, and high-\/order element support.
+
+\DoxyHorRuler{0}
+\hypertarget{index_autotoc_md2}{}\doxysubsection{\texorpdfstring{🚀 Key Features}{🚀 Key Features}}\label{index_autotoc_md2}
+\hypertarget{index_autotoc_md3}{}\doxysubsubsection{\texorpdfstring{1. Robust Mesh Topology}{1. Robust Mesh Topology}}\label{index_autotoc_md3}
+
+\begin{DoxyItemize}
+\item {\bfseries{Gmsh 4.\+1 Integration\+:}} Native support for MSH ASCII formats with advanced vertex unique-\/ification and tag interning.
+\item {\bfseries{Dual-\/\+Layer Entity System\+:}}
+\begin{DoxyItemize}
+\item {\bfseries{Universe (ID -\/1)\+:}} Mandatory computational domain definition.
+\item {\bfseries{SYS\+\_\+\+BOUNDARY (ID -\/2)\+:}} Automated exterior facet detection to ensure 100\% Boundary Condition (BC) coverage.
+\end{DoxyItemize}
+\item {\bfseries{Corner-\/\+Based Mapping\+:}} A specialized algorithm for quadratic elements (TET10, HEX27) that identifies physical entities by intersecting geometric vertices (corners), effectively solving the "{}mismatched diagonal"{} problem in high-\/order meshes.
+\end{DoxyItemize}\hypertarget{index_autotoc_md4}{}\doxysubsubsection{\texorpdfstring{2. High-\/\+Performance Computing (\+HPC)}{2. High-Performance Computing (HPC)}}\label{index_autotoc_md4}
+Leveraging {\bfseries{PETSc}} for its linear algebra core, CFEM++ provides\+:
+\begin{DoxyItemize}
+\item {\bfseries{Distributed Computing\+:}} MPI-\/parallelized operations using {\ttfamily Vec} and {\ttfamily Mat} (AIJ format).
+\item {\bfseries{Advanced Solvers\+:}} Optimized for {\bfseries{Preconditioned Conjugate Gradient (PCG)}} with {\bfseries{Algebraic Multigrid (GAMG)}} preconditioning.
+\item {\bfseries{Scalability\+:}} Capable of processing \texorpdfstring{$\sim$}{\string~}8M nodes and \texorpdfstring{$\sim$}{\string~}6M cells in under 30 seconds on standard workstation hardware (32GB RAM).
+\end{DoxyItemize}\hypertarget{index_autotoc_md5}{}\doxysubsubsection{\texorpdfstring{3. Comprehensive Element Library}{3. Comprehensive Element Library}}\label{index_autotoc_md5}
+\tabulinesep=1mm
+\begin{longtabu}spread 0pt [c]{*{3}{|X[-1]}|}
+\hline
+\cellcolor{\tableheadbgcolor}\textbf{ Dimension   }&\cellcolor{\tableheadbgcolor}\textbf{ Linear Elements   }&\cellcolor{\tableheadbgcolor}\textbf{ Quadratic Elements    }\\\cline{1-3}
+\endfirsthead
+\hline
+\endfoot
+\hline
+\cellcolor{\tableheadbgcolor}\textbf{ Dimension   }&\cellcolor{\tableheadbgcolor}\textbf{ Linear Elements   }&\cellcolor{\tableheadbgcolor}\textbf{ Quadratic Elements    }\\\cline{1-3}
+\endhead
+{\bfseries{1D}}   &LINE2   &LINE3    \\\cline{1-3}
+{\bfseries{2D}}   &TRI3, QUAD4   &TRI6, QUAD9    \\\cline{1-3}
+{\bfseries{3D}}   &TET4, HEX8   &TET10, HEX27   \\\cline{1-3}
+\end{longtabu}
+
+
+\DoxyHorRuler{0}
+\hypertarget{index_autotoc_md7}{}\doxysubsection{\texorpdfstring{🛠 Installation \& Dependencies}{🛠 Installation \& Dependencies}}\label{index_autotoc_md7}
+Ensure you have the following installed\+:
+\begin{DoxyItemize}
+\item {\bfseries{C++17 Compiler}} (GCC, Clang, or MSVC)
+\item {\bfseries{CMake}} (3.\+15+)
+\item {\bfseries{PETSc}} (configured with MPI and HYPRE/\+MUMPS recommended)
+\item {\bfseries{Gmsh}} (for mesh generation)
+\end{DoxyItemize}
+
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{git\ clone\ [https://github.com/username/cfempp.git](https://github.com/username/cfempp.git)}
+\DoxyCodeLine{cd\ cfempp}
+\DoxyCodeLine{mkdir\ build\ \&\&\ cd\ build}
+\DoxyCodeLine{cmake\ ..}
+\DoxyCodeLine{make\ -\/j}
+
+\end{DoxyCode}
+
+
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\ ++}
+\DoxyCodeLine{\textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{Mesh_8h}{Mesh.h}}"{}}}
+\DoxyCodeLine{\textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{GmshParser_8h}{GmshParser.h}}"{}}}
+\DoxyCodeLine{}
+\DoxyCodeLine{\textcolor{keywordtype}{int}\ main()\ \{}
+\DoxyCodeLine{\ \ \ \ \mbox{\hyperlink{classMesh}{Mesh}}\ mesh;}
+\DoxyCodeLine{\ \ \ \ \mbox{\hyperlink{classGmshParser}{GmshParser}}\ parser;}
+\DoxyCodeLine{\ \ \ \ \mbox{\hyperlink{classVTKExporter}{VTKExporter}}\ exporter(mesh);}
+\DoxyCodeLine{}
+\DoxyCodeLine{\ \ \ \ \textcolor{comment}{//\ Load\ MSH\ 4.1\ file\ and\ build\ internal\ topology}}
+\DoxyCodeLine{\ \ \ \ \textcolor{keywordflow}{if}\ (parser.\mbox{\hyperlink{classGmshParser_abfacecd9c59d6f5d78cbd1dd75a469a4}{load}}(mesh,\ \textcolor{stringliteral}{"{}gmsh\_file.msh"{}}))\ \{}
+\DoxyCodeLine{\ \ \ \ \ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \textcolor{comment}{//\ Display\ diagnostic\ report\ (Memory,\ Bounding\ Box,\ Entities)}}
+\DoxyCodeLine{\ \ \ \ \ \ \ \ mesh.info();\ }
+\DoxyCodeLine{}
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \textcolor{comment}{//\ Export\ to\ vtk\ format\ for\ paraview\ visualization}}
+\DoxyCodeLine{\ \ \ \ \ \ \ \ exporter.setExportQuality(\textcolor{keyword}{true});}
+\DoxyCodeLine{\ \ \ \ \ \ \ \ exporter.write(\textcolor{stringliteral}{"{}hex.vtk"{}});}
+\DoxyCodeLine{}
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \textcolor{comment}{//\ Next\ steps:\ Finite\ Element\ Function\ Spaces\ /\ Fields\ /\ Assembly\ /\ Solve}}
+\DoxyCodeLine{}
+\DoxyCodeLine{\ \ \ \ \}}
+\DoxyCodeLine{\ \ \ \ \textcolor{keywordflow}{return}\ 0;}
+\DoxyCodeLine{\}}
+
+\end{DoxyCode}
+\hypertarget{index_autotoc_md8}{}\doxysubsection{\texorpdfstring{📊 Performance Benchmark}{📊 Performance Benchmark}}\label{index_autotoc_md8}
+
+\begin{DoxyItemize}
+\item {\bfseries{Hardware}}\+: Intel Core Ultra 7 (165U), 32GB RAM.
+\item {\bfseries{Workload}}\+: 7.\+9M nodes, 5.\+8M cells (3D Quadratic).
+\item {\bfseries{Load Time}}\+: \texorpdfstring{$\sim$}{\string~}29 seconds (ASCII Parsing + Topological Reconstruction).
+\end{DoxyItemize}\hypertarget{index_autotoc_md9}{}\doxysubsection{\texorpdfstring{📝 Metadata \& License}{📝 Metadata \& License}}\label{index_autotoc_md9}
+
+\begin{DoxyItemize}
+\item {\bfseries{Lead Developer}}\+: itchinda
+\item {\bfseries{Version}}\+: 0.\+1.\+0 (High-\/\+Order HPC Release)
+\item {\bfseries{Status}}\+: Active Research
+\item {\bfseries{License}}\+: Copyright (c) 2026 CFEM++ Team. All rights reserved. 
+\end{DoxyItemize}

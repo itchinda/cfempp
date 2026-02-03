@@ -1,0 +1,159 @@
+\doxysection{Vector3D Struct Reference}
+\hypertarget{structVector3D}{}\label{structVector3D}\index{Vector3D@{Vector3D}}
+
+
+Represents a vector or point in 3D Euclidean space.  
+
+
+
+
+{\ttfamily \#include $<$Vector3\+D.\+h$>$}
+
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structVector3D_ae5153e5e26852627ccea88d399e13c6e}\label{structVector3D_ae5153e5e26852627ccea88d399e13c6e} 
+\mbox{\hyperlink{structVector3D}{Vector3D}} {\bfseries operator+} (const \mbox{\hyperlink{structVector3D}{Vector3D}} \&other) const
+\begin{DoxyCompactList}\small\item\em Vector addition. \end{DoxyCompactList}\item 
+\Hypertarget{structVector3D_a2d77fde2d4f484a639cb4dfd500c3540}\label{structVector3D_a2d77fde2d4f484a639cb4dfd500c3540} 
+\mbox{\hyperlink{structVector3D}{Vector3D}} {\bfseries operator-\/} (const \mbox{\hyperlink{structVector3D}{Vector3D}} \&other) const
+\begin{DoxyCompactList}\small\item\em Vector subtraction. \end{DoxyCompactList}\item 
+\Hypertarget{structVector3D_a5d4769565ee5d4869319fa5ae85b6c9a}\label{structVector3D_a5d4769565ee5d4869319fa5ae85b6c9a} 
+\mbox{\hyperlink{structVector3D}{Vector3D}} {\bfseries operator\texorpdfstring{$\ast$}{*}} (Cfem\+Real scalar) const
+\begin{DoxyCompactList}\small\item\em Right-\/side scalar multiplication. \end{DoxyCompactList}\item 
+\Hypertarget{structVector3D_abd6449ee3589afb117333145d500e817}\label{structVector3D_abd6449ee3589afb117333145d500e817} 
+\mbox{\hyperlink{structVector3D}{Vector3D}} {\bfseries operator/} (Cfem\+Real scalar) const
+\begin{DoxyCompactList}\small\item\em Scalar division with zero-\/tolerance check. \end{DoxyCompactList}\item 
+\Hypertarget{structVector3D_a546241ecc51e49e05e7672ffde26bbf8}\label{structVector3D_a546241ecc51e49e05e7672ffde26bbf8} 
+\mbox{\hyperlink{structVector3D}{Vector3D}} \& {\bfseries operator+=} (const \mbox{\hyperlink{structVector3D}{Vector3D}} \&other)
+\item 
+\Hypertarget{structVector3D_a799f712590c47cc435b929718586555c}\label{structVector3D_a799f712590c47cc435b929718586555c} 
+\mbox{\hyperlink{structVector3D}{Vector3D}} \& {\bfseries operator-\/=} (const \mbox{\hyperlink{structVector3D}{Vector3D}} \&other)
+\item 
+\Hypertarget{structVector3D_a5509038427f46fc7ad33a28c6e0f4fe1}\label{structVector3D_a5509038427f46fc7ad33a28c6e0f4fe1} 
+\mbox{\hyperlink{structVector3D}{Vector3D}} \& {\bfseries operator\texorpdfstring{$\ast$}{*}=} (Cfem\+Real scalar)
+\item 
+\Hypertarget{structVector3D_a2c1a21def9b0be3fd1ce651a98ab6751}\label{structVector3D_a2c1a21def9b0be3fd1ce651a98ab6751} 
+\mbox{\hyperlink{structVector3D}{Vector3D}} \& {\bfseries operator/=} (Cfem\+Real scalar)
+\item 
+\Hypertarget{structVector3D_a88d36e2731951c3ecda352dc488733e3}\label{structVector3D_a88d36e2731951c3ecda352dc488733e3} 
+Cfem\+Real {\bfseries operator\mbox{[}$\,$\mbox{]}} (int i) const
+\begin{DoxyCompactList}\small\item\em Read-\/only access by index (0=x, 1=y, 2=z). \end{DoxyCompactList}\item 
+\Hypertarget{structVector3D_ab0123cc34e0eaeb14d89c934d6f0eb0e}\label{structVector3D_ab0123cc34e0eaeb14d89c934d6f0eb0e} 
+Cfem\+Real \& {\bfseries operator\mbox{[}$\,$\mbox{]}} (int i)
+\begin{DoxyCompactList}\small\item\em Read-\/write access by index (0=x, 1=y, 2=z). \end{DoxyCompactList}\item 
+Cfem\+Real \mbox{\hyperlink{structVector3D_afbea23a17b9395a40c34a3e75e92b2ca}{dot}} (const \mbox{\hyperlink{structVector3D}{Vector3D}} \&other) const
+\begin{DoxyCompactList}\small\item\em Computes the dot (inner) product. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{structVector3D}{Vector3D}} \mbox{\hyperlink{structVector3D_af1b13ca0a65eea7431bfbcd96dcacdee}{cross}} (const \mbox{\hyperlink{structVector3D}{Vector3D}} \&other) const
+\begin{DoxyCompactList}\small\item\em Computes the cross product. \end{DoxyCompactList}\item 
+\Hypertarget{structVector3D_a7766818648d39e95d60de041eb91ff67}\label{structVector3D_a7766818648d39e95d60de041eb91ff67} 
+Cfem\+Real {\bfseries norm\+Square} () const
+\begin{DoxyCompactList}\small\item\em Returns the squared Euclidean norm (faster than \doxylink{structVector3D_a6e198d955955b4e60c59714a648f8cc0}{norm()}). \end{DoxyCompactList}\item 
+\Hypertarget{structVector3D_a6e198d955955b4e60c59714a648f8cc0}\label{structVector3D_a6e198d955955b4e60c59714a648f8cc0} 
+Cfem\+Real {\bfseries norm} () const
+\begin{DoxyCompactList}\small\item\em Returns the Euclidean norm (length) of the vector. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{structVector3D}{Vector3D}} \mbox{\hyperlink{structVector3D_aac87aef508e65eb8ada23346b5e552c3}{normalized}} () const
+\begin{DoxyCompactList}\small\item\em Returns a unit vector in the same direction. Returns \{0,0,0\} if the vector is near-\/null. \end{DoxyCompactList}\item 
+\Hypertarget{structVector3D_a4f2ffdc33be90c5e7ab238d9df5e876d}\label{structVector3D_a4f2ffdc33be90c5e7ab238d9df5e876d} 
+const \mbox{\hyperlink{structVector3D}{Vector3D}} \& {\bfseries normalize} ()
+\item 
+\Hypertarget{structVector3D_af0ff28f79898a99c55f151daef7dfd1b}\label{structVector3D_af0ff28f79898a99c55f151daef7dfd1b} 
+bool {\bfseries is\+Close} (const \mbox{\hyperlink{structVector3D}{Vector3D}} \&other, Cfem\+Real tol=cfem\+::\+ZERO\+\_\+\+TOLERANCE) const
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structVector3D_a117c86428ac0e2e92cdf27af9a87f194}\label{structVector3D_a117c86428ac0e2e92cdf27af9a87f194} 
+Cfem\+Real {\bfseries x} = 0.\+0
+\begin{DoxyCompactList}\small\item\em X-\/coordinate. \end{DoxyCompactList}\item 
+\Hypertarget{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394}\label{structVector3D_a19e944c62c6f49b31ea7ccce2d03a394} 
+Cfem\+Real {\bfseries y} = 0.\+0
+\begin{DoxyCompactList}\small\item\em Y-\/coordinate. \end{DoxyCompactList}\item 
+\Hypertarget{structVector3D_a9ae6d5656af323a55b9589263460c72f}\label{structVector3D_a9ae6d5656af323a55b9589263460c72f} 
+Cfem\+Real {\bfseries z} = 0.\+0
+\begin{DoxyCompactList}\small\item\em Z-\/coordinate. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Static Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structVector3D_a540353339e37fcbb5a42e81e8c597b8f}\label{structVector3D_a540353339e37fcbb5a42e81e8c597b8f} 
+static constexpr int {\bfseries size} = 3
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Represents a vector or point in 3D Euclidean space. 
+
+
+\begin{DoxyItemize}
+\item This struct provides the basic linear algebra and vector calculus tools required for mesh transformations, Jacobian calculations, and normal extraction. 
+\end{DoxyItemize}
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{structVector3D_af1b13ca0a65eea7431bfbcd96dcacdee}\label{structVector3D_af1b13ca0a65eea7431bfbcd96dcacdee} 
+\index{Vector3D@{Vector3D}!cross@{cross}}
+\index{cross@{cross}!Vector3D@{Vector3D}}
+\doxysubsubsection{\texorpdfstring{cross()}{cross()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{structVector3D}{Vector3D}} Vector3\+D\+::cross (\begin{DoxyParamCaption}\item[{const \mbox{\hyperlink{structVector3D}{Vector3D}} \&}]{other }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [inline]}}
+
+
+
+Computes the cross product. 
+
+\texorpdfstring{$\ast$}{*}\begin{DoxyReturn}{Returns}
+A vector perpendicular to both this and other. 
+\end{DoxyReturn}
+Here is the caller graph for this function\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=250pt]{structVector3D_af1b13ca0a65eea7431bfbcd96dcacdee_icgraph}
+\end{center}
+\end{figure}
+\Hypertarget{structVector3D_afbea23a17b9395a40c34a3e75e92b2ca}\label{structVector3D_afbea23a17b9395a40c34a3e75e92b2ca} 
+\index{Vector3D@{Vector3D}!dot@{dot}}
+\index{dot@{dot}!Vector3D@{Vector3D}}
+\doxysubsubsection{\texorpdfstring{dot()}{dot()}}
+{\footnotesize\ttfamily Cfem\+Real Vector3\+D\+::dot (\begin{DoxyParamCaption}\item[{const \mbox{\hyperlink{structVector3D}{Vector3D}} \&}]{other }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [inline]}}
+
+
+
+Computes the dot (inner) product. 
+
+\texorpdfstring{$\ast$}{*}\begin{DoxyReturn}{Returns}
+a.\+x\texorpdfstring{$\ast$}{*}b.x + a.\+y\texorpdfstring{$\ast$}{*}b.y + a.\+z\texorpdfstring{$\ast$}{*}b.z 
+\end{DoxyReturn}
+Here is the caller graph for this function\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=231pt]{structVector3D_afbea23a17b9395a40c34a3e75e92b2ca_icgraph}
+\end{center}
+\end{figure}
+\Hypertarget{structVector3D_aac87aef508e65eb8ada23346b5e552c3}\label{structVector3D_aac87aef508e65eb8ada23346b5e552c3} 
+\index{Vector3D@{Vector3D}!normalized@{normalized}}
+\index{normalized@{normalized}!Vector3D@{Vector3D}}
+\doxysubsubsection{\texorpdfstring{normalized()}{normalized()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{structVector3D}{Vector3D}} Vector3\+D\+::normalized (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [inline]}}
+
+
+
+Returns a unit vector in the same direction. Returns \{0,0,0\} if the vector is near-\/null. 
+
+
+\begin{DoxyItemize}
+\item 
+\end{DoxyItemize}Here is the call graph for this function\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structVector3D_aac87aef508e65eb8ada23346b5e552c3_cgraph}
+\end{center}
+\end{figure}
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/itchinda/projects/odepp/libs/utils/include/\mbox{\hyperlink{Vector3D_8h}{Vector3\+D.\+h}}\end{DoxyCompactItemize}

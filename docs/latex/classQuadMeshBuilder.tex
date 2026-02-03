@@ -1,0 +1,37 @@
+\doxysection{Quad\+Mesh\+Builder Class Reference}
+\hypertarget{classQuadMeshBuilder}{}\label{classQuadMeshBuilder}\index{QuadMeshBuilder@{QuadMeshBuilder}}
+\doxysubsubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structQuadMeshBuilder_1_1BoundaryNames}{Boundary\+Names}}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classQuadMeshBuilder_a7fa31f79401611b450f3a80072296a2b}\label{classQuadMeshBuilder_a7fa31f79401611b450f3a80072296a2b} 
+enum class {\bfseries Subdivision\+Type} \{ {\bfseries None}
+, {\bfseries First\+Diagonal}
+, {\bfseries Second\+Diagonal}
+, {\bfseries Criss\+Cross}
+ \}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classQuadMeshBuilder_ac9438df16daf2e453a0500bf642ffcd9}\label{classQuadMeshBuilder_ac9438df16daf2e453a0500bf642ffcd9} 
+void {\bfseries build} (\mbox{\hyperlink{classMesh}{Mesh}} \&mesh, int order, int nx, int ny, const std\+::array$<$ \mbox{\hyperlink{structVector3D}{Vector3D}}, 4 $>$ \&corners, Subdivision\+Type sub\+Div=Subdivision\+Type\+::\+None)
+\item 
+\Hypertarget{classQuadMeshBuilder_ac01b02691cce2de7a9d1ee7c774d5eaf}\label{classQuadMeshBuilder_ac01b02691cce2de7a9d1ee7c774d5eaf} 
+void {\bfseries build} (\mbox{\hyperlink{classMesh}{Mesh}} \&mesh, int order, int nx, int ny, const std\+::array$<$ \mbox{\hyperlink{structVector3D}{Vector3D}}, 4 $>$ \&corners, Subdivision\+Type sub\+Div, const \mbox{\hyperlink{structQuadMeshBuilder_1_1BoundaryNames}{Boundary\+Names}} \&names)
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Private Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classQuadMeshBuilder_ae4e63bf476b19dfa43480d498702401a}\label{classQuadMeshBuilder_ae4e63bf476b19dfa43480d498702401a} 
+void {\bfseries apply\+Boundary\+Tags} (\mbox{\hyperlink{classMesh}{Mesh}} \&mesh, int nx, int ny, const std\+::vector$<$ Cfem\+Int $>$ \&grid, const \mbox{\hyperlink{structQuadMeshBuilder_1_1BoundaryNames}{Boundary\+Names}} \&names)
+\end{DoxyCompactItemize}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/itchinda/projects/odepp/libs/mesh/include/\mbox{\hyperlink{Mesh_8h}{Mesh.\+h}}\end{DoxyCompactItemize}

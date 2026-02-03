@@ -1,0 +1,38 @@
+\doxysection{FESpace.\+h}
+\hypertarget{FESpace_8h_source}{}\label{FESpace_8h_source}\index{/home/itchinda/projects/odepp/libs/fem/fields/include/FESpace.h@{/home/itchinda/projects/odepp/libs/fem/fields/include/FESpace.h}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ CFEM\_FESPACE\_H}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ CFEM\_FESPACE\_H}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{Mesh_8h}{Mesh.h}}"{}}}
+\DoxyCodeLine{00005\ }
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00007\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classFESpace}{FESpace}}\ \{}
+\DoxyCodeLine{00008\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00009\ \ \ \ \ \textcolor{keyword}{enum\ class}\ Order\ \{\ P0\ =\ 0,\ P1\ =\ 1,\ P2\ =\ 2\ \};}
+\DoxyCodeLine{00010\ \ \ \ \ \textcolor{keyword}{enum\ class}\ Continuity\ \{\ CG,\ DG\ \};}
+\DoxyCodeLine{00011\ }
+\DoxyCodeLine{00012\ \ \ \ \ \mbox{\hyperlink{classFESpace}{FESpace}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classMesh}{Mesh}}\&\ mesh,\ Order\ order,\ Continuity\ cont,\ \textcolor{keywordtype}{int}\ dimension\ =\ 1)}
+\DoxyCodeLine{00013\ \ \ \ \ \ \ \ \ :\ m\_mesh(mesh),\ m\_order(order),\ m\_continuity(cont),\ m\_dimension(dimension)\ \{\}}
+\DoxyCodeLine{00014\ }
+\DoxyCodeLine{00015\ \ \ \ \ \textcolor{keyword}{virtual}\ \mbox{\hyperlink{classFESpace}{\string~FESpace}}()\ =\ \textcolor{keywordflow}{default};}
+\DoxyCodeLine{00016\ }
+\DoxyCodeLine{00017\ \ \ \ \ CfemInt\ getDimension()\textcolor{keyword}{\ const\ }\{\ \textcolor{keywordflow}{return}\ m\_dimension;\ \}\ }
+\DoxyCodeLine{00018\ \ \ \ \ }
+\DoxyCodeLine{00019\ \ \ \ \ \textcolor{keyword}{virtual}\ CfemInt\ getGlobalNumDofs()\ \textcolor{keyword}{const}\ =\ 0;}
+\DoxyCodeLine{00020\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{int}\ getDofsPerCell(CellType\ type)\ \textcolor{keyword}{const}\ =\ 0;}
+\DoxyCodeLine{00021\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ getElementDofs(CfemInt\ cellId,\ std::vector<CfemInt>\&\ globalIndices)\ \textcolor{keyword}{const}\ =\ 0;}
+\DoxyCodeLine{00022\ \ \ \ \ \textcolor{keyword}{virtual}\ \textcolor{keywordtype}{void}\ evaluateBasis(CellType\ type,\ \textcolor{keyword}{const}\ \mbox{\hyperlink{structVector3D}{Vector3D}}\&\ xi,\ std::vector<CfemReal>\&\ values)\ \textcolor{keyword}{const}\ =\ 0;}
+\DoxyCodeLine{00023\ }
+\DoxyCodeLine{00024\ \textcolor{keyword}{protected}:}
+\DoxyCodeLine{00025\ \ \ \ \ \textcolor{keyword}{const}\ \mbox{\hyperlink{classMesh}{Mesh}}\&\ m\_mesh;}
+\DoxyCodeLine{00026\ \ \ \ \ Order\ m\_order;}
+\DoxyCodeLine{00027\ \ \ \ \ Continuity\ m\_continuity;}
+\DoxyCodeLine{00028\ \ \ \ \ \textcolor{keywordtype}{int}\ m\_dimension;\ }
+\DoxyCodeLine{00029\ \};}
+\DoxyCodeLine{00030\ }
+\DoxyCodeLine{00031\ }
+\DoxyCodeLine{00032\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

@@ -1,0 +1,121 @@
+\doxysection{Mesh\+Entity Class Reference}
+\hypertarget{classMeshEntity}{}\label{classMeshEntity}\index{MeshEntity@{MeshEntity}}
+
+
+Collaboration diagram for Mesh\+Entity\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classMeshEntity__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classMeshEntity_a2194656001aacb4b39a614f343e351b4}\label{classMeshEntity_a2194656001aacb4b39a614f343e351b4} 
+enum class {\bfseries Type} \{ {\bfseries Vertex}
+, {\bfseries Facet}
+, {\bfseries Cell}
+, {\bfseries Mixed}
+ \}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classMeshEntity_a3adba00f1a39357fb98567a18c7f3e58}\label{classMeshEntity_a3adba00f1a39357fb98567a18c7f3e58} 
+{\bfseries Mesh\+Entity} (const \mbox{\hyperlink{classMesh}{Mesh}} \texorpdfstring{$\ast$}{*}mesh, Cfem\+Int id, const std\+::string \&name, Cfem\+Int dim)
+\item 
+\Hypertarget{classMeshEntity_a76388a39515f87e1e4c622763f93611e}\label{classMeshEntity_a76388a39515f87e1e4c622763f93611e} 
+const \mbox{\hyperlink{classMesh}{Mesh}} \& {\bfseries mesh} () const
+\item 
+\Hypertarget{classMeshEntity_a845e007cb258e097d9a5986438903a55}\label{classMeshEntity_a845e007cb258e097d9a5986438903a55} 
+Cfem\+Int {\bfseries get\+Dimension} () const
+\item 
+\Hypertarget{classMeshEntity_a78bb6a820cee40fede861bbe6acb4aae}\label{classMeshEntity_a78bb6a820cee40fede861bbe6acb4aae} 
+Cfem\+Int {\bfseries get\+Id} () const
+\item 
+\Hypertarget{classMeshEntity_a94e977191c3d5e5a40c698c80a6f9c6a}\label{classMeshEntity_a94e977191c3d5e5a40c698c80a6f9c6a} 
+const std\+::string \& {\bfseries get\+Name} () const
+\item 
+\Hypertarget{classMeshEntity_a7851edd7c1957e4f789816c9b02bab80}\label{classMeshEntity_a7851edd7c1957e4f789816c9b02bab80} 
+void {\bfseries add\+Vertex} (Cfem\+Int id)
+\item 
+\Hypertarget{classMeshEntity_a855b6a9848ffc12c4e574f91397c21be}\label{classMeshEntity_a855b6a9848ffc12c4e574f91397c21be} 
+void {\bfseries add\+Facet} (Cfem\+Int id)
+\item 
+\Hypertarget{classMeshEntity_a971ee3bfc2d1da3e5b2999265f39e22d}\label{classMeshEntity_a971ee3bfc2d1da3e5b2999265f39e22d} 
+void {\bfseries add\+Cell} (Cfem\+Int id)
+\item 
+\Hypertarget{classMeshEntity_aed27ad44eb6525b809f3edceb2addc7c}\label{classMeshEntity_aed27ad44eb6525b809f3edceb2addc7c} 
+const std\+::vector$<$ Cfem\+Int $>$ \& {\bfseries get\+Vertex\+Ids} () const
+\item 
+\Hypertarget{classMeshEntity_a7bd6aa15a1c7bbbd7ae829460b2f6d5a}\label{classMeshEntity_a7bd6aa15a1c7bbbd7ae829460b2f6d5a} 
+const std\+::vector$<$ Cfem\+Int $>$ \& {\bfseries get\+Facet\+Ids} () const
+\item 
+\Hypertarget{classMeshEntity_a4cb03fa57b2c4b1584a56a0f52a22c9d}\label{classMeshEntity_a4cb03fa57b2c4b1584a56a0f52a22c9d} 
+const std\+::vector$<$ Cfem\+Int $>$ \& {\bfseries get\+Cell\+Ids} () const
+\item 
+\Hypertarget{classMeshEntity_a641a911305b3b10666982f0d41faa588}\label{classMeshEntity_a641a911305b3b10666982f0d41faa588} 
+size\+\_\+t {\bfseries get\+Num\+Vertices} () const
+\item 
+\Hypertarget{classMeshEntity_a5e7ade8ad78232e592df9736249a3e3d}\label{classMeshEntity_a5e7ade8ad78232e592df9736249a3e3d} 
+size\+\_\+t {\bfseries get\+Num\+Cells} () const
+\item 
+\Hypertarget{classMeshEntity_ad2675dae458cc4ee11a6a91bd7b855db}\label{classMeshEntity_ad2675dae458cc4ee11a6a91bd7b855db} 
+size\+\_\+t {\bfseries get\+Num\+Facets} () const
+\item 
+\Hypertarget{classMeshEntity_a3b341059d8ea84af9a7c9632c8d262dc}\label{classMeshEntity_a3b341059d8ea84af9a7c9632c8d262dc} 
+void {\bfseries set\+Vertex\+Ids} (std\+::vector$<$ Cfem\+Int $>$ \&\&ids)
+\begin{DoxyCompactList}\small\item\em Replaces the vertex list (used during mesh upgrade). We use std\+::move to avoid expensive copies of large ID vectors. \end{DoxyCompactList}\item 
+\Hypertarget{classMeshEntity_aaef085cac11bc05081e20057ea7ea900}\label{classMeshEntity_aaef085cac11bc05081e20057ea7ea900} 
+void {\bfseries set\+Dimension} (Cfem\+Int p\+\_\+dim)
+\item 
+\Hypertarget{classMeshEntity_a3f3ad465e5c322f78471996ab8d5b88f}\label{classMeshEntity_a3f3ad465e5c322f78471996ab8d5b88f} 
+void {\bfseries update} ()
+\begin{DoxyCompactList}\small\item\em Synchronizes the vertex list based on current cell and facet IDs. Call this after the parent mesh has been upgraded to quadratic. \end{DoxyCompactList}\item 
+\Hypertarget{classMeshEntity_a6d9108ff8963be802fa7ca14a18a4ceb}\label{classMeshEntity_a6d9108ff8963be802fa7ca14a18a4ceb} 
+void {\bfseries update\+Universe} ()
+\item 
+\Hypertarget{classMeshEntity_ae7704a9da88e34a7731279a52720ad88}\label{classMeshEntity_ae7704a9da88e34a7731279a52720ad88} 
+void {\bfseries update\+Boundary} ()
+\item 
+\Hypertarget{classMeshEntity_ad2f9e674856de7bf225979e7906cf577}\label{classMeshEntity_ad2f9e674856de7bf225979e7906cf577} 
+void {\bfseries finalize} ()
+\begin{DoxyCompactList}\small\item\em Ensures all ID vectors are sorted and contain no duplicates. Should be called after initial construction or significant changes. \end{DoxyCompactList}\item 
+\Hypertarget{classMeshEntity_a58dbb825b0c661fd07b04b36a1f95308}\label{classMeshEntity_a58dbb825b0c661fd07b04b36a1f95308} 
+void {\bfseries clear} ()
+\item 
+\Hypertarget{classMeshEntity_aca2d252367e0adfeb5f1eb80c5d21327}\label{classMeshEntity_aca2d252367e0adfeb5f1eb80c5d21327} 
+std\+::string {\bfseries get\+Entity\+Format} (bool include\+\_\+\+Ids=false) const
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classMeshEntity_ab96e6ab88fb772133bf5d90518fc3478}\label{classMeshEntity_ab96e6ab88fb772133bf5d90518fc3478} 
+const \mbox{\hyperlink{classMesh}{Mesh}} \texorpdfstring{$\ast$}{*} {\bfseries m\+\_\+mesh}
+\item 
+\Hypertarget{classMeshEntity_ae231569b24eea7cc67d060e9eeaeaf2a}\label{classMeshEntity_ae231569b24eea7cc67d060e9eeaeaf2a} 
+Cfem\+Int {\bfseries m\+\_\+id}
+\item 
+\Hypertarget{classMeshEntity_a462f1bb1bd4aaa5422cea7a5de955659}\label{classMeshEntity_a462f1bb1bd4aaa5422cea7a5de955659} 
+std\+::string {\bfseries m\+\_\+name}
+\item 
+\Hypertarget{classMeshEntity_aa023496b2748bf975c8ae3eff4610b4c}\label{classMeshEntity_aa023496b2748bf975c8ae3eff4610b4c} 
+Cfem\+Int {\bfseries m\+\_\+dim}
+\item 
+\Hypertarget{classMeshEntity_a475593131b98c295f0f7e8554fff37c4}\label{classMeshEntity_a475593131b98c295f0f7e8554fff37c4} 
+std\+::vector$<$ Cfem\+Int $>$ {\bfseries m\+\_\+cell\+\_\+ids}
+\item 
+\Hypertarget{classMeshEntity_a60174eeb84279d6420a45bd9d8251327}\label{classMeshEntity_a60174eeb84279d6420a45bd9d8251327} 
+std\+::vector$<$ Cfem\+Int $>$ {\bfseries m\+\_\+facet\+\_\+ids}
+\item 
+\Hypertarget{classMeshEntity_a7478a3dc2233325dda79f58278f0f408}\label{classMeshEntity_a7478a3dc2233325dda79f58278f0f408} 
+std\+::vector$<$ Cfem\+Int $>$ {\bfseries m\+\_\+vertex\+\_\+ids}
+\end{DoxyCompactItemize}
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+/home/itchinda/projects/odepp/libs/mesh/include/Mesh\+Entity.\+h\item 
+/home/itchinda/projects/odepp/libs/mesh/src/Mesh\+Entity.\+cpp\end{DoxyCompactItemize}
