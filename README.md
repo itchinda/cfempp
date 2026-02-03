@@ -63,14 +63,14 @@ int main() {
     VTKExporter exporter(mesh);
 
     // Load MSH 4.1 file and build internal topology
-    if (parser.load(mesh, "gmsh_file.msh")) {
+    if (parser.load(mesh, "heart.msh")) {
         
         // Display diagnostic report (Memory, Bounding Box, Entities)
         mesh.info(); 
 
         // Export to vtk format for paraview visualization
         exporter.setExportQuality(true);
-        exporter.write("hex.vtk");
+        exporter.write("heart.vtk");
 
         // Next steps: Finite Element Function Spaces / Fields / Assembly / Solve
 
@@ -79,6 +79,13 @@ int main() {
 }
 
 ```
+**From Preprocessing to Visualization**: Our robust `GmshParser` handles non-trivial manifolds with ease. Shown below is a 3D heart model imported into CFEM++ and visualized in ParaView. The seamless integration ensures that physical tags and boundary conditions remain consistent from the initial `.msh` file to the final visual results.
+
+<p align="center">
+  <img src="tests/grenier/heart.png" width="600px" alt="Human Heart Mesh in ParaView">
+  <br>
+  <i>Figure 1: Complex cardiac geometry imported from Gmsh and visualized in ParaView.</i>
+</p>
 
 ## 📊 Performance Benchmark
 
