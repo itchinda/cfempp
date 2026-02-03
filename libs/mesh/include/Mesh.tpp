@@ -39,7 +39,7 @@ inline CfemInt getNodeCountPerCell(CellType type)
 /**
  * @brief Internal helper to define face-to-vertex topology based on CellType.
  */
-inline std::vector<std::vector<CfemInt>> getLocalFaces(const Cell &cell)
+inline std::vector< std::pair< std::vector<CfemInt>, CellType>> getLocalFaces(const Cell &cell)
 {
     const auto &v = cell.vertex_ids;
     CFEM_ASSERT(v.size() == getNodeCountPerCell(cell.type));
@@ -47,52 +47,53 @@ inline std::vector<std::vector<CfemInt>> getLocalFaces(const Cell &cell)
     {
     case CellType::LINE2:
     case CellType::LINE3:
-        return {{v[0]}, {v[1]}};
+        return { { {v[0]}, CellType::NODE}, {{v[1]}, CellType::NODE} } ;
     case CellType::TRI3:
-        return {{v[0], v[1]}, {v[1], v[2]}, {v[2], v[0]}};
+        return { { {v[0], v[1]}, CellType::LINE2}, {{v[1], v[2]} , CellType::LINE2}, {{v[2], v[0]} , CellType::LINE2}};
     case CellType::QUAD4:
-        return {{v[0], v[1]}, {v[1], v[2]}, {v[2], v[3]}, {v[3], v[0]}};
+        return {{{v[0], v[1]}, CellType::LINE2}, {{v[1], v[2]}, CellType::LINE2}, {{v[2], v[3]}, CellType::LINE2}, {{v[3], v[0]}, CellType::LINE2}};
     case CellType::TET4:
-        return {{v[0], v[1], v[2]},
-                {v[0], v[1], v[3]},
-                {v[1], v[2], v[3]},
-                {v[2], v[0], v[3]}};
+        return {{{v[0], v[1], v[2]}, CellType::TRI3},
+                {{v[0], v[1], v[3]}, CellType::TRI3},
+                {{v[1], v[2], v[3]}, CellType::TRI3},
+                {{v[2], v[0], v[3]}, CellType::TRI3}};
     case CellType::PRISM6:
-        return {{v[0], v[2], v[1]},
-                {v[3], v[4], v[5]},
-                {v[0], v[1], v[4], v[3]},
-                {v[1], v[2], v[5], v[4]},
-                {v[2], v[0], v[3], v[5]}};
+        return {{{v[0], v[2], v[1]}, CellType::TRI3},
+                {{v[3], v[4], v[5]}, CellType::TRI3},
+                {{v[0], v[1], v[4], v[3]}, CellType::QUAD4},
+                {{v[1], v[2], v[5], v[4]}, CellType::QUAD4},
+                {{v[2], v[0], v[3], v[5]}, CellType::QUAD4}};
     case CellType::HEX8:
-        return {{v[0], v[3], v[2], v[1]},
-                {v[4], v[5], v[6], v[7]},
-                {v[0], v[1], v[5], v[4]},
-                {v[1], v[2], v[6], v[5]},
-                {v[2], v[3], v[7], v[6]},
-                {v[3], v[0], v[4], v[7]}};
+        return {{{v[0], v[3], v[2], v[1]}, CellType::QUAD4},
+                {{v[4], v[5], v[6], v[7]}, CellType::QUAD4},
+                {{v[0], v[1], v[5], v[4]}, CellType::QUAD4},
+                {{v[1], v[2], v[6], v[5]}, CellType::QUAD4},
+                {{v[2], v[3], v[7], v[6]}, CellType::QUAD4},
+                {{v[3], v[0], v[4], v[7]}, CellType::QUAD4}};
     // Quad cells?
     case CellType::TRI6:
-        return {{v[0], v[1], v[3]}, {v[1], v[2], v[4]}, {v[2], v[0], v[5]}};
+        return {{{v[0], v[1], v[3]}, CellType::LINE3}, {{v[1], v[2], v[4]}, CellType::LINE3}, {{v[2], v[0], v[5]}, CellType::LINE3}};
     case CellType::QUAD9:
-        return {{v[0], v[1], v[4]}, {v[1], v[2], v[5]}, {v[2], v[3], v[6]}, {v[3], v[0], v[7]}};
+        return {{{v[0], v[1], v[4]}, CellType::LINE3}, {{v[1], v[2], v[5]}, CellType::LINE3}, 
+                {{v[2], v[3], v[6]}, CellType::LINE3}, {{v[3], v[0], v[7]}, CellType::LINE3}};
     case CellType::TET10:
-        return {{v[0], v[1], v[2], v[4], v[5], v[6]},
-                {v[0], v[1], v[3], v[4], v[8], v[7]},
-                {v[1], v[2], v[3], v[5], v[9], v[8]},
-                {v[2], v[0], v[3], v[6], v[7], v[9]}};
+        return {{{v[0], v[1], v[2], v[4], v[5], v[6]}, CellType::TRI6},
+                {{v[0], v[1], v[3], v[4], v[8], v[7]}, CellType::TRI6},
+                {{v[1], v[2], v[3], v[5], v[9], v[8]}, CellType::TRI6},
+                {{v[2], v[0], v[3], v[6], v[7], v[9]}, CellType::TRI6}};
     case CellType::PRISM18:
-        return {{v[0], v[2], v[1], v[8], v[7], v[6]},
-                {v[3], v[4], v[5], v[9], v[10], v[11]},
-                {v[0], v[1], v[4], v[3], v[6], v[13], v[9], v[12], v[15]},
-                {v[1], v[2], v[5], v[4], v[7], v[14], v[10], v[13], v[16]},
-                {v[2], v[0], v[3], v[5], v[8], v[12], v[11], v[14], v[17]}};
+        return {{{v[0], v[2], v[1], v[8], v[7], v[6]}, CellType::TRI6},
+                {{v[3], v[4], v[5], v[9], v[10], v[11]}, CellType::TRI6},
+                {{v[0], v[1], v[4], v[3], v[6], v[13], v[9], v[12], v[15]}, CellType::QUAD9},
+                {{v[1], v[2], v[5], v[4], v[7], v[14], v[10], v[13], v[16]}, CellType::QUAD9},
+                {{v[2], v[0], v[3], v[5], v[8], v[12], v[11], v[14], v[17]}, CellType::QUAD9}};
     case CellType::HEX27:
-        return {{v[0], v[3], v[2], v[1], v[11], v[10], v[9], v[8], v[20]},
-                {v[4], v[5], v[6], v[7], v[12], v[13], v[14], v[15], v[21]},
-                {v[0], v[1], v[5], v[4], v[8], v[17], v[12], v[16], v[22]},
-                {v[1], v[2], v[6], v[5], v[9], v[18], v[13], v[17], v[23]},
-                {v[2], v[3], v[7], v[6], v[10], v[19], v[14], v[18], v[24]},
-                {v[3], v[0], v[4], v[7], v[11], v[16], v[15], v[19], v[25]}};
+        return {{{v[0], v[3], v[2], v[1], v[11], v[10], v[9], v[8], v[24]}, CellType::QUAD9},
+                {{v[4], v[5], v[6], v[7], v[12], v[13], v[14], v[15], v[25]}, CellType::QUAD9},
+                {{v[0], v[1], v[5], v[4], v[8], v[17], v[12], v[16], v[22]}, CellType::QUAD9},
+                {{v[1], v[2], v[6], v[5], v[9], v[18], v[13], v[17], v[21]}, CellType::QUAD9},
+                {{v[2], v[3], v[7], v[6], v[10], v[19], v[14], v[18], v[23]}, CellType::QUAD9},
+                {{v[3], v[0], v[4], v[7], v[11], v[16], v[15], v[19], v[25]}, CellType::QUAD9}};
 
     default:
         CFEM_ERROR("UNKNOWN CELL TYPE.");
@@ -249,12 +250,12 @@ inline void Mesh::upgradeHex8ToHex27(Cell &pHexCell,
         return addVertex(mid.x, mid.y, mid.z);
     };
 
-    CfemInt n20 = getFaceCenter({v[0], v[1], v[2], v[3]}); // Bottom
-    CfemInt n21 = getFaceCenter({v[4], v[5], v[6], v[7]}); // Top
-    CfemInt n22 = getFaceCenter({v[0], v[1], v[5], v[4]}); // Front
-    CfemInt n23 = getFaceCenter({v[1], v[2], v[6], v[5]}); // Right
-    CfemInt n24 = getFaceCenter({v[2], v[3], v[7], v[6]}); // Back
-    CfemInt n25 = getFaceCenter({v[3], v[0], v[4], v[7]}); // Left
+    CfemInt n20 = getFaceCenter({v[0], v[4], v[7], v[3]}); // Bottom
+    CfemInt n21 = getFaceCenter({v[5], v[1], v[2], v[6]}); // Top
+    CfemInt n22 = getFaceCenter({v[0], v[4], v[5], v[1]}); // Front
+    CfemInt n23 = getFaceCenter({v[3], v[2], v[6], v[7]}); // Right
+    CfemInt n24 = getFaceCenter({v[0], v[1], v[2], v[3]}); // Back
+    CfemInt n25 = getFaceCenter({v[4], v[5], v[6], v[7]}); // Left
 
     // Body Center (1 node)
     Vector3D bSum({0, 0, 0});
@@ -282,12 +283,17 @@ inline void Mesh::upgradeHex8ToHex27(Cell &pHexCell,
  * @param subDiv
  * @param names
  */
-inline void QuadMeshBuilder::build(Mesh &mesh, int nx, int ny,
+inline void QuadMeshBuilder::build(Mesh &mesh, 
+                                   int order,
+                                   int nx,
+                                   int ny,
                                    const std::array<Vector3D, 4> &corners,
                                    SubdivisionType subDiv,
                                    const BoundaryNames &names)
 {
     mesh.clear();
+    mesh.setDimension(2);
+    mesh.setOrder(1);
     int nodeRows = nx + 1;
     int nodeCols = ny + 1;
     std::vector<CfemInt> gridIds(nodeRows * nodeCols);
@@ -340,7 +346,8 @@ inline void QuadMeshBuilder::build(Mesh &mesh, int nx, int ny,
     }
     // 3. Finalize Topology
     mesh.buildMesh();
-    if (mesh.getOrder() == 2)
+    
+    if (order == 2)
     {
         mesh.upgradeToQuadratic();
     }
@@ -423,11 +430,13 @@ inline void QuadMeshBuilder::applyBoundaryTags(Mesh &mesh, int nx, int ny,
  * @param corners
  * @param subDiv
  */
-inline void CubicMeshBuilder::build(Mesh &mesh, int nx, int ny, int nz,
+inline void CubicMeshBuilder::build(Mesh &mesh, int order, int nx, int ny, int nz,
                                     const std::array<Vector3D, 8> &corners,
                                     SubdivisionType subDiv)
 {
     mesh.clear();
+    mesh.setOrder(1);
+    mesh.setDimension(3);
     auto gridIdx = [&](int i, int j, int k)
     {
         return k * (nx + 1) * (ny + 1) + j * (nx + 1) + i;
@@ -490,7 +499,7 @@ inline void CubicMeshBuilder::build(Mesh &mesh, int nx, int ny, int nz,
     }
 
     mesh.buildMesh();
-    if (mesh.getOrder() == 2)
+    if (order == 2)
         mesh.upgradeToQuadratic();
 }
 
@@ -605,7 +614,7 @@ inline void DiskMeshBuilder::build(Mesh &mesh,
 
     mesh.buildMesh();
 
-    relaxMesh(mesh, 5);
+    mesh.relaxMesh(5);
 
     if (order == 2)
     {
@@ -616,7 +625,7 @@ inline void DiskMeshBuilder::build(Mesh &mesh,
 
 inline void DiskMeshBuilder::projectBoundaryMidNodes(Mesh &mesh, const Vector3D &center, double radius)
 {
-    MeshEntity *boundary = mesh.getEntity("Boundary");
+    MeshEntity *boundary = mesh.getEntity(cfem::SYS_BOUNDARY_ID);
     if (!boundary)
         return;
 
@@ -636,51 +645,6 @@ inline void DiskMeshBuilder::projectBoundaryMidNodes(Mesh &mesh, const Vector3D 
     }
 }
 
-inline void DiskMeshBuilder::relaxMesh(Mesh &mesh, int iterations)
-{
-    MeshEntity *boundary = mesh.getEntity("Boundary");
-    if (!boundary)
-        return;
-
-    // Create a set of boundary nodes so we don't move them
-    std::set<CfemInt> boundaryVids;
-    for (CfemInt id : boundary->getVertexIds())
-        boundaryVids.insert(id);
-
-    for (int iter = 0; iter < iterations; ++iter)
-    {
-        // Temporary storage for new coordinates to avoid "drifting" during the loop
-        std::vector<Vector3D> updatedCoords(mesh.getNumVertices());
-        std::vector<int> counts(mesh.getNumVertices(), 0);
-
-        // Standard Laplacian: each node moves toward the average of its neighbors
-        for (size_t i = 0; i < mesh.getNumCells(); ++i)
-        {
-            const auto &cell = mesh.getCell(i);
-            size_t n = cell.vertex_ids.size();
-            for (size_t j = 0; j < n; ++j)
-            {
-                CfemInt v0 = cell.vertex_ids[j];
-                CfemInt v1 = cell.vertex_ids[(j + 1) % n];
-
-                updatedCoords[v0] = updatedCoords[v0] + mesh.getVertex(v1).coords;
-                counts[v0]++;
-                updatedCoords[v1] = updatedCoords[v1] + mesh.getVertex(v0).coords;
-                counts[v1]++;
-            }
-        }
-
-        // Apply the update only to internal nodes
-        for (size_t i = 0; i < mesh.getNumVertices(); ++i)
-        {
-            if (boundaryVids.find(i) == boundaryVids.end() && counts[i] > 0)
-            {
-                mesh.getVertex(i).coords = updatedCoords[i] * (1.0 / counts[i]);
-            }
-        }
-    }
-}
-
 inline void SphereMeshBuilder::build(Mesh &mesh,
                                      CfemInt order,
                                      CfemReal h,
@@ -690,6 +654,7 @@ inline void SphereMeshBuilder::build(Mesh &mesh,
 {
     mesh.clear();
     mesh.setOrder(1);
+    mesh.setDimension(3);
 
     CfemInt n = static_cast<CfemInt>(std::ceil((2.0 * radius) / h));
     if (n < 1)
@@ -790,7 +755,7 @@ inline void SphereMeshBuilder::build(Mesh &mesh,
 
     mesh.buildMesh();
 
-    //relaxMesh(mesh, 10);
+    mesh.relaxMesh(10);
 
     if (order == 2)
     {
@@ -824,46 +789,123 @@ inline void SphereMeshBuilder::projectBoundaryNodes(
     }
 }
 
-inline void SphereMeshBuilder::relaxMesh(Mesh &mesh, int iterations)
+
+inline void Mesh::relaxMesh(int iterations,
+                           double lambda)
 {
-    MeshEntity *boundary = mesh.getEntity("Boundary");
-    if (!boundary)
+    const size_t numVertices = getNumVertices();
+    const size_t numCells    = getNumCells();
+
+    if (numVertices == 0 || numCells == 0)
         return;
 
-    // Create a set of boundary nodes so we don't move them
-    std::set<CfemInt> boundaryVids;
-    for (CfemInt id : boundary->getVertexIds())
-        boundaryVids.insert(id);
+    // --------------------------------------------------
+    // 0. Make sure topology exists
+    // --------------------------------------------------
+#ifdef NDEBUG
+    CFEM_ASSERT(!m_cells.empty());
+#endif
 
-    for (int iter = 0; iter < iterations; ++iter)
+    // --------------------------------------------------
+    // 1. Identify boundary vertices (O(1))
+    // --------------------------------------------------
+    std::vector<bool> isBoundary(numVertices, false);
+
+    MeshEntity* boundary = getEntity(cfem::SYS_BOUNDARY_ID);
+    if (boundary)
     {
-        // Temporary storage for new coordinates to avoid "drifting" during the loop
-        std::vector<Vector3D> updatedCoords(mesh.getNumVertices());
-        std::vector<int> counts(mesh.getNumVertices(), 0);
-
-        // Standard Laplacian: each node moves toward the average of its neighbors
-        for (size_t i = 0; i < mesh.getNumCells(); ++i)
+        for (CfemInt id : boundary->getVertexIds())
         {
-            const auto &cell = mesh.getCell(i);
-            size_t n = cell.vertex_ids.size();
-            for (size_t j = 0; j < n; ++j)
-            {
-                CfemInt v0 = cell.vertex_ids[j];
-                CfemInt v1 = cell.vertex_ids[(j + 1) % n];
+            if (id >= 0 && (size_t)id < numVertices)
+                isBoundary[id] = true;
+        }
+    }
 
-                updatedCoords[v0] = updatedCoords[v0] + mesh.getVertex(v1).coords;
-                counts[v0]++;
-                updatedCoords[v1] = updatedCoords[v1] + mesh.getVertex(v0).coords;
-                counts[v1]++;
+    // --------------------------------------------------
+    // 2. Build vertex adjacency (once)
+    // --------------------------------------------------
+    std::vector<std::set<CfemInt>> adj(numVertices);
+
+    for (size_t c = 0; c < numCells; ++c)
+    {
+        const Cell& cell = getCell(c);
+        const auto& v    = cell.vertex_ids;
+        const size_t n   = v.size();
+
+        for (size_t i = 0; i < n; ++i)
+        {
+            CfemInt v0 = v[i];
+            CfemInt v1 = v[(i + 1) % n];
+
+            if (v0 >= 0 && v1 >= 0)
+            {
+                adj[v0].insert(v1);
+                adj[v1].insert(v0);
             }
         }
+    }
 
-        // Apply the update only to internal nodes
-        for (size_t i = 0; i < mesh.getNumVertices(); ++i)
+    // --------------------------------------------------
+    // 3. Flatten adjacency (cache-friendly)
+    // --------------------------------------------------
+    std::vector<std::vector<CfemInt>> neighbors(numVertices);
+
+    for (size_t i = 0; i < numVertices; ++i)
+    {
+        neighbors[i].assign(adj[i].begin(), adj[i].end());
+    }
+
+    adj.clear();
+    adj.shrink_to_fit();
+
+    // --------------------------------------------------
+    // 4. Buffers
+    // --------------------------------------------------
+    std::vector<Vector3D> nextCoords(numVertices);
+
+    // Clamp lambda
+    if (lambda <= 0.0) lambda = 0.3;
+    if (lambda >= 1.0) lambda = 0.8;
+
+    // --------------------------------------------------
+    // 5. Iterations
+    // --------------------------------------------------
+    for (int iter = 0; iter < iterations; ++iter)
+    {
+
+#pragma omp parallel for schedule(static)
+        for (long i = 0; i < (long)numVertices; ++i)
         {
-            if (boundaryVids.find(i) == boundaryVids.end() && counts[i] > 0)
+            // Boundary / isolated nodes
+            if (isBoundary[i] || neighbors[i].empty())
             {
-                mesh.getVertex(i).coords = updatedCoords[i] * (1.0 / counts[i]);
+                nextCoords[i] = getVertex(i).coords;
+                continue;
+            }
+
+            // Laplacian average
+            Vector3D sum{0, 0, 0};
+
+            for (CfemInt j : neighbors[i])
+            {
+                sum = sum + getVertex(j).coords;
+            }
+
+            Vector3D avg = sum * (1.0 / neighbors[i].size());
+            Vector3D old = getVertex(i).coords;
+
+            // Damped update (Taubin-style lambda step)
+            nextCoords[i] = old + lambda * (avg - old);
+        }
+
+        // --------------------------------------------------
+        // 6. Commit update
+        // --------------------------------------------------
+        for (size_t i = 0; i < numVertices; ++i)
+        {
+            if (!isBoundary[i])
+            {
+                getVertex(i).coords = nextCoords[i];
             }
         }
     }

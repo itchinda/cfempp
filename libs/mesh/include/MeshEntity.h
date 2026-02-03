@@ -30,6 +30,11 @@ public:
     const std::vector<CfemInt>& getFacetIds()  const { return m_facet_ids; }
     const std::vector<CfemInt>& getCellIds()   const { return m_cell_ids; }
 
+    
+    size_t getNumVertices() const { return m_vertex_ids.size(); }
+    size_t getNumCells()    const { return m_cell_ids.size(); }
+    size_t getNumFacets()   const { return m_facet_ids.size(); }
+
     /**
      * @brief Replaces the vertex list (used during mesh upgrade).
      * We use std::move to avoid expensive copies of large ID vectors.
@@ -48,8 +53,13 @@ public:
     void updateUniverse();
     void updateBoundary();
     void finalize() ;
+    void clear(){
+        m_cell_ids.clear();
+        m_facet_ids.clear();
+        m_vertex_ids.clear();
+    }
 
-    std::string getEntityFormat() const;
+    std::string getEntityFormat(bool include_Ids = false) const;
 
 private:
     const Mesh* m_mesh;

@@ -30,7 +30,7 @@ namespace cfem {
     constexpr CfemReal ZERO_TOLERANCE = 1e-14;
     constexpr CfemReal MACHINE_EPSILON = std::numeric_limits<CfemReal>::epsilon();
     constexpr CfemInt UNIVERSE_ID = -1;
-    constexpr CfemInt BOUNDARY_ID = -2;
+    constexpr CfemInt SYS_BOUNDARY_ID = -2;
 
     inline bool areNearlyEqual(CfemReal a, CfemReal b) {
         // Relative comparison: scales the tolerance based on the magnitude of the numbers

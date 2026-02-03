@@ -12,7 +12,7 @@ MeshEntity::MeshEntity(const Mesh* mesh,
 
 }
 
-std::string MeshEntity::getEntityFormat() const {
+std::string MeshEntity::getEntityFormat(bool include_Ids) const {
     std::stringstream ss;
     ss << "------------------------------------------\n";
     ss << "ENTITY INFO: " << m_name << " (ID: " << m_id << ")\n";
@@ -21,16 +21,20 @@ std::string MeshEntity::getEntityFormat() const {
 
     ss << "$Nodes\n";
     ss << m_vertex_ids.size() << " # total number of nodes\n";
-    for (size_t i = 0; i < m_vertex_ids.size(); ++i) {
-        ss << m_vertex_ids[i] << (i == m_vertex_ids.size() - 1 ? "" : ", ");
+    if (include_Ids){
+        for (size_t i = 0; i < m_vertex_ids.size(); ++i) {
+            ss << m_vertex_ids[i] << (i == m_vertex_ids.size() - 1 ? "" : ", ");
+        }
     }
     ss << "\n$EndNodes\n";
 
     if (!m_cell_ids.empty()) {
         ss << "$Cells\n";
         ss << m_cell_ids.size() << " # total number of cells\n";
-        for (size_t i = 0; i < m_cell_ids.size(); ++i) {
-            ss << m_cell_ids[i] << (i == m_cell_ids.size() - 1 ? "" : ", ");
+        if (include_Ids){
+            for (size_t i = 0; i < m_cell_ids.size(); ++i) {
+                ss << m_cell_ids[i] << (i == m_cell_ids.size() - 1 ? "" : ", ");
+            }
         }
         ss << "\n$EndCells\n";
     }
@@ -38,8 +42,10 @@ std::string MeshEntity::getEntityFormat() const {
     if (!m_facet_ids.size() == 0) {
         ss << "$Facets\n";
         ss << m_facet_ids.size() << " # total number of facets\n";
-        for (size_t i = 0; i < m_facet_ids.size(); ++i) {
-            ss << m_facet_ids[i] << (i == m_facet_ids.size() - 1 ? "" : ", ");
+        if (include_Ids){
+            for (size_t i = 0; i < m_facet_ids.size(); ++i) {
+                ss << m_facet_ids[i] << (i == m_facet_ids.size() - 1 ? "" : ", ");
+            }
         }
         ss << "\n$EndFacets\n";
     }
