@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
 
     //-----------------------------------------------------------------------------
     //------------------------------ Mesh class -----------------------------------
-    Mesh lMail(3, 1);
+    Mesh lMail;
 
     // LineMeshBuilder lLine;
     // lLine.build(lMail, 10, Vector3D{1.0, 0.0,0.0}, Vector3D{0.5, 0, 1});
@@ -26,9 +26,10 @@ int main(int argc, char **argv) {
 
     // CubicMeshBuilder lCube;
     // CfemInt N {5};
-    // lCube.build(lMail, N, N, N, {Vector3D{0,0,0}, Vector3D{1,0,0}, Vector3D{1,1,0}, Vector3D{0,1,0},
+    // CfemInt order {2};
+    // lCube.build(lMail, order, N, N, N, {Vector3D{0,0,0}, Vector3D{1,0,0}, Vector3D{1,1,0}, Vector3D{0,1,0},
     //                                 Vector3D{0,0,1}, Vector3D{1,0,1}, Vector3D{1,1,1}, Vector3D{0,1,1} },
-    //                                 CubicMeshBuilder::SubdivisionType::SixTet);
+    //                                 CubicMeshBuilder::SubdivisionType::None);
 
     // DiskMeshBuilder lDisk;
     // double radius {1.0};
@@ -38,27 +39,32 @@ int main(int argc, char **argv) {
     
     // SphereMeshBuilder lSphere;
     // double radius {1.0};
-    // double target_mesh_size {radius / 20};
+    // double target_mesh_size {radius / 50};
     // CfemInt order {1};
     // lSphere.build(lMail, order, target_mesh_size, Vector3D{0,0,0}, radius, SphereMeshBuilder::ElementType::Tetrahedron);
 
     GmshParser lMshParser;
     lMshParser.load(lMail, "hex.msh");
+    //lMail.downgradeToLinear();
     VTKExporter vtk_exporter (lMail);
-    vtk_exporter.setExportedEntities({"Boundary", "Bottom", "Top", "Right", "Left", "Front", "Back"});
+    vtk_exporter.setExportedEntities({
+        "Bottom", "Top", "Front", "Right", "Back", "Left", "Bord", "SYS_BOUNDARY"
+    } );
+
     vtk_exporter.setExportQuality(true);
     vtk_exporter.write("hex.vtk");
 
-    auto report = MeshQualityTool::analyze(lMail);
-    MeshQualityTool::printSummary(report);
+    // auto report = MeshQualityTool::analyze(lMail);
+    // MeshQualityTool::printSummary(report);
 
-    // std::cout << lMail.getMeshFormat() << std::endl;
+    std::cout << lMail.getMeshFormat() << std::endl;
 
-    MeshEntity* lEntity {lMail.getEntity("Bottom")};
-    if (lEntity) std::cout << lEntity->getEntityFormat() << std::endl;
+    // for (const auto& ent : lMail.getEntities()){
+    //     std::cout << ent->getEntityFormat() << std::endl;
+    // }
 
     //-------------------------------------------------------------------------------
-    //----------------------------- Vector3D struct ---------------------------------
+    //----------------------------- Vector3D struct --------------------------------- cx
     // Vector3D v1 {1.0, 2.0, 3.0};
     // Vector3D v2 {3.0, 2.0, 1.0};
     // Vector3D v3 = v1+v2;
@@ -88,3 +94,4 @@ int main(int argc, char **argv) {
 
 
 }
+

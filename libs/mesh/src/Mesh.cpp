@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <map>
 
+Mesh::Mesh(){
+    CFEM_CHECK_INVARIANTS();
+}
 
 Mesh::Mesh(CfemInt p_meshDim, CfemInt p_meshOrder) : m_meshDim(p_meshDim) , m_meshOrder(p_meshOrder){
     CFEM_PRECONDITION(p_meshDim >= 1 && p_meshDim <= 3);
@@ -13,7 +16,7 @@ Mesh::Mesh(CfemInt p_meshDim, CfemInt p_meshOrder) : m_meshDim(p_meshDim) , m_me
 }
 
 CfemInt Mesh::addVertex(CfemReal x, CfemReal y, CfemReal z) {
-    CfemInt id = static_cast<CfemInt>(m_vertices.size());
+    CfemInt id = m_vertices.size();
     m_vertices.push_back({{x, y, z}, {}});
     
     CFEM_POSTCONDITION(static_cast<CfemInt>(m_vertices.size()) > id);
@@ -23,7 +26,7 @@ CfemInt Mesh::addVertex(CfemReal x, CfemReal y, CfemReal z) {
 CfemInt Mesh::addCell(CellType type, const std::vector<CfemInt>& v_ids) {
     validateConnectivity( type, v_ids);
 
-    CfemInt id = static_cast<CfemInt>(m_cells.size());
+    CfemInt id = m_cells.size();
     m_cells.push_back({type, v_ids});
     
     CFEM_POSTCONDITION(!m_cells.empty());
@@ -58,10 +61,10 @@ void Mesh::buildFacets() {
     std::map<std::vector<CfemInt>, CfemInt> facet_registry;
 
     for (CfemInt c_id = 0; c_id < static_cast<CfemInt>(m_cells.size()); ++c_id) {
-        auto faces = getLocalFaces(m_cells[c_id]);
+        auto faces_connectivity_and_type = getLocalFaces(m_cells[c_id]);
 
-        for (const auto& face_v : faces) {
-            auto sorted_v = face_v;
+        for (const auto& face_v : faces_connectivity_and_type) {
+            auto sorted_v = face_v.first;
             std::sort(sorted_v.begin(), sorted_v.end());
 
             auto it = facet_registry.find(sorted_v);
@@ -69,9 +72,10 @@ void Mesh::buildFacets() {
                 // First time seeing this facet: it's a potential boundary or awaiting neighbor
                 Facet f;
                 f.id = static_cast<CfemInt>(m_facets.size());
-                f.number_of_vertices = static_cast<CfemInt>(face_v.size());
+                f.type = face_v.second;
+                f.number_of_vertices = static_cast<CfemInt>(face_v.first.size());
                 
-                f.vertex_ids = face_v;
+                f.vertex_ids = face_v.first;
                 
                 f.left_cell = c_id;
                 f.right_cell = -1; // Default to boundary
@@ -90,7 +94,12 @@ void Mesh::buildFacets() {
 CfemInt Mesh::createEntity(const std::string& name, CfemInt dim) {
     validateEntityName(name);
 
-    CfemInt newId = static_cast<CfemInt>(m_entities.size());
+    CfemInt newId = static_cast<CfemInt>(m_entities.size()) ;
+    if (getEntity(cfem::SYS_BOUNDARY_ID) && getEntity(cfem::SYS_BOUNDARY_ID)){
+        newId -=2;
+    }else if (getEntity(cfem::SYS_BOUNDARY_ID) || getEntity(cfem::SYS_BOUNDARY_ID)){
+        newId -=1;
+    }
     
     // 2. Double check just in case something weird happened to m_entity_ids
     while (m_entity_ids.find(newId) != m_entity_ids.end()) {
@@ -134,6 +143,15 @@ void Mesh::setOrder(int newOrder) {
     }
 }
 
+
+void Mesh::setDimension(int newDim){
+    CFEM_ASSERT(newDim >=1 || newDim <=3 );
+    if (!(this->m_cells.empty()) ){
+        CFEM_ERROR("ARE YOU TRYING TO SET THE DIMENSION OF A MESH THAT ALREADY CONTAINS ELEMENTS? MAKE SURE THE MESH IS EMPTY.");
+    }
+    m_meshDim = newDim;
+}
+
 MeshEntity& Mesh::createInternalEntity(CfemInt id, const std::string& name, CfemInt dim) {
     CFEM_PRECONDITION(m_entity_ids.find(id) == m_entity_ids.end());
     
@@ -144,38 +162,53 @@ MeshEntity& Mesh::createInternalEntity(CfemInt id, const std::string& name, Cfem
 }
 
 void Mesh::buildMesh() {
-    if (m_cells.empty() || m_vertices.empty()) {
+    if (m_cells.empty() || m_vertices.empty() || m_meshDim==0) {
         CFEM_ERROR("buildMesh failed: Mesh is empty.");
     }
 
     buildInverseConnectivities();
     buildFacets();
 
+    MeshEntity *universe = this->getEntity(cfem::UNIVERSE_ID);
+    MeshEntity *boundary = this->getEntity(cfem::SYS_BOUNDARY_ID);
+
     // Total mesh universe entity
-    MeshEntity& universe = createInternalEntity(cfem::UNIVERSE_ID, "Universe", m_meshDim);
-    // Domain Boundary
-    MeshEntity& boundary = createInternalEntity(cfem::SYS_BOUNDARY_ID, "Boundary", m_meshDim - 1);
-
-    for (CfemInt i = 0; i < static_cast<CfemInt>(m_vertices.size()); ++i) {
-        universe.addVertex(i);
+    if (!universe ){
+        universe = &(createInternalEntity(cfem::UNIVERSE_ID, "Universe", m_meshDim));
+    }
+    if (!boundary){
+        boundary = &(createInternalEntity(cfem::SYS_BOUNDARY_ID, "SYS_BOUNDARY", m_meshDim - 1));
     }
 
-    for (CfemInt i = 0; i < static_cast<CfemInt>(m_cells.size()); ++i) {
-        universe.addCell(i);
+    if (universe->getCellIds().empty()){
+        universe->clear();
+        for (CfemInt i = 0; i < static_cast<CfemInt>(m_vertices.size()); ++i) {
+            universe->addVertex(i);
+        }
+        for (CfemInt i = 0; i < static_cast<CfemInt>(m_cells.size()); ++i) {
+            universe->addCell(i);
+        }
     }
-
-    for (const auto& facet : m_facets) {
-        universe.addFacet(facet.id);
-        if (facet.right_cell == -1) {
-            boundary.addFacet(facet.id);
-            for (CfemInt i = 0; i < facet.number_of_vertices; ++i) {
-                boundary.addVertex(facet.vertex_ids[i]);
+    else if (universe->getVertexIds().empty()){
+        for(CfemInt cell_id : universe->getVertexIds()){
+            for (CfemInt v_id : getCell(cell_id).vertex_ids){
+                universe->addVertex(v_id);
             }
         }
     }
 
-    universe.finalize();
-    boundary.finalize();
+    for (const auto& facet : m_facets) {
+        universe->addFacet(facet.id);
+        if (facet.right_cell == -1) {
+            boundary->addFacet(facet.id);
+            for (CfemInt i = 0; i < facet.number_of_vertices; ++i) {
+                boundary->addVertex(facet.vertex_ids[i]);
+            }
+        }
+    }
+
+    universe->finalize();
+    boundary->finalize();
 
     #ifndef NDEBUG
     std::cout << "[CFEM INFO] Mesh built successfully: " 
@@ -189,15 +222,39 @@ void Mesh::buildMesh() {
 #include <iomanip>
 #include <sstream>
 
+std::string Mesh::info() const{
+    std::stringstream ss;
+    ss << "\n================ MESH SUMMARY ================" << std::endl;
+    ss << " Dimension: " << getDimension() << "D" << std::endl;
+    ss << " Order:     " << getOrder() << std::endl;
+    ss << " Vertices:  " << getNumVertices() << std::endl;
+    ss << " Cells:     " << getNumCells() << std::endl;
+    ss << " Facets:    " << getNumFacets() << std::endl;
+    ss << "---------------------------------------------------" << std::endl;
+    ss << std::left << std::setw(20) << "Entity Name" 
+              << std::setw(10) << "ID" 
+              << std::setw(15) << "Elements" 
+              << "Vertices" << std::endl;
+
+    for (const auto& entity: getEntities()) {
+        std::string name = entity->getName();
+        size_t count = (entity->getDimension() == getDimension()) 
+                       ? entity->getNumCells() 
+                       : entity->getNumFacets();
+        
+        ss << std::left << std::setw(20) << name 
+           << std::setw(10) << entity->getId()
+           << std::setw(15) << count 
+           << entity->getNumVertices() << std::endl;
+    }
+    ss << "===================================================\n" << std::endl;
+    
+    return ss.str();
+}
+
 std::string Mesh::getMeshFormat() const {
     std::stringstream ss;
-    ss << std::fixed << std::setprecision(6);
-
-    // --- Section 1: Mesh Info ---
-    ss << "$MeshInfo\n";
-    ss << "Dimension " << m_meshDim << "\n";
-    ss << "Order " << m_meshOrder << "\n";
-    ss << "$EndMeshInfo\n";
+    ss << info();
 
     // --- Section 2: Nodes ---
     ss << "$Nodes\n";
@@ -393,6 +450,7 @@ CfemReal Mesh::computeCellMeasure(CellType type, const std::vector<CfemInt>& v_i
         }
 
         case CellType::TET4:
+        case CellType::TET10:
             return computeSigned4NodesTetraVolume(v_ids[0], v_ids[1], v_ids[2], v_ids[3]);
 
         case CellType::PRISM6: {
@@ -426,7 +484,8 @@ CfemReal Mesh::computeCellMeasure(CellType type, const std::vector<CfemInt>& v_i
             return std::abs(lTotalVolume);
         }
 
-        case CellType::HEX8: {
+        case CellType::HEX8:
+        case CellType::HEX27: {
             CfemReal lTotalVolume {0.0};
             CfemInt positiveTets = 0;
             CfemInt negativeTets = 0;
@@ -616,7 +675,8 @@ CfemInt Mesh::getDimFromType(CellType type) const{
         case CellType::TRI3:  case CellType::TRI6: 
         case CellType::QUAD4: case CellType::QUAD9: return 2;
         case CellType::TET4:  case CellType::TET10:
-        case CellType::PRISM6: case CellType::HEX8: return 3;
+        case CellType::PRISM6: case CellType::HEX8: 
+        case CellType::HEX27: return 3;
         default: return 0;
     }
 }
@@ -624,10 +684,11 @@ CfemInt Mesh::getDimFromType(CellType type) const{
 CfemInt Mesh::getOrderFromType(CellType type) const{
     switch (type) {
         case CellType::LINE2: case CellType::TRI3: 
-        case CellType::QUAD4: case CellType::TET4: 
+        case CellType::QUAD4: case CellType::TET4:
         case CellType::PRISM6: case CellType::HEX8: return 1;
         case CellType::LINE3: case CellType::TRI6: 
-        case CellType::QUAD9: case CellType::TET10: return 2;
+        case CellType::QUAD9: case CellType::TET10: 
+        case CellType::HEX27: return 2;
         default: return 0;
     }
 }
@@ -667,7 +728,7 @@ void Mesh::validateConnectivity(CellType type, const std::vector<CfemInt>& v_ids
 }
 
 void Mesh::validateEntityName(const std::string& name) const {
-    if (name == "Universe" || name == "Boundary") {
+    if (name == "Universe") {
         CFEM_ERROR("Reserved Name Violation: The name '" + name + 
                    "' is reserved for internal mesh topology. " +
                    "Please use a different name for the physical group.");

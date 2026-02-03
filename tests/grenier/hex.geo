@@ -1,4 +1,4 @@
-h=0.25;
+h=1;
 
 // 1. Points (Lower face)
 Point(1) = {0, 0, 0, h};
@@ -42,10 +42,12 @@ Curve Loop(6) = {4, 9, -8, -12};     Plane Surface(6) = {6}; // Left
 Surface Loop(1) = {1, 2, 3, 4, 5, 6};
 Volume(1) = {1};
 
+Mesh.ElementOrder = 2;
+
 // 8. Force Hexahedral Meshing
-//Transfinite Curve {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12} = 2; 
-//Transfinite Surface {1, 2, 3, 4, 5, 6};
-//Transfinite Volume{1};
+Transfinite Curve {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12} = 2; 
+Transfinite Surface {1, 2, 3, 4, 5, 6};
+Transfinite Volume{1};
 //Recombine Surface {1, 2, 3, 4, 5, 6};
 
 Physical Surface("Bottom", 1)={1};
@@ -55,4 +57,6 @@ Physical Surface("Right", 4)={4};
 Physical Surface("Back", 5)={5};
 Physical Surface("Left", 6)={6};
 
-Physical Volume("Elements", 1)= {1};
+Physical Volume("Universe", 1)= {1};
+
+Physical Surface("Bord", 7) = {1,2};

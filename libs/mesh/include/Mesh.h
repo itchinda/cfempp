@@ -30,7 +30,7 @@
 
 enum class CellType {
     LINE2, TRI3, QUAD4, TET4, PRISM6, HEX8,
-    LINE3, TRI6, QUAD9, TET10, PRISM18, HEX27
+    LINE3, TRI6, QUAD9, TET10, PRISM18, HEX27, NODE
 };
 
 struct Vertex {
@@ -47,6 +47,7 @@ struct Cell {
 
 struct Facet {
     CfemInt id {-1};
+    CellType type;
     std::vector<CfemInt> vertex_ids {};
     CfemInt number_of_vertices {0};
     CfemInt left_cell  {-1};
@@ -63,6 +64,7 @@ struct TagGroup {
 
 class Mesh {
 public:
+    explicit Mesh();
     explicit Mesh(CfemInt p_meshDim, CfemInt p_meshOrder);
 
     CfemInt addVertex(CfemReal x,
@@ -90,8 +92,18 @@ public:
     const Facet&  getFacet(CfemInt id)  const { return m_facets.at(id); }
     Facet&  getFacet(CfemInt id) { return m_facets.at(id); }
 
+
+    const std::vector<Vertex>& getVertices() const { return m_vertices; }
+    std::vector<Vertex>& getVertices() { return m_vertices; }
+    const std::vector<Cell>&   getCells()   const { return m_cells; }
+    std::vector<Cell>&   getCells()  { return m_cells; }
+    const std::vector<Facet>&  getFacets()  const { return m_facets; }
+    std::vector<Facet>&  getFacets() { return m_facets; }
+    const std::vector<std::unique_ptr<MeshEntity>>&  getEntities()  const { return m_entities; }
+    std::vector<std::unique_ptr<MeshEntity>>&  getEntities() { return m_entities; }
+
     void setOrder(int newOrder);
-    void setDimension(int newOrder);
+    void setDimension(int newDim);
 
     CfemInt createEntity(const std::string& name, CfemInt dim);
 
@@ -103,6 +115,7 @@ public:
     MeshEntity* getEntity(const std::string& name);
     MeshEntity* getEntity(CfemInt id);
 
+    std::string info() const;
     std::string getMeshFormat() const;
 
     void upgradeToQuadratic();
@@ -129,11 +142,16 @@ public:
         // Reset any other internal state if necessary
     }
     
+    
+    void setTagGroups(const std::vector<std::vector<int>>& groups) { m_tagGroups = groups; }
+    const std::vector<int>& getPhysicalTags(int groupId) const { return m_tagGroups.at(groupId); }
+
+    void relaxMesh(int iterations, double lambda = 0.4);
 
 
 private:
-    CfemInt m_meshDim;
-    CfemInt m_meshOrder;
+    CfemInt m_meshDim {0};
+    CfemInt m_meshOrder {0};
 
     std::vector<Vertex> m_vertices;
     std::vector<Cell>   m_cells;
@@ -143,10 +161,14 @@ private:
 
     std::unordered_set<CfemInt> m_entity_ids;
 
-    std::map<std::vector<int>, int> m_tag_combination_to_id;
+    std::vector<std::vector<int>> m_tagGroups; // Table de "interning"
 
     void checkInvariant() const{
-        CFEM_INVARIANT(m_meshDim >= 1 && m_meshDim <= 3);
+        CFEM_INVARIANT(m_meshDim >= 0 && m_meshDim <= 3);
+        CFEM_INVARIANT(m_meshOrder >= 0 && m_meshOrder <= 2);
+        if (m_meshDim==0 || m_meshOrder == 0){
+            CFEM_INVARIANT(m_cells.empty() && m_facets.empty());
+        }
     }
 
     void validateConnectivity(CellType type, const std::vector<CfemInt>& v_ids) const;
@@ -167,6 +189,7 @@ private:
     CfemReal computeTriQuality(const std::vector<CfemInt>& v) const;
     CfemReal computeQuadQuality(const std::vector<CfemInt>& v) const;
     CfemReal computeTetQuality(const std::vector<CfemInt>& v) const;
+
 };
 
 class LineMeshBuilder {
@@ -201,13 +224,13 @@ public:
         std::string right  = "Right";
     };
 
-    void build(Mesh& mesh, int nx, int ny, 
+    void build(Mesh& mesh, int order, int nx, int ny, 
                const std::array<Vector3D, 4>& corners, 
                SubdivisionType subDiv = SubdivisionType::None) {
-        build(mesh, nx, ny, corners, subDiv, BoundaryNames{});
+        build(mesh, order, nx, ny, corners, subDiv, BoundaryNames{});
     }
 
-    void build(Mesh& mesh, int nx, int ny, 
+    void build(Mesh& mesh, int order, int nx, int ny, 
                const std::array<Vector3D, 4>& corners, 
                SubdivisionType subDiv,
                const BoundaryNames& names);
@@ -225,7 +248,7 @@ public:
         SixTet      // Split each Hex into 6 Tetrahedra (standard Kuhn triangulation)
     };
 
-    void build(Mesh& mesh, int nx, int ny, int nz, 
+    void build(Mesh& mesh, int order, int nx, int ny, int nz, 
                const std::array<Vector3D, 8>& corners,
                SubdivisionType subDiv = SubdivisionType::None);
 

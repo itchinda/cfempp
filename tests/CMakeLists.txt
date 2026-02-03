@@ -4,6 +4,7 @@ add_executable(unit_tests
     solvers/test_solvers.cpp
     fem/test_fem.cpp
     mesh/test_mesh.cpp
+    mesh/test_gmsh_parser.cpp
     utils/test_vector3d.cpp
     utils/test_static_vector.cpp
     utils/test_static_matrix.cpp
@@ -15,6 +16,7 @@ target_link_libraries(unit_tests
         GTest::gtest
         cfem_solvers
         cfem_utils
+        cfem_mesh
 )
 
 # This command tells CMake to find all TEST() macros in the binary
