@@ -1,5 +1,5 @@
-#ifndef PETSC_UTILS_H
-#define PETSC_UTILS_H
+#ifndef CFEM_PETSC_UTILS_H
+#define CFEM_PETSC_UTILS_H
 
 #include <petscsys.h>
 
@@ -20,4 +20,4 @@
             CHKERRABORT(PETSC_COMM_WORLD, ierr);              \
     } while (0)
 
-#endif // ODEPP_PETSC_UTILS_H
+#endif // CFEM_PETSC_UTILS_H

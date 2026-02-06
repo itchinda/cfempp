@@ -1,2 +1,6 @@
 .vscode
-build
+build_debug
+build_release
+
+docs/html/
+docs/latex/

@@ -1,9 +1,0 @@
-<map id="GmshParser::GMSHElemData" name="GmshParser::GMSHElemData">
-<area shape="rect" id="Node000001" title="Raw data structure for transient element storage during parsing." alt="" coords="5,269,217,295"/>
-<area shape="rect" id="Node000002" title=" " alt="" coords="42,181,181,207"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="114,221,114,269,109,269,109,221"/>
-<area shape="rect" id="Node000003" title=" " alt="" coords="47,93,176,119"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="114,133,114,181,109,181,109,133"/>
-<area shape="rect" id="Node000004" title=" " alt="" coords="92,5,131,31"/>
-<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="114,45,114,93,109,93,109,45"/>
-</map>

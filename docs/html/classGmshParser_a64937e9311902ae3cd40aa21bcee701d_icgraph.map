@@ -1,5 +1,0 @@
-<map id="GmshParser::parsePhysicalNames" name="GmshParser::parsePhysicalNames">
-<area shape="rect" id="Node000001" title="Parses the $PhysicalNames section. Maps (dimension, tag) pairs to their string names (e...." alt="" coords="189,5,388,45"/>
-<area shape="rect" id="Node000002" href="$classGmshParser.html#abfacecd9c59d6f5d78cbd1dd75a469a4" title="Primary entry point for loading .msh files." alt="" coords="5,13,141,38"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="175,28,142,28,142,23,175,23"/>
-</map>
