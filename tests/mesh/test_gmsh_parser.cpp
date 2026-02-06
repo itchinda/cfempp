@@ -43,7 +43,6 @@ TEST_F(GmshHexTest, BoundaryGroupMapping) {
     for (const auto& name : expectedGroups) {
         MeshEntity* ent = mesh.getEntity(name);
         ASSERT_NE(ent, nullptr) << "Group " << name << " not found in mesh!";
-        std::cout << ent->getEntityFormat(true) << std::endl;
         EXPECT_GT(ent->getFacetIds().size(), 0);
         EXPECT_GT(ent->getVertexIds().size(), 0);
     }

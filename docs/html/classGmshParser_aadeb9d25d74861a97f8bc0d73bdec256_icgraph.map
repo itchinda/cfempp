@@ -1,5 +1,0 @@
-<map id="GmshParser::parseElements" name="GmshParser::parseElements">
-<area shape="rect" id="Node000001" title="Parses the $Elements section into a temporary buffer." alt="" coords="189,5,395,31"/>
-<area shape="rect" id="Node000002" href="$classGmshParser.html#abfacecd9c59d6f5d78cbd1dd75a469a4" title="Primary entry point for loading .msh files." alt="" coords="5,5,141,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="175,21,142,21,142,15,175,15"/>
-</map>

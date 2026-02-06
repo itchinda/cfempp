@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
     // lSphere.build(lMail, order, target_mesh_size, Vector3D{0,0,0}, radius, SphereMeshBuilder::ElementType::Tetrahedron);
 
     GmshParser lMshParser;
-    lMshParser.load(lMail, "hex.msh");
+    lMshParser.load(lMail, "../tests/grenier/hex.msh");
     //lMail.downgradeToLinear();
     VTKExporter vtk_exporter (lMail);
     vtk_exporter.setExportedEntities({
@@ -52,12 +52,12 @@ int main(int argc, char **argv) {
     } );
 
     vtk_exporter.setExportQuality(true);
-    vtk_exporter.write("hex.vtk");
+    vtk_exporter.write("bunny.vtk");
 
     // auto report = MeshQualityTool::analyze(lMail);
     // MeshQualityTool::printSummary(report);
 
-    std::cout << lMail.getMeshFormat() << std::endl;
+    std::cout << lMail.info() << std::endl;
 
     // for (const auto& ent : lMail.getEntities()){
     //     std::cout << ent->getEntityFormat() << std::endl;

@@ -1,7 +1,0 @@
-<map id="/home/itchinda/projects/odepp/libs/wrappers/petsc/include/PetscMatrix.h" name="/home/itchinda/projects/odepp/libs/wrappers/petsc/include/PetscMatrix.h">
-<area shape="rect" id="Node000001" title="RAII wrapper around PETSc Mat." alt="" coords="5,5,201,60"/>
-<area shape="rect" id="Node000002" title=" " alt="" coords="5,108,100,133"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="90,61,69,97,64,95,86,59"/>
-<area shape="rect" id="Node000003" title=" " alt="" coords="124,108,184,133"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="121,59,142,95,138,97,117,61"/>
-</map>

@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "SymTensorO2.h"
+#include "Tensor.h"
 
 const double TOL = 1e-12;
 

@@ -7,7 +7,9 @@
 
 
 using CfemInt = PetscInt;
+using CfemIntFlag = uint8_t;
 using CfemReal = PetscReal;
+
         
 #ifdef NDEBUG
     #define CFEM_ERROR(msg) \
@@ -36,6 +38,15 @@ namespace cfem {
         // Relative comparison: scales the tolerance based on the magnitude of the numbers
         return std::abs(a - b) <= ( (std::abs(a) < std::abs(b) ? std::abs(b) : std::abs(a)) * MACHINE_EPSILON);
     }
+
+    /** @brief Énumération des champs activables pour les fonctions de forme. */
+    enum ShapeActiveField : CfemIntFlag {
+        None        = 0,
+        Value       = 1 << 0,
+        Gradient    = 1 << 1,
+        Hessian     = 1 << 2,
+        All         = 0xFF
+    };
     
 }
 
