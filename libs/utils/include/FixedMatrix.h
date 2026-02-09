@@ -13,6 +13,9 @@
 #include <iostream>
 #include <utility>
 
+
+namespace cfem {
+
 /**
  * @struct FixedMatrix
  * @brief A stack-allocated, fixed-size dense matrix.
@@ -222,6 +225,19 @@ inline FixedMatrix<T, R, C2> operator*(const FixedMatrix<T, R, Inner>& A, const 
     return res;
 }
 
+/** 
+ * @brief 3x3 Matrix-Vector3D Product: \f$ C = A \cdot B \f$
+ *        Optimized with ikj loop order for better cache performance.
+ * @relates Vector3D
+ */
+inline Vector3D operator*(const FixedMatrix<CfemReal, 3, 3>& A, const Vector3D& B) {
+    return { 
+            A(0,0)*B.x + A(0,1)*B.y + A(0,2)*B.z, 
+            A(1,0)*B.x + A(1,1)*B.y + A(1,2)*B.z, 
+            A(2,0)*B.x + A(2,1)*B.y + A(2,2)*B.z
+        };
+}
+
 /** @brief Left-side scalar multiplication. @relates FixedMatrix */
 template <typename T, int R, int C>
 inline FixedMatrix<T, R, C> operator*(T scalar, const FixedMatrix<T, R, C>& m) {
@@ -294,5 +310,7 @@ inline std::ostream& operator<<(std::ostream& os, const FixedMatrix<T, R, C>& m)
     }
     return os;
 }
+
+} // namespace
 
 #endif // CFEM_STATIC_MATRIX

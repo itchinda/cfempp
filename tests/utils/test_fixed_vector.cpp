@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "FixedVector.h"
 
+using namespace cfem;
+
 /**
  * @brief Unit tests for the FixedVector template class.
  */

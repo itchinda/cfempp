@@ -11,6 +11,8 @@
 
 #include <iostream>
 
+using namespace cfem;
+
 int main(int argc, char **argv) {
 
     //-----------------------------------------------------------------------------

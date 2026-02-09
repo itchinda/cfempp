@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "Vector3D.h"
 
+using namespace cfem;
+
 /**
  * @brief Unit tests for the Vector3D struct.
  */

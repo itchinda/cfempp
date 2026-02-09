@@ -2,52 +2,49 @@
 #define CFEMUTILS_
 
 #include <petscsys.h>
-
+#include <vector>
 #include "ContractException.h"
 
-
+// CFEM TYPES
 using CfemInt = PetscInt;
 using CfemIntFlag = uint8_t;
 using CfemReal = PetscReal;
 
-        
-#ifdef NDEBUG
-    #define CFEM_ERROR(msg) \
-        throw std::runtime_error(std::string("[CFEM ERROR] ") + msg)
-
-    #define CFEM_WARNING(msg) \
-        std::cerr << "[CFEM WARNING] " << msg << std::endl
-#else
-    #define CFEM_ERROR(msg) \
-        throw std::runtime_error(std::string("[CFEM ERROR] ") + msg + \
-        " File: " + __FILE__ + ":" + std::to_string(__LINE__))
-
-    #define CFEM_WARNING(msg) \
-        std::cerr << "[CFEM WARNING] " << msg << \
-        " (File: " << __FILE__ << ":" << __LINE__ << ")" << std::endl
-#endif
-
-// cfemutils.h
-namespace cfem {
+/**
+ * @brief Namspace for CFEM++ types and objects
+ *
+ */
+namespace cfem
+{
+    /**
+     * @brief Threshold for numerical zero comparisons.
+     * * Used to handle floating-point noise in geometric checks, such as
+     * determining if a point lies on an element face or if a Jacobian determinant
+     * is effectively zero.
+     */
     constexpr CfemReal ZERO_TOLERANCE = 1e-14;
+
+    /**
+     * @brief The smallest representable difference for the @ref CfemReal type.
+     * * Provides the theoretical lower bound of precision for the current
+     * floating-point precision (float or double). Useful for scaling tolerances.
+     */
     constexpr CfemReal MACHINE_EPSILON = std::numeric_limits<CfemReal>::epsilon();
+
+    /**
+     * @brief Sentinel value indicating an unassigned or invalid ID.
+     * * Commonly used to initialize indices before they are mapped to the mesh
+     * or to represent a "null" relationship in connectivity arrays.
+     */
     constexpr CfemInt UNIVERSE_ID = -1;
+
+    /**
+     * @brief Sentinel value reserved for system-level boundary conditions.
+     * * Used to distinguish internal mesh interfaces from external boundaries
+     * where constraints (Dirichlet/Neumann) are applied.
+     */
     constexpr CfemInt SYS_BOUNDARY_ID = -2;
 
-    inline bool areNearlyEqual(CfemReal a, CfemReal b) {
-        // Relative comparison: scales the tolerance based on the magnitude of the numbers
-        return std::abs(a - b) <= ( (std::abs(a) < std::abs(b) ? std::abs(b) : std::abs(a)) * MACHINE_EPSILON);
-    }
-
-    /** @brief Énumération des champs activables pour les fonctions de forme. */
-    enum ShapeActiveField : CfemIntFlag {
-        None        = 0,
-        Value       = 1 << 0,
-        Gradient    = 1 << 1,
-        Hessian     = 1 << 2,
-        All         = 0xFF
-    };
-    
-}
+} // namespace
 
 #endif

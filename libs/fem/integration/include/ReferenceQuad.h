@@ -18,11 +18,11 @@ namespace cfem {
         int dimension() const override { return 2; }
         int numNodes() const override { return 4; }
 
-        void evaluate(const Vector3D& xi, CfemIntFlag requested, ShapeInfo& out) const override {
+        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 4;
             if (out.values.size() != n) out.setup(n);
             
-            if ((requested & ShapeActiveField::Hessian) && out.hessians.size() != n) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
                 out.hessians.assign(n, SymTensorO2());
             }
 
@@ -34,17 +34,17 @@ namespace cfem {
             const CfemReal sy[4] = {-1, -1, 1, 1};
 
             for (int i = 0; i < n; ++i) {
-                if (requested & ShapeActiveField::Value) {
+                if ( hasFlag(requested, ShapeEvaluationFlags::Value)) {
                     out.values[i] = 0.25 * (1.0 + sx[i] * x) * (1.0 + sy[i] * y);
                 }
 
-                if (requested & ShapeActiveField::Gradient) {
+                if ( hasFlag(requested, ShapeEvaluationFlags::Gradient) ) {
                     out.gradients[i].x = 0.25 * sx[i] * (1.0 + sy[i] * y);
                     out.gradients[i].y = 0.25 * sy[i] * (1.0 + sx[i] * x);
                     out.gradients[i].z = 0.0;
                 }
 
-                if (requested & ShapeActiveField::Hessian) {
+                if ( hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
                     out.hessians[i].setZero();
                     // Seule la dérivée croisée est non nulle : d2N / dx dy
                     CfemReal d2N_dxy = 0.25 * sx[i] * sy[i];
@@ -80,11 +80,11 @@ class Q2ReferenceQuad : public ReferenceElement {
         int dimension() const override { return 2; }
         int numNodes() const override { return 9; }
 
-        void evaluate(const Vector3D& xi, CfemIntFlag requested, ShapeInfo& out) const override {
+        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 9;
             if (out.values.size() != n) out.setup(n);
             
-            if ((requested & ShapeActiveField::Hessian) && out.hessians.size() != n) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
                 out.hessians.assign(n, SymTensorO2());
             }
 
@@ -115,17 +115,17 @@ class Q2ReferenceQuad : public ReferenceElement {
                 for (int j = 0; j < 3; ++j) {
                     int idx = map[i][j];
 
-                    if (requested & ShapeActiveField::Value) {
+                    if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
                         out.values[idx] = fr[i] * fs[j];
                     }
 
-                    if (requested & ShapeActiveField::Gradient) {
+                    if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
                         out.gradients[idx].x = dfr[i] * fs[j];
                         out.gradients[idx].y = fr[i] * dfs[j];
                         out.gradients[idx].z = 0.0;
                     }
 
-                    if (requested & ShapeActiveField::Hessian) {
+                    if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
                         out.hessians[idx].setZero();
                         out.hessians[idx].xx() = ddfr[i] * fs[j];   // d2N/dr2
                         out.hessians[idx].yy() = fr[i] * ddfs[j];   // d2N/ds2

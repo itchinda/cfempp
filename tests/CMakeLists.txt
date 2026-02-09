@@ -4,6 +4,7 @@ add_executable(unit_tests
     solvers/test_solvers.cpp
     fem/test_fem.cpp
     fem/test_reference_element.cpp
+    fem/test_quadrature.cpp
     mesh/test_mesh.cpp
     mesh/test_gmsh_parser.cpp
     utils/test_dynamic_vector.cpp

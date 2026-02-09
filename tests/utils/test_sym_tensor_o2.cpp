@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
-#include "Tensor.h"
+#include "TensorO2.h"
+
+using namespace cfem;
 
 const double TOL = 1e-12;
 
@@ -23,9 +25,12 @@ TEST(SymTensorO2Test, Arithmetic) {
     
     auto D = A * 2.0;
     EXPECT_DOUBLE_EQ(D[5], 12.0);
+
+    auto E = 2.0 * A;
+    EXPECT_DOUBLE_EQ(E[5], 12.0);
     
-    auto E = -A;
-    EXPECT_DOUBLE_EQ(E[0], -1.0);
+    auto F = -A;
+    EXPECT_DOUBLE_EQ(F[0], -1.0);
 }
 
 TEST(SymTensorO2Test, TractionVector) {

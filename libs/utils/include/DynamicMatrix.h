@@ -17,6 +17,8 @@
 #include <cmath>
 #include <algorithm>
 
+namespace cfem {
+
 /**
  * @class DynamicMatrix
  * @brief A heap-allocated, dynamically-sized dense matrix.
@@ -296,5 +298,7 @@ inline std::ostream& operator<<(std::ostream& os, const DynamicMatrix<T>& m) {
     }
     return os;
 }
+
+} //namespace
 
 #endif // CFEM_DYNAMIC_MATRIX

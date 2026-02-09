@@ -3,6 +3,9 @@
 
 #include "Field.h"
 
+
+namespace cfem {
+    
 /**
  * @class TypedField
  * @brief Intermediate template to handle data storage and interpolation logic.
@@ -46,4 +49,5 @@ protected:
     virtual T getComponentValue(const std::vector<CfemInt>& dofs, int localNodeIdx) const = 0;
 };
 
+}
 #endif

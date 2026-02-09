@@ -24,38 +24,12 @@
 #include <set>
 
 #include "cfemutils.h"
+#include "cfem_topology.h"
 #include "MeshEntity.h"
 #include "Vector3D.h"
+#include "DynamicVector.h"
 
-
-enum class CellType {
-    LINE2, TRI3, QUAD4, TET4, PRISM6, HEX8,
-    LINE3, TRI6, QUAD9, TET10, PRISM18, HEX27, NODE
-};
-
-struct Vertex {
-    Vector3D coords;
-    std::vector<CfemInt> connected_cells;
-    int tag_list_id = -1;
-};
-
-struct Cell {
-    CellType type;
-    std::vector<CfemInt> vertex_ids;
-    int tag_list_id = -1;
-};
-
-struct Facet {
-    CfemInt id {-1};
-    CellType type;
-    std::vector<CfemInt> vertex_ids {};
-    CfemInt number_of_vertices {0};
-    CfemInt left_cell  {-1};
-    CfemInt right_cell {-1};
-    int tag_list_id = -1;
-
-    bool isBoundary() const { return right_cell < 0; }
-};
+namespace cfem{
 
 struct TagGroup {
     std::vector<int> gmsh_tags;
@@ -93,6 +67,8 @@ public:
     Facet&  getFacet(CfemInt id) { return m_facets.at(id); }
 
 
+    void getElementCoordinates(CfemInt elementId, cfem::DynamicVector<cfem::Vector3D>& localCoords) const;
+
     const std::vector<Vertex>& getVertices() const { return m_vertices; }
     std::vector<Vertex>& getVertices() { return m_vertices; }
     const std::vector<Cell>&   getCells()   const { return m_cells; }
@@ -126,7 +102,7 @@ public:
     std::string cellTypeToString(CellType type) const;
     CfemReal computeCellMeasure(CellType type, const std::vector<CfemInt>& v_ids) const; 
     CfemReal compute2NodesLineLength(CfemInt p_idx0, CfemInt p_idx1) const;
-    CfemReal computeSigned3NodesTriangleArea(CfemInt p_idx0, CfemInt p_idx1, CfemInt p_idx2, Vector3D &pReferenceNormale) const;
+    CfemReal computeSigned3NodesTriangleArea(CfemInt p_idx0, CfemInt p_idx1, CfemInt p_idx2, cfem::Vector3D &pReferenceNormale) const;
     CfemReal computeSigned4NodesTetraVolume(CfemInt p_idx0, CfemInt p_idx1, CfemInt p_idx2, CfemInt p_idx3) const;
     CfemInt getDimFromType(CellType type) const;
     CfemInt getOrderFromType(CellType type) const;
@@ -194,11 +170,11 @@ private:
 
 class LineMeshBuilder {
 public:
-    static void build(Mesh& mesh, int nx, const Vector3D& start, const Vector3D& end) {
+    static void build(Mesh& mesh, int nx, const cfem::Vector3D& start, const cfem::Vector3D& end) {
         mesh.clear();
         for (int i = 0; i <= nx; ++i) {
             double t = static_cast<double>(i) / nx;
-            Vector3D p = start * (1.0 - t) + end * t;
+            cfem::Vector3D p = start * (1.0 - t) + end * t;
             mesh.addVertex(p.x, p.y, p.z);
         }
 
@@ -225,13 +201,13 @@ public:
     };
 
     void build(Mesh& mesh, int order, int nx, int ny, 
-               const std::array<Vector3D, 4>& corners, 
+               const std::array<cfem::Vector3D, 4>& corners, 
                SubdivisionType subDiv = SubdivisionType::None) {
         build(mesh, order, nx, ny, corners, subDiv, BoundaryNames{});
     }
 
     void build(Mesh& mesh, int order, int nx, int ny, 
-               const std::array<Vector3D, 4>& corners, 
+               const std::array<cfem::Vector3D, 4>& corners, 
                SubdivisionType subDiv,
                const BoundaryNames& names);
 
@@ -249,7 +225,7 @@ public:
     };
 
     void build(Mesh& mesh, int order, int nx, int ny, int nz, 
-               const std::array<Vector3D, 8>& corners,
+               const std::array<cfem::Vector3D, 8>& corners,
                SubdivisionType subDiv = SubdivisionType::None);
 
 };
@@ -264,11 +240,11 @@ public:
     void build(Mesh& mesh,
                       CfemInt order,
                       CfemReal target_mesh_size,
-                      const Vector3D& center,
+                      const cfem::Vector3D& center,
                       double radius,
                       ElementType type = ElementType::Triangle);
 
-    static void projectBoundaryMidNodes(Mesh& mesh, const Vector3D& center, double radius);
+    static void projectBoundaryMidNodes(Mesh& mesh, const cfem::Vector3D& center, double radius);
 
     void relaxMesh(Mesh& mesh, int iterations = 5);
 };
@@ -280,13 +256,13 @@ public:
     static void build(Mesh& mesh,
                       CfemInt order,
                       CfemReal h,
-                      const Vector3D& center,
+                      const cfem::Vector3D& center,
                       double radius,
                       ElementType type = ElementType::Tetrahedron);
 
 private:
     static void projectBoundaryNodes(Mesh& mesh,
-                                     const Vector3D& center,
+                                     const cfem::Vector3D& center,
                                      double radius);
 
     static void relaxMesh(Mesh& mesh, int iterations = 5);
@@ -342,6 +318,8 @@ public:
         std::cout << "--------------------------------\n" << std::endl;
     }
 };
+
+}  // namespace
 
 #include "Mesh.tpp"
 

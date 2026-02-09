@@ -2,6 +2,8 @@
 #include "DynamicVector.h"
 #include "FixedVector.h"
 
+using namespace cfem;
+
 TEST(DynamicVectorTest, ConstructorAndSize) {
     DynamicVector<double> v(5, 1.23);
     

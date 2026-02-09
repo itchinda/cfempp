@@ -2,6 +2,10 @@
 #include <iostream>
 #include <algorithm>
 #include <map>
+#include <iomanip>
+#include <sstream>
+
+namespace cfem {
 
 Mesh::Mesh(){
     CFEM_CHECK_INVARIANTS();
@@ -219,9 +223,6 @@ void Mesh::buildMesh() {
 }
 
 
-#include <iomanip>
-#include <sstream>
-
 std::string Mesh::info() const{
     std::stringstream ss;
     ss << "\n================ MESH SUMMARY ================" << std::endl;
@@ -423,12 +424,12 @@ CfemReal Mesh::computeCellMeasure(CellType type, const std::vector<CfemInt>& v_i
             return compute2NodesLineLength(v_ids[0], v_ids[1]);
             
         case CellType::TRI3:{
-            Vector3D lReferenceNormale {0.0,0.0,0.0};
+            cfem::Vector3D lReferenceNormale {0.0,0.0,0.0};
             return computeSigned3NodesTriangleArea(v_ids[0], v_ids[1], v_ids[2], lReferenceNormale);
         }
 
         case CellType::QUAD4: {
-            Vector3D lReferenceNormale {0.0,0.0,0.0};
+            cfem::Vector3D lReferenceNormale {0.0,0.0,0.0};
             CfemReal A1 = computeSigned3NodesTriangleArea(v_ids[0], v_ids[1], v_ids[2], lReferenceNormale);
             CfemReal A2 = computeSigned3NodesTriangleArea(v_ids[0], v_ids[2], v_ids[3], lReferenceNormale);
 
@@ -538,13 +539,13 @@ CfemReal Mesh::compute2NodesLineLength(CfemInt p_idx0, CfemInt p_idx1) const {
 CfemReal Mesh::computeSigned3NodesTriangleArea(CfemInt p_idx0, 
                                                CfemInt p_idx1, 
                                                CfemInt p_idx2, 
-                                               Vector3D &pReferenceNormale) const {
+                                               cfem::Vector3D &pReferenceNormale) const {
     const auto& A = m_vertices[p_idx0].coords;
     const auto& B = m_vertices[p_idx1].coords;
     const auto& C = m_vertices[p_idx2].coords;
     
-    Vector3D AB = {B[0]-A[0], B[1]-A[1], B[2]-A[2]};
-    Vector3D AC = {C[0]-A[0], C[1]-A[1], C[2]-A[2]};
+    cfem::Vector3D AB = {B[0]-A[0], B[1]-A[1], B[2]-A[2]};
+    cfem::Vector3D AC = {C[0]-A[0], C[1]-A[1], C[2]-A[2]};
     
     CfemReal cp_x = AB[1]*AC[2] - AB[2]*AC[1];
     CfemReal cp_y = AB[2]*AC[0] - AB[0]*AC[2];
@@ -622,9 +623,9 @@ CfemReal Mesh::computeQuadQuality(const std::vector<CfemInt>& v) const {
 }
 
 CfemReal Mesh::computeTriQuality(const std::vector<CfemInt>& v) const {
-    const Vector3D& p0 = getVertex(v[0]).coords;
-    const Vector3D& p1 = getVertex(v[1]).coords;
-    const Vector3D& p2 = getVertex(v[2]).coords;
+    const cfem::Vector3D& p0 = getVertex(v[0]).coords;
+    const cfem::Vector3D& p1 = getVertex(v[1]).coords;
+    const cfem::Vector3D& p2 = getVertex(v[2]).coords;
 
     // Calculate edge lengths
     CfemReal a = (p1 - p2).norm();
@@ -646,10 +647,10 @@ CfemReal Mesh::computeTriQuality(const std::vector<CfemInt>& v) const {
 }
 
 CfemReal Mesh::computeTetQuality(const std::vector<CfemInt>& v) const {
-    const Vector3D& p0 = getVertex(v[0]).coords;
-    const Vector3D& p1 = getVertex(v[1]).coords;
-    const Vector3D& p2 = getVertex(v[2]).coords;
-    const Vector3D& p3 = getVertex(v[3]).coords;
+    const cfem::Vector3D& p0 = getVertex(v[0]).coords;
+    const cfem::Vector3D& p1 = getVertex(v[1]).coords;
+    const cfem::Vector3D& p2 = getVertex(v[2]).coords;
+    const cfem::Vector3D& p3 = getVertex(v[3]).coords;
 
     // Volume of Tetrahedron
     CfemReal vol = std::abs((p1 - p0).dot((p2 - p0).cross(p3 - p0))) / 6.0;
@@ -734,3 +735,5 @@ void Mesh::validateEntityName(const std::string& name) const {
                    "Please use a different name for the physical group.");
     }
 }
+
+} // namespace

@@ -1,12 +1,17 @@
 /**
- * @file Tensor.h
+ * @file TensorO2.h
  * @brief Physical tensor definitions for CFEM.
  */
 
-#ifndef CFEM_TENSOR_H
-#define CFEM_TENSOR_H
+#ifndef CFEM_TENSORO2_H
+#define CFEM_TENSORO2_H
 
 #include "FixedMatrix.h"
+
+
+namespace cfem
+{
+
 
 /**
  * @brief General second-order tensor (9 components).
@@ -338,4 +343,5 @@ inline std::ostream& operator<<(std::ostream& os, const SymTensorO2& T) {
     return os;
 }
 
+}
 #endif

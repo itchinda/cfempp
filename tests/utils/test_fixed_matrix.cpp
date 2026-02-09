@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "FixedMatrix.h"
 
+using namespace cfem;
+
 /**
  * @brief Unit tests for the FixedMatrix template class.
  */

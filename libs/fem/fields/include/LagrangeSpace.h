@@ -3,6 +3,7 @@
 
 #include "FESpace.h"
 
+namespace cfem {
 class LagrangeSpace : public FESpace {
 public:
     using FESpace::FESpace; // Use the base constructor
@@ -78,4 +79,5 @@ public:
     }
 };
 
+}
 #endif

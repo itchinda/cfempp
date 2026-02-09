@@ -55,7 +55,7 @@ make -j
 ```c++
 #include "Mesh.h"
 #include "GmshParser.h"
-#include "VtkExporter.h"
+#include "VTKExporter.h"
 
 int main() {
     Mesh mesh;

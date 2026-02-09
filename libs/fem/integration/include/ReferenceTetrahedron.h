@@ -17,10 +17,10 @@ namespace cfem {
         int dimension() const override { return 3; }
         int numNodes() const override { return 4; }
 
-        void evaluate(const Vector3D& xi, CfemIntFlag requested, ShapeInfo& out) const override {
+        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 4;
             if (out.values.size() != n) out.setup(n);
-            if ((requested & ShapeActiveField::Hessian) && out.hessians.size() != n) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
                 out.hessians.assign(n, SymTensorO2());
             }
 
@@ -29,19 +29,19 @@ namespace cfem {
             const CfemReal L3 = xi.z;
             const CfemReal L0 = 1.0 - L1 - L2 - L3;
 
-            if (requested & ShapeActiveField::Value) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
                 out.values[0] = L0; out.values[1] = L1;
                 out.values[2] = L2; out.values[3] = L3;
             }
 
-            if (requested & ShapeActiveField::Gradient) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
                 out.gradients[0] = {-1, -1, -1};
                 out.gradients[1] = { 1,  0,  0};
                 out.gradients[2] = { 0,  1,  0};
                 out.gradients[3] = { 0,  0,  1};
             }
 
-            if (requested & ShapeActiveField::Hessian) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
                 for (auto& H : out.hessians) H.setZero();
             }
             out.validFlags = requested;
@@ -65,10 +65,10 @@ namespace cfem {
         int dimension() const override { return 3; }
         int numNodes() const override { return 10; }
 
-        void evaluate(const Vector3D& xi, CfemIntFlag requested, ShapeInfo& out) const override {
+        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 10;
             if (out.values.size() != n) out.setup(n);
-            if ((requested & ShapeActiveField::Hessian) && out.hessians.size() != n) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
                 out.hessians.assign(n, SymTensorO2());
             }
 
@@ -77,7 +77,7 @@ namespace cfem {
             const CfemReal L3 = xi.z;
             const CfemReal L0 = 1.0 - L1 - L2 - L3;
 
-            if (requested & ShapeActiveField::Value) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
                 out.values[0] = L0*(2*L0-1); out.values[1] = L1*(2*L1-1);
                 out.values[2] = L2*(2*L2-1); out.values[3] = L3*(2*L3-1);
                 out.values[4] = 4*L0*L1;     out.values[5] = 4*L1*L2;
@@ -85,7 +85,7 @@ namespace cfem {
                 out.values[8] = 4*L1*L3;     out.values[9] = 4*L2*L3;
             }
 
-            if (requested & ShapeActiveField::Gradient) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
                 // Exemple pour N0: Grad(L0(2L0-1)) = (4L0-1)*Grad(L0) = (4L0-1)*(-1,-1,-1)
                 auto gL0 = Vector3D{-1,-1,-1};
                 out.gradients[0] = gL0 * (4*L0-1);
@@ -101,7 +101,7 @@ namespace cfem {
                 out.gradients[9] = {0, 4*L3, 4*L2};
             }
 
-            if (requested & ShapeActiveField::Hessian) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
                 for (int i = 0; i < n; ++i) out.hessians[i].setZero();
 
                 // --- Sommets ---

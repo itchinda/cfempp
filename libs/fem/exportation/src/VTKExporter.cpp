@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <iostream>
 
+namespace cfem {
+
 void VTKExporter::write(const std::string& filename) {
     std::ofstream out(filename);
     if (!out.is_open()) {
@@ -132,4 +134,6 @@ int VTKExporter::getVTKCellType(CellType type) const {
         case CellType::PRISM18: return 32; 
         default: return 0;
     }
+}
+
 }

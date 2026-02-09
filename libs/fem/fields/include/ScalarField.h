@@ -3,6 +3,8 @@
 
 #include "TypedField.h"
 
+
+namespace cfem {
 class ScalarField : public TypedField<CfemReal> {
 public:
     using TypedField<CfemReal>::TypedField;
@@ -12,5 +14,7 @@ protected:
         return m_data[dofs[localNodeIdx]];
     }
 };
+
+}
 
 #endif

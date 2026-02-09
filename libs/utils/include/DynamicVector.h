@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <iterator>
 
+namespace cfem {
+
 /*!
  * @class DynamicVector
  * @brief A dynamically-sized vector for general linear algebra.
@@ -277,6 +279,8 @@ inline std::ostream& operator<<(std::ostream& os, const DynamicVector<T>& v) {
     }
     os << ")";
     return os;
+}
+
 }
 
 #endif // CFEM_DYNAMIC_VECTOR

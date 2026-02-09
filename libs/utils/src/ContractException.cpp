@@ -10,7 +10,8 @@ namespace cfem
 ContractException::ContractException(const char* file,
                                      int line,
                                      const char* expr,
-                                     const char* kind)
+                                     const char* kind,
+                                     const char* msg)
 : std::logic_error("Contract violation")
 {
     std::ostringstream os;
@@ -19,9 +20,11 @@ ContractException::ContractException(const char* file,
        << "CFEM CONTRACT VIOLATION\n"
        << "----------------------------------------\n"
        << "Type         : " << kind << "\n"
-       << "Location: " << file << ":" << line << "\n"
-       << "Expression   : " << expr << "\n"
-       << "========================================\n";
+       << "Location     : " << file << ":" << line << "\n"
+       << "Expression   : " << expr << "\n";
+
+    if (msg) os << "Info         : "  << msg << "\n";
+    os << "========================================\n";
 
     m_report = os.str();
 }
@@ -36,29 +39,33 @@ const char* ContractException::what() const noexcept {
 
 AssertionException::AssertionException(const char*  file,
                                        int line,
-                                       const char*  expr)
-    : ContractException(file, line, expr,"Assertion")
+                                       const char*  expr,
+                                       const char* msg)
+    : ContractException(file, line, expr,"Assertion", msg)
 {}
 
 
 PreconditionException::PreconditionException(const char* file,
                                              int line,
-                                             const char* expr)
-    : ContractException(file, line, expr, "Precondition")
+                                             const char* expr,
+                                             const char* msg)
+    : ContractException(file, line, expr, "Precondition", msg)
 {}
 
 
 PostconditionException::PostconditionException(const char* file,
                                                int line,
-                                               const char* expr)
-    : ContractException(file, line, expr,"Postcondition")
+                                               const char* expr,
+                                               const char* msg)
+    : ContractException(file, line, expr,"Postcondition", msg)
 {}
 
 
 InvariantException::InvariantException(const char*  file,
                                        int line,
-                                       const char*  expr)
-    : ContractException(file, line, expr, "Invariant")
+                                       const char*  expr,
+                                       const char* msg)
+    : ContractException(file, line, expr, "Invariant", msg)
 {}
 
 } // namespace cfem
