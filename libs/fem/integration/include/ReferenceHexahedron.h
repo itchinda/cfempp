@@ -17,10 +17,10 @@ public:
     int dimension() const override { return 3; }
     int numNodes() const override { return 8; }
 
-    void evaluate(const Vector3D& xi, CfemIntFlag requested, ShapeInfo& out) const override {
+    void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
         const int n = 8;
         if (out.values.size() != n) out.setup(n);
-        if ((requested & ShapeActiveField::Hessian) && out.hessians.size() != n)
+        if ((hasFlag(requested, ShapeEvaluationFlags::Hessian)) && out.hessians.size() != n)
             out.hessians.assign(n, SymTensorO2());
 
         const CfemReal r = xi.x, s = xi.y, t = xi.z;
@@ -33,16 +33,16 @@ public:
             CfemReal ps = 1.0 + xs[i]*s;
             CfemReal pt = 1.0 + xt[i]*t;
 
-            if (requested & ShapeActiveField::Value) 
+            if (hasFlag(requested, ShapeEvaluationFlags::Value)) 
                 out.values[i] = 0.125 * pr * ps * pt;
 
-            if (requested & ShapeActiveField::Gradient) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
                 out.gradients[i].x = 0.125 * xr[i] * ps * pt;
                 out.gradients[i].y = 0.125 * xs[i] * pr * pt;
                 out.gradients[i].z = 0.125 * xt[i] * pr * ps;
             }
 
-            if (requested & ShapeActiveField::Hessian) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
                 out.hessians[i].setZero();
                 out.hessians[i].xy() = 0.125 * xr[i] * xs[i] * pt;
                 out.hessians[i].xz() = 0.125 * xr[i] * ps * xt[i];
@@ -86,10 +86,10 @@ public:
     int dimension() const override { return 3; }
     int numNodes() const override { return 27; }
 
-    void evaluate(const Vector3D& xi, CfemIntFlag requested, ShapeInfo& out) const override {
+    void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
         const int n = 27;
         if (out.values.size() != n) out.setup(n);
-        if ((requested & ShapeActiveField::Hessian) && out.hessians.size() != n)
+        if ((hasFlag(requested, ShapeEvaluationFlags::Hessian)) && out.hessians.size() != n)
             out.hessians.assign(n, SymTensorO2());
 
         const CfemReal r = xi.x, s = xi.y, t = xi.z;
@@ -119,22 +119,22 @@ public:
                 for (int k = 0; k < 3; ++k) { // t
                     int idx = map[i][j][k];
 
-                    if (requested & ShapeActiveField::Value)
-                        out.values[idx] = fr[i] * fs[j] * ft[idx < 0 ? 0 : k]; // Correction logique simple
+                    // if (hasFlag(requested, ShapeEvaluationFlags::Value))
+                    //     out.values[idx] = fr[i] * fs[j] * ft[idx < 0 ? 0 : k]; // Correction logique simple
 
                     // Plus proprement :
                     CfemReal val_i = fr[i], val_j = fs[j], val_k = ft[k];
                     
-                    if (requested & ShapeActiveField::Value)
+                    if (hasFlag(requested, ShapeEvaluationFlags::Value))
                         out.values[idx] = val_i * val_j * val_k;
 
-                    if (requested & ShapeActiveField::Gradient) {
+                    if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
                         out.gradients[idx].x = dfr[i] * val_j * val_k;
                         out.gradients[idx].y = val_i * dfs[j] * val_k;
                         out.gradients[idx].z = val_i * val_j * dft[k];
                     }
 
-                    if (requested & ShapeActiveField::Hessian) {
+                    if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
                         out.hessians[idx].setZero();
                         // Diagonales
                         out.hessians[idx].xx() = ddfr[i] * val_j * val_k;

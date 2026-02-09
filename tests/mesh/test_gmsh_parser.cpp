@@ -3,6 +3,8 @@
 #include "GmshParser.h"
 #include "Mesh.h"
 
+using namespace cfem;
+
 class GmshHexTest : public ::testing::Test {
 protected:
     const std::string filename = "../tests/grenier/hex.msh";

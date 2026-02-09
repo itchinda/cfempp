@@ -3,6 +3,8 @@
 #include "FixedMatrix.h"
 #include "DynamicVector.h"
 
+using namespace cfem;
+
 TEST(DynamicMatrixTest, DefaultConstructor) {
     DynamicMatrix<double> M;
     EXPECT_EQ(M.rows(), 0);

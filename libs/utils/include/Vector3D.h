@@ -16,6 +16,8 @@
 #include <cmath>
 #include <sstream>
 
+namespace cfem{
+
 /**
  * @struct Vector3D
  * @brief Represents a vector or point in 3D Euclidean space.
@@ -182,5 +184,6 @@ inline std::ostream& operator<<(std::ostream& os, const Vector3D& p) {
     return os << "(" << p.x << ", " << p.y << ", " << p.z << ")";
 }
 
+}  // namespace
 
 #endif // CFEM_VECTOR3D

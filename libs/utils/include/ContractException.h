@@ -60,7 +60,8 @@ public:
     ContractException(const char* file,
                       int line,
                       const char* expr,
-                      const char* kind);
+                      const char* kind,
+                      const char* msg = nullptr);
 
     /**
      * @brief Return formatted diagnostic message.
@@ -89,13 +90,15 @@ public:
     /**
      * @brief Constructs an AssertionException.
      *
-     * @param file Source file where the violation occurred.
-     * @param line Line number of the violation.
-     * @param expr Failed logical expression.
+     * @param file Source file where the violation occurred
+     * @param line Line number where the violation occurred
+     * @param expr The string representation of the failed logical expression
+     * @param msg  Optional custom message providing error clarification
      */
     AssertionException(const char*  file,
                        int line,
-                       const char*  expr);
+                       const char*  expr,
+                       const char* msg = nullptr);
 };
 
 
@@ -115,14 +118,16 @@ public:
 
     /**
      * @brief Constructs a PreconditionException.
-     *
-     * @param file Source file where the violation occurred.
-     * @param line Line number of the violation.
-     * @param expr Failed logical expression.
+     * 
+     * @param file Source file where the violation occurred
+     * @param line Line number where the violation occurred
+     * @param expr The string representation of the failed logical expression
+     * @param msg  Optional custom message providing error clarification
      */
     PreconditionException(const char*  file,
                           int line,
-                          const char*  expr);
+                          const char*  expr,
+                          const char* msg = nullptr);
 };
 
 
@@ -141,15 +146,17 @@ class PostconditionException : public ContractException
 public:
 
     /**
-     * @brief Constructs a PostconditionException.
+     * @brief Constructs a PostconditionException. 
      *
-     * @param file Source file where the violation occurred.
-     * @param line Line number of the violation.
-     * @param expr Failed logical expression.
+     * @param file Source file where the violation occurred
+     * @param line Line number where the violation occurred
+     * @param expr The string representation of the failed logical expression
+     * @param msg  Optional custom message providing error clarification
      */
     PostconditionException(const char*  file,
                            int line,
-                           const char*  expr);
+                           const char*  expr,
+                           const char* msg = nullptr);
 };
 
 
@@ -168,15 +175,17 @@ class InvariantException : public ContractException
 public:
 
     /**
-     * @brief Constructs an InvariantException.
+     * @brief Constructs an AssertionException.
      *
-     * @param file Source file where the violation occurred.
-     * @param line Line number of the violation.
-     * @param expr Failed logical expression.
+     * @param file Source file where the violation occurred
+     * @param line Line number where the violation occurred
+     * @param expr The string representation of the failed logical expression
+     * @param msg  Optional custom message providing error clarification
      */
     InvariantException(const char*  file,
                        int line,
-                       const char*  expr);
+                       const char*  expr,
+                       const char* msg = nullptr);
 };
 
 } // namespace cfem
@@ -187,47 +196,112 @@ public:
 // Contract Verification Macros
 // ============================================================================
 
+
+#ifndef NDEBUG   // Debug mode enabled
+
+
+
+// Helper: select macro by arg count
+#define CFEM_GET_MACRO(_1,_2,NAME,...) NAME
+
+
+/* ================= ASSERT ================= */
+
+#define CFEM_ASSERT_1(expr) \
+    do { \
+        if (!(expr)) \
+            throw cfem::AssertionException(__FILE__, __LINE__, #expr); \
+    } while(0)
+
+
+#define CFEM_ASSERT_2(expr, msg) \
+    do { \
+        if (!(expr)) \
+            throw cfem::AssertionException(__FILE__, __LINE__, #expr, msg); \
+    } while(0)
+
 /**
  * @def CFEM_ASSERT
  * @brief Verifies an internal consistency condition.
  */
+#define CFEM_ASSERT(...) \
+    CFEM_GET_MACRO(__VA_ARGS__, CFEM_ASSERT_2, CFEM_ASSERT_1)(__VA_ARGS__)
+
+
+/* ================= PRECONDITION ================= */
+
+#define CFEM_PRE_1(expr) \
+    do { \
+        if (!(expr)) \
+            throw cfem::PreconditionException(__FILE__, __LINE__, #expr); \
+    } while(0)
+
+
+#define CFEM_PRE_2(expr, msg) \
+    do { \
+        if (!(expr)) \
+            throw cfem::PreconditionException(__FILE__, __LINE__, #expr, msg); \
+    } while(0)
 
 /**
  * @def CFEM_PRECONDITION
  * @brief Verifies a function precondition.
  */
+#define CFEM_PRECONDITION(...) \
+    CFEM_GET_MACRO(__VA_ARGS__, CFEM_PRE_2, CFEM_PRE_1)(__VA_ARGS__)
+
+
+/* ================= POSTCONDITION ================= */
+
+#define CFEM_POST_1(expr) \
+    do { \
+        if (!(expr)) \
+            throw cfem::PostconditionException(__FILE__, __LINE__, #expr); \
+    } while(0)
+
+
+#define CFEM_POST_2(expr, msg) \
+    do { \
+        if (!(expr)) \
+            throw cfem::PostconditionException(__FILE__, __LINE__, #expr, msg); \
+    } while(0)
 
 /**
  * @def CFEM_POSTCONDITION
  * @brief Verifies a function postcondition.
  */
+#define CFEM_POSTCONDITION(...) \
+    CFEM_GET_MACRO(__VA_ARGS__, CFEM_POST_2, CFEM_POST_1)(__VA_ARGS__)
+
+
+/* ================= INVARIANT ================= */
+
+#define CFEM_INV_1(expr) \
+    do { \
+        if (!(expr)) \
+            throw cfem::InvariantException(__FILE__, __LINE__, #expr); \
+    } while(0)
+
+
+#define CFEM_INV_2(expr, msg) \
+    do { \
+        if (!(expr)) \
+            throw cfem::InvariantException(__FILE__, __LINE__, #expr, msg); \
+    } while(0)
 
 /**
  * @def CFEM_INVARIANT
  * @brief Verifies an object invariant.
  */
 
+#define CFEM_INVARIANT(...) \
+    CFEM_GET_MACRO(__VA_ARGS__, CFEM_INV_2, CFEM_INV_1)(__VA_ARGS__)
+
+
 /**
  * @def CFEM_CHECK_INVARIANTS
  * @brief Calls the invariant verification function.
  */
-
-
-#ifndef NDEBUG   // Debug mode enabled
-
-
-#define CFEM_ASSERT(expr) \
-    if (!(expr)) throw cfem::AssertionException(__FILE__, __LINE__, #expr)
-
-#define CFEM_PRECONDITION(expr) \
-    if (!(expr)) throw cfem::PreconditionException(__FILE__, __LINE__, #expr)
-
-#define CFEM_POSTCONDITION(expr) \
-    if (!(expr)) throw cfem::PostconditionException(__FILE__, __LINE__, #expr)
-
-#define CFEM_INVARIANT(expr) \
-    if (!(expr)) throw cfem::InvariantException(__FILE__, __LINE__, #expr)
-
 #define CFEM_CHECK_INVARIANTS() \
     checkInvariant()
 
@@ -235,14 +309,31 @@ public:
 #else   // Release mode
 
 
-#define CFEM_ASSERT(expr)         ((void)0)
-#define CFEM_PRECONDITION(expr)  ((void)0)
-#define CFEM_POSTCONDITION(expr) ((void)0)
-#define CFEM_INVARIANT(expr)     ((void)0)
+#define CFEM_ASSERT(...)         ((void)0)
+#define CFEM_PRECONDITION(...)  ((void)0)
+#define CFEM_POSTCONDITION(...) ((void)0)
+#define CFEM_INVARIANT(...)     ((void)0)
 #define CFEM_CHECK_INVARIANTS()  ((void)0)
 
 
 #endif // NDEBUG
+
+
+#ifdef NDEBUG
+    #define CFEM_ERROR(msg) \
+        throw std::runtime_error(std::string("[CFEM ERROR] ") + msg)
+
+    #define CFEM_WARNING(msg) \
+        std::cerr << "[CFEM WARNING] " << msg << std::endl
+#else
+    #define CFEM_ERROR(msg) \
+        throw std::runtime_error(std::string("[CFEM ERROR] ") + msg + \
+        " File: " + __FILE__ + ":" + std::to_string(__LINE__))
+
+    #define CFEM_WARNING(msg) \
+        std::cerr << "[CFEM WARNING] " << msg << \
+        " (File: " << __FILE__ << ":" << __LINE__ << ")" << std::endl
+#endif
 
 
 #endif // CFEM_CONTRACT_EXCEPTION_H

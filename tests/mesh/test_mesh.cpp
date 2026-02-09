@@ -8,6 +8,8 @@
 #include "cfemutils.h"
 #include "Mesh.h"
 
+using namespace cfem;
+
 // -----------------------------------------------------------------------------
 // EXTENDED TEST SUITE FOR MESH GENERATION
 // -----------------------------------------------------------------------------

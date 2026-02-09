@@ -3,6 +3,8 @@
 
 #include "TypedField.h"
 
+namespace cfem {
+
 class VectorField : public TypedField<Vector3D> {
 public:
     using TypedField<Vector3D>::TypedField;
@@ -14,4 +16,5 @@ protected:
     }
 };
 
+}
 #endif

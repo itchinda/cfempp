@@ -6,6 +6,9 @@
 #include <algorithm>
 #include "cfemutils.h"
 
+
+namespace cfem {
+
 class Mesh;
 
 class MeshEntity {
@@ -72,4 +75,5 @@ private:
 
 };
 
+} //namespace
 #endif

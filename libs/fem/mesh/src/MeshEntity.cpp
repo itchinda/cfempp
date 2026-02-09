@@ -3,6 +3,8 @@
 
 #include <algorithm>
 
+namespace cfem {
+
 MeshEntity::MeshEntity(const Mesh* mesh, 
                        CfemInt id, 
                        const std::string& name, 
@@ -126,3 +128,5 @@ void MeshEntity::finalize() {
     clean(m_facet_ids);
     clean(m_cell_ids);
 }
+
+} //namespace

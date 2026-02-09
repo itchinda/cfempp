@@ -15,6 +15,10 @@
 #include <cmath>
 #include <initializer_list>
 
+
+namespace cfem{
+
+
 /*!
  * @struct FixedVector
  * @brief A fixed-size column vector of size N.
@@ -232,4 +236,6 @@ inline std::ostream& operator<<(std::ostream& os, const FixedVector<T, N>& v) {
     return os;
 }
 
+
+} // namespace
 #endif // CFEM_STATIC_VECTOR

@@ -45,6 +45,7 @@
 #include <iostream>
 #include <set>
 
+namespace cfem{
 /**
  * @brief Hash utility for vertex vectors.
  * Enables unique identification of facets via spatial hashing in O(N).
@@ -88,13 +89,14 @@ public:
      * @param filename Path to the .msh file.
      * @return true if successful, false otherwise.
      */
-    bool load(Mesh& mesh, const std::string& filename);
+    bool load(cfem::Mesh& mesh, const std::string& filename);
 
 private:
     static void parsePhysicalNames(std::ifstream& f, std::map<std::pair<int, int>, std::string>& names);
     static void parseEntities(std::ifstream& f, std::map<int, std::map<int, std::vector<int>>>& entMap);
-    void parseNodes(std::ifstream& f, Mesh& mesh, std::map<int, int>& nodeMap);
+    void parseNodes(std::ifstream& f, cfem::Mesh& mesh, std::map<int, int>& nodeMap);
     void parseElements(std::ifstream& f, std::vector<GMSHElemData>& raw, int& maxDim);
 };
 
+}
 #endif

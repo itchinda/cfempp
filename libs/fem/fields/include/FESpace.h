@@ -3,6 +3,7 @@
 
 #include "Mesh.h"
 
+namespace cfem {
 
 class FESpace {
 public:
@@ -19,7 +20,7 @@ public:
     virtual CfemInt getGlobalNumDofs() const = 0;
     virtual int getDofsPerCell(CellType type) const = 0;
     virtual void getElementDofs(CfemInt cellId, std::vector<CfemInt>& globalIndices) const = 0;
-    virtual void evaluateBasis(CellType type, const Vector3D& xi, std::vector<CfemReal>& values) const = 0;
+    virtual void evaluateBasis(CellType type, const cfem::Vector3D& xi, std::vector<CfemReal>& values) const = 0;
 
 protected:
     const Mesh& m_mesh;
@@ -27,6 +28,6 @@ protected:
     Continuity m_continuity;
     int m_dimension; 
 };
-
+}
 
 #endif

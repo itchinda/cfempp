@@ -5,63 +5,96 @@
 #include "Vector3D.h"
 #include "DynamicVector.h"
 #include "DynamicMatrix.h"
-#include "Tensor.h"
+#include "TensorO2.h"
+#include "ShapeEvaluationFlags.h"
 
 namespace cfem {
 
 /**
  * @struct ShapeInfo
- * @brief Buffer de stockage pour les évaluations des fonctions de forme.
- * @note Réutiliser cet objet pour tous les éléments d'un même type afin d'éviter les allocations.
+ * @brief Storage buffer for shape function evaluations at a specific quadrature point.
+ * @note Re-use this object across multiple integration points to avoid frequent heap allocations.
  */
 struct ShapeInfo {
-    DynamicVector<CfemReal> values;                // Stocke les N_i
-    DynamicVector<Vector3D> gradients;             // Stocke les dN_i/dxi
-    DynamicVector<SymTensorO2> hessians; // Stocke les d2N_i/dxi2
+    DynamicVector<CfemReal> values;      ///< Shape function values (N_i)
+    DynamicVector<Vector3D> gradients;   ///< Local gradients w.r.t reference coordinates (dN_i/dxi)
+    DynamicVector<SymTensorO2> hessians; ///< Local Hessians w.r.t reference coordinates (d2N_i/dxi2)
 
-    CfemIntFlag validFlags = cfem::ShapeActiveField::None;
+    ShapeEvaluationFlags  validFlags = ShapeEvaluationFlags::None;
 
-    /** @brief Prépare la taille du buffer pour éviter les réallocations. */
-    void setup(int numNodes) {
-        values.resize(numNodes);
-        gradients.resize(numNodes);
-        // On n'alloue les hessiennes que si nécessaire
-        validFlags = cfem::ShapeActiveField::None;
+    /** 
+     * @brief Prepares buffer sizes to prevent runtime reallocations. 
+     * @param numNodes Number of nodes in the element.
+     * @param includeHessians If true, allocates memory for Hessian tensors.
+     */
+    void setup(int numNodes, bool includeHessians = false) {
+        if (values.size() != static_cast<size_t>(numNodes)) {
+            values.resize(numNodes);
+            gradients.resize(numNodes);
+        }
+        if (includeHessians && hessians.size() != static_cast<size_t>(numNodes)) {
+            hessians.resize(numNodes);
+        }
+        validFlags = ShapeEvaluationFlags::None;
     }
     
-    bool has(cfem::ShapeActiveField field) const {
-        return (validFlags & field) != 0;
+    /** @brief Checks if a specific field (Value/Gradient/Hessian) is marked as valid. */
+    bool has(cfem::ShapeEvaluationFlags field) const {
+        return hasFlag(validFlags, field);
     }
 };
 
+/**
+ * @struct MappingInfo
+ * @brief Stores metric data resulting from the geometric transformation (Reference -> Physical).
+ */
 struct MappingInfo {
-    TensorO2 jacobian;  
-    TensorO2 invJacobian;
-    CfemReal detJ;
-    DynamicVector<Vector3D> physicalShapeGradients;
-    DynamicVector<SymTensorO2> physicalShapeHessians;
+    Vector3D physicalPosition; ///< The mapped x, y, z coordinates
+    TensorO2 jacobian;         ///< Jacobian matrix (dx/dxi)
+    TensorO2 invJacobian;      ///< Inverse Jacobian matrix (dxi/dx)
+    CfemReal detJ;             ///< Determinant of the Jacobian
 
-    inline CfemReal dNdx(int nodeIdx) const { return physicalShapeGradients[nodeIdx].x; }
-    inline CfemReal dNdy(int nodeIdx) const { return physicalShapeGradients[nodeIdx].y; }
-    inline CfemReal dNdz(int nodeIdx) const { return physicalShapeGradients[nodeIdx].z; }
+    DynamicVector<Vector3D> physicalShapeGradients;   ///< dN_i/dx (Gradients in physical space)
+    DynamicVector<SymTensorO2> physicalShapeHessians; ///< d2N_i/dx2 (Hessians in physical space)
 
+    /**
+     * @brief Prepares the mapping buffers for a specific element size.
+     * @param numNodes Number of nodes in the element.
+     * @param includeHessians Whether to allocate the Hessian buffer.
+     */
+    void setup(int numNodes, bool includeHessians = false) {
+        if (physicalShapeGradients.size() != static_cast<size_t>(numNodes)) {
+            physicalShapeGradients.resize(numNodes);
+        }
+        
+        if (includeHessians && physicalShapeHessians.size() != static_cast<size_t>(numNodes)) {
+            physicalShapeHessians.resize(numNodes);
+        }
+    }
+
+    // Quick accessors for physical gradients
+    inline CfemReal dNdx(int i) const { return physicalShapeGradients[i].x; }
+    inline CfemReal dNdy(int i) const { return physicalShapeGradients[i].y; }
+    inline CfemReal dNdz(int i) const { return physicalShapeGradients[i].z; }
+
+    // Quick accessors for physical Hessians (components)
     inline CfemReal d2Ndxdx(int nodeIdx) const { return physicalShapeHessians[nodeIdx].xx(); }
     inline CfemReal d2Ndydy(int nodeIdx) const { return physicalShapeHessians[nodeIdx].yy(); }
     inline CfemReal d2Ndzdz(int nodeIdx) const { return physicalShapeHessians[nodeIdx].zz(); }
     inline CfemReal d2Ndydz(int nodeIdx) const { return physicalShapeHessians[nodeIdx].yz(); }
     inline CfemReal d2Ndxdz(int nodeIdx) const { return physicalShapeHessians[nodeIdx].xz(); }
     inline CfemReal d2Ndxdy(int nodeIdx) const { return physicalShapeHessians[nodeIdx].xy(); }
-
 };
-
 
 /**
  * @class ReferenceElement
- * @brief Interface pour les éléments finis de référence (coordonnées locales xi).
+ * @brief Abstract base class for Finite Element reference definitions.
+ * Provides the machinery to compute geometric mappings, Jacobians, and 
+ * physical derivatives from local shape functions.
  */
 class ReferenceElement {
 protected:
-    DynamicVector<Vector3D> m_nodes;
+    DynamicVector<Vector3D> m_nodes; ///< Node coordinates in reference space (xi)
 
 public:
     virtual ~ReferenceElement() = default;
@@ -70,135 +103,101 @@ public:
     virtual int numNodes() const = 0;
 
     /**
-     * @brief Évalue les fonctions de forme au point xi.
-     * @param xi Coordonnées locales dans l'élément parent.
-     * @param requested Masque des champs à calculer.
-     * @param out Buffer ShapeInfo à remplir.
+     * @brief Evaluates shape functions and their local derivatives at point xi.
+     * @param xi Target point in reference space.
+     * @param requested Bitmask of fields to calculate (Value, Gradient, Hessian).
+     * @param out ShapeInfo buffer to be filled.
      */
     virtual void evaluate(const Vector3D& xi, 
-                          CfemIntFlag requested, 
+                          ShapeEvaluationFlags requested, 
                           ShapeInfo& out) const = 0;
 
+    /**
+     * @brief Returns the coordinates of the nodes in the reference space. 
+     */
     const DynamicVector<Vector3D>& referenceNodes() const { return m_nodes; }
 
+    /**
+     * @brief Computes the full geometric mapping at a given point xi.
+     * @param xi Target point in reference space.
+     * @param physicalNodesCoords Actual physical coordinates of the element's nodes.
+     * @param requestedFields Bitmask of physical fields required (Gradients, Hessians).
+     * @param shape Work buffer for reference shape functions.
+     * @param out MappingInfo structure to be populated.
+     */
+    void computeMapping(const Vector3D& xi,
+                        const DynamicVector<Vector3D>& physicalNodesCoords, 
+                        ShapeEvaluationFlags requestedFields,
+                        ShapeInfo& shape, 
+                        MappingInfo& out) const;
 
     /**
-     * @brief Computes the transformation from reference to physical space
-     * @param xi Point in reference space
-     * @param physicalNodesCoords Physical coordinates of the element's nodes
-     * @param out Calculated Jacobian and metrics
+     * @brief Computes the Jacobian, its determinant (metric), and the pseudo-inverse.
+     * @note This version supports 1D/2D elements embedded in 3D space using 
+     * the Moore-Penrose pseudo-inverse logic.
      */
-
-    void computeMapping(const Vector3D& xi, 
-                        const DynamicVector<Vector3D>& physicalNodesCoords, 
-                        CfemIntFlag requestedFields, // Utilisation du bitmask
-                        MappingInfo& out) const {
-        
-        ShapeInfo shape;
-        shape.setup(numNodes());
-        
-        // On propage les flags à l'évaluation des fonctions de forme
-        // On s'assure que les gradients sont TOUJOURS calculés, car le Jacobien en dépend.
-        CfemIntFlag internalFields = requestedFields | ShapeActiveField::Gradient;
-        evaluate(xi, internalFields, shape);
-        
-        // 1. Calcul du Jacobien (toujours nécessaire pour le mapping de base)
-        computeJacobian(shape, physicalNodesCoords, out); 
-        
-        // 2. Gradients Physiques (si demandés)
-        if (requestedFields & ShapeActiveField::Gradient) {
-            computePhysicalGradients(shape, out);
-        }
-
-        // 3. Hessiennes Physiques (si demandées)
-        if (requestedFields & ShapeActiveField::Hessian) {
-            computePhysicalHessians(physicalNodesCoords, shape, out);
-        }
-    }
-
     void computeJacobian(const ShapeInfo& shape, 
                         const DynamicVector<Vector3D>& physicalNodesCoords, 
-                        MappingInfo& out) const {
-        
-        out.jacobian.setZero();
-        for (int i = 0; i < numNodes(); ++i) {
-            // J_00 = sum( x_i * dNi/dxi )
-            out.jacobian(0,0) += physicalNodesCoords[i].x * shape.gradients[i].x;
-            out.jacobian(0,1) += physicalNodesCoords[i].x * shape.gradients[i].y;
-            out.jacobian(0,2) += physicalNodesCoords[i].x * shape.gradients[i].z;
-            
-            out.jacobian(1,0) += physicalNodesCoords[i].y * shape.gradients[i].x;
-            out.jacobian(1,1) += physicalNodesCoords[i].y * shape.gradients[i].y;
-            out.jacobian(1,2) += physicalNodesCoords[i].y * shape.gradients[i].z;
-            
-            out.jacobian(2,0) += physicalNodesCoords[i].z * shape.gradients[i].x;
-            out.jacobian(2,1) += physicalNodesCoords[i].z * shape.gradients[i].y;
-            out.jacobian(2,2) += physicalNodesCoords[i].z * shape.gradients[i].z;
-        }
+                        MappingInfo& out) const;
 
-        if (dimension() == 2) {
-            out.jacobian(2,2) = 1.0; 
-        }
-        
-        out.detJ = det(out.jacobian);
-        out.invJacobian = inverse(out.jacobian, out.detJ);
-    }
 
+    /** 
+     * @brief Transforms reference gradients to physical space using J^-T. 
+     * @param shape Work buffer for reference shape functions.
+     * @param out MappingInfo structure to be populated.
+     */
     void computePhysicalGradients(const ShapeInfo& shape, 
-                                  MappingInfo& out) const {
-        
-        // Transform gradients: Grad_xyz = Grad_xi * J^-1
-        out.physicalShapeGradients.resize(numNodes());
-        
-        for (int a = 0; a < out.physicalShapeGradients.size(); ++a) {
-            const Vector3D& g = shape.gradients[a];
-            out.physicalShapeGradients[a].x = out.invJacobian(0,0)*g.x + out.invJacobian(1,0)*g.y + out.invJacobian(2,0)*g.z;
-            out.physicalShapeGradients[a].y = out.invJacobian(0,1)*g.x + out.invJacobian(1,1)*g.y + out.invJacobian(2,1)*g.z;
-            out.physicalShapeGradients[a].z = out.invJacobian(0,2)*g.x + out.invJacobian(1,2)*g.y + out.invJacobian(2,2)*g.z;
-        }
-    }
+                                  MappingInfo& out) const;
 
     /**
-     * @brief Calcule les Hessiennes physiques pour chaque noeud.
-     * @param physicalNodesCoords Coordonnées réelles des noeuds de l'élément.
-     * @param shape Contient les gradients et hessiennes de référence.
-     * @param out MappingInfo à remplir (doit avoir jacobian et invJacobian à jour).
+     * @brief Computes physical Hessians including the geometric curvature term.
+     * @param physicalNodesCoords Actual physical coordinates of the element's nodes.
+     * @param shape Work buffer for reference shape functions.
+     * @param out MappingInfo structure to be populated.
+     * @note Reference: H_phys = J^-T * [H_ref - grad_phys(N) * H_geom] * J^-1
      */
     void computePhysicalHessians(const DynamicVector<Vector3D>& physicalNodesCoords, 
                                 const ShapeInfo& shape, 
-                                MappingInfo& out) const {
-        
-        int nNodes = numNodes();
-        out.physicalShapeHessians.resize(nNodes);
+                                MappingInfo& out) const;
 
-        // 1. Calculer la courbure de la transformation : H_xi(x_k)
-        // C'est la dérivée seconde de la géométrie par rapport à l'espace de référence.
-        SymTensorO2 H_xi_X, H_xi_Y, H_xi_Z;
-        H_xi_X.setZero(); H_xi_Y.setZero(); H_xi_Z.setZero();
+    /**
+     * @brief Standalone logic to check for element inversion or degeneracy.
+     * @param shape Pre-evaluated shape functions at the point of interest (usually the centroid).
+     * @param physicalNodesCoords The actual physical coordinates of the element nodes.
+     * @param refNormal Optional reference vector to define "forward" orientation in 2D.
+     * @return Returns -1 for inverted, 0 for degenerate, and 1 for correctly oriented.
+     */
+    int checkInversion(const ShapeInfo& shape, 
+                       const DynamicVector<Vector3D>& physicalNodesCoords,
+                       const Vector3D& refNormal = Vector3D{0,0,1}) const;
 
-        for (int a = 0; a < nNodes; ++a) {
-            const SymTensorO2& ha = shape.hessians[a];
-            H_xi_X += ha * physicalNodesCoords[a].x;
-            H_xi_Y += ha * physicalNodesCoords[a].y;
-            H_xi_Z += ha * physicalNodesCoords[a].z;
-        }
+    /**
+     * @brief Interpolates a field (scalar or vector) at a point evaluated in ShapeInfo.
+     * @tparam T The field type (e.g., CfemReal, Vector3D, or even Tensor types).
+     * @param shape Pre-evaluated shape functions at point xi.
+     * @param nodalValues The values of the field at the element nodes.
+     */
+    template<typename T>
+    T interpolate(const ShapeInfo& shape, const DynamicVector<T>& nodalValues) const;
 
-        // 2. Transformer chaque Hessienne de noeud
-        for (int a = 0; a < nNodes; ++a) {
-            // Terme correctif dû à la courbure : R = H_xi(Na) - sum( dNa/dx_k * H_xi(x_k) )
-            // Note : On utilise les gradients physiques dN/dx déjà calculés
-            SymTensorO2 R = shape.hessians[a];
-            R -= H_xi_X * out.dNdx(a);
-            R -= H_xi_Y * out.dNdy(a);
-            R -= H_xi_Z * out.dNdz(a);
+    /**
+     * @brief Interpolates the physical gradient of a scalar field at a point.
+     * @return Vector3D containing [du/dx, du/dy, du/dz]
+     */
+    Vector3D interpolateGradient(const MappingInfo& map, 
+                                 const DynamicVector<CfemReal>& nodalValues) const;
+    
 
-            // Transformation finale : H_phys = J^-T * R * J^-1
-            // On peut le faire via : out.physicalShapeHessians[a] = transformHessian(R, out.invJacobian);
-            out.physicalShapeHessians[a] = R.quadform (out.invJacobian); 
-        }
-    }
+    /**
+     * @brief Interpolates the physical Hessian of a scalar field.
+     * @return SymTensorO2 representing the 2nd derivative matrix.
+     */
+    SymTensorO2 interpolateHessian(const MappingInfo& map, 
+                                   const DynamicVector<CfemReal>& nodalValues) const;
 };
 
 }
+
+#include "ReferenceElement.tpp"
 
 #endif

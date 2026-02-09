@@ -2,6 +2,8 @@
 #define FIELD_H
 
 #include "FESpace.h"
+
+namespace cfem {
 /**
  * @class Field
  * @brief Abstract base for all physical fields (Temperature, Velocity, etc).
@@ -27,5 +29,7 @@ protected:
     std::shared_ptr<FESpace> m_space;
     std::string m_name;
 };
+
+}
 
 #endif

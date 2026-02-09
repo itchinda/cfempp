@@ -6,6 +6,8 @@
 #include "Mesh.h"
 #include "Field.h" // Assuming this is where your Field base class lives
 
+namespace cfem {
+
 class VTKExporter {
 public:
     VTKExporter(const Mesh& mesh) : m_mesh(mesh) {}
@@ -30,5 +32,7 @@ private:
     // Helper to map CellType to VTK cell identifiers
     int getVTKCellType(CellType type) const;
 };
+
+}
 
 #endif

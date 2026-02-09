@@ -17,10 +17,10 @@ public:
     int dimension() const override { return 3; }
     int numNodes() const override { return 6; }
 
-    void evaluate(const Vector3D& xi, CfemIntFlag requested, ShapeInfo& out) const override {
+    void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
         const int n = 6;
         if (out.values.size() != n) out.setup(n);
-        if ((requested & ShapeActiveField::Hessian) && out.hessians.size() != n)
+        if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n)
             out.hessians.assign(n, SymTensorO2());
 
         const CfemReal r = xi.x, s = xi.y, t = xi.z;
@@ -38,16 +38,16 @@ public:
             int triIdx = i % 3;      // 0, 1, 2
             int zIdx   = i / 3;      // 0 pour Z=-1, 1 pour Z=1
 
-            if (requested & ShapeActiveField::Value)
+            if (hasFlag(requested, ShapeEvaluationFlags::Value))
                 out.values[i] = LT[triIdx] * LZ[zIdx];
 
-            if (requested & ShapeActiveField::Gradient) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
                 out.gradients[i].x = dLT_r[triIdx] * LZ[zIdx];
                 out.gradients[i].y = dLT_s[triIdx] * LZ[zIdx];
                 out.gradients[i].z = LT[triIdx]    * dLZ_t[zIdx];
             }
 
-            if (requested & ShapeActiveField::Hessian) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
                 out.hessians[i].setZero();
                 // Dérivées croisées (Plan x Hauteur)
                 out.hessians[i].xz() = dLT_r[triIdx] * dLZ_t[zIdx];
@@ -83,10 +83,10 @@ public:
         int dimension() const override { return 3; }
         int numNodes() const override { return 18; }
 
-        void evaluate(const Vector3D& xi, CfemIntFlag requested, ShapeInfo& out) const override {
+        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 18;
             if (out.values.size() != n) out.setup(n);
-            if ((requested & ShapeActiveField::Hessian) && out.hessians.size() != n) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
                 out.hessians.assign(n, SymTensorO2());
             }
 
@@ -118,17 +118,17 @@ public:
                 int iT = mapT[i];
                 int iZ = mapZ[i];
 
-                if (requested & ShapeActiveField::Value) {
+                if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
                     out.values[i] = fT[iT] * fZ[iZ];
                 }
 
-                if (requested & ShapeActiveField::Gradient) {
+                if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
                     out.gradients[i].x = dfTr[iT] * fZ[iZ];
                     out.gradients[i].y = dfTs[iT] * fZ[iZ];
                     out.gradients[i].z = fT[iT]   * dfZt[iZ];
                 }
 
-                if (requested & ShapeActiveField::Hessian) {
+                if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
                     out.hessians[i].setZero();
                     // d2N/dr2, d2N/ds2, d2N/drds
                     out.hessians[i].xx() = hT[iT][0] * fZ[iZ];

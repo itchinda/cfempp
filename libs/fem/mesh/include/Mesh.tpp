@@ -3,6 +3,8 @@
 #include "Mesh.h"
 #endif
 
+namespace cfem {
+
 inline CfemInt getNodeCountPerCell(CellType type)
 {
     switch (type)
@@ -113,9 +115,9 @@ inline CfemInt Mesh::getMidpoint(CfemInt p_edgeFirstVertexId,
         return it->second;
     }
     // Not found: Calculate physical midpoint and add vertex
-    Vector3D p0 = m_vertices[p_edgeFirstVertexId].coords;
-    Vector3D p1 = m_vertices[p_edgeSecondVertexId].coords;
-    Vector3D mid = (p0 + p1) * 0.5;
+    cfem::Vector3D p0 = m_vertices[p_edgeFirstVertexId].coords;
+    cfem::Vector3D p1 = m_vertices[p_edgeSecondVertexId].coords;
+    cfem::Vector3D mid = (p0 + p1) * 0.5;
     CfemInt new_id = addVertex(mid.x, mid.y, mid.z);
     edge_to_midpoint[edge_key] = new_id;
 
@@ -153,7 +155,7 @@ inline void Mesh::upgradeQuad4ToQuad9(Cell &pQuadCell,
     CfemInt n7 = getMidpoint(v[3], v[0], edge_to_midpoint);
 
     // Center node (average of all 4 vertices)
-    Vector3D center = (m_vertices[v[0]].coords + m_vertices[v[1]].coords +
+    cfem::Vector3D center = (m_vertices[v[0]].coords + m_vertices[v[1]].coords +
                        m_vertices[v[2]].coords + m_vertices[v[3]].coords) *
                       0.25;
     CfemInt n8 = addVertex(center.x, center.y, center.z);
@@ -200,10 +202,10 @@ inline void Mesh::upgradePrism6ToPrism18(Cell &pPrismCell,
     // 4. Quad Face Centers (3 faces)
     auto getFaceCenter = [&](const std::vector<CfemInt> &f_v)
     {
-        Vector3D sum({0, 0, 0});
+        cfem::Vector3D sum({0, 0, 0});
         for (auto id : f_v)
             sum = sum + m_vertices[id].coords;
-        Vector3D mid = sum * 0.25;
+        cfem::Vector3D mid = sum * 0.25;
         return addVertex(mid.x, mid.y, mid.z);
     };
 
@@ -243,10 +245,10 @@ inline void Mesh::upgradeHex8ToHex27(Cell &pHexCell,
     // Face Centers (6 nodes)
     auto getFaceCenter = [&](const std::vector<CfemInt> &f_v)
     {
-        Vector3D sum({0, 0, 0});
+        cfem::Vector3D sum({0, 0, 0});
         for (auto id : f_v)
             sum = sum + m_vertices[id].coords;
-        Vector3D mid = sum * 0.25;
+        cfem::Vector3D mid = sum * 0.25;
         return addVertex(mid.x, mid.y, mid.z);
     };
 
@@ -258,7 +260,7 @@ inline void Mesh::upgradeHex8ToHex27(Cell &pHexCell,
     CfemInt n25 = getFaceCenter({v[4], v[5], v[6], v[7]}); // Left
 
     // Body Center (1 node)
-    Vector3D bSum({0, 0, 0});
+    cfem::Vector3D bSum({0, 0, 0});
     for (auto id : v)
         bSum = bSum + m_vertices[id].coords;
     CfemInt n26 = addVertex(bSum.x * 0.125, bSum.y * 0.125, bSum.z * 0.125);
@@ -271,6 +273,25 @@ inline void Mesh::upgradeHex8ToHex27(Cell &pHexCell,
     };
 
     pHexCell.type = CellType::HEX27;
+}
+
+/**
+ * @brief Retrieves the physical coordinates of all nodes belonging to an element.
+ * @param elementId The index of the element.
+ * @param localCoords [out] A vector that will be filled with the cfem::Vector3D coordinates.
+ */
+inline void Mesh::getElementCoordinates(CfemInt elementId, cfem::DynamicVector<cfem::Vector3D>& localCoords) const 
+{
+    const std::vector<int>& nodeIndices = m_cells[elementId].vertex_ids;
+
+    const int n = nodeIndices.size();
+
+    localCoords.resize(n);
+
+    for (int i = 0; i < n; ++i) {
+        int globalIdx = nodeIndices[i];
+        localCoords[i] = m_vertices[globalIdx].coords;
+    }
 }
 
 /**
@@ -287,7 +308,7 @@ inline void QuadMeshBuilder::build(Mesh &mesh,
                                    int order,
                                    int nx,
                                    int ny,
-                                   const std::array<Vector3D, 4> &corners,
+                                   const std::array<cfem::Vector3D, 4> &corners,
                                    SubdivisionType subDiv,
                                    const BoundaryNames &names)
 {
@@ -304,7 +325,7 @@ inline void QuadMeshBuilder::build(Mesh &mesh,
         for (int i = 0; i < nodeRows; ++i)
         {
             double u = static_cast<double>(i) / nx;
-            Vector3D p = corners[0] * ((1 - u) * (1 - v)) + corners[1] * (u * (1 - v)) +
+            cfem::Vector3D p = corners[0] * ((1 - u) * (1 - v)) + corners[1] * (u * (1 - v)) +
                          corners[2] * (u * v) + corners[3] * ((1 - u) * v);
             gridIds[j * nodeRows + i] = mesh.addVertex(p.x, p.y, p.z);
         }
@@ -333,7 +354,7 @@ inline void QuadMeshBuilder::build(Mesh &mesh,
                 break;
             case SubdivisionType::CrissCross:
             {
-                Vector3D midP = (mesh.getVertex(v0).coords + mesh.getVertex(v2).coords) * 0.5;
+                cfem::Vector3D midP = (mesh.getVertex(v0).coords + mesh.getVertex(v2).coords) * 0.5;
                 CfemInt vMid = mesh.addVertex(midP.x, midP.y, midP.z);
                 mesh.addCell(CellType::TRI3, {v0, v1, vMid});
                 mesh.addCell(CellType::TRI3, {v1, v2, vMid});
@@ -431,7 +452,7 @@ inline void QuadMeshBuilder::applyBoundaryTags(Mesh &mesh, int nx, int ny,
  * @param subDiv
  */
 inline void CubicMeshBuilder::build(Mesh &mesh, int order, int nx, int ny, int nz,
-                                    const std::array<Vector3D, 8> &corners,
+                                    const std::array<cfem::Vector3D, 8> &corners,
                                     SubdivisionType subDiv)
 {
     mesh.clear();
@@ -454,7 +475,7 @@ inline void CubicMeshBuilder::build(Mesh &mesh, int order, int nx, int ny, int n
             for (int i = 0; i <= nx; ++i)
             {
                 double u = (double)i / nx;
-                Vector3D p =
+                cfem::Vector3D p =
                     corners[0] * (1 - u) * (1 - v) * (1 - w) + corners[1] * u * (1 - v) * (1 - w) +
                     corners[2] * u * v * (1 - w) + corners[3] * (1 - u) * v * (1 - w) +
                     corners[4] * (1 - u) * (1 - v) * w + corners[5] * u * (1 - v) * w +
@@ -506,7 +527,7 @@ inline void CubicMeshBuilder::build(Mesh &mesh, int order, int nx, int ny, int n
 inline void DiskMeshBuilder::build(Mesh &mesh,
                                    CfemInt order,
                                    CfemReal target_mesh_size,
-                                   const Vector3D &center,
+                                   const cfem::Vector3D &center,
                                    double radius,
                                    ElementType type)
 {
@@ -553,7 +574,7 @@ inline void DiskMeshBuilder::build(Mesh &mesh,
                 y = r * std::cos(theta);
             }
 
-            Vector3D p{
+            cfem::Vector3D p{
                 center.x + radius * x,
                 center.y + radius * y,
                 center.z};
@@ -585,7 +606,7 @@ inline void DiskMeshBuilder::build(Mesh &mesh,
 
                 if (!isCorner)
                 {
-                    Vector3D midP = (mesh.getVertex(v0).coords + mesh.getVertex(v1).coords +
+                    cfem::Vector3D midP = (mesh.getVertex(v0).coords + mesh.getVertex(v1).coords +
                                      mesh.getVertex(v2).coords + mesh.getVertex(v3).coords) *
                                     0.25;
                     CfemInt vMid = mesh.addVertex(midP.x, midP.y, midP.z);
@@ -623,7 +644,7 @@ inline void DiskMeshBuilder::build(Mesh &mesh,
     }
 }
 
-inline void DiskMeshBuilder::projectBoundaryMidNodes(Mesh &mesh, const Vector3D &center, double radius)
+inline void DiskMeshBuilder::projectBoundaryMidNodes(Mesh &mesh, const cfem::Vector3D &center, double radius)
 {
     MeshEntity *boundary = mesh.getEntity(cfem::SYS_BOUNDARY_ID);
     if (!boundary)
@@ -635,7 +656,7 @@ inline void DiskMeshBuilder::projectBoundaryMidNodes(Mesh &mesh, const Vector3D 
     {
         Vertex &v = mesh.getVertex(vid);
 
-        Vector3D vec = v.coords - center;
+        cfem::Vector3D vec = v.coords - center;
         double currentDist = vec.norm();
 
         if (currentDist > cfem::ZERO_TOLERANCE)
@@ -648,7 +669,7 @@ inline void DiskMeshBuilder::projectBoundaryMidNodes(Mesh &mesh, const Vector3D 
 inline void SphereMeshBuilder::build(Mesh &mesh,
                                      CfemInt order,
                                      CfemReal h,
-                                     const Vector3D &center,
+                                     const cfem::Vector3D &center,
                                      double radius,
                                      ElementType type)
 {
@@ -695,7 +716,7 @@ inline void SphereMeshBuilder::build(Mesh &mesh,
                 double z = zeta * std::sqrt(
                                       1.0 - 0.5 * xi * xi - 0.5 * eta * eta + xi * xi * eta * eta / 3.0);
 
-                Vector3D p{
+                cfem::Vector3D p{
                     center.x + radius * x,
                     center.y + radius * y,
                     center.z + radius * z};
@@ -734,7 +755,7 @@ inline void SphereMeshBuilder::build(Mesh &mesh,
                 }
                 else
                 {
-                    Vector3D midP = (mesh.getVertex(v0).coords + mesh.getVertex(v1).coords +
+                    cfem::Vector3D midP = (mesh.getVertex(v0).coords + mesh.getVertex(v1).coords +
                                      mesh.getVertex(v2).coords + mesh.getVertex(v3).coords + 
                                      mesh.getVertex(v4).coords + mesh.getVertex(v5).coords +
                                      mesh.getVertex(v6).coords + mesh.getVertex(v7).coords) *
@@ -766,7 +787,7 @@ inline void SphereMeshBuilder::build(Mesh &mesh,
 
 inline void SphereMeshBuilder::projectBoundaryNodes(
     Mesh &mesh,
-    const Vector3D &center,
+    const cfem::Vector3D &center,
     double radius)
 {
     MeshEntity *boundary = mesh.getEntity("Boundary");
@@ -778,7 +799,7 @@ inline void SphereMeshBuilder::projectBoundaryNodes(
 
         Vertex &v = mesh.getVertex(vid);
 
-        Vector3D d = v.coords - center;
+        cfem::Vector3D d = v.coords - center;
         double r = d.norm();
 
         if (r > cfem::ZERO_TOLERANCE)
@@ -861,7 +882,7 @@ inline void Mesh::relaxMesh(int iterations,
     // --------------------------------------------------
     // 4. Buffers
     // --------------------------------------------------
-    std::vector<Vector3D> nextCoords(numVertices);
+    std::vector<cfem::Vector3D> nextCoords(numVertices);
 
     // Clamp lambda
     if (lambda <= 0.0) lambda = 0.3;
@@ -884,15 +905,15 @@ inline void Mesh::relaxMesh(int iterations,
             }
 
             // Laplacian average
-            Vector3D sum{0, 0, 0};
+            cfem::Vector3D sum{0, 0, 0};
 
             for (CfemInt j : neighbors[i])
             {
                 sum = sum + getVertex(j).coords;
             }
 
-            Vector3D avg = sum * (1.0 / neighbors[i].size());
-            Vector3D old = getVertex(i).coords;
+            cfem::Vector3D avg = sum * (1.0 / neighbors[i].size());
+            cfem::Vector3D old = getVertex(i).coords;
 
             // Damped update (Taubin-style lambda step)
             nextCoords[i] = old + lambda * (avg - old);
@@ -910,3 +931,5 @@ inline void Mesh::relaxMesh(int iterations,
         }
     }
 }
+
+}//namespace

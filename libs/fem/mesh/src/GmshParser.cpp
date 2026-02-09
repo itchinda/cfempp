@@ -1,5 +1,7 @@
 #include "GmshParser.h"
 
+namespace cfem{
+
 /**
  * @brief Maps Gmsh element type IDs to CFEM internal CellType.
  */
@@ -263,9 +265,9 @@ bool GmshParser::load(Mesh &mesh, const std::string &filename)
 
     for (auto const& [key, name] : physicalNames) {
         if (name == "Universe" && key.first == maxDim) {
-            gmshToInternal[key] = cfem::UNIVERSE_ID;
+            gmshToInternal[key] = UNIVERSE_ID;
             universeFound = true;
-            mesh.createInternalEntity(cfem::UNIVERSE_ID, name, maxDim);
+            mesh.createInternalEntity(UNIVERSE_ID, name, maxDim);
         } else {
             gmshToInternal[key] = mesh.createEntity(name, key.first);
         }
@@ -364,7 +366,7 @@ bool GmshParser::load(Mesh &mesh, const std::string &filename)
             }
         }
 
-        MeshEntity* sysBound = mesh.getEntity(cfem::SYS_BOUNDARY_ID);
+        MeshEntity* sysBound = mesh.getEntity(SYS_BOUNDARY_ID);
         sysBound->addFacet((CfemInt)i);
         for (CfemInt vid : f.vertex_ids) sysBound->addVertex(vid);
     }
@@ -373,7 +375,9 @@ bool GmshParser::load(Mesh &mesh, const std::string &filename)
     for (auto const& [key, internalId] : gmshToInternal) {
         mesh.getEntity(internalId)->finalize();
     }
-    mesh.getEntity(cfem::SYS_BOUNDARY_ID)->finalize();
+    mesh.getEntity(SYS_BOUNDARY_ID)->finalize();
 
     return true;
 }
+
+} //cfem
