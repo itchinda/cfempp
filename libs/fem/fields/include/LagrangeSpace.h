@@ -68,7 +68,9 @@ public:
     static std::shared_ptr<LagrangeSpace> create(std::shared_ptr<Mesh> mesh, 
                                                  Order order, 
                                                  FieldType field_type = FieldType::Scalar) {
-        int dim = static_cast<int>(field_type);
+        int dim = 1;
+        if (field_type == FieldType::Vector3D) dim = 3;
+        else if (field_type == FieldType::Vector2D) dim = 2;
 
         if (order == Order::P0) {
             CFEM_ERROR("LagrangeSpace Error: P0 is a discontinuous space and is not supported by LagrangeSpace. "

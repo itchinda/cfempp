@@ -87,6 +87,7 @@ CfemReal FEField::getAt(CfemInt globalDofIdx, int component) const {
     // Le stockage local m_localValues est souvent entrelacé (interleaved) :
     // [u0_x, u0_y, u1_x, u1_y, ...]
     int numComponents = this->getDimension(); 
+    
     return m_localValues[globalDofIdx * numComponents + component];
 }
 
@@ -103,17 +104,20 @@ void FEField::evaluateAt(CfemInt cellId, const Vector3D& xi, std::vector<double>
     // On force un type "linéaire" pour l'évaluation si l'espace est P1
     CellType baseType = cell.type;
     if (m_space->getOrder() == Order::P1) {
+        if (baseType == CellType::LINE3) baseType = CellType::LINE2;
         if (baseType == CellType::TRI6) baseType = CellType::TRI3;
         if (baseType == CellType::QUAD9) baseType = CellType::QUAD4;
         if (baseType == CellType::TET10) baseType = CellType::TET4;
-        // ... etc
+        if (baseType == CellType::PRISM18) baseType = CellType::PRISM6;
+        if (baseType == CellType::HEX27) baseType = CellType::HEX8;
     }
 
     const auto& refEl = m_space->getRefElement(baseType);
     ShapeInfo shape;
+    
     refEl.evaluate(xi, ShapeEvaluationFlags::Value, shape);
     const auto& shapeValues = shape.values;
-
+    
     // 2. INTERPOLATION STRICTE
     for (size_t i = 0; i < shapeValues.size(); ++i) {
         CfemInt mNodeId = cell.vertex_ids[i]; 

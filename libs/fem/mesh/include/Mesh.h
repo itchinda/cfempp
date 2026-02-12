@@ -138,6 +138,7 @@ public:
     CfemReal computeSigned4NodesTetraVolume(CfemInt p_idx0, CfemInt p_idx1, CfemInt p_idx2, CfemInt p_idx3) const;
     CfemInt getDimFromType(CellType type) const;
     MeshOrder getCellOrderFromType(CellType type) const;
+    void getCellVerticesCoords(CfemInt cell_id, DynamicVector<Vector3D>& v_coords) const;
 
     CfemReal computeCellQuality(CfemInt cellId) const;
 

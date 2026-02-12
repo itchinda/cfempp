@@ -198,6 +198,39 @@ private:
 
 };
 
+/**
+ * @brief Configuration for quadrature orders per element type.
+ */
+struct IntegrationSchemeParams {
+    int NumIntgPt1DElem    = 3;   /// 5th order
+    int NumIntgPtTriElem   = 6;   /// 4th order
+    int NumIntgPtQuadElem  = 9;   /// 5th order
+    int NumIntgPtTetElem   = 11;  /// 4th order
+    int NumIntgPtPrismElem = 18;  /// 4th order
+    int NumIntgPtHexElem   = 27;  /// 5th order
+
+    /**
+     * @brief Helper to get the order for a specific element type.
+     */
+    int getNumIntgPt(CellType type) const {
+        switch (type) {
+            case CellType::LINE2:  
+            case CellType::LINE3: return NumIntgPt1DElem;
+            case CellType::TRI3:  
+            case CellType::TRI6: return NumIntgPtTriElem;
+            case CellType::QUAD4:  
+            case CellType::QUAD9: return NumIntgPtQuadElem;
+            case CellType::TET4:  
+            case CellType::TET10: return NumIntgPtTetElem;
+            case CellType::PRISM6:  
+            case CellType::PRISM18: return NumIntgPtPrismElem;
+            case CellType::HEX8:  
+            case CellType::HEX27: return NumIntgPtHexElem;
+            default: return 1;
+        }
+    }
+};
+
 }
 
 #include "Quadrature.tpp"
