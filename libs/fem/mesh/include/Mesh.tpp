@@ -1,9 +1,21 @@
 #ifndef CFEM_MESH_TPP
 #define CFEM_MESH_TPP
 #include "Mesh.h"
+#include "DynamicVector.h"
 #endif
 
 namespace cfem {
+
+inline void Mesh::getCellVerticesCoords(CfemInt cell_id, DynamicVector<Vector3D>& v_coords) const{
+    CFEM_ASSERT(cell_id >=0 && cell_id < getNumCells());
+    const Cell& cell = getCell(cell_id);
+    size_t numVertices {cell.vertex_ids.size()};
+    v_coords.resize(numVertices);
+
+    for (size_t i = 0; i < numVertices; ++i){
+        v_coords[i] = getVertex(cell.vertex_ids[i]).coords;
+    }
+}
 
 inline CfemInt getNodeCountPerCell(CellType type)
 {

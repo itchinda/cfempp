@@ -3,6 +3,7 @@
 
 #include "LagrangeSpace.h"
 #include "PetscVector.h" 
+#include "Quadrature.h"
 #include <string>
 #include <vector>
 #include <memory> // Obligatoire pour shared_ptr
@@ -26,6 +27,38 @@ private:
     std::shared_ptr<LagrangeSpace> m_space;
     PetscVector m_data; 
     mutable std::vector<CfemReal> m_localValues; 
+
+    // Helper: Square of scalar or Dot product of vector
+    static inline CfemReal magnitude_sqr(CfemReal val) { return val * val; }
+    static inline CfemReal magnitude_sqr(const Vector3D& val) { return val.dot(val); }
+
+    // Helper: Uniform access to Field (via local eval) or Lambda (via physical pos)
+    template <typename T>
+    static Vector3D fetchValue(const T& obj, CfemInt cellId, const Vector3D& xi, 
+                            const Vector3D& physPos, std::vector<CfemReal>& buffer) 
+    {
+        // CASE A: The object is an FEField (P1, P2, etc.)
+        if constexpr (std::is_convertible_v<T, const FEField&>) {
+            obj.evaluateAt(cellId, xi, buffer);
+            if (buffer.size() == 1) return Vector3D{buffer[0], 0.0, 0.0};
+            if (buffer.size() == 2) return Vector3D{buffer[0], buffer[1], 0.0};
+            return Vector3D{buffer[0], buffer[1], buffer[2]};
+        } 
+        // CASE B: The object is a Lambda or Functor
+        else {
+            auto result = obj(physPos);
+            using ReturnType = decltype(result);
+
+            if constexpr (std::is_arithmetic_v<ReturnType>) {
+                // It's a scalar (double/float) -> Promote to Vector3D
+                return Vector3D{static_cast<CfemReal>(result), 0.0, 0.0};
+            } else {
+                // It's already a Vector3D (or compatible) -> Use as is
+                return result; 
+            }
+        }
+    }
+
 
 public:
 
@@ -115,6 +148,74 @@ public:
             }
         }
         vec.assemble();
+    }
+
+
+    /**
+     * @brief Computes the L2 Norm of the field: ||u|| = sqrt( integral( u * u ) )
+     */
+    CfemReal normL2(IntegrationSchemeParams scheme_params = {}) const {
+        return L2NormDistance(*this, [](const Vector3D&) { return 0.0; }, scheme_params);
+    }
+
+    /**
+     * @brief Computes ||u - v||_{L2}. 
+     * Handles combinations of (FEField vs FEField) and (FEField vs Lambda).
+     * @tparam T1 Can be FEField or a Lambda/Functor.
+     * @tparam T2 Can be FEField or a Lambda/Functor.
+     */
+    template <typename T1, typename T2>
+    static CfemReal L2NormDistance(const T1& u, const T2& v, IntegrationSchemeParams scheme_params = {}) {
+        // 1. Resolve Context: Find which argument provides the Mesh
+        const FEField* contextField = nullptr;
+        if constexpr (std::is_convertible_v<T1, const FEField&>) 
+        {
+            contextField = &u; u.updateLocalBuffer();
+        }
+        else if constexpr (std::is_convertible_v<T2, const FEField&>) {
+            contextField = &v;
+            v.updateLocalBuffer();
+        }
+        else CFEM_ERROR("L2Diff requires at least one FEField argument.");
+
+        auto mesh = contextField->getSpace()->getMesh();
+        
+        IntegrationScheme scheme;
+        ShapeInfo shape; 
+        MappingInfo map;
+        DynamicVector<Vector3D> physCoords; // Buffer for element vertices
+        std::vector<CfemReal> fieldBuffer;  // Buffer for field evaluation
+
+        CfemReal totalErrorSqr = 0.0;
+
+        for (CfemInt i = 0; i < mesh->getNumCells(); ++i) {
+            const auto& cell = mesh->getCell(i);
+            
+            // Use high-order quadrature (e.g., 5-point) to capture P2*P2 interactions
+            const auto& quad = scheme.getRule(cell.type, scheme_params.getNumIntgPt(cell.type) ); 
+            
+            mesh->getCellVerticesCoords(i, physCoords);
+            const auto& refEl = contextField->getSpace()->getRefElement(cell.type);
+
+            CfemReal cellIntegral = 0.0;
+
+            for (const auto& qp : quad.getPoints()) {
+                // Compute Geometry (Reference -> Physical)
+                refEl.computeMapping(qp.xi, physCoords, ShapeEvaluationFlags::Value, shape, map);
+
+                // Fetch Values using the generic helper'
+                
+                auto valU = fetchValue(u, i, qp.xi, map.physicalPosition, fieldBuffer);
+                auto valV = fetchValue(v, i, qp.xi, map.physicalPosition, fieldBuffer);
+
+                auto diff = valU - valV;
+                
+                // Accumulate: works for Scalar (diff*diff) or Vector (diff.dot(diff))
+                cellIntegral += magnitude_sqr(diff) * std::abs(map.detJ) * qp.weight;
+            }
+            totalErrorSqr += cellIntegral;
+        }
+        return std::sqrt(totalErrorSqr);
     }
 
 };
