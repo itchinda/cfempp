@@ -1,5 +1,5 @@
 add_library(cfem_fem_integration
-    src/Integration.cpp
+    src/ReferenceElementFactory.cpp
 )
 
 target_include_directories(cfem_fem_integration
@@ -7,5 +7,5 @@ target_include_directories(cfem_fem_integration
 )
 
 target_link_libraries(cfem_fem_integration
-    PUBLIC cfem_petsc_wrappers
+    PUBLIC cfem_petsc_wrappers cfem_mesh
 )

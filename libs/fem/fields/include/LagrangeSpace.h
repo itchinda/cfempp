@@ -1,83 +1,130 @@
-#ifndef CFEM_LAGRANGE_SPACE_H
-#define CFEM_LAGRANGE_SPACE_H
+#ifndef CFEM_LAGRANGESPACE_H
+#define CFEM_LAGRANGESPACE_H
 
 #include "FESpace.h"
+#include "ReferenceElement.h"
+#include <vector>
+#include <memory>
+#include <map>
 
 namespace cfem {
+
+/**
+ * @class LagrangeSpace
+ * @brief Lagrange Finite Element Space with BLOCK-wise Degree of Freedom (DOF) numbering.
+ * This class implements continuous Lagrange basis functions (P1, P2). 
+ * The DOF numbering is organized by components (Block-sorting):
+ * [All X-components, followed by all Y-components, followed by all Z-components].
+ *
+ */
 class LagrangeSpace : public FESpace {
+private:
+    struct ConstructorToken {};
+
+    /** @brief Assigns global indices to DOFs using block-wise ordering. */
+    void enumerateDofs() override;
+    
+    /** @brief Maps mesh cell type to the number of nodes expected by the basis order. */
+    int getNodesPerCell(CellType type) const;
+
+    CfemInt m_totalDofs = 0;
+    CfemInt m_numActiveNodes = 0; ///< Number of unique interpolation nodes in the mesh.
+    
+    /** @brief Mapping: Mesh Vertex ID -> Local node index (0 to m_numActiveNodes-1). */
+    std::vector<CfemInt> m_nodeToLocalIdx; 
+    
+    /** @brief Collection of reference elements for basis function evaluation. */
+    std::map<CellType, std::unique_ptr<ReferenceElement>> m_refElements;
+    
+    /** @brief Initializes reference elements based on the space order. */
+    void initReferenceElements();
+
+    /** @brief Checks mesh compatibility (e.g., P2 space requires a Quadratic Mesh). */
+    void validate() const override{
+        FESpace::validate();
+        MeshOrder meshOrder = m_mesh->getOrder();
+        if (m_order == Order::P2 && (meshOrder==MeshOrder::None || meshOrder==MeshOrder::Linear) ) {
+
+            CFEM_ERROR("LagrangeSpace Order Mismatch: P2 Space requires a"
+                       " Quadratic Mesh (order 2), but the provided mesh " +\
+                       (meshOrder == MeshOrder::Linear? "is linear." : "has not been assigned any order." ));
+        }
+    }
+
 public:
-    using FESpace::FESpace; // Use the base constructor
+    /**
+     * @brief Protected constructor used by the Factory.
+     */
+    LagrangeSpace(ConstructorToken, std::shared_ptr<Mesh> mesh, Order order, int dimension = 1);
 
-    CfemInt getGlobalNumDofs() const override {
-        if (m_continuity == Continuity::CG) {
-            // In CG, DoFs are attached to vertices/nodes. 
-            // If P2, this includes mid-edge/mid-face nodes already in the Mesh.
-            return m_mesh.getNumVertices() * m_dimension;
-        } else {
-            // In DG, every cell has its own private set of DoFs.
-            CfemInt total = 0;
-            for (CfemInt i = 0; i < m_mesh.getNumCells(); ++i) {
-                total += getNodesPerCell(m_mesh.getCell(i).type) * m_dimension;
-            }
-            return total;
-        }
-    }
+    /**
+     * @brief Factory method: The recommended way to instantiate a LagrangeSpace.
+     * @param mesh Shared pointer to the geometry.
+     * @param order Polynomial order (P1 or P2). P0 is not supported here.
+     * @param field_type Scalar or Vectorial nature of the physics.
+     * @return A shared pointer to the initialized and enumerated LagrangeSpace.
+     * @throw CFEM_ERROR if order is P0 or if mesh cannot support requested order.
+     */
+    static std::shared_ptr<LagrangeSpace> create(std::shared_ptr<Mesh> mesh, 
+                                                 Order order, 
+                                                 FieldType field_type = FieldType::Scalar) {
+        int dim = static_cast<int>(field_type);
 
-    int getNodesPerCell(CellType type) const {
-        // If the user requested a P1 Space, we only use the corner nodes
-        // regardless of whether the underlying mesh cell has 4, 8, or 9 nodes.
-        if (m_order == Order::P1) {
-            if (type == CellType::LINE2 || type == CellType::LINE3) return 2;
-            if (type == CellType::TRI3 || type == CellType::TRI6) return 3;
-            if (type == CellType::QUAD4 || type == CellType::QUAD9) return 4;
-            if (type == CellType::TET4 || type == CellType::TET10) return 4;
-            if (type == CellType::PRISM6 || type == CellType::PRISM18) return 6;
-            if (type == CellType::HEX8 || type == CellType::HEX27) return 8;
+        if (order == Order::P0) {
+            CFEM_ERROR("LagrangeSpace Error: P0 is a discontinuous space and is not supported by LagrangeSpace. "
+                       "Please use DGSpace or upgrade the order to P1.");
         }
+
+        if (order == Order::P2 && mesh->getOrder() == MeshOrder::Linear) {
+            CFEM_INFO("LagrangeSpace: Auto-upgrading mesh to quadratic to support P2 space.");
+            mesh->upgradeToQuadratic(); 
+        }
+
+        // Instantiation & Initialization
+        auto space = std::make_shared<LagrangeSpace>(ConstructorToken{}, mesh, order, dim);
+        space->initReferenceElements();
         
-        // If P2, we use the full set
-        if (m_order == Order::P2) {
-            if ( type == CellType::LINE3) return 3;
-            if ( type == CellType::TRI6) return 6;
-            if ( type == CellType::QUAD9) return 9;
-            if ( type == CellType::TET10) return 10;
-            if ( type == CellType::PRISM18) return 18;
-            if ( type == CellType::HEX27) return 27;
-        }
+        // Connect mesh updates to this space
+        mesh->addObserver(space);
+        
+        space->validate();
+        space->enumerateDofs();
 
-        CFEM_ERROR("UNKNOWN CELL TYPE");
-        return 0;
+        return space;
     }
 
-    void getElementDofs(CfemInt cellId, std::vector<CfemInt>& globalIndices) const override {
-        const auto& cell = m_mesh.getCell(cellId);
-        int nNodes = getDofsPerCell(cell.type) / m_dimension; // Local nodes
-        globalIndices.clear();
+    ~LagrangeSpace() override = default;
 
-        if (m_continuity == Continuity::CG) {
-            for (int i = 0; i < nNodes; ++i) {
-                CfemInt meshNodeId = cell.vertex_ids[i];
-                for (int d = 0; d < m_dimension; ++d) {
-                    globalIndices.push_back(meshNodeId * m_dimension + d);
-                }
-            }
-        } else {
-            // DG: Offset by previous cells' total DoFs
-            // For a uniform mesh, this is cellId * nodesPerCell * m_dimension
-            CfemInt offset = 0; 
-            for(CfemInt i=0; i < cellId; ++i) offset += getDofsPerCell(m_mesh.getCell(i).type);
-            
-            for (int i = 0; i < getDofsPerCell(cell.type); ++i) {
-                globalIndices.push_back(offset + i);
-            }
-        }
-    }
+    /** @brief Total size for PETSc vectors/matrices (m_numActiveNodes * dimension). */
+    CfemInt getGlobalNumDofs() const override { return m_totalDofs; }
+    
+    int getDofsPerCell(CfemInt cellId) const override;
+    
+    void getElementDofs(CfemInt cellId, std::vector<CfemInt>& globalIndices) const override;
+    
+    /** @brief Converts a mesh vertex ID to the local nodal index (ignoring components). */
+    CfemInt getLocalNodeIdx(CfemInt meshNodeId) const { return m_nodeToLocalIdx[meshNodeId]; }
+    
+    const ReferenceElement& getRefElement(CellType type) const;
 
-    void evaluateBasis(CellType type, const Vector3D& xi, std::vector<CfemReal>& values) const override {
-        // This will call your Shape Function library
-        // e.g., ShapeFunctions::evaluate(type, m_order, xi, values);
-    }
+    /** @brief Computes the number of non-zeros (nnz) per row for efficient PETSc matrix allocation. */
+    void computeSparsityPattern(std::vector<CfemInt>& nnz) const override;
+    
+    /** @brief Retrieves global DOFs associated with a boundary entity. */
+    void getBoundaryDofs(int internalEntityId, std::vector<CfemInt>& boundaryDofs) const override;
+    
+    /** @brief Returns the number of nodes before repeating for the next component. */
+    CfemInt getNumActiveNodes() const { return m_numActiveNodes; }
+
+    // Basis Function Evaluation
+    
+    /** @brief Evaluates Lagrange basis functions at local coordinate xi. */
+    void evaluateBasis(CfemInt cellId, const Vector3D& xi, std::vector<CfemReal>& values) const override;
+    
+    /** @brief Evaluates gradients of basis functions at local coordinate xi. */
+    void evaluateGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const override;
 };
 
-}
+} // namespace cfem
+
 #endif

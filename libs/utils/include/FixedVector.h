@@ -46,7 +46,7 @@ struct FixedVector {
      * @param list A list of values (e.g., {1.0, 2.0, 3.0}).
      * @throw CFEM_ASSERT if list.size() != N.
      */
-    FixedVector(std::initializer_list<T> list) {
+    FixedVector(std::initializer_list<T> list) {        
         CFEM_ASSERT(list.size() == N);
         int i = 0;
         for (auto it = list.begin(); it != list.end() && i < N; ++it, ++i) {

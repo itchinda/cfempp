@@ -8,7 +8,7 @@ using namespace cfem;
 class GmshHexTest : public ::testing::Test {
 protected:
     const std::string filename = "../tests/grenier/hex.msh";
-    Mesh mesh;
+    std::shared_ptr<Mesh> mesh = Mesh::create();
     GmshParser parser;
 
     void SetUp() override {
@@ -20,12 +20,12 @@ protected:
  * @test Validates the Universe (Domain) and Order detection.
  */
 TEST_F(GmshHexTest, UniverseAndOrderDetection) {
-    ASSERT_TRUE(parser.load(mesh, filename));
+    ASSERT_TRUE(parser.load(*mesh, filename));
 
-    EXPECT_EQ(mesh.getDimension(), 3);
-    EXPECT_EQ(mesh.getOrder(), 2);
+    EXPECT_EQ(mesh->getDimension(), 3);
+    EXPECT_EQ(mesh->getOrder(), MeshOrder::Quadratic);
 
-    MeshEntity* universe = mesh.getEntity(cfem::UNIVERSE_ID);
+    MeshEntity* universe = mesh->getEntity(cfem::UNIVERSE_ID);
     ASSERT_NE(universe, nullptr);
     EXPECT_EQ(universe->getName(), "Universe");
     
@@ -36,14 +36,14 @@ TEST_F(GmshHexTest, UniverseAndOrderDetection) {
  * @test Validates the mapping of User-Defined Physical Groups.
  */
 TEST_F(GmshHexTest, BoundaryGroupMapping) {
-    parser.load(mesh, filename);
+    parser.load(*mesh, filename);
 
     std::vector<std::string> expectedGroups = {
         "Bottom", "Top", "Front", "Right", "Back", "Left", "Bord"
     };
 
     for (const auto& name : expectedGroups) {
-        MeshEntity* ent = mesh.getEntity(name);
+        MeshEntity* ent = mesh->getEntity(name);
         ASSERT_NE(ent, nullptr) << "Group " << name << " not found in mesh!";
         EXPECT_GT(ent->getFacetIds().size(), 0);
         EXPECT_GT(ent->getVertexIds().size(), 0);
@@ -55,11 +55,11 @@ TEST_F(GmshHexTest, BoundaryGroupMapping) {
  * CFEM++ internally std::swap(vids[8], vids[9])
  */
 TEST_F(GmshHexTest, Tet10Permutation) {
-    parser.load(mesh, filename);
+    parser.load(*mesh, filename);
 
     bool foundTet10 = false;
-    for (size_t i = 0; i < mesh.getNumCells(); ++i) {
-        const auto& cell = mesh.getCell(i);
+    for (size_t i = 0; i < mesh->getNumCells(); ++i) {
+        const auto& cell = mesh->getCell(i);
         if (cell.type == CellType::TET10) {
             foundTet10 = true;
             // TET10 order: 0-3 corners, 4-9 mid-edges
@@ -74,15 +74,15 @@ TEST_F(GmshHexTest, Tet10Permutation) {
  * @test Automated System Boundary Detection.
  */
 TEST_F(GmshHexTest, SystemBoundaryDetection) {
-    parser.load(mesh, filename);
+    parser.load(*mesh, filename);
 
-    MeshEntity* sysBound = mesh.getEntity(cfem::SYS_BOUNDARY_ID);
+    MeshEntity* sysBound = mesh->getEntity(cfem::SYS_BOUNDARY_ID);
     ASSERT_NE(sysBound, nullptr);
     
     EXPECT_GT(sysBound->getFacetIds().size(), 0);
 
     // Ensure all vertices in 'Top' are also in 'SYS_BOUNDARY'
-    MeshEntity* top = mesh.getEntity("Top");
+    MeshEntity* top = mesh->getEntity("Top");
     auto sysVids = sysBound->getVertexIds();
     for (CfemInt vId : top->getVertexIds()) {
         EXPECT_TRUE(std::find(sysVids.begin(), sysVids.end(), vId) != sysVids.end());
@@ -94,9 +94,9 @@ TEST_F(GmshHexTest, SystemBoundaryDetection) {
  * Finalize() should ensure vertex lists are unique and sorted.
  */
 TEST_F(GmshHexTest, EntityFinalization) {
-    parser.load(mesh, filename);
+    parser.load(*mesh, filename);
 
-    MeshEntity* universe = mesh.getEntity(cfem::UNIVERSE_ID);
+    MeshEntity* universe = mesh->getEntity(cfem::UNIVERSE_ID);
     const auto& vids = universe->getVertexIds();
 
     EXPECT_TRUE(std::is_sorted(vids.begin(), vids.end()));

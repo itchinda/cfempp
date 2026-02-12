@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include <string>
 #include <sstream>
+#include <petsc.h>
+#include <regex>
 
 namespace cfem
 {
@@ -188,6 +190,56 @@ public:
                        const char* msg = nullptr);
 };
 
+
+class Environment {
+public:
+    static void initialize(int &argc, char **&argv, const char* help = nullptr) {
+        static Environment manager(argc, argv, help);
+        s_initialized = true;
+    }
+
+    static void ensureInitialized() {
+        if (!s_initialized) {
+            throw std::runtime_error(
+                "[CFEM ERROR] PETSc not initialized.\n"
+                "Call cfem::Environment::initialize(...) before using PETSc-based objects."
+            );
+        }
+    }
+
+private:
+    Environment(int &argc, char **&argv, const char* help) {
+        PetscInitialize(&argc, &argv, nullptr, help);
+    }
+
+    ~Environment() {
+        PetscFinalize();
+    }
+
+    Environment(const Environment&) = delete;
+
+    inline static bool s_initialized = false;
+};
+
+    class NamingPolicy {
+    public:
+        static void validate(const std::string& name) {
+            if (name.empty()) {
+                throw std::runtime_error("[CFEM ERROR] Field name cannot be empty.");
+            }
+
+            // Regex: Starts with alpha/underscore, followed by alpha/digit/underscore
+            static const std::regex pattern("^[a-zA-Z_][a-zA-Z0-9_]*$");
+            
+            if (!std::regex_match(name, pattern)) {
+                throw std::runtime_error(
+                    "[CFEM ERROR] Invalid field name: '" + name + "'\n"
+                    "Names must start with a letter/underscore and contain only alphanumeric characters."
+                );
+            }
+        }
+    };
+
 } // namespace cfem
 
 
@@ -334,6 +386,9 @@ public:
         std::cerr << "[CFEM WARNING] " << msg << \
         " (File: " << __FILE__ << ":" << __LINE__ << ")" << std::endl
 #endif
+
+#define CFEM_INFO(info) \
+        std::cout << "[CFEM INFO] " info << std::endl
 
 
 #endif // CFEM_CONTRACT_EXCEPTION_H

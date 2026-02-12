@@ -29,17 +29,47 @@
 #include "Vector3D.h"
 #include "DynamicVector.h"
 
+
 namespace cfem{
+
+class FESpace;
 
 struct TagGroup {
     std::vector<int> gmsh_tags;
     int internal_id;
 };
 
+
+enum class MeshOrder{ None, Linear = 1, Quadratic = 2};
+
 class Mesh {
+private:
+    struct ConstructorToken {};
+
 public:
-    explicit Mesh();
-    explicit Mesh(CfemInt p_meshDim, CfemInt p_meshOrder);
+    explicit Mesh(ConstructorToken);
+    explicit Mesh(ConstructorToken, CfemInt p_meshDim, MeshOrder p_meshOrder);
+
+    Mesh(const Mesh&) = delete;
+    Mesh& operator=(const Mesh&) = delete;
+
+    Mesh(Mesh&&) = default;
+    Mesh& operator=(Mesh&&) = default;
+
+    /**
+     * @brief Factory pour un maillage vide
+     */
+    static std::shared_ptr<Mesh> create() {
+        return std::make_shared<Mesh>(ConstructorToken{});
+    }
+
+    /**
+     * @brief Factory pour un maillage paramétré
+     */
+    static std::shared_ptr<Mesh> create(CfemInt dim, MeshOrder order) {
+        auto mesh = std::make_shared<Mesh>(ConstructorToken{}, dim, order);
+        return mesh;
+    }
 
     CfemInt addVertex(CfemReal x,
                       CfemReal y = 0.0,
@@ -54,7 +84,9 @@ public:
     void buildMesh();
 
     CfemInt getDimension() const { return m_meshDim; }
-    CfemInt getOrder() const { return m_meshOrder; }
+    MeshOrder getOrder() const { return m_meshOrder; }
+    bool isQuadratic() const { return (m_meshOrder == MeshOrder::Quadratic); }
+    bool isLinear() const { return (m_meshOrder == MeshOrder::Linear); }
     size_t getNumVertices() const { return m_vertices.size(); }
     size_t getNumCells()    const { return m_cells.size(); }
     size_t getNumFacets()   const { return m_facets.size(); }
@@ -78,7 +110,7 @@ public:
     const std::vector<std::unique_ptr<MeshEntity>>&  getEntities()  const { return m_entities; }
     std::vector<std::unique_ptr<MeshEntity>>&  getEntities() { return m_entities; }
 
-    void setOrder(int newOrder);
+    void setOrder(MeshOrder newOrder);
     void setDimension(int newDim);
 
     CfemInt createEntity(const std::string& name, CfemInt dim);
@@ -105,7 +137,7 @@ public:
     CfemReal computeSigned3NodesTriangleArea(CfemInt p_idx0, CfemInt p_idx1, CfemInt p_idx2, cfem::Vector3D &pReferenceNormale) const;
     CfemReal computeSigned4NodesTetraVolume(CfemInt p_idx0, CfemInt p_idx1, CfemInt p_idx2, CfemInt p_idx3) const;
     CfemInt getDimFromType(CellType type) const;
-    CfemInt getOrderFromType(CellType type) const;
+    MeshOrder getCellOrderFromType(CellType type) const;
 
     CfemReal computeCellQuality(CfemInt cellId) const;
 
@@ -124,10 +156,14 @@ public:
 
     void relaxMesh(int iterations, double lambda = 0.4);
 
+    void addObserver(std::shared_ptr<FESpace> space);
+
+
+
 
 private:
     CfemInt m_meshDim {0};
-    CfemInt m_meshOrder {0};
+    MeshOrder m_meshOrder {MeshOrder::None};
 
     std::vector<Vertex> m_vertices;
     std::vector<Cell>   m_cells;
@@ -139,10 +175,11 @@ private:
 
     std::vector<std::vector<int>> m_tagGroups; // Table de "interning"
 
+    std::vector<std::weak_ptr<FESpace>> m_observers; // list of FESpace attached to the mesh
+
     void checkInvariant() const{
         CFEM_INVARIANT(m_meshDim >= 0 && m_meshDim <= 3);
-        CFEM_INVARIANT(m_meshOrder >= 0 && m_meshOrder <= 2);
-        if (m_meshDim==0 || m_meshOrder == 0){
+        if (m_meshDim==0 || m_meshOrder == MeshOrder::None){
             CFEM_INVARIANT(m_cells.empty() && m_facets.empty());
         }
     }
@@ -183,14 +220,30 @@ public:
         }
 
         mesh.buildMesh();
-        if (mesh.getOrder() == 2) mesh.upgradeToQuadratic(); // Becomes LINE3
+        if (mesh.getOrder() == MeshOrder::Quadratic) mesh.upgradeToQuadratic(); // Becomes LINE3
     }
 };
 
 class QuadMeshBuilder {
+private:
+    struct ConstructorToken{};
+    
+
 public:
-    enum class SubdivisionType { 
+    enum class ElementType { 
         None, FirstDiagonal, SecondDiagonal, CrissCross 
+    };
+
+    struct Corners{
+        Vector3D P0 = {0,0,0};
+        Vector3D P1 = {1,0,0};
+        Vector3D P2 = {1,1,0};
+        Vector3D P3 = {0,1,0};
+    };
+
+    struct Subdivisions{
+        CfemInt Nx {1};
+        CfemInt Ny {1};
     };
 
     struct BoundaryNames {
@@ -200,72 +253,172 @@ public:
         std::string right  = "Right";
     };
 
-    void build(Mesh& mesh, int order, int nx, int ny, 
-               const std::array<cfem::Vector3D, 4>& corners, 
-               SubdivisionType subDiv = SubdivisionType::None) {
-        build(mesh, order, nx, ny, corners, subDiv, BoundaryNames{});
+    QuadMeshBuilder(ConstructorToken){};
+
+    static std::shared_ptr<Mesh> create(MeshOrder order,
+                                        const Subdivisions& subDiv,
+                                        const Corners& corners,
+                                        ElementType elemType = ElementType::None) 
+    {
+        return QuadMeshBuilder::create(order, subDiv, corners, elemType, BoundaryNames{});
     }
 
-    void build(Mesh& mesh, int order, int nx, int ny, 
-               const std::array<cfem::Vector3D, 4>& corners, 
-               SubdivisionType subDiv,
-               const BoundaryNames& names);
+    static std::shared_ptr<Mesh> create(MeshOrder order,
+                                        Subdivisions subDiv,
+                                        const Corners& corners,
+                                        ElementType elemType, 
+                                        const BoundaryNames& names ) {
+        auto mesh = Mesh::create(); 
+
+        QuadMeshBuilder builder(ConstructorToken{});
+        
+        builder.build(*mesh, order,subDiv, corners, elemType, names );
+        
+        return mesh;
+    }
 
 private:
     void applyBoundaryTags(Mesh& mesh, int nx, int ny, 
                            const std::vector<CfemInt>& grid, 
                            const BoundaryNames& names);
+                           
+    void build(Mesh& mesh, 
+               MeshOrder order,
+               const Subdivisions& subDiv,
+               const Corners& corners,
+               ElementType elemType,
+               const BoundaryNames& names);
 };
 
 class CubicMeshBuilder {
+private:
+    struct ConstructorToken{};
+    
 public:
-    enum class SubdivisionType {
+    enum class ElementType {
         None,       // Keep as HEX8
         SixTet      // Split each Hex into 6 Tetrahedra (standard Kuhn triangulation)
     };
 
-    void build(Mesh& mesh, int order, int nx, int ny, int nz, 
-               const std::array<cfem::Vector3D, 8>& corners,
-               SubdivisionType subDiv = SubdivisionType::None);
+    struct Subdivisions {
+        CfemInt Nx {1};
+        CfemInt Ny {1};
+        CfemInt Nz {1};
+    };
+
+    struct Corners {
+        Vector3D P0 {0,0,0};
+        Vector3D P1 {1,0,0};
+        Vector3D P2 {1,1,0};
+        Vector3D P3 {0,1,0};
+        Vector3D P4 {0,0,1};
+        Vector3D P5 {1,0,1};
+        Vector3D P6 {1,1,1};
+        Vector3D P7 {0,1,1};
+    };
+
+    CubicMeshBuilder(ConstructorToken){}
+
+    static std::shared_ptr<Mesh> create(MeshOrder order,
+                                        const Subdivisions& subDiv, 
+                                        const Corners& corners,
+                                        ElementType elemType = ElementType::None) 
+    {
+        auto mesh = Mesh::create(); 
+
+        CubicMeshBuilder builder(ConstructorToken{});
+        
+        builder.build(*mesh, order, subDiv, corners, elemType );
+        
+        return mesh;
+    }
+
+private:
+
+    void build(Mesh& mesh, 
+               MeshOrder order, 
+               const Subdivisions& subDiv, 
+               const Corners& corners,
+               ElementType elemType = ElementType::None);
 
 };
 
 class DiskMeshBuilder {
+private:
+    struct ConstructorToken{};
+
 public:
     enum class ElementType { 
         Quadrilateral, 
         Triangle 
     };
 
+    DiskMeshBuilder(ConstructorToken){}
+
+    static std::shared_ptr<Mesh> create(MeshOrder order, 
+                                        CfemReal target_mesh_size,
+                                        const cfem::Vector3D& center,
+                                        double radius,
+                                        ElementType type = ElementType::Triangle) 
+    {
+        auto mesh = Mesh::create(); 
+
+        DiskMeshBuilder builder(ConstructorToken{});
+        
+        builder.build(*mesh, order, target_mesh_size, center,  radius, type);
+        
+        return mesh;
+    }
+
+private:
+
     void build(Mesh& mesh,
-                      CfemInt order,
-                      CfemReal target_mesh_size,
-                      const cfem::Vector3D& center,
-                      double radius,
-                      ElementType type = ElementType::Triangle);
+               MeshOrder order,
+               CfemReal target_mesh_size,
+               const cfem::Vector3D& center,
+               double radius,
+               ElementType type = ElementType::Triangle);
 
     static void projectBoundaryMidNodes(Mesh& mesh, const cfem::Vector3D& center, double radius);
 
-    void relaxMesh(Mesh& mesh, int iterations = 5);
 };
 
 class SphereMeshBuilder {
+private:
+    struct ConstructorToken{};
+
 public:
     enum class ElementType { Hexahedron, Tetrahedron };
 
+    SphereMeshBuilder(ConstructorToken){}
+
+    static std::shared_ptr<Mesh> create(MeshOrder order, 
+                                        CfemReal target_mesh_size,
+                                        const cfem::Vector3D& center,
+                                        double radius,
+                                        ElementType type = ElementType::Tetrahedron) 
+    {
+        auto mesh = Mesh::create(); 
+
+        SphereMeshBuilder builder(ConstructorToken{});
+        
+        builder.build(*mesh, order, target_mesh_size, center,  radius, type);
+        
+        return mesh;
+    }
+
+private:
     static void build(Mesh& mesh,
-                      CfemInt order,
-                      CfemReal h,
+                      MeshOrder order,
+                      CfemReal target_mesh_size,
                       const cfem::Vector3D& center,
                       double radius,
                       ElementType type = ElementType::Tetrahedron);
 
-private:
     static void projectBoundaryNodes(Mesh& mesh,
                                      const cfem::Vector3D& center,
                                      double radius);
 
-    static void relaxMesh(Mesh& mesh, int iterations = 5);
 };
 
 

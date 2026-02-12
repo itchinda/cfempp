@@ -21,6 +21,7 @@
  *************************************************************************************** */
 
  PetscMatrix::PetscMatrix(int local_rows, int global_rows) {
+    cfem::Environment::ensureInitialized();
     CFEM_PRECONDITION(global_rows>=0);
     PETSC_CHECK(MatCreate(PETSC_COMM_WORLD, &m_Matrix));
     PETSC_CHECK(MatSetSizes(m_Matrix, local_rows, local_rows, global_rows, global_rows));

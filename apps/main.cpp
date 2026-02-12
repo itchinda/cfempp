@@ -1,99 +1,91 @@
-#include <petsc.h>
-#include "PetscMatrix.h"
-#include "PetscVector.h"
-#include "PetscKSPSolver.h"
+/**
+ * @file main.cpp
+ * @brief CFEM demonstration: Quadratic Mesh Generation and P2/P1 Field Projection.
+ * * This example demonstrates:
+ * 1. Initializing the RAII PETSc Environment.
+ * 2. Building a structured Quadratic Quadrilateral mesh.
+ * 3. Defining Lagrange Function Spaces (Taylor-Hood P2-P1 style).
+ * 4. Projecting analytical lambdas onto Finite Element Fields.
+ * 5. Exporting data to VTK for Paraview visualization.
+ */
 
 #include "cfemutils.h"
-#include "Mesh.h"
 #include "Vector3D.h"
+#include "Mesh.h"
+#include "LagrangeSpace.h"
+#include "FEField.h"
 #include "VTKExporter.h"
-#include "GmshParser.h"
 
 #include <iostream>
+#include <cmath>
+#include <memory>
 
 using namespace cfem;
 
-int main(int argc, char **argv) {
+static char help[] = "CFEM Example: Field projection on a quadratic mesh.\n\n";
 
-    //-----------------------------------------------------------------------------
-    //------------------------------ Mesh class -----------------------------------
-    Mesh lMail;
+int main(int argc, char **argv)
+{
+    // --- 1. Environment Setup ---
+    // Initializes PETSc/MPI via RAII. Finalization is handled automatically at exit.
+    cfem::Environment::initialize(argc, argv, help);
 
-    // LineMeshBuilder lLine;
-    // lLine.build(lMail, 10, Vector3D{1.0, 0.0,0.0}, Vector3D{0.5, 0, 1});
+    // --- 2. Mesh Generation ---
+    // Creates a [-1, 1] x [-1, 1] square mesh with 10,000 quadratic elements.
+    auto mesh = QuadMeshBuilder::create(
+        MeshOrder::Quadratic,
+        QuadMeshBuilder::Subdivisions{100, 100},
+        QuadMeshBuilder::Corners{
+            Vector3D{-1., -1., 0.}, // Bottom-Left
+            Vector3D{ 1., -1., 0.}, // Bottom-Right
+            Vector3D{ 1.,  1., 0.}, // Top-Right
+            Vector3D{-1.,  1., 0.}  // Top-Left
+        },
+        QuadMeshBuilder::ElementType::FirstDiagonal
+    );
 
-    // QuadMeshBuilder lRectangle;
-    // lRectangle.build(lMail, 1, 1, {Vector3D{0,0,0}, Vector3D{1,0,0}, Vector3D{1,1,0}, Vector3D{0,0.5,0} }, QuadMeshBuilder::SubdivisionType::CrissCross);
-    // lMail.upgradeToQuadratic();
+    // Define the polynomial basis on the mesh.
+    auto p1Space = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);   // Pressure (Linear)
+    auto p2Space = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D); // Velocity (Quadratic)
 
-    // CubicMeshBuilder lCube;
-    // CfemInt N {5};
-    // CfemInt order {2};
-    // lCube.build(lMail, order, N, N, N, {Vector3D{0,0,0}, Vector3D{1,0,0}, Vector3D{1,1,0}, Vector3D{0,1,0},
-    //                                 Vector3D{0,0,1}, Vector3D{1,0,1}, Vector3D{1,1,1}, Vector3D{0,1,1} },
-    //                                 CubicMeshBuilder::SubdivisionType::None);
+    // Associate physical fields with their respective function spaces.
+    auto pressure = FEField::create("P", p1Space);
+    auto velocity = FEField::create("U", p2Space);
 
-    // DiskMeshBuilder lDisk;
-    // double radius {1.0};
-    // double target_mesh_size {radius / 1000};
-    // CfemInt order {1};
-    // lDisk.build(lMail, order, target_mesh_size, Vector3D{0,0,0}, radius, DiskMeshBuilder::ElementType::Triangle);
-    
-    // SphereMeshBuilder lSphere;
-    // double radius {1.0};
-    // double target_mesh_size {radius / 50};
-    // CfemInt order {1};
-    // lSphere.build(lMail, order, target_mesh_size, Vector3D{0,0,0}, radius, SphereMeshBuilder::ElementType::Tetrahedron);
+    // Define exact solutions and project them onto the FE basis.
+    const CfemReal PI = cfem::pi;
 
-    GmshParser lMshParser;
-    lMshParser.load(lMail, "../tests/grenier/hex.msh");
-    //lMail.downgradeToLinear();
-    VTKExporter vtk_exporter (lMail);
-    vtk_exporter.setExportedEntities({
-        "Bottom", "Top", "Front", "Right", "Back", "Left", "Bord", "SYS_BOUNDARY"
-    } );
+    auto analytical_p = [&](const Vector3D &X) -> CfemReal {
+        return std::sin(2 * PI * X.x) * std::cos(2 * PI * X.y);
+    };
 
-    vtk_exporter.setExportQuality(true);
-    vtk_exporter.write("bunny.vtk");
+    auto analytical_u = [&](const Vector3D &X) -> Vector3D {
+        return {
+            std::sin(2 * PI * X.x) * std::sin(2 * PI * X.x), 
+            std::cos(2 * PI * X.y) * std::cos(2 * PI * X.y), 
+            0.0
+        };
+    };
 
-    // auto report = MeshQualityTool::analyze(lMail);
-    // MeshQualityTool::printSummary(report);
+    pressure->project(analytical_p);
+    velocity->project(analytical_u);
 
-    std::cout << lMail.info() << std::endl;
+    // Prepare the VTK exporter and add fields for visualization.
+    VTKExporter vtk_exporter(*mesh);
 
-    // for (const auto& ent : lMail.getEntities()){
-    //     std::cout << ent->getEntityFormat() << std::endl;
-    // }
+    // Define which boundary entities to include in the output
+    vtk_exporter.setExportedEntities({"Bottom", "Top", "Right", "Left", "SYS_BOUNDARY"});
 
-    //-------------------------------------------------------------------------------
-    //----------------------------- Vector3D struct --------------------------------- cx
-    // Vector3D v1 {1.0, 2.0, 3.0};
-    // Vector3D v2 {3.0, 2.0, 1.0};
-    // Vector3D v3 = v1+v2;
-    // Vector3D v4 = 4.0*v2;
-    // Vector3D v5 = v2*4.0;
+    vtk_exporter.addField(*pressure);
+    vtk_exporter.addField(*velocity);
+    vtk_exporter.write("square.vtk");
 
-    // std::cout << "v1 = " << v1 << std::endl;
-    // std::cout << "v2 = " << v2 << std::endl;
-    // std::cout << "v1+v2 = " << v3 << std::endl;
-    // std::cout << "4*v2 = " << v4 << std::endl;
-    // std::cout << "v2*4 = " << v5 << std::endl;
+    // Print mesh statistics and entity formatting for verification.
+    std::cout << mesh->info() << std::endl;
 
-    // std::cout << "norm(v1) = " << norm(v1) << std::endl;
-
-    // std::cout << "dot(v1,v2) = " << dot(v1,v2) << std::endl;
-    // std::cout << "v1.dot(v2) = " << v1.dot(v2) << std::endl;
-
-    // std::cout << "cross(v1,v2) = " << cross(v1,v2) << std::endl;
-    // std::cout << "v2.cross(v1) = " << v2.cross(v1) << std::endl;
-    //---------------------------------------------------------------------------------
-
-
-
-
+    for (const auto &ent : mesh->getEntities()) {
+        std::cout << "Entity: " << ent->getEntityFormat() << std::endl;
+    }
 
     return 0;
-
-
 }
-

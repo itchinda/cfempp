@@ -1,5 +1,7 @@
 add_library(cfem_fields
     src/FESpace.cpp
+    src/LagrangeSpace.cpp
+    src/FEField.cpp
 )
 
 target_include_directories(cfem_fields
@@ -7,5 +9,5 @@ target_include_directories(cfem_fields
 )
 
 target_link_libraries(cfem_fields
-    PUBLIC cfem_mesh
+    PUBLIC cfem_utils cfem_mesh cfem_fem_integration
 )
