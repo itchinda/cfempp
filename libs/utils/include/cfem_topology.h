@@ -25,6 +25,18 @@ struct Cell
     CellType type;
     std::vector<CfemInt> vertex_ids{};
     int tag_list_id = -1;
+
+    inline CellType getLinearEquivalent(CellType type) {
+    switch (type) {
+        case CellType::LINE3:  return CellType::LINE2;
+        case CellType::TRI6:  return CellType::TRI3;
+        case CellType::QUAD9: return CellType::QUAD4;
+        case CellType::TET10: return CellType::TET4;
+        case CellType::PRISM6: return CellType::PRISM18;
+        case CellType::HEX27: return CellType::HEX8;
+        default: return type;
+    }
+}
 };
 
 struct Facet

@@ -11,6 +11,7 @@
 
 #include "PetscKSPSolver.h"
 #include "internal/petscUtils.h"
+#include "cfemutils.h"
 
 #include <iostream>
 
@@ -19,6 +20,7 @@
  * @param prefix Optional string to group options (e.g., "outer_")
  *************************************************************************************** */
 PetscKSPSolver::PetscKSPSolver(const std::string& prefix) : m_prefix(prefix) {
+    cfem::Environment::ensureInitialized();
     PETSC_CHECK(KSPCreate(PETSC_COMM_WORLD, &m_ksp));
     
     if (!m_prefix.empty()) {

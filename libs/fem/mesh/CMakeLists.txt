@@ -9,5 +9,5 @@ target_include_directories(cfem_mesh
 )
 
 target_link_libraries(cfem_mesh
-    PUBLIC cfem_petsc_wrappers cfem_utils
+    PUBLIC cfem_petsc_wrappers cfem_utils cfem_fields
 )

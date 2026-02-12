@@ -10,10 +10,11 @@ add_executable(${APP_PROJECT_NAME}
 target_link_libraries(${APP_PROJECT_NAME}
     PRIVATE
         cfem_solvers
-        cfem_mesh
         cfem_utils
+        cfem_mesh
         cfem_fields
         cfem_exporter
+        cfem_petsc_wrappers
 )
 
 # Optional: Add more apps as you go

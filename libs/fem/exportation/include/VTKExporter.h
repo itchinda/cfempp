@@ -3,22 +3,25 @@
 
 #include <fstream>
 #include <vector>
+#include <string>
+#include <memory>
 #include "Mesh.h"
-#include "Field.h" // Assuming this is where your Field base class lives
+#include "FEField.h"
 
 namespace cfem {
 
 class VTKExporter {
 public:
-    VTKExporter(const Mesh& mesh) : m_mesh(mesh) {}
+    VTKExporter(const Mesh& mesh) : m_mesh(mesh), m_exportQuality(false) {}
 
-    void addField(std::shared_ptr<Field> field) {
-        m_fields.push_back(field);
+     void addField(const FEField& field) {
+        m_fields.push_back(&field);
     }
 
     void setExportedEntities(const std::vector<std::string>& entityNames) {
         m_exportedEntityNames = entityNames;
     }
+
     void setExportQuality(bool enable) { m_exportQuality = enable; }
 
     void write(const std::string& filename);
@@ -26,13 +29,12 @@ public:
 private:
     const Mesh& m_mesh;
     bool m_exportQuality;
-    std::vector<std::shared_ptr<Field>> m_fields;
+    std::vector<const FEField*> m_fields;
     std::vector<std::string> m_exportedEntityNames;
 
-    // Helper to map CellType to VTK cell identifiers
     int getVTKCellType(CellType type) const;
 };
 
-}
+} // namespace cfem
 
 #endif

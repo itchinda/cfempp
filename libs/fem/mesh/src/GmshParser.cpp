@@ -305,7 +305,7 @@ bool GmshParser::load(Mesh &mesh, const std::string &filename)
         CellType cfem_cell_type = mapGmshType(e.type);
 
         if (dim == maxDim) {
-            if (mesh.getOrder() == 0) mesh.setOrder(mesh.getOrderFromType(cfem_cell_type));
+            if (mesh.getOrder() == MeshOrder::None) mesh.setOrder(mesh.getCellOrderFromType(cfem_cell_type));
             
             // Permutations for high-order elements (TET10/HEX27) to conform with CFEM++/Paraview ordering standard
             if (cfem_cell_type == CellType::TET10) {

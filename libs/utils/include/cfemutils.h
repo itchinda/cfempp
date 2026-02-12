@@ -23,6 +23,7 @@ namespace cfem
      * is effectively zero.
      */
     constexpr CfemReal ZERO_TOLERANCE = 1e-14;
+    inline constexpr CfemReal pi = static_cast<CfemReal>(3.141592653589793238462643383279502884L);
 
     /**
      * @brief The smallest representable difference for the @ref CfemReal type.
@@ -44,6 +45,37 @@ namespace cfem
      * where constraints (Dirichlet/Neumann) are applied.
      */
     constexpr CfemInt SYS_BOUNDARY_ID = -2;
+
+
+    // class Environment {
+    // public:
+    //     // The user calls this once in main
+    //     static void initialize(int &argc, char **&argv, const char* help = nullptr) {
+    //         instance(); // ensures life
+    //         PetscInitialize(&argc, &argv, nullptr, help);
+    //     }
+
+    //     static void ensureInitialized() {
+    //     PetscBool initialized = PETSC_FALSE;
+    //     PetscInitialized(&initialized);
+    //     if (!initialized) {
+    //         throw std::runtime_error(
+    //             "[CFEM ERROR] PETSc not initialized.\n"
+    //             "You must call cfem::Environment::initialize(...) "
+    //             "before using CFEM objects."
+    //         );
+    //     }
+    // }
+
+    // private:
+    //     Environment() {} 
+    //     ~Environment() { PetscFinalize(); }
+        
+    //     static Environment& instance() {
+    //         static Environment env; // Guaranteed to be destroyed at program end
+    //         return env;
+    //     }
+    // };
 
 } // namespace
 

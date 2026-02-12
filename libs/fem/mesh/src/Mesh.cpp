@@ -1,4 +1,5 @@
 #include "Mesh.h"
+#include "FESpace.h"
 #include <iostream>
 #include <algorithm>
 #include <map>
@@ -7,13 +8,12 @@
 
 namespace cfem {
 
-Mesh::Mesh(){
+Mesh::Mesh(ConstructorToken ltok){
     CFEM_CHECK_INVARIANTS();
 }
 
-Mesh::Mesh(CfemInt p_meshDim, CfemInt p_meshOrder) : m_meshDim(p_meshDim) , m_meshOrder(p_meshOrder){
+Mesh::Mesh(ConstructorToken lTok, CfemInt p_meshDim, MeshOrder p_meshOrder) : m_meshDim(p_meshDim) , m_meshOrder(p_meshOrder){
     CFEM_PRECONDITION(p_meshDim >= 1 && p_meshDim <= 3);
-    CFEM_PRECONDITION(p_meshOrder >= 1 && p_meshOrder <= 3);
     CFEM_POSTCONDITION(m_meshDim == p_meshDim);
     CFEM_POSTCONDITION(m_meshOrder == p_meshOrder);
     CFEM_CHECK_INVARIANTS();
@@ -132,19 +132,20 @@ MeshEntity* Mesh::getEntity(CfemInt id) {
     return nullptr;
 }
 
-void Mesh::setOrder(int newOrder) {
-    CFEM_ASSERT(newOrder == 1 || newOrder == 2 );
+void Mesh::setOrder(MeshOrder newOrder) {
+    CFEM_ASSERT(newOrder == MeshOrder::Linear || newOrder == MeshOrder::Quadratic );
     if (newOrder == m_meshOrder) return;
 
-    m_meshOrder = newOrder;
     if (!m_cells.empty()) {
-        if (newOrder == 2 && m_meshOrder == 1) {
+        if (newOrder == MeshOrder::Quadratic && m_meshOrder == MeshOrder::Linear) {
             this->upgradeToQuadratic(); 
         }
-        else if (newOrder == 1 && m_meshOrder == 2) {
+        else if (newOrder == MeshOrder::Linear && m_meshOrder == MeshOrder::Quadratic) {
             this->downgradeToLinear(); 
         }
     }
+    m_meshOrder = newOrder;
+
 }
 
 
@@ -227,7 +228,7 @@ std::string Mesh::info() const{
     std::stringstream ss;
     ss << "\n================ MESH SUMMARY ================" << std::endl;
     ss << " Dimension: " << getDimension() << "D" << std::endl;
-    ss << " Order:     " << getOrder() << std::endl;
+    ss << " Order:     " << (getOrder()==MeshOrder::Linear? "Lineae" : (getOrder()==MeshOrder::Quadratic)? "Quadratic": "None" ) << std::endl;
     ss << " Vertices:  " << getNumVertices() << std::endl;
     ss << " Cells:     " << getNumCells() << std::endl;
     ss << " Facets:    " << getNumFacets() << std::endl;
@@ -308,6 +309,7 @@ std::string Mesh::getMeshFormat() const {
 }
 
 void Mesh::upgradeToQuadratic() {
+    if (this->isQuadratic()) return;
     // 1. Map to track unique edges: {min_id, max_id} -> new_vertex_id
     std::map<std::pair<CfemInt, CfemInt>, CfemInt> edge_to_midpoint;
 
@@ -332,14 +334,36 @@ void Mesh::upgradeToQuadratic() {
         }
     }
 
-    m_meshOrder = 2;
+    m_meshOrder = MeshOrder::Quadratic;
     buildInverseConnectivities();
     buildFacets(); // Rebuild facets to include mid-nodes on boundaries
     updateEntities();
 
+    for (auto it = m_observers.begin(); it != m_observers.end(); ) {
+        if (auto space = it->lock()) { // On vérifie si l'espace existe encore
+            space->updateAfterMeshChange();
+            ++it;
+        } else {
+            it = m_observers.erase(it); // Nettoyage automatique
+        }
+    }
+
 }
 
+void Mesh::addObserver(std::shared_ptr<FESpace> space) {
+    m_observers.push_back(space);
+    
+    // Si le maillage est déjà quadratique, on force l'espace 
+    // qui vient d'arriver à se mettre à jour immédiatement.
+    if (this->isQuadratic()) {
+        space->updateAfterMeshChange();
+    }
+}
+
+
 void Mesh::downgradeToLinear() {
+    if (this->isLinear()) return;
+
     for (auto& cell : m_cells) {
         if (cell.type == CellType::LINE3) {
             cell.type = CellType::LINE2;
@@ -371,7 +395,7 @@ void Mesh::downgradeToLinear() {
     // orphaned vertices, but that requires re-indexing everything.
     // Usually, it's enough to just leave them as isolated points.
 
-    m_meshOrder = 2;
+    m_meshOrder = MeshOrder::Linear;
     buildInverseConnectivities();
     buildFacets(); // Rebuild facets to remove mid-nodes
     updateEntities();
@@ -682,23 +706,25 @@ CfemInt Mesh::getDimFromType(CellType type) const{
     }
 }
 
-CfemInt Mesh::getOrderFromType(CellType type) const{
+MeshOrder Mesh::getCellOrderFromType(CellType type) const{
     switch (type) {
         case CellType::LINE2: case CellType::TRI3: 
         case CellType::QUAD4: case CellType::TET4:
-        case CellType::PRISM6: case CellType::HEX8: return 1;
+        case CellType::PRISM6: case CellType::HEX8: return MeshOrder::Linear;
         case CellType::LINE3: case CellType::TRI6: 
         case CellType::QUAD9: case CellType::TET10: 
-        case CellType::HEX27: return 2;
-        default: return 0;
+        case CellType::HEX27: return MeshOrder::Quadratic;
+        default: return MeshOrder::None;
     }
 }
 
 void Mesh::validateConnectivity(CellType type, const std::vector<CfemInt>& v_ids) const {
-    CfemInt cellOrder = getOrderFromType(type);
+    MeshOrder cellOrder = getCellOrderFromType(type);
     if (cellOrder != m_meshOrder) {
         CFEM_ERROR("Cannot add " + cellTypeToString(type) + 
-                   " to a mesh with order " + std::to_string(m_meshOrder));
+                   " to a " + (m_meshOrder == MeshOrder::Linear? "linear mesh." : \
+                               m_meshOrder == MeshOrder::Quadratic? "quadratic mesh.": \
+                               "mesh with unkmown order.") );
     }
 
     CfemInt cellDim = getDimFromType(type);
@@ -729,7 +755,7 @@ void Mesh::validateConnectivity(CellType type, const std::vector<CfemInt>& v_ids
 }
 
 void Mesh::validateEntityName(const std::string& name) const {
-    if (name == "Universe") {
+    if (name == "Universe" || name == "SYS_BOUNDARY") {
         CFEM_ERROR("Reserved Name Violation: The name '" + name + 
                    "' is reserved for internal mesh topology. " +
                    "Please use a different name for the physical group.");

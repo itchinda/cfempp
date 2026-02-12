@@ -10,6 +10,7 @@
  *************************************************************************************** */
 
 #include "PetscVector.h"
+#include "cfemutils.h"
 #include "internal/petscUtils.h"
 
 /** **************************************************************************************
@@ -20,6 +21,7 @@
  * @param global_size Total number of elements across all MPI ranks
  *************************************************************************************** */
 PetscVector::PetscVector(int local_size, int global_size) {
+    cfem::Environment::ensureInitialized();
     PETSC_CHECK(VecCreate(PETSC_COMM_WORLD, &m_Vec));
     PETSC_CHECK(VecSetSizes(m_Vec, local_size, global_size));
     PETSC_CHECK(VecSetFromOptions(m_Vec));

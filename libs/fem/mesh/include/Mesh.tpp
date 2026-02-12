@@ -305,54 +305,53 @@ inline void Mesh::getElementCoordinates(CfemInt elementId, cfem::DynamicVector<c
  * @param names
  */
 inline void QuadMeshBuilder::build(Mesh &mesh, 
-                                   int order,
-                                   int nx,
-                                   int ny,
-                                   const std::array<cfem::Vector3D, 4> &corners,
-                                   SubdivisionType subDiv,
+                                   MeshOrder order,
+                                   const Subdivisions& subDiv,
+                                   const Corners &corners,
+                                   ElementType elemType,
                                    const BoundaryNames &names)
 {
     mesh.clear();
     mesh.setDimension(2);
-    mesh.setOrder(1);
-    int nodeRows = nx + 1;
-    int nodeCols = ny + 1;
+    mesh.setOrder(MeshOrder::Linear);
+    int nodeRows = subDiv.Nx + 1;
+    int nodeCols = subDiv.Ny + 1;
     std::vector<CfemInt> gridIds(nodeRows * nodeCols);
     // 1. Vertices
     for (int j = 0; j < nodeCols; ++j)
     {
-        double v = static_cast<double>(j) / ny;
+        double v = static_cast<double>(j) / subDiv.Ny;
         for (int i = 0; i < nodeRows; ++i)
         {
-            double u = static_cast<double>(i) / nx;
-            cfem::Vector3D p = corners[0] * ((1 - u) * (1 - v)) + corners[1] * (u * (1 - v)) +
-                         corners[2] * (u * v) + corners[3] * ((1 - u) * v);
+            double u = static_cast<double>(i) / subDiv.Nx;
+            cfem::Vector3D p = corners.P0 * ((1 - u) * (1 - v)) + corners.P1 * (u * (1 - v)) +
+                         corners.P2 * (u * v) + corners.P3 * ((1 - u) * v);
             gridIds[j * nodeRows + i] = mesh.addVertex(p.x, p.y, p.z);
         }
     }
     // 2. Cells Generation (Fixed the break in FirstDiagonal)
-    for (int j = 0; j < ny; ++j)
+    for (int j = 0; j < subDiv.Ny; ++j)
     {
-        for (int i = 0; i < nx; ++i)
+        for (int i = 0; i < subDiv.Nx; ++i)
         {
             CfemInt v0 = gridIds[j * nodeRows + i];
             CfemInt v1 = gridIds[j * nodeRows + (i + 1)];
             CfemInt v2 = gridIds[(j + 1) * nodeRows + (i + 1)];
             CfemInt v3 = gridIds[(j + 1) * nodeRows + i];
-            switch (subDiv)
+            switch (elemType)
             {
-            case SubdivisionType::None:
+            case ElementType::None:
                 mesh.addCell(CellType::QUAD4, {v0, v1, v2, v3});
                 break;
-            case SubdivisionType::FirstDiagonal:
+            case ElementType::FirstDiagonal:
                 mesh.addCell(CellType::TRI3, {v0, v1, v2});
                 mesh.addCell(CellType::TRI3, {v0, v2, v3});
                 break;
-            case SubdivisionType::SecondDiagonal:
+            case ElementType::SecondDiagonal:
                 mesh.addCell(CellType::TRI3, {v1, v2, v3});
                 mesh.addCell(CellType::TRI3, {v1, v3, v0});
                 break;
-            case SubdivisionType::CrissCross:
+            case ElementType::CrissCross:
             {
                 cfem::Vector3D midP = (mesh.getVertex(v0).coords + mesh.getVertex(v2).coords) * 0.5;
                 CfemInt vMid = mesh.addVertex(midP.x, midP.y, midP.z);
@@ -368,12 +367,12 @@ inline void QuadMeshBuilder::build(Mesh &mesh,
     // 3. Finalize Topology
     mesh.buildMesh();
     
-    if (order == 2)
+    if (order == MeshOrder::Quadratic)
     {
         mesh.upgradeToQuadratic();
     }
     // 4. Tag Boundaries
-    applyBoundaryTags(mesh, nx, ny, gridIds, names);
+    applyBoundaryTags(mesh, subDiv.Nx, subDiv.Ny, gridIds, names);
 }
 
 /**
@@ -398,17 +397,16 @@ inline void QuadMeshBuilder::applyBoundaryTags(Mesh &mesh, int nx, int ny,
     int nodeRows = nx + 1;
 
     // Iterate over all facets created by buildMesh()
-    for (CfemInt f_idx = 0; f_idx < mesh.getNumFacets(); ++f_idx)
+    //for (CfemInt f_idx = 0; f_idx < mesh.getNumFacets(); ++f_idx)
+    for (auto f_idx : mesh.getEntity(SYS_BOUNDARY_ID)->getFacetIds())
     {
         const Facet &facet = mesh.getFacet(f_idx);
 
         if (facet.isBoundary())
         {
             // Get the vertices of this facet
-            std::vector<CfemInt> fv;
-            for (int k = 0; k < facet.number_of_vertices; ++k)
-                fv.push_back(facet.vertex_ids[k]);
-
+            CfemInt fv[2] = {facet.vertex_ids[0], facet.vertex_ids[1]};
+            
             // Logical checks using coordinates or indices
             bool isBottom = true, isTop = true, isLeft = true, isRight = true;
 
@@ -429,16 +427,28 @@ inline void QuadMeshBuilder::applyBoundaryTags(Mesh &mesh, int nx, int ny,
                     isRight = false;
             }
 
-            if (isBottom)
+            if (isBottom) {
                 mesh.getEntity(names.bottom)->addFacet(f_idx);
-            else if (isTop)
+                for (auto v_id : facet.vertex_ids) mesh.getEntity(names.bottom)->addVertex(v_id);
+            }
+            else if (isTop){
                 mesh.getEntity(names.top)->addFacet(f_idx);
-            else if (isLeft)
+                for (auto v_id : facet.vertex_ids) mesh.getEntity(names.top)->addVertex(v_id);
+            }
+            else if (isLeft){
                 mesh.getEntity(names.left)->addFacet(f_idx);
-            else if (isRight)
+                for (auto v_id : facet.vertex_ids) mesh.getEntity(names.left)->addVertex(v_id);
+            }
+            else if (isRight){
                 mesh.getEntity(names.right)->addFacet(f_idx);
+                for (auto v_id : facet.vertex_ids) mesh.getEntity(names.right)->addVertex(v_id);
+            }
         }
     }
+    mesh.getEntity(bottomId)->finalize();
+    mesh.getEntity(topId)->finalize();
+    mesh.getEntity(leftId)->finalize();
+    mesh.getEntity(rightId)->finalize();
 }
 
 /**
@@ -449,16 +459,22 @@ inline void QuadMeshBuilder::applyBoundaryTags(Mesh &mesh, int nx, int ny,
  * @param ny
  * @param nz
  * @param corners
- * @param subDiv
+ * @param elemType
  */
-inline void CubicMeshBuilder::build(Mesh &mesh, int order, int nx, int ny, int nz,
-                                    const std::array<cfem::Vector3D, 8> &corners,
-                                    SubdivisionType subDiv)
+inline void CubicMeshBuilder::build(Mesh& mesh, 
+                                    MeshOrder order, 
+                                    const Subdivisions& subDiv, 
+                                    const Corners& corners,
+                                    ElementType elemType)
 {
     mesh.clear();
-    mesh.setOrder(1);
+    mesh.setOrder(MeshOrder::Linear);
     mesh.setDimension(3);
-    auto gridIdx = [&](int i, int j, int k)
+    CfemInt nx = subDiv.Nx;
+    CfemInt ny = subDiv.Ny;
+    CfemInt nz = subDiv.Nz;
+
+    auto gridIdx = [&](int i, int j, int k)    
     {
         return k * (nx + 1) * (ny + 1) + j * (nx + 1) + i;
     };
@@ -476,10 +492,10 @@ inline void CubicMeshBuilder::build(Mesh &mesh, int order, int nx, int ny, int n
             {
                 double u = (double)i / nx;
                 cfem::Vector3D p =
-                    corners[0] * (1 - u) * (1 - v) * (1 - w) + corners[1] * u * (1 - v) * (1 - w) +
-                    corners[2] * u * v * (1 - w) + corners[3] * (1 - u) * v * (1 - w) +
-                    corners[4] * (1 - u) * (1 - v) * w + corners[5] * u * (1 - v) * w +
-                    corners[6] * u * v * w + corners[7] * (1 - u) * v * w;
+                    corners.P0 * (1 - u) * (1 - v) * (1 - w) + corners.P1 * u * (1 - v) * (1 - w) +
+                    corners.P2 * u * v * (1 - w) + corners.P3 * (1 - u) * v * (1 - w) +
+                    corners.P4 * (1 - u) * (1 - v) * w + corners.P5 * u * (1 - v) * w +
+                    corners.P6 * u * v * w + corners.P7 * (1 - u) * v * w;
                 mesh.addVertex(p.x, p.y, p.z);
             }
         }
@@ -502,11 +518,11 @@ inline void CubicMeshBuilder::build(Mesh &mesh, int order, int nx, int ny, int n
                 CfemInt v6 = gridIdx(i + 1, j + 1, k + 1);
                 CfemInt v7 = gridIdx(i, j + 1, k + 1);
 
-                if (subDiv == SubdivisionType::None)
+                if (elemType == ElementType::None)
                 {
                     mesh.addCell(CellType::HEX8, {v0, v1, v2, v3, v4, v5, v6, v7});
                 }
-                else if (subDiv == SubdivisionType::SixTet)
+                else if (elemType == ElementType::SixTet)
                 {
                     mesh.addCell(CellType::TET4, {v0, v1, v3, v4});
                     mesh.addCell(CellType::TET4, {v1, v3, v4, v5});
@@ -520,19 +536,19 @@ inline void CubicMeshBuilder::build(Mesh &mesh, int order, int nx, int ny, int n
     }
 
     mesh.buildMesh();
-    if (order == 2)
+    if (order == MeshOrder::Quadratic)
         mesh.upgradeToQuadratic();
 }
 
 inline void DiskMeshBuilder::build(Mesh &mesh,
-                                   CfemInt order,
+                                   MeshOrder order,
                                    CfemReal target_mesh_size,
                                    const cfem::Vector3D &center,
                                    double radius,
                                    ElementType type)
 {
     mesh.clear();
-    mesh.setOrder(1);
+    mesh.setOrder(MeshOrder::Linear);
 
     CfemInt n = static_cast<int>(std::ceil((2.0 * radius) / target_mesh_size));
     if (n < 1)
@@ -637,7 +653,7 @@ inline void DiskMeshBuilder::build(Mesh &mesh,
 
     mesh.relaxMesh(5);
 
-    if (order == 2)
+    if (order == MeshOrder::Quadratic)
     {
         mesh.upgradeToQuadratic();
         projectBoundaryMidNodes(mesh, center, radius);
@@ -667,14 +683,14 @@ inline void DiskMeshBuilder::projectBoundaryMidNodes(Mesh &mesh, const cfem::Vec
 }
 
 inline void SphereMeshBuilder::build(Mesh &mesh,
-                                     CfemInt order,
+                                     MeshOrder order,
                                      CfemReal h,
                                      const cfem::Vector3D &center,
                                      double radius,
                                      ElementType type)
 {
     mesh.clear();
-    mesh.setOrder(1);
+    mesh.setOrder(MeshOrder::Linear);
     mesh.setDimension(3);
 
     CfemInt n = static_cast<CfemInt>(std::ceil((2.0 * radius) / h));
@@ -778,7 +794,7 @@ inline void SphereMeshBuilder::build(Mesh &mesh,
 
     mesh.relaxMesh(10);
 
-    if (order == 2)
+    if (order == MeshOrder::Quadratic)
     {
         mesh.upgradeToQuadratic();
         projectBoundaryNodes(mesh, center, radius);
