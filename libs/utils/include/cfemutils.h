@@ -4,6 +4,7 @@
 #include <petscsys.h>
 #include <vector>
 #include "ContractException.h"
+#include "ChronoManager.h"
 
 // CFEM TYPES
 using CfemInt = PetscInt;

@@ -20,9 +20,11 @@ namespace cfem
         shape.setup(n, wantHessians);
         out.setup(n, wantHessians);
 
-        // Reference gradients are strictly required to build the Jacobian
-        ShapeEvaluationFlags internalFields = requestedFields | ShapeEvaluationFlags::Gradient;
-        evaluate(xi, internalFields, shape);
+        if (shape.shapeMustBeUpdated){
+            // Reference gradients are strictly required to build the Jacobian
+            ShapeEvaluationFlags internalFields = requestedFields | ShapeEvaluationFlags::Gradient;
+            evaluate(xi, internalFields, shape);
+        }
 
         out.physicalPosition = {0, 0, 0};
         for (int i = 0; i < n; ++i)

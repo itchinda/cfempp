@@ -19,7 +19,7 @@ struct ShapeInfo {
     DynamicVector<CfemReal> values;      ///< Shape function values (N_i)
     DynamicVector<Vector3D> gradients;   ///< Local gradients w.r.t reference coordinates (dN_i/dxi)
     DynamicVector<SymTensorO2> hessians; ///< Local Hessians w.r.t reference coordinates (d2N_i/dxi2)
-
+    bool shapeMustBeUpdated = true;
     ShapeEvaluationFlags  validFlags = ShapeEvaluationFlags::None;
 
     /** 

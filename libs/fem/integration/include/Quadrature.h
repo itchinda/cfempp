@@ -25,9 +25,8 @@ struct QuadraturePoint {
 class QuadratureRule
 {
 public:
-    using Container = DynamicVector<QuadraturePoint>;
 
-    const Container& getPoints() const { return m_points; }
+    const DynamicVector<QuadraturePoint>& getPoints() const { return m_points; }
 
     CfemInt size() const
     {
@@ -35,7 +34,7 @@ public:
     }
 
 private:
-    Container m_points;
+    DynamicVector<QuadraturePoint> m_points;
 
     friend class QuadratureFactory;
 };

@@ -1,0 +1,104 @@
++---------------------------------------------------+
+|                LocalAssembler (abstract)          |
++---------------------------------------------------+
+| + assemble(...) = 0                               |
+| + get_space()                                     |
++---------------------------------------------------+
+                ▲
+                │
+    -------------------------------------
+    │                  │                │
++----------------+ +----------------+ +-------------------+
+| CellAssembler  | | BoundaryAssembler    | | InterfaceAssembler      |
++----------------+ +----------------+ +-------------------+
+| assemble(cell) | | assemble(facet)| | assemble(facet)   |
++----------------+ +----------------+ +-------------------+
+
+
++---------------------------------------------------+
+|                AssemblyEngine                     |
++---------------------------------------------------+
+| - mesh                                            |
+| - dof_handler                                     |
+| - volumic_assemblers : vector<CellAssembler*>     |
+| - boundary_assemblers : vector<BoundaryAssembler*>      |
+| - interface_assemblers : vector<InterfaceAssembler*>    |
++---------------------------------------------------+
+| + assemble_system()                               |
+| + assemble_cells()                                |
+| + assemble_boundary_facets()                      |
+| + assemble_interface_facets()                     |
++---------------------------------------------------+
+
+
++---------------------------------------------+
+|              PetscGlobalAssembler           |
++---------------------------------------------+
+| - Mat A                                     |
+| - Vec b                                     |
++---------------------------------------------+
+| + add_local_matrix(indices, Ke)             |
+| + add_local_vector(indices, Fe)             |
+| + finalize()                                |
++---------------------------------------------+
+
+
+AssemblyEngine
+    |
+    | uses
+    v
+LocalAssembler (polymorphic)
+
+AssemblyEngine
+    |
+    | sends local contributions
+    v
+PetscGlobalAssembler
+
+
+classDiagram
+    class LocalAssembler {
+        <<abstract>>
+        +get_space() FESpace*
+    }
+
+    class CellAssembler {
+        <<interface>>
+        +assemble(Cell, Context, Ke, Fe)*
+    }
+
+    class BoundaryAssembler {
+        <<interface>>
+        +assemble(Facet, Cell, Context, Ke, Fe)*
+    }
+
+    class InterfaceAssembler {
+        <<interface>>
+        +assemble(Facet, CellL, CellR, ContextL, ContextR, Ke_shared)*
+    }
+
+    class AssemblyEngine {
+        -Mesh* mesh
+        -FESpace* space
+        -vector~CellAssembler*~ volumic_assemblers
+        -vector~BoundaryAssembler*~ boundary_assemblers
+        -vector~InterfaceAsembler*~ interface_assemblers
+        +assemble_system()
+        +assemble_cells()
+        +assemble_boundary_facets()
+        +assemble_interface_facets()
+    }
+
+    class PetscGlobalAssembler {
+        -Mat A
+        -Vec b
+        +add_local_matrix(indices, Ke)
+        +add_local_vector(indices, Fe)
+        +finalize()
+    }
+
+    LocalAssembler <|-- CellAssembler
+    LocalAssembler <|-- Boundary
+    LocalAssembler <|-- InterfaceAssembler
+    AssemblyEngine o-- LocalAssembler : "executes"
+    AssemblyEngine --> PetscGlobalAssembler : "sends Ke/Fe"
