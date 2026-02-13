@@ -58,23 +58,67 @@ make -j
 #include "VTKExporter.h"
 
 int main() {
-    Mesh mesh;
-    GmshParser parser;
-    VTKExporter exporter(mesh);
+    // Creates a [-1, 1] x [-1, 1] square mesh with 40,000 quadratic elements.
+    auto mesh = QuadMeshBuilder::create(
+        MeshOrder::Quadratic,
+        QuadMeshBuilder::Subdivisions{100, 100},
+        QuadMeshBuilder::Corners{
+                Vector3D{-1., -1., 0.}, // Bottom-Left
+                Vector3D{ 1., -1., 0.}, // Bottom-Right
+                Vector3D{ 1.,  1., 0.}, // Top-Right
+                Vector3D{-1.,  1., 0.}  // Top-Left
+        },
+        QuadMeshBuilder::ElementType::CrissCross
+    );
 
-    // Load MSH 4.1 file and build internal topology
-    if (parser.load(mesh, "heart.msh")) {
-        
-        // Display diagnostic report (Memory, Bounding Box, Entities)
-        mesh.info(); 
+    std::cout << mesh->info() << std::endl;
 
-        // Export to vtk format for paraview visualization
-        exporter.setExportQuality(true);
-        exporter.write("heart.vtk");
+    // Define the polynomial basis on the mesh.
+    auto p1Space = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);   // Pressure (Linear)
+    auto p2Space = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D); // Velocity (Quadratic)
 
-        // Next steps: Finite Element Function Spaces / Fields / Assembly / Solve
+    // Associate physical fields with their respective function spaces.
+    auto pressure = FEField::create("P", p1Space);
+    auto velocity = FEField::create("U", p2Space);
 
-    }
+    // Define exact solutions and project them onto the FE basis.
+    const CfemReal PI = cfem::pi;
+    auto analytical_p = [&](const Vector3D &X) -> CfemReal {
+        return X.x * X.x + X.y * X.y + X.x*X.y + X.x + X.y + 1;
+    };
+    auto analytical_u = [&](const Vector3D &X) -> Vector3D {
+        return {
+            std::sin(2 * PI * X.x) * std::sin(2 * PI * X.x), 
+            std::cos(2 * PI * X.y) * std::cos(2 * PI * X.y), 
+            0.0
+        };
+    };
+    
+    // Projection step
+    pressure->project(analytical_p);
+    velocity->project(analytical_u);
+
+    // L2 Errors
+    #include "Quadrature.h"
+    IntegrationSchemeParams schemes_params{};
+    schemes_params.NumIntgPtTriElem = 12;
+    CfemReal lNorm_l2_p {FEField::L2NormDistance(*pressure, analytical_p, schemes_params)};
+    CfemReal lNorm_l2_u {FEField::L2NormDistance(*velocity, analytical_u, schemes_params)};
+    std::cout << "L2 Error norm for P: "  << lNorm_l2_p << std::endl;
+    std::cout << "L2 Error norm for U: "  << lNorm_l2_u << std::endl;
+
+    // Prepare the VTK exporter and add fields for visualization.
+    VTKExporter vtk_exporter(*mesh);
+    // Define which boundary entities to include in the output
+    vtk_exporter.setExportedEntities({"Bottom", "Top", "Right", "Left", "SYS_BOUNDARY"});
+
+    // Add Field to be exported
+    vtk_exporter.addField(*pressure);
+    vtk_exporter.addField(*velocity);
+
+    //Export execution!
+    vtk_exporter.write("square.vtk");
+    
     return 0;
 }
 
