@@ -6,6 +6,7 @@
 #include <sstream>
 #include <petsc.h>
 #include <regex>
+#include "ChronoManager.h"
 
 namespace cfem
 {
@@ -213,6 +214,7 @@ private:
     }
 
     ~Environment() {
+        //cfem::ProfileManager::saveReport("chrono.csv");
         PetscFinalize();
     }
 

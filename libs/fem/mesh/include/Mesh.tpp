@@ -115,6 +115,142 @@ inline std::vector< std::pair< std::vector<CfemInt>, CellType>> getLocalFaces(co
     }
 }
 
+inline LocalFace Mesh::getLocalFaceData(CfemInt cell_id, int face_idx) const {
+    const auto& cell = m_cells[cell_id];
+    const auto& v = cell.vertex_ids;
+    LocalFace lf;
+
+    switch (cell.type) {
+        case CellType::LINE2:
+        case CellType::LINE3:
+            lf.type = CellType::NODE; lf.size = 1;
+            lf.v[0] = v[face_idx]; // face_idx 0 or 1
+            break;
+
+        case CellType::TRI3:
+            lf.type = CellType::LINE2; lf.size = 2;
+            if (face_idx == 0)      { lf.v[0]=v[0]; lf.v[1]=v[1]; }
+            else if (face_idx == 1) { lf.v[0]=v[1]; lf.v[1]=v[2]; }
+            else                    { lf.v[0]=v[2]; lf.v[1]=v[0]; }
+            break;
+
+        case CellType::QUAD4:
+            lf.type = CellType::LINE2; lf.size = 2;
+            lf.v[0] = v[face_idx]; lf.v[1] = v[(face_idx + 1) % 4];
+            break;
+
+        case CellType::TET4:
+            lf.type = CellType::TRI3; lf.size = 3;
+            if (face_idx == 0)      { lf.v[0]=v[0]; lf.v[1]=v[1]; lf.v[2]=v[2]; }
+            else if (face_idx == 1) { lf.v[0]=v[0]; lf.v[1]=v[1]; lf.v[2]=v[3]; }
+            else if (face_idx == 2) { lf.v[0]=v[1]; lf.v[1]=v[2]; lf.v[2]=v[3]; }
+            else                    { lf.v[0]=v[2]; lf.v[1]=v[0]; lf.v[2]=v[3]; }
+            break;
+
+        case CellType::PRISM6:
+            if (face_idx < 2) { lf.type = CellType::TRI3; lf.size = 3; }
+            else              { lf.type = CellType::QUAD4; lf.size = 4; }
+            if (face_idx == 0)      { lf.v[0]=v[0]; lf.v[1]=v[2]; lf.v[2]=v[1]; }
+            else if (face_idx == 1) { lf.v[0]=v[3]; lf.v[1]=v[4]; lf.v[2]=v[5]; }
+            else if (face_idx == 2) { lf.v[0]=v[0]; lf.v[1]=v[1]; lf.v[2]=v[4]; lf.v[3]=v[3]; }
+            else if (face_idx == 3) { lf.v[0]=v[1]; lf.v[1]=v[2]; lf.v[2]=v[5]; lf.v[3]=v[4]; }
+            else                    { lf.v[0]=v[2]; lf.v[1]=v[0]; lf.v[2]=v[3]; lf.v[3]=v[5]; }
+            break;
+
+        case CellType::HEX8:
+            lf.type = CellType::QUAD4; lf.size = 4;
+            if (face_idx == 0)      { lf.v[0]=v[0]; lf.v[1]=v[3]; lf.v[2]=v[2]; lf.v[3]=v[1]; }
+            else if (face_idx == 1) { lf.v[0]=v[4]; lf.v[1]=v[5]; lf.v[2]=v[6]; lf.v[3]=v[7]; }
+            else if (face_idx == 2) { lf.v[0]=v[0]; lf.v[1]=v[1]; lf.v[2]=v[5]; lf.v[3]=v[4]; }
+            else if (face_idx == 3) { lf.v[0]=v[1]; lf.v[1]=v[2]; lf.v[2]=v[6]; lf.v[3]=v[5]; }
+            else if (face_idx == 4) { lf.v[0]=v[2]; lf.v[1]=v[3]; lf.v[2]=v[7]; lf.v[3]=v[6]; }
+            else                    { lf.v[0]=v[3]; lf.v[1]=v[0]; lf.v[2]=v[4]; lf.v[3]=v[7]; }
+            break;
+
+        case CellType::TRI6:
+            lf.type = CellType::LINE3; lf.size = 3;
+            if (face_idx == 0)      { lf.v[0]=v[0]; lf.v[1]=v[1]; lf.v[2]=v[3]; }
+            else if (face_idx == 1) { lf.v[0]=v[1]; lf.v[1]=v[2]; lf.v[2]=v[4]; }
+            else                    { lf.v[0]=v[2]; lf.v[1]=v[0]; lf.v[2]=v[5]; }
+            break;
+
+        case CellType::QUAD9:
+            lf.type = CellType::LINE3; lf.size = 3;
+            if (face_idx == 0)      { lf.v[0]=v[0]; lf.v[1]=v[1]; lf.v[2]=v[4]; }
+            else if (face_idx == 1) { lf.v[0]=v[1]; lf.v[1]=v[2]; lf.v[2]=v[5]; }
+            else if (face_idx == 2) { lf.v[0]=v[2]; lf.v[1]=v[3]; lf.v[2]=v[6]; }
+            else                    { lf.v[0]=v[3]; lf.v[1]=v[0]; lf.v[2]=v[7]; }
+            break;
+
+        case CellType::TET10:
+            lf.type = CellType::TRI6; lf.size = 6;
+            if (face_idx == 0)      { lf.v[0]=v[0]; lf.v[1]=v[1]; lf.v[2]=v[2]; lf.v[3]=v[4]; lf.v[4]=v[5]; lf.v[5]=v[6]; }
+            else if (face_idx == 1) { lf.v[0]=v[0]; lf.v[1]=v[1]; lf.v[2]=v[3]; lf.v[3]=v[4]; lf.v[4]=v[8]; lf.v[5]=v[7]; }
+            else if (face_idx == 2) { lf.v[0]=v[1]; lf.v[1]=v[2]; lf.v[2]=v[3]; lf.v[3]=v[5]; lf.v[4]=v[9]; lf.v[5]=v[8]; }
+            else                    { lf.v[0]=v[2]; lf.v[1]=v[0]; lf.v[2]=v[3]; lf.v[3]=v[6]; lf.v[4]=v[7]; lf.v[5]=v[9]; }
+            break;
+
+        case CellType::PRISM18:
+            if (face_idx < 2) { lf.type = CellType::TRI6; lf.size = 6; }
+            else              { lf.type = CellType::QUAD9; lf.size = 9; }
+            if (face_idx == 0)      { lf.v[0]=v[0]; lf.v[1]=v[2]; lf.v[2]=v[1]; lf.v[3]=v[8]; lf.v[4]=v[7]; lf.v[5]=v[6]; }
+            else if (face_idx == 1) { lf.v[0]=v[3]; lf.v[1]=v[4]; lf.v[2]=v[5]; lf.v[3]=v[9]; lf.v[4]=v[10]; lf.v[5]=v[11]; }
+            else if (face_idx == 2) { lf.v[0]=v[0]; lf.v[1]=v[1]; lf.v[2]=v[4]; lf.v[3]=v[3]; lf.v[4]=v[6]; lf.v[5]=v[13]; lf.v[6]=v[9]; lf.v[7]=v[12]; lf.v[8]=v[15]; }
+            else if (face_idx == 3) { lf.v[0]=v[1]; lf.v[1]=v[2]; lf.v[2]=v[5]; lf.v[3]=v[4]; lf.v[4]=v[7]; lf.v[5]=v[14]; lf.v[6]=v[10]; lf.v[7]=v[13]; lf.v[8]=v[16]; }
+            else                    { lf.v[0]=v[2]; lf.v[1]=v[0]; lf.v[2]=v[3]; lf.v[3]=v[5]; lf.v[4]=v[8]; lf.v[5]=v[12]; lf.v[6]=v[11]; lf.v[7]=v[14]; lf.v[8]=v[17]; }
+            break;
+
+        case CellType::HEX27:
+            lf.type = CellType::QUAD9; lf.size = 9;
+            if (face_idx == 0)      { lf.v[0]=v[0]; lf.v[1]=v[3]; lf.v[2]=v[2]; lf.v[3]=v[1]; lf.v[4]=v[11]; lf.v[5]=v[10]; lf.v[6]=v[9]; lf.v[7]=v[8]; lf.v[8]=v[24]; }
+            else if (face_idx == 1) { lf.v[0]=v[4]; lf.v[1]=v[5]; lf.v[2]=v[6]; lf.v[3]=v[7]; lf.v[4]=v[12]; lf.v[5]=v[13]; lf.v[6]=v[14]; lf.v[7]=v[15]; lf.v[8]=v[25]; }
+            else if (face_idx == 2) { lf.v[0]=v[0]; lf.v[1]=v[1]; lf.v[2]=v[5]; lf.v[3]=v[4]; lf.v[4]=v[8]; lf.v[5]=v[17]; lf.v[6]=v[12]; lf.v[7]=v[16]; lf.v[8]=v[22]; }
+            else if (face_idx == 3) { lf.v[0]=v[1]; lf.v[1]=v[2]; lf.v[2]=v[6]; lf.v[3]=v[5]; lf.v[4]=v[9]; lf.v[5]=v[18]; lf.v[6]=v[13]; lf.v[7]=v[17]; lf.v[8]=v[21]; }
+            else if (face_idx == 4) { lf.v[0]=v[2]; lf.v[1]=v[3]; lf.v[2]=v[7]; lf.v[3]=v[6]; lf.v[4]=v[10]; lf.v[5]=v[19]; lf.v[6]=v[14]; lf.v[7]=v[18]; lf.v[8]=v[23]; }
+            else                    { lf.v[0]=v[3]; lf.v[1]=v[0]; lf.v[2]=v[4]; lf.v[3]=v[7]; lf.v[4]=v[11]; lf.v[5]=v[16]; lf.v[6]=v[15]; lf.v[7]=v[19]; lf.v[8]=v[25]; }
+            break;
+
+        default: break;
+    }
+    return lf;
+}
+
+inline int Mesh::getLocalFacesCount(CellType type) const {
+    switch (type) {
+        case CellType::LINE2:  return 2;
+        case CellType::TRI3:  return 3;
+        case CellType::QUAD4: return 4;
+        case CellType::TET4:  return 4;
+        case CellType::HEX8:  return 6;
+        case CellType::LINE3:  return 3;
+        case CellType::TRI6:  return 3;
+        case CellType::QUAD9: return 4;
+        case CellType::TET10:  return 4;
+        case CellType::PRISM6:  return 5;
+        case CellType::HEX27:  return 6;
+
+        default: return 0;
+    }
+}
+
+inline int Mesh::findLocalFaceIndex(CfemInt cell_id, const LocalFace& target) const {
+    const int n = getLocalFacesCount(m_cells[cell_id].type);
+    for (int i = 0; i < n; ++i) {
+        LocalFace other = getLocalFaceData(cell_id, i);
+        if (other.size != target.size) continue;
+        
+        bool match = true;
+        for (int j = 0; j < target.size; ++j) {
+            if (!other.contains(target.v[j])) {
+                match = false;
+                break;
+            }
+        }
+        if (match) return i;
+    }
+    return -1;
+}
+
 inline CfemInt Mesh::getMidpoint(CfemInt p_edgeFirstVertexId,
                                  CfemInt p_edgeSecondVertexId,
                                  std::map<std::pair<CfemInt, CfemInt>, CfemInt> &edge_to_midpoint)
@@ -316,6 +452,78 @@ inline void Mesh::getElementCoordinates(CfemInt elementId, cfem::DynamicVector<c
  * @param subDiv
  * @param names
  */
+// inline void QuadMeshBuilder::build(Mesh &mesh, 
+//                                    MeshOrder order,
+//                                    const Subdivisions& subDiv,
+//                                    const Corners &corners,
+//                                    ElementType elemType,
+//                                    const BoundaryNames &names)
+// {
+//     PROFILE_SCOPE("QuadMeshBuilder::build");
+//     mesh.clear();
+//     mesh.setDimension(2);
+//     mesh.setOrder(MeshOrder::Linear);
+//     int nodeRows = subDiv.Nx + 1;
+//     int nodeCols = subDiv.Ny + 1;
+//     std::vector<CfemInt> gridIds(nodeRows * nodeCols);
+//     // 1. Vertices
+//     for (int j = 0; j < nodeCols; ++j)
+//     {
+//         double v = static_cast<double>(j) / subDiv.Ny;
+//         for (int i = 0; i < nodeRows; ++i)
+//         {
+//             double u = static_cast<double>(i) / subDiv.Nx;
+//             cfem::Vector3D p = corners.P0 * ((1 - u) * (1 - v)) + corners.P1 * (u * (1 - v)) +
+//                          corners.P2 * (u * v) + corners.P3 * ((1 - u) * v);
+//             gridIds[j * nodeRows + i] = mesh.addVertex(p.x, p.y, p.z);
+//         }
+//     }
+//     // 2. Cells Generation (Fixed the break in FirstDiagonal)
+//     for (int j = 0; j < subDiv.Ny; ++j)
+//     {
+//         for (int i = 0; i < subDiv.Nx; ++i)
+//         {
+//             CfemInt v0 = gridIds[j * nodeRows + i];
+//             CfemInt v1 = gridIds[j * nodeRows + (i + 1)];
+//             CfemInt v2 = gridIds[(j + 1) * nodeRows + (i + 1)];
+//             CfemInt v3 = gridIds[(j + 1) * nodeRows + i];
+//             switch (elemType)
+//             {
+//             case ElementType::None:
+//                 mesh.addCell(CellType::QUAD4, {v0, v1, v2, v3});
+//                 break;
+//             case ElementType::FirstDiagonal:
+//                 mesh.addCell(CellType::TRI3, {v0, v1, v2});
+//                 mesh.addCell(CellType::TRI3, {v0, v2, v3});
+//                 break;
+//             case ElementType::SecondDiagonal:
+//                 mesh.addCell(CellType::TRI3, {v1, v2, v3});
+//                 mesh.addCell(CellType::TRI3, {v1, v3, v0});
+//                 break;
+//             case ElementType::CrissCross:
+//             {
+//                 cfem::Vector3D midP = (mesh.getVertex(v0).coords + mesh.getVertex(v2).coords) * 0.5;
+//                 CfemInt vMid = mesh.addVertex(midP.x, midP.y, midP.z);
+//                 mesh.addCell(CellType::TRI3, {v0, v1, vMid});
+//                 mesh.addCell(CellType::TRI3, {v1, v2, vMid});
+//                 mesh.addCell(CellType::TRI3, {v2, v3, vMid});
+//                 mesh.addCell(CellType::TRI3, {v3, v0, vMid});
+//                 break;
+//             }
+//             }
+//         }
+//     }
+//     // 3. Finalize Topology
+//     mesh.buildMesh();
+    
+//     if (order == MeshOrder::Quadratic)
+//     {
+//         mesh.upgradeToQuadratic();
+//     }
+//     // 4. Tag Boundaries
+//     applyBoundaryTags(mesh, subDiv.Nx, subDiv.Ny, gridIds, names);
+// }
+
 inline void QuadMeshBuilder::build(Mesh &mesh, 
                                    MeshOrder order,
                                    const Subdivisions& subDiv,
@@ -323,67 +531,105 @@ inline void QuadMeshBuilder::build(Mesh &mesh,
                                    ElementType elemType,
                                    const BoundaryNames &names)
 {
+    PROFILE_SCOPE("QuadMeshBuilder::build");
     mesh.clear();
     mesh.setDimension(2);
     mesh.setOrder(MeshOrder::Linear);
-    int nodeRows = subDiv.Nx + 1;
-    int nodeCols = subDiv.Ny + 1;
+
+    const int nodeRows = subDiv.Nx + 1;
+    const int nodeCols = subDiv.Ny + 1;
+    const int numQuads = subDiv.Nx * subDiv.Ny;
+
+    int totalVertices = nodeRows * nodeCols;
+    if (elemType == ElementType::CrissCross) {
+        totalVertices += numQuads; // Add one vertex for the center of every quad
+    }
+    
+    // 1. Pre-allocate everything to avoid reallocations and memory spikes
     std::vector<CfemInt> gridIds(nodeRows * nodeCols);
-    // 1. Vertices
+    mesh.getVertices().reserve(totalVertices);
+    
+    int cellMultiplier = (elemType == ElementType::CrissCross) ? 4 : 2;
+    if (elemType == ElementType::None) cellMultiplier = 1;
+    mesh.getCells().reserve(numQuads * cellMultiplier);
+
+    // 2. Optimized Vertex Generation
+    // We pre-calculate row vectors to turn bilinear interpolation into simple additions
     for (int j = 0; j < nodeCols; ++j)
     {
         double v = static_cast<double>(j) / subDiv.Ny;
+        // Points along the side edges at height v
+        cfem::Vector3D leftP  = corners.P0 * (1.0 - v) + corners.P3 * v;
+        cfem::Vector3D rightP = corners.P1 * (1.0 - v) + corners.P2 * v;
+        cfem::Vector3D rowVec = rightP - leftP;
+
         for (int i = 0; i < nodeRows; ++i)
         {
             double u = static_cast<double>(i) / subDiv.Nx;
-            cfem::Vector3D p = corners.P0 * ((1 - u) * (1 - v)) + corners.P1 * (u * (1 - v)) +
-                         corners.P2 * (u * v) + corners.P3 * ((1 - u) * v);
+            cfem::Vector3D p = leftP + rowVec * u;
             gridIds[j * nodeRows + i] = mesh.addVertex(p.x, p.y, p.z);
         }
     }
-    // 2. Cells Generation (Fixed the break in FirstDiagonal)
-    for (int j = 0; j < subDiv.Ny; ++j)
-    {
-        for (int i = 0; i < subDiv.Nx; ++i)
-        {
-            CfemInt v0 = gridIds[j * nodeRows + i];
-            CfemInt v1 = gridIds[j * nodeRows + (i + 1)];
-            CfemInt v2 = gridIds[(j + 1) * nodeRows + (i + 1)];
-            CfemInt v3 = gridIds[(j + 1) * nodeRows + i];
-            switch (elemType)
-            {
-            case ElementType::None:
-                mesh.addCell(CellType::QUAD4, {v0, v1, v2, v3});
-                break;
-            case ElementType::FirstDiagonal:
-                mesh.addCell(CellType::TRI3, {v0, v1, v2});
-                mesh.addCell(CellType::TRI3, {v0, v2, v3});
-                break;
-            case ElementType::SecondDiagonal:
-                mesh.addCell(CellType::TRI3, {v1, v2, v3});
-                mesh.addCell(CellType::TRI3, {v1, v3, v0});
-                break;
-            case ElementType::CrissCross:
-            {
-                cfem::Vector3D midP = (mesh.getVertex(v0).coords + mesh.getVertex(v2).coords) * 0.5;
-                CfemInt vMid = mesh.addVertex(midP.x, midP.y, midP.z);
-                mesh.addCell(CellType::TRI3, {v0, v1, vMid});
-                mesh.addCell(CellType::TRI3, {v1, v2, vMid});
-                mesh.addCell(CellType::TRI3, {v2, v3, vMid});
-                mesh.addCell(CellType::TRI3, {v3, v0, vMid});
-                break;
-            }
+
+    // 3. Cell Generation: Move switch OUTSIDE the loop
+    // This allows the CPU to stay in a tight, predictable loop for 8 million iterations
+    auto generateCells = [&](auto func) {
+        for (int j = 0; j < subDiv.Ny; ++j) {
+            for (int i = 0; i < subDiv.Nx; ++i) {
+                CfemInt v0 = gridIds[j * nodeRows + i];
+                CfemInt v1 = gridIds[j * nodeRows + (i + 1)];
+                CfemInt v2 = gridIds[(j + 1) * nodeRows + (i + 1)];
+                CfemInt v3 = gridIds[(j + 1) * nodeRows + i];
+                func(v0, v1, v2, v3);
             }
         }
+    };
+
+    switch (elemType)
+    {
+    case ElementType::None:
+        generateCells([&](CfemInt v0, CfemInt v1, CfemInt v2, CfemInt v3) {
+            mesh.addCell(CellType::QUAD4, {v0, v1, v2, v3});
+        });
+        break;
+
+    case ElementType::FirstDiagonal:
+        generateCells([&](CfemInt v0, CfemInt v1, CfemInt v2, CfemInt v3) {
+            mesh.addCell(CellType::TRI3, {v0, v1, v2});
+            mesh.addCell(CellType::TRI3, {v0, v2, v3});
+        });
+        break;
+
+    case ElementType::SecondDiagonal:
+        generateCells([&](CfemInt v0, CfemInt v1, CfemInt v2, CfemInt v3) {
+            mesh.addCell(CellType::TRI3, {v1, v2, v3});
+            mesh.addCell(CellType::TRI3, {v1, v3, v0});
+        });
+        break;
+
+    case ElementType::CrissCross:
+        generateCells([&](CfemInt v0, CfemInt v1, CfemInt v2, CfemInt v3) {
+            // Midpoint calculation is still expensive, but necessary for CrissCross
+            cfem::Vector3D p0 = mesh.getVertex(v0).coords;
+            cfem::Vector3D p2 = mesh.getVertex(v2).coords;
+            CfemInt vMid = mesh.addVertex((p0.x + p2.x)*0.5, (p0.y + p2.y)*0.5, (p0.z + p2.z)*0.5);
+            mesh.addCell(CellType::TRI3, {v0, v1, vMid});
+            mesh.addCell(CellType::TRI3, {v1, v2, vMid});
+            mesh.addCell(CellType::TRI3, {v2, v3, vMid});
+            mesh.addCell(CellType::TRI3, {v3, v0, vMid});
+        });
+        break;
     }
-    // 3. Finalize Topology
-    mesh.buildMesh();
+
+    // 4. Finalize
+    mesh.buildMesh(); 
     
     if (order == MeshOrder::Quadratic)
     {
+        // Now that buildFacets is fast, this will also be significantly faster
         mesh.upgradeToQuadratic();
     }
-    // 4. Tag Boundaries
+
     applyBoundaryTags(mesh, subDiv.Nx, subDiv.Ny, gridIds, names);
 }
 
@@ -561,6 +807,7 @@ inline void DiskMeshBuilder::build(Mesh &mesh,
 {
     mesh.clear();
     mesh.setOrder(MeshOrder::Linear);
+    mesh.setDimension(2);
 
     CfemInt n = static_cast<int>(std::ceil((2.0 * radius) / target_mesh_size));
     if (n < 1)
@@ -663,7 +910,7 @@ inline void DiskMeshBuilder::build(Mesh &mesh,
 
     mesh.buildMesh();
 
-    mesh.relaxMesh(5);
+    mesh.relaxMesh(10);
 
     if (order == MeshOrder::Quadratic)
     {
@@ -838,124 +1085,69 @@ inline void SphereMeshBuilder::projectBoundaryNodes(
     }
 }
 
-
-inline void Mesh::relaxMesh(int iterations,
-                           double lambda)
+inline void Mesh::relaxMesh(int iterations, double lambda)
 {
+    PROFILE_SCOPE("Mesh::relaxMesh");
+
     const size_t numVertices = getNumVertices();
-    const size_t numCells    = getNumCells();
+    if (numVertices == 0 || m_cells.empty()) return;
 
-    if (numVertices == 0 || numCells == 0)
-        return;
-
-    // --------------------------------------------------
-    // 0. Make sure topology exists
-    // --------------------------------------------------
-#ifdef NDEBUG
-    CFEM_ASSERT(!m_cells.empty());
-#endif
-
-    // --------------------------------------------------
-    // 1. Identify boundary vertices (O(1))
-    // --------------------------------------------------
+    // 1. Identify boundary vertices (O(N))
     std::vector<bool> isBoundary(numVertices, false);
-
-    MeshEntity* boundary = getEntity(cfem::SYS_BOUNDARY_ID);
-    if (boundary)
-    {
-        for (CfemInt id : boundary->getVertexIds())
-        {
-            if (id >= 0 && (size_t)id < numVertices)
-                isBoundary[id] = true;
+    if (MeshEntity* boundary = getEntity(cfem::SYS_BOUNDARY_ID)) {
+        for (CfemInt id : boundary->getVertexIds()) {
+            if (id >= 0 && (size_t)id < numVertices) isBoundary[id] = true;
         }
     }
 
-    // --------------------------------------------------
-    // 2. Build vertex adjacency (once)
-    // --------------------------------------------------
-    std::vector<std::set<CfemInt>> adj(numVertices);
-
-    for (size_t c = 0; c < numCells; ++c)
-    {
-        const Cell& cell = getCell(c);
-        const auto& v    = cell.vertex_ids;
-        const size_t n   = v.size();
-
-        for (size_t i = 0; i < n; ++i)
-        {
-            CfemInt v0 = v[i];
-            CfemInt v1 = v[(i + 1) % n];
-
-            if (v0 >= 0 && v1 >= 0)
-            {
-                adj[v0].insert(v1);
-                adj[v1].insert(v0);
-            }
-        }
-    }
-
-    // --------------------------------------------------
-    // 3. Flatten adjacency (cache-friendly)
-    // --------------------------------------------------
-    std::vector<std::vector<CfemInt>> neighbors(numVertices);
-
-    for (size_t i = 0; i < numVertices; ++i)
-    {
-        neighbors[i].assign(adj[i].begin(), adj[i].end());
-    }
-
-    adj.clear();
-    adj.shrink_to_fit();
-
-    // --------------------------------------------------
-    // 4. Buffers
-    // --------------------------------------------------
+    // 2. Buffers for updates
     std::vector<cfem::Vector3D> nextCoords(numVertices);
+    lambda = std::clamp(lambda, 0.1, 0.9);
 
-    // Clamp lambda
-    if (lambda <= 0.0) lambda = 0.3;
-    if (lambda >= 1.0) lambda = 0.8;
-
-    // --------------------------------------------------
-    // 5. Iterations
-    // --------------------------------------------------
+    // 3. Iterations
     for (int iter = 0; iter < iterations; ++iter)
     {
-
-#pragma omp parallel for schedule(static)
-        for (long i = 0; i < (long)numVertices; ++i)
+        #pragma omp parallel for schedule(static)
+        for (long v_id = 0; v_id < (long)numVertices; ++v_id)
         {
-            // Boundary / isolated nodes
-            if (isBoundary[i] || neighbors[i].empty())
-            {
-                nextCoords[i] = getVertex(i).coords;
+            if (isBoundary[v_id]) {
+                nextCoords[v_id] = m_vertices[v_id].coords;
                 continue;
             }
 
-            // Laplacian average
+            const auto& vertex = m_vertices[v_id];
             cfem::Vector3D sum{0, 0, 0};
+            int neighborCount = 0;
 
-            for (CfemInt j : neighbors[i])
-            {
-                sum = sum + getVertex(j).coords;
+            // --- THE CSR APPROACH ---
+            // Instead of a set, look at all cells sharing this vertex
+            for (CfemInt i = 0; i < vertex.num_connected_cells; ++i) {
+                CfemInt c_id = vertex.connected_cells_ptr[i];
+                const auto& cell_vids = m_cells[c_id].vertex_ids;
+                
+                // In a cell, neighbors are the nodes adjacent to v_id
+                // For simplicity/robustness in any cell type: 
+                // average ALL other nodes in the sharing cells
+                for (CfemInt other_v : cell_vids) {
+                    if (other_v != v_id) {
+                        sum = sum + m_vertices[other_v].coords;
+                        neighborCount++;
+                    }
+                }
             }
 
-            cfem::Vector3D avg = sum * (1.0 / neighbors[i].size());
-            cfem::Vector3D old = getVertex(i).coords;
-
-            // Damped update (Taubin-style lambda step)
-            nextCoords[i] = old + lambda * (avg - old);
+            if (neighborCount > 0) {
+                cfem::Vector3D avg = sum * (1.0 / neighborCount);
+                nextCoords[v_id] = m_vertices[v_id].coords + lambda * (avg - m_vertices[v_id].coords);
+            } else {
+                nextCoords[v_id] = m_vertices[v_id].coords;
+            }
         }
 
-        // --------------------------------------------------
-        // 6. Commit update
-        // --------------------------------------------------
-        for (size_t i = 0; i < numVertices; ++i)
-        {
-            if (!isBoundary[i])
-            {
-                getVertex(i).coords = nextCoords[i];
-            }
+        // 4. Update coordinates
+        #pragma omp parallel for schedule(static)
+        for (long i = 0; i < (long)numVertices; ++i) {
+            if (!isBoundary[i]) m_vertices[i].coords = nextCoords[i];
         }
     }
 }

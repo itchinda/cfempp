@@ -179,3 +179,106 @@ TEST_F(MeshSystemTest, Hex8ToHex27Upgrade) {
 }
 
 // -----------------------------------------------------------------------------
+
+
+#include <memory>
+TEST(MeshTest, InverseConnectivityCSRValidation) {
+    auto mesh = Mesh::create();
+    
+    mesh->setDimension(2);
+    mesh->setOrder(MeshOrder::Linear); 
+    
+    mesh->addVertex(0.0, 0.0, 0.0); // ID 0
+    mesh->addVertex(0.0, 1.0, 0.0); // ID 1
+    mesh->addVertex(1.0, 0.0, 0.0); // ID 2
+    mesh->addVertex(1.0, 1.0, 0.0); // ID 3
+    mesh->addVertex(0.5, 0.5, 0.0); // ID 4
+
+    mesh->addCell(CellType::TRI3, {0, 1, 4}); // Cell 0
+    mesh->addCell(CellType::TRI3, {1, 2, 4}); // Cell 1
+    mesh->addCell(CellType::TRI3, {2, 3, 4}); // Cell 2
+    mesh->addCell(CellType::TRI3, {3, 0, 4}); // Cell 3
+
+    mesh->buildMesh(); 
+
+    // 4. Validation: Check Vertex 1 (should be connected to Cell 0 and Cell 1)
+    const auto& v1 = mesh->getVertices()[1];
+    
+    ASSERT_EQ(v1.num_connected_cells, 2) 
+        << "Vertex 1 should be connected to exactly 2 cells.";
+    ASSERT_NE(v1.connected_cells_ptr, nullptr);
+
+    // Collect IDs from the CSR pointer
+    std::vector<CfemInt> connected_ids;
+    for (CfemInt i = 0; i < v1.num_connected_cells; ++i) {
+        connected_ids.push_back(v1.connected_cells_ptr[i]);
+    }
+
+    // Sort to ensure order doesn't fail the test
+    std::sort(connected_ids.begin(), connected_ids.end());
+
+    EXPECT_EQ(connected_ids[0], 0);
+    EXPECT_EQ(connected_ids[1], 1);
+
+    const auto& v4 = mesh->getVertices()[4];
+    EXPECT_EQ(v4.num_connected_cells, 4);
+}
+
+TEST(MeshTopologyTest, BuildFacetsConnectivity) {
+    auto mesh = Mesh::create();
+    
+    mesh->setDimension(2);
+    mesh->setOrder(MeshOrder::Linear); 
+    
+    mesh->addVertex(0.0, 0.0, 0.0); // ID 0
+    mesh->addVertex(0.0, 1.0, 0.0); // ID 1
+    mesh->addVertex(1.0, 0.0, 0.0); // ID 2
+    mesh->addVertex(1.0, 1.0, 0.0); // ID 3
+    mesh->addVertex(0.5, 0.5, 0.0); // ID 4
+
+    mesh->addCell(CellType::TRI3, {0, 1, 4}); // Cell 0
+    mesh->addCell(CellType::TRI3, {1, 2, 4}); // Cell 1
+    mesh->addCell(CellType::TRI3, {2, 3, 4}); // Cell 2
+    mesh->addCell(CellType::TRI3, {3, 0, 4}); // Cell 3
+
+    mesh->buildMesh(); 
+
+    const auto& facets = mesh->getFacets();
+
+    // 3. Verification
+    EXPECT_EQ(facets.size(), 8);
+
+    int internalCount = 0;
+    int boundaryCount = 0;
+    bool sharedEdgeFound = false;
+
+    for (const auto& f : facets) {
+        std::set<CfemInt> v_set(f.vertex_ids.begin(), f.vertex_ids.end());
+        if (f.right_cell != -1) {
+            internalCount++;
+            
+            // Check the shared edge {0, 2}
+            // Use std::set or sort to check vertex equality regardless of order
+            std::set<CfemInt> expected_set = {1, 4};
+            
+            if (v_set == expected_set) {
+                sharedEdgeFound = true;
+                // Verify left/right connectivity
+                EXPECT_TRUE((f.left_cell == 0 && f.right_cell == 1) || 
+                            (f.left_cell == 1 && f.right_cell == 0));
+            }
+        } else {
+            boundaryCount++;
+
+            std::set<CfemInt> expected_set = {0, 3};
+            if (v_set == expected_set) {
+                // Verify left/right connectivity
+                EXPECT_TRUE((f.left_cell == 3 && f.right_cell == -1));
+            }
+        }
+    }
+
+    EXPECT_EQ(internalCount, 4) << "There should be exactly 4 shared edge.";
+    EXPECT_EQ(boundaryCount, 4) << "There should be 4 boundary edges.";
+    EXPECT_TRUE(sharedEdgeFound) << "The facet connecting vertex 1 and 4 was not found.";
+}

@@ -29,7 +29,7 @@
 #include "Vector3D.h"
 #include "DynamicVector.h"
 
-
+constexpr int MAX_CELL_TYPES {static_cast<int>(cfem::CellType::COUNT)};
 namespace cfem{
 
 class FESpace;
@@ -39,6 +39,30 @@ struct TagGroup {
     int internal_id;
 };
 
+/**
+ * @brief Stack-allocated facet representation to avoid heap allocation.
+ */
+struct LocalFace {
+    CfemInt v[9]; // Capacity for QUAD9 nodes
+    int size = 0;
+    CellType type = CellType::NODE;
+
+    bool contains(CfemInt v_id) const {
+        for (int i = 0; i < size; ++i) if (v[i] == v_id) return true;
+        return false;
+    }
+    
+    // Check if another LocalFace matches this one (topology-independent)
+    bool matches(const LocalFace& other) const {
+        if (size != other.size) return false;
+        // Since nodes in facets are usually few, this nested loop is faster 
+        // than sorting for 8 million elements.
+        for (int i = 0; i < size; ++i) {
+            if (!other.contains(v[i])) return false;
+        }
+        return true;
+    }
+};
 
 enum class MeshOrder{ None, Linear = 1, Quadratic = 2};
 
@@ -139,7 +163,7 @@ public:
     CfemInt getDimFromType(CellType type) const;
     MeshOrder getCellOrderFromType(CellType type) const;
     void getCellVerticesCoords(CfemInt cell_id, DynamicVector<Vector3D>& v_coords) const;
-
+    const std::vector<CellType>& getCellTypesPresent() const { return m_uniqueTypes; }
     CfemReal computeCellQuality(CfemInt cellId) const;
 
     void clear() {
@@ -178,6 +202,12 @@ private:
 
     std::vector<std::weak_ptr<FESpace>> m_observers; // list of FESpace attached to the mesh
 
+    std::bitset<MAX_CELL_TYPES> m_typeFlags;
+    // Compact list for easy iteration
+    std::vector<CellType> m_uniqueTypes;
+
+    std::vector<CfemInt> m_globalConnectivity;
+
     void checkInvariant() const{
         CFEM_INVARIANT(m_meshDim >= 0 && m_meshDim <= 3);
         if (m_meshDim==0 || m_meshOrder == MeshOrder::None){
@@ -203,6 +233,10 @@ private:
     CfemReal computeTriQuality(const std::vector<CfemInt>& v) const;
     CfemReal computeQuadQuality(const std::vector<CfemInt>& v) const;
     CfemReal computeTetQuality(const std::vector<CfemInt>& v) const;
+
+    int getLocalFacesCount(CellType type) const;
+    LocalFace getLocalFaceData(CfemInt cell_id, int face_idx) const;
+    int findLocalFaceIndex(CfemInt cell_id, const LocalFace& target) const;
 
 };
 
