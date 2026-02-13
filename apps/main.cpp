@@ -28,9 +28,9 @@ int main(int argc, char **argv)
 {
     // Initializes PETSc/MPI via RAII. Finalization is handled automatically at exit.
     cfem::Environment::initialize(argc, argv, help);
-
+    {
         PROFILE_SCOPE("Main");
-        {
+        
         // Creates a [-1, 1] x [-1, 1] square mesh with 10,000 quadratic elements.
         // auto mesh = QuadMeshBuilder::create(
         //     MeshOrder::Linear,
