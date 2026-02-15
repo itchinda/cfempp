@@ -359,7 +359,7 @@ namespace cfem
         std::stringstream ss;
         ss << "\n================ MESH SUMMARY ================" << std::endl;
         ss << " Dimension: " << getDimension() << "D" << std::endl;
-        ss << " Order:     " << (getOrder() == MeshOrder::Linear ? "Lineae" : (getOrder() == MeshOrder::Quadratic) ? "Quadratic"
+        ss << " Order:     " << (getOrder() == MeshOrder::Linear ? "Linear" : (getOrder() == MeshOrder::Quadratic) ? "Quadratic"
                                                                                                                    : "None")
            << std::endl;
         ss << " Vertices:  " << getNumVertices() << std::endl;
@@ -451,6 +451,9 @@ namespace cfem
 
     void Mesh::upgradeToQuadratic()
     {
+#ifndef NDEBUG
+        CFEM_INFO( "Upgrading the mesh to quadratic... ");
+#endif
         if (this->isQuadratic())
             return;
 
@@ -517,6 +520,12 @@ namespace cfem
                 it = m_observers.erase(it); // Nettoyage automatique
             }
         }
+
+#ifndef NDEBUG
+        CFEM_INFO( "Mesh successfully upgraded to quadratic." );
+        CFEM_INFO( this->info() );
+#endif
+
     }
 
     void Mesh::addObserver(std::shared_ptr<FESpace> space)

@@ -500,7 +500,7 @@ inline void Mesh::getElementCoordinates(CfemInt elementId, cfem::DynamicVector<c
 //                 mesh.addCell(CellType::TRI3, {v1, v2, v3});
 //                 mesh.addCell(CellType::TRI3, {v1, v3, v0});
 //                 break;
-//             case ElementType::CrissCross:
+//             case ElementType::TriangleCrissCross:
 //             {
 //                 cfem::Vector3D midP = (mesh.getVertex(v0).coords + mesh.getVertex(v2).coords) * 0.5;
 //                 CfemInt vMid = mesh.addVertex(midP.x, midP.y, midP.z);
@@ -541,7 +541,7 @@ inline void QuadMeshBuilder::build(Mesh &mesh,
     const int numQuads = subDiv.Nx * subDiv.Ny;
 
     int totalVertices = nodeRows * nodeCols;
-    if (elemType == ElementType::CrissCross) {
+    if (elemType == ElementType::TriangleCrissCross) {
         totalVertices += numQuads; // Add one vertex for the center of every quad
     }
     
@@ -549,8 +549,8 @@ inline void QuadMeshBuilder::build(Mesh &mesh,
     std::vector<CfemInt> gridIds(nodeRows * nodeCols);
     mesh.getVertices().reserve(totalVertices);
     
-    int cellMultiplier = (elemType == ElementType::CrissCross) ? 4 : 2;
-    if (elemType == ElementType::None) cellMultiplier = 1;
+    int cellMultiplier = (elemType == ElementType::TriangleCrissCross) ? 4 : 2;
+    if (elemType == ElementType::Quadrilateral) cellMultiplier = 1;
     mesh.getCells().reserve(numQuads * cellMultiplier);
 
     // 2. Optimized Vertex Generation
@@ -587,27 +587,27 @@ inline void QuadMeshBuilder::build(Mesh &mesh,
 
     switch (elemType)
     {
-    case ElementType::None:
+    case ElementType::Quadrilateral:
         generateCells([&](CfemInt v0, CfemInt v1, CfemInt v2, CfemInt v3) {
             mesh.addCell(CellType::QUAD4, {v0, v1, v2, v3});
         });
         break;
 
-    case ElementType::FirstDiagonal:
+    case ElementType::TriangleFirstDiag:
         generateCells([&](CfemInt v0, CfemInt v1, CfemInt v2, CfemInt v3) {
             mesh.addCell(CellType::TRI3, {v0, v1, v2});
             mesh.addCell(CellType::TRI3, {v0, v2, v3});
         });
         break;
 
-    case ElementType::SecondDiagonal:
+    case ElementType::TriangleSecondDiag:
         generateCells([&](CfemInt v0, CfemInt v1, CfemInt v2, CfemInt v3) {
             mesh.addCell(CellType::TRI3, {v1, v2, v3});
             mesh.addCell(CellType::TRI3, {v1, v3, v0});
         });
         break;
 
-    case ElementType::CrissCross:
+    case ElementType::TriangleCrissCross:
         generateCells([&](CfemInt v0, CfemInt v1, CfemInt v2, CfemInt v3) {
             // Midpoint calculation is still expensive, but necessary for CrissCross
             cfem::Vector3D p0 = mesh.getVertex(v0).coords;
@@ -776,11 +776,11 @@ inline void CubicMeshBuilder::build(Mesh& mesh,
                 CfemInt v6 = gridIdx(i + 1, j + 1, k + 1);
                 CfemInt v7 = gridIdx(i, j + 1, k + 1);
 
-                if (elemType == ElementType::None)
+                if (elemType == ElementType::Hexahedron)
                 {
                     mesh.addCell(CellType::HEX8, {v0, v1, v2, v3, v4, v5, v6, v7});
                 }
-                else if (elemType == ElementType::SixTet)
+                else if (elemType == ElementType::Tetrahedron)
                 {
                     mesh.addCell(CellType::TET4, {v0, v1, v3, v4});
                     mesh.addCell(CellType::TET4, {v1, v3, v4, v5});

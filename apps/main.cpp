@@ -41,19 +41,35 @@ int main(int argc, char **argv)
         //         Vector3D{ 1.,  1., 0.}, // Top-Right
         //         Vector3D{-1.,  1., 0.}  // Top-Left
         //     },
-        //     QuadMeshBuilder::ElementType::CrissCross
+        //     QuadMeshBuilder::ElementType::TriangleCrissCross
         // );
 
-        auto mesh = DiskMeshBuilder::create(
-            MeshOrder::Linear,
-            1.0/1000,
-            Vector3D{0., 0., 0.},
-            1.0,
-            DiskMeshBuilder::ElementType::Triangle
+        auto mesh = CubicMeshBuilder::create(
+            MeshOrder::Quadratic,
+            CubicMeshBuilder::Subdivisions{100, 100, 100},
+            CubicMeshBuilder::Corners{
+                Vector3D{-1., -1., -1.},
+                Vector3D{ 1., -1., -1.},
+                Vector3D{ 1.,  1., -1.},
+                Vector3D{-1.,  1., -1.},
+                Vector3D{-1., -1., 1.},
+                Vector3D{ 1., -1., 1.},
+                Vector3D{ 1.,  1., 1.},
+                Vector3D{-1.,  1., 1.} 
+            },
+            CubicMeshBuilder::ElementType::Tetrahedron
         );
+        
+        // auto mesh = DiskMeshBuilder::create(
+        //     MeshOrder::Linear,
+        //     1.0/1000,
+        //     Vector3D{0., 0., 0.},
+        //     1.0,
+        //     DiskMeshBuilder::ElementType::Triangle
+        // );
 
         // Define the polynomial basis on the mesh.
-        auto p1Space = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);   // Pressure (Linear)
+        auto p1Space = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);   // Pressure (Linear)
         auto p2Space = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D); // Velocity (Quadratic)
 
         // Associate physical fields with their respective function spaces.
@@ -64,22 +80,19 @@ int main(int argc, char **argv)
         const CfemReal PI = cfem::pi;
 
         auto analytical_p = [&](const Vector3D &X) -> CfemReal {
-            // return std::sin(2 * PI * X.x) * std::cos(2 * PI * X.y);
-            return X.x * X.x + X.y * X.y + X.x*X.y + X.x + X.y + 1;
+            return X.x * X.x + X.y * X.y + X.z * X.z + X.x*X.y + X.x*X.z + X.z*X.y + X.x + X.y + X.z + 1;
         };
 
         auto analytical_u = [&](const Vector3D &X) -> Vector3D {
             return {
-                std::sin(2 * PI * X.x) * std::sin(2 * PI * X.x), 
-                std::cos(2 * PI * X.y) * std::cos(2 * PI * X.y), 
-                0.0
+                std::sin(2 * PI * X.x) * std::sin(2 * PI * X.y) * std::sin(2 * PI * X.z), 
+                std::cos(2 * PI * X.x) * std::cos(2 * PI * X.y) * std::cos(2 * PI * X.z), 
+                std::cos(2 * PI * X.y) * std::sin(2 * PI * X.y) * std::cos(2 * PI * X.z)
             };
         };
 
         pressure->project(analytical_p);
         velocity->project(analytical_u);
-
-        //std::cout << mesh->info() << std::endl;
 
         #include "Quadrature.h"
 
@@ -95,14 +108,13 @@ int main(int argc, char **argv)
         VTKExporter vtk_exporter(*mesh);
 
         // // Define which boundary entities to include in the output
-        vtk_exporter.setExportedEntities({"Bottom", "Top", "Right", "Left", "SYS_BOUNDARY"});
+        //vtk_exporter.setExportedEntities({"Bottom", "Top", "Right", "Left", "SYS_BOUNDARY"});
 
         vtk_exporter.addField(*pressure);
         vtk_exporter.addField(*velocity);
-        vtk_exporter.write("square.vtk");
+        vtk_exporter.write("cube.vtk");
 
         // // Print mesh statistics and entity formatting for verification.
-        std::cout << mesh->info() << std::endl;
 
         // for (const auto &ent : mesh->getEntities()) {
         //     std::cout << "Entity: " << ent->getEntityFormat() << std::endl;

@@ -36,7 +36,7 @@ TEST_F(MeshSystemTest, QuadraticNodePlacementAccuracy) {
     QuadMeshBuilder::Corners corners{ Vector3D{0,0,0}, Vector3D{10,0,0}, Vector3D{10,10,0}, Vector3D{0,10,0} };
     mesh = QuadMeshBuilder::create( MeshOrder::Quadratic, 
                                     QuadMeshBuilder::Subdivisions{1,1}, corners, 
-                                    QuadMeshBuilder::ElementType::None, {});
+                                    QuadMeshBuilder::ElementType::Quadrilateral, {});
 
     // For a QUAD9, we expect nodes 4, 5, 6, 7 to be mid-edges.
     const auto& cell = mesh->getCell(0);
@@ -60,7 +60,7 @@ TEST_F(MeshSystemTest, QuadraticNodeSharingBetweenElements) {
     QuadMeshBuilder::Corners corners{ Vector3D{0,0,0}, Vector3D{2,0,0}, Vector3D{2,1,0}, Vector3D{0,1,0} };
     mesh = QuadMeshBuilder::create( MeshOrder::Quadratic, 
                                     QuadMeshBuilder::Subdivisions{2,1}, corners, 
-                                    QuadMeshBuilder::ElementType::None, {});
+                                    QuadMeshBuilder::ElementType::Quadrilateral, {});
 
     // Linear nodes: (2+1)*(1+1) = 6
     // Edges: 7 (3 horizontal, 4 vertical). 
@@ -76,7 +76,7 @@ TEST_F(MeshSystemTest, CrissCrossTopologyTest) {
     QuadMeshBuilder::Corners corners = {
         Vector3D{0,0,0}, Vector3D{1,0,0}, Vector3D{1,1,0}, Vector3D{0,1,0}
     };
-    mesh = QuadMeshBuilder::create(MeshOrder::Linear, QuadMeshBuilder::Subdivisions{1,1}, corners, QuadMeshBuilder::ElementType::CrissCross);
+    mesh = QuadMeshBuilder::create(MeshOrder::Linear, QuadMeshBuilder::Subdivisions{1,1}, corners, QuadMeshBuilder::ElementType::TriangleCrissCross);
 
     EXPECT_EQ(mesh->getNumCells(), 4);
     EXPECT_EQ(mesh->getNumVertices(), 5); // 4 corners + 1 center
@@ -93,7 +93,7 @@ TEST_F(MeshSystemTest, CubicTrilinearInterpolation) {
         Vector3D{0,0,0}, Vector3D{2,0,0}, Vector3D{2,2,0}, Vector3D{0,2,0},
         Vector3D{0,0,2}, Vector3D{2,0,2}, Vector3D{2,2,2}, Vector3D{0,2,2}
     };
-    mesh = CubicMeshBuilder::create(MeshOrder::Linear, CubicMeshBuilder::Subdivisions{2,2,2}, corners, CubicMeshBuilder::ElementType::None);
+    mesh = CubicMeshBuilder::create(MeshOrder::Linear, CubicMeshBuilder::Subdivisions{2,2,2}, corners, CubicMeshBuilder::ElementType::Hexahedron);
 
     // The center vertex of a 2x2x2 grid should be exactly at (1,1,1)
     // In a (nx+1) grid, index for (1,1,1) is k*(3*3) + j*3 + i => 1*9 + 1*3 + 1 = 13
@@ -111,7 +111,7 @@ TEST_F(MeshSystemTest, BoundaryTaggingCompleteness) {
     QuadMeshBuilder::Corners corners = {
         Vector3D{0,0,0}, Vector3D{1,0,0}, Vector3D{1,1,0}, Vector3D{0,1,0}
     };
-    mesh = QuadMeshBuilder::create(MeshOrder::Linear, QuadMeshBuilder::Subdivisions{10,10}, corners, QuadMeshBuilder::ElementType::None, names);
+    mesh = QuadMeshBuilder::create(MeshOrder::Linear, QuadMeshBuilder::Subdivisions{10,10}, corners, QuadMeshBuilder::ElementType::Quadrilateral, names);
 
     auto* top = mesh->getEntity("Top");
     auto* bottom = mesh->getEntity("Bottom");
@@ -163,7 +163,7 @@ TEST_F(MeshSystemTest, Hex8ToHex27Upgrade) {
         Vector3D{0,0,0}, Vector3D{1,0,0}, Vector3D{1,1,0}, Vector3D{0,1,0},
         Vector3D{0,0,1}, Vector3D{1,0,1}, Vector3D{1,1,1}, Vector3D{0,1,1}
     };
-    mesh = CubicMeshBuilder::create(MeshOrder::Linear, CubicMeshBuilder::Subdivisions{1,1,1}, corners, CubicMeshBuilder::ElementType::None);
+    mesh = CubicMeshBuilder::create(MeshOrder::Linear, CubicMeshBuilder::Subdivisions{1,1,1}, corners, CubicMeshBuilder::ElementType::Hexahedron);
     
     mesh->upgradeToQuadratic();
 
