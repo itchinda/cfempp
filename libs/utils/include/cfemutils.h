@@ -3,13 +3,16 @@
 
 #include <petscsys.h>
 #include <vector>
+#include <type_traits>
 #include "ContractException.h"
 #include "ChronoManager.h"
+//#include "numeric_policy.h"
 
 // CFEM TYPES
-using CfemInt = PetscInt;
+using CfemInt = int;
 using CfemIntFlag = uint8_t;
-using CfemReal = PetscReal;
+using CfemReal = double;
+    CFEM_STATIC_ASSERT((std::is_same_v<CfemReal,double>), "SymbolicEvaluator requires CfemReal = double.");
 
 /**
  * @brief Namspace for CFEM++ types and objects
@@ -48,35 +51,26 @@ namespace cfem
     constexpr CfemInt SYS_BOUNDARY_ID = -2;
 
 
-    // class Environment {
-    // public:
-    //     // The user calls this once in main
-    //     static void initialize(int &argc, char **&argv, const char* help = nullptr) {
-    //         instance(); // ensures life
-    //         PetscInitialize(&argc, &argv, nullptr, help);
-    //     }
+    struct NumericPolicy
+    {
+        static constexpr CfemReal relative_tol =
+            1e3 * std::numeric_limits<CfemReal>::epsilon();
 
-    //     static void ensureInitialized() {
-    //     PetscBool initialized = PETSC_FALSE;
-    //     PetscInitialized(&initialized);
-    //     if (!initialized) {
-    //         throw std::runtime_error(
-    //             "[CFEM ERROR] PETSc not initialized.\n"
-    //             "You must call cfem::Environment::initialize(...) "
-    //             "before using CFEM objects."
-    //         );
-    //     }
-    // }
+        static constexpr CfemReal absolute_tol =
+            1e2 * std::numeric_limits<CfemReal>::epsilon();
 
-    // private:
-    //     Environment() {} 
-    //     ~Environment() { PetscFinalize(); }
-        
-    //     static Environment& instance() {
-    //         static Environment env; // Guaranteed to be destroyed at program end
-    //         return env;
-    //     }
-    // };
+        static bool isZero(CfemReal value, CfemReal scale = 1.0)
+        {
+            return std::abs(value) <=
+                   relative_tol * scale + absolute_tol;
+        }
+
+        static bool areEqual(CfemReal a, CfemReal b, CfemReal scale = 1.0)
+        {
+            return std::abs(a - b) <=
+                   relative_tol * scale + absolute_tol;
+        }
+    };
 
 } // namespace
 

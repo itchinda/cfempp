@@ -109,8 +109,8 @@ protected:
                                    const DynamicVector<Vector3D>& nodes) {
         ShapeInfo shape;
         MappingInfo map;
-        shape.setup(ref.numNodes());
-        map.setup(ref.numNodes());
+        shape.setup(ref.getNumNodes());
+        map.setup(ref.getNumNodes());
 
         CfemReal volume = 0.0;
         for (const auto& pt : quad.getPoints()) {
@@ -165,7 +165,7 @@ TEST_F(MappingAccuracyTest, TransformedTriangle3) {
 TEST_F(MappingAccuracyTest, InterpolationConsistency) {
     Q1ReferenceQuad ref;
     ShapeInfo shape;
-    shape.setup(ref.numNodes());
+    shape.setup(ref.getNumNodes());
     
     // On définit un carré de côté 2, centré sur (5,5)
     DynamicVector<Vector3D> nodes(4);
@@ -265,8 +265,8 @@ TEST_F(MappingAccuracyTest, PolynomialIntegrationOnRealElement) {
     
     ShapeInfo shape;
     MappingInfo map;
-    shape.setup(ref.numNodes());
-    map.setup(ref.numNodes());
+    shape.setup(ref.getNumNodes());
+    map.setup(ref.getNumNodes());
 
     // 1. Définir un triangle réel arbitraire (Aire = 2.0)
     // Noeuds : (1,1), (3,1), (1,3)

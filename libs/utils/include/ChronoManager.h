@@ -16,6 +16,7 @@ namespace cfem
         std::string name;
         double durationMs;
         long memDiffKB;
+        long totalMemKB;
     };
 
     class Profiler
@@ -45,24 +46,25 @@ namespace cfem
             return 0;
         }
 
-        void addRecord(std::string name, double time, long mem)
-        {
-            records.push_back({name, time, mem});
+        // void addRecord(std::string name, double time, long mem)
+        // {
+        //     records.push_back({name, time, mem});
+        // }
+
+        void addRecord(std::string name, double time, long diff, long total) {
+            records.push_back({name, time, diff, total});
         }
 
-        void saveAndPlot(std::string filename = "profile_results.csv")
+        void saveProfiler(std::string filename = "profile_results.csv") 
         {
             std::ofstream file(filename);
-            if (!file.is_open())
-                return;
+            if (!file.is_open()) return;
 
-            file << "Method,TotalTime(ms),MemDiff(KB)\n";
-            for (const auto &r : records)
-            {
-                file << r.name << "," << r.durationMs << "," << r.memDiffKB << "\n";
+            file << "Method,TotalTime(ms),MemDiff(KB),TotalPeakMem(KB)\n";
+            for (const auto &r : records) {
+                file << r.name << "," << r.durationMs << "," << r.memDiffKB << "," << r.totalMemKB << "\n";
             }
             file.close();
-
 #ifndef NDEBUG
             CFEM_INFO("Profiler Exported to " + filename + ".\n");
 #endif
@@ -83,15 +85,15 @@ namespace cfem
             start = std::chrono::high_resolution_clock::now();
         }
 
-        ~ProfilingScope()
-        {
+        ~ProfilingScope() {
             auto end = std::chrono::high_resolution_clock::now();
             size_t endMem = Profiler::instance().getRSS();
 
             double duration = std::chrono::duration<double, std::milli>(end - start).count();
-            long memDiff = (long)(endMem - startMem) / 1024; // Convert to KB
+            long memDiff = (long)(endMem - startMem) / 1024;
+            long totalPeak = (long)endMem / 1024; // Absolute memory usage
 
-            Profiler::instance().addRecord(name, duration, memDiff);
+            Profiler::instance().addRecord(name, duration, memDiff, totalPeak);
         }
     };
 

@@ -21,62 +21,26 @@ LagrangeSpace::LagrangeSpace(ConstructorToken, std::shared_ptr<Mesh> mesh, Order
 void LagrangeSpace::initReferenceElements() {
     m_refElements.clear();
 
-    // if (m_order == Order::P1) {
-        if (m_mesh->getDimension() == 1){
-            m_refElements[CellType::LINE2] = std::make_unique<P1ReferenceSegment>();
-            m_refElements[CellType::LINE3] = std::make_unique<P2ReferenceSegment>();
-        }
-        else if (m_mesh->getDimension() == 2) {
-            m_refElements[CellType::TRI3] = std::make_unique<P1ReferenceTriangle>();
-            m_refElements[CellType::QUAD4]     = std::make_unique<Q1ReferenceQuad>();
-            m_refElements[CellType::TRI6] = std::make_unique<P2ReferenceTriangle>();
-            m_refElements[CellType::QUAD9] = std::make_unique<Q2ReferenceQuad>();
-        }
-        else if (m_mesh->getDimension() == 3) {
-            m_refElements[CellType::TET4]    = std::make_unique<P1ReferenceTetrahedron>();
-            m_refElements[CellType::PRISM6]      = std::make_unique<P1ReferencePrism>();
-            m_refElements[CellType::HEX8]      = std::make_unique<Q1ReferenceHexahedron>();
-            m_refElements[CellType::TET10]  = std::make_unique<P2ReferenceTetrahedron>();
-            m_refElements[CellType::PRISM18] = std::make_unique<P2ReferencePrism>();
-            m_refElements[CellType::HEX27]  = std::make_unique<Q2ReferenceHexahedron>();
-        }
-    // }
+    if (m_mesh->getDimension() == 1){
+        m_refElements[CellType::LINE2] = std::make_unique<P1ReferenceSegment>();
+        m_refElements[CellType::LINE3] = std::make_unique<P2ReferenceSegment>();
+    }
+    else if (m_mesh->getDimension() == 2) {
+        m_refElements[CellType::TRI3]  = std::make_unique<P1ReferenceTriangle>();
+        m_refElements[CellType::QUAD4] = std::make_unique<Q1ReferenceQuad>();
+        m_refElements[CellType::TRI6]  = std::make_unique<P2ReferenceTriangle>();
+        m_refElements[CellType::QUAD9] = std::make_unique<Q2ReferenceQuad>();
+    }
+    else if (m_mesh->getDimension() == 3) {
+        m_refElements[CellType::TET4]    = std::make_unique<P1ReferenceTetrahedron>();
+        m_refElements[CellType::PRISM6]  = std::make_unique<P1ReferencePrism>();
+        m_refElements[CellType::HEX8]    = std::make_unique<Q1ReferenceHexahedron>();
+        m_refElements[CellType::TET10]   = std::make_unique<P2ReferenceTetrahedron>();
+        m_refElements[CellType::PRISM18] = std::make_unique<P2ReferencePrism>();
+        m_refElements[CellType::HEX27]   = std::make_unique<Q2ReferenceHexahedron>();
+    }
 
 }
-
-// void LagrangeSpace::initReferenceElements() {
-//     m_refElements.clear();
-
-//     if (m_order == Order::P1) {
-//         if (m_mesh->getDimension() == 1){
-//             m_refElements[CellType::LINE2] = std::make_unique<P1ReferenceSegment>();
-//         }
-//         else if (m_mesh->getDimension() == 2) {
-//             m_refElements[CellType::TRI3] = std::make_unique<P1ReferenceTriangle>();
-//             m_refElements[CellType::QUAD4]     = std::make_unique<Q1ReferenceQuad>();
-//         }
-//         else if (m_mesh->getDimension() == 3) {
-//             m_refElements[CellType::TET4]    = std::make_unique<P1ReferenceTetrahedron>();
-//             m_refElements[CellType::PRISM6]      = std::make_unique<P1ReferencePrism>();
-//             m_refElements[CellType::HEX8]      = std::make_unique<Q1ReferenceHexahedron>();
-//         }
-//     }
-//     else if (m_order == Order::P2) {
-//         if (m_mesh->getDimension() == 1){
-//             m_refElements[CellType::LINE3] = std::make_unique<P2ReferenceSegment>();
-//         }
-//         else if (m_mesh->getDimension() == 2) {
-//             m_refElements[CellType::TRI6] = std::make_unique<P2ReferenceTriangle>();
-//             m_refElements[CellType::QUAD9] = std::make_unique<Q2ReferenceQuad>();
-//         }
-//         else if (m_mesh->getDimension() == 3) {
-//             m_refElements[CellType::TET10]  = std::make_unique<P2ReferenceTetrahedron>();
-//             m_refElements[CellType::PRISM18] = std::make_unique<P2ReferencePrism>();
-//             m_refElements[CellType::HEX27]  = std::make_unique<Q2ReferenceHexahedron>();
-//         }
-//     }
-
-// }
 
 /**
  * @brief Implémentation de la logique de filtrage P1/P2.
@@ -117,9 +81,10 @@ void LagrangeSpace::enumerateDofs() {
     for (CfemInt c = 0; c < (CfemInt)m_mesh->getNumCells(); ++c) {
         const auto& cell = m_mesh->getCell(c);
         int nodesToUse = getNodesPerCell(cell.type);
+        auto cell_ids = m_mesh->getCellConnectivity(cell.id);
         
         for (int n = 0; n < nodesToUse; ++n) {
-            CfemInt vId = cell.vertex_ids[n];
+            CfemInt vId = cell_ids[n];
             if (m_nodeToLocalIdx[vId] == -1) {
                 m_nodeToLocalIdx[vId] = counter++;
             }
@@ -128,6 +93,14 @@ void LagrangeSpace::enumerateDofs() {
 
     m_numActiveNodes = counter;
     m_totalDofs = m_numActiveNodes * m_dimension;
+
+    m_localToMeshNodeIdx.assign(m_numActiveNodes, -1);
+    for (CfemInt meshId = 0; meshId < (CfemInt)m_nodeToLocalIdx.size(); ++meshId) {
+        CfemInt local = m_nodeToLocalIdx[meshId];
+        if (local != -1) {
+            m_localToMeshNodeIdx[local] = meshId;
+        }
+    }
 }
 
 int LagrangeSpace::getDofsPerCell(CfemInt cellId) const {
@@ -141,11 +114,12 @@ int LagrangeSpace::getDofsPerCell(CfemInt cellId) const {
 void LagrangeSpace::getElementDofs(CfemInt cellId, std::vector<CfemInt>& globalIndices) const {
     const auto& cell = m_mesh->getCell(cellId);
     int nodesInCell = getNodesPerCell(cell.type);
+    auto cell_ids = m_mesh->getCellConnectivity(cell.id);
     
     globalIndices.resize(nodesInCell * m_dimension);
 
     for (int n = 0; n < nodesInCell; ++n) {
-        CfemInt nodeIdx = m_nodeToLocalIdx[cell.vertex_ids[n]];
+        CfemInt nodeIdx = m_nodeToLocalIdx[cell_ids[n]];
         
         for (int d = 0; d < m_dimension; ++d) {
             // Bloc 0 : Composante 0, Bloc 1 : Composante 1...
@@ -168,11 +142,13 @@ void LagrangeSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
         std::set<CfemInt> neighborNodes;
 
         // On cherche les nœuds connectés
-        for (CfemInt cellId : vertex.connected_cells) {
+        for (CfemInt cellId : vertex.getConnectedCells()){
             const auto& cell = m_mesh->getCell(cellId);
+            auto cell_ids = m_mesh->getCellConnectivity(cell.id);
+
             int nInCell = getNodesPerCell(cell.type);
             for (int n = 0; n < nInCell; ++n) {
-                neighborNodes.insert(m_nodeToLocalIdx[cell.vertex_ids[n]]);
+                neighborNodes.insert(m_nodeToLocalIdx[cell_ids[n]]);
             }
         }
 
@@ -254,7 +230,7 @@ void LagrangeSpace::evaluateGradients(CfemInt cellId, const Vector3D& xi, std::v
 
     // 2. Extraction des coordonnées PHYSIQUES des nœuds
     // Comme ton maillage stocke tous les nœuds (P1 ou P2), on prend tout.
-    const std::vector<CfemInt>& nodeIndices = cell.vertex_ids;
+    const auto& nodeIndices = m_mesh->getCellConnectivity( cellId);
     size_t numNodes = nodeIndices.size();
 
     // On utilise DynamicVector car ReferenceElement l'attend

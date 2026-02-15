@@ -26,7 +26,11 @@ class QuadratureRule
 {
 public:
 
-    const DynamicVector<QuadraturePoint>& getPoints() const { return m_points; }
+    const DynamicVector<QuadraturePoint>& getPoints() const { 
+        CFEM_ASSERT(m_points.size()>0, "le vecteur des points de quadrature est vide.");
+        return m_points;
+     }
+
 
     CfemInt size() const
     {

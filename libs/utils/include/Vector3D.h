@@ -72,6 +72,16 @@ struct Vector3D {
         return *this;
     }
 
+    bool operator==(const Vector3D& other) const {
+        return cfem::NumericPolicy::areEqual(x, other.x) && 
+                cfem::NumericPolicy::areEqual(y, other.y) && 
+                cfem::NumericPolicy::areEqual(z, other.z);
+    }
+
+    bool operator!=(const Vector3D& other) const {
+        return !(*this == other);
+    }
+
     Vector3D& operator/=(CfemReal scalar) {
         if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
             CFEM_ERROR("Division by zero in Vector3D operator/=");

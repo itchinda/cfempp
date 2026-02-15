@@ -6,7 +6,15 @@ namespace cfem
 
     void FESpace::registerField(std::shared_ptr<FEField> field)
     {
+        NamingPolicy::validate(field->getName());
+
+        if (m_mesh->nameAlreadyUsed(field->getName()))
+        {
+            CFEM_ERROR(" Global naming collision: Field with name '" + field->getName() + "' already exists.");
+        }
+        
         m_fields.push_back(field);
+        m_mesh->registerFieldName(field->getName());
     }
 
     /**

@@ -14,7 +14,7 @@ namespace cfem
                                                  ShapeInfo &shape,
                                                  MappingInfo &out) const
     {
-        const int n = numNodes();
+        const int n = getNumNodes();
         const bool wantHessians = hasFlag(requestedFields, ShapeEvaluationFlags::Hessian);
 
         shape.setup(n, wantHessians);
@@ -33,19 +33,40 @@ namespace cfem
         }
 
         // Compute Metrics (Jacobian, Determinant, Inverse)
+        
         computeJacobian(shape, physicalNodesCoords, out);
 
-#ifndef NDEBUG
-        int status = checkInversion(shape, physicalNodesCoords);
-        if (status == -1)
+        if (hasFlag(requestedFields,  ShapeEvaluationFlags::Gradient))
         {
-            CFEM_WARNING("Inverted element detected (detJ < 0)");
+            computePhysicalGradients(shape, out);
         }
-        else if (status == 0)
+
+        if (wantHessians)
         {
-            CFEM_ASSERT(false, ("Degenerated element detected: The determinant of the jacobian is near zero. detJ = " + std::to_string(out.detJ) + ".").c_str());
+            computePhysicalHessians(physicalNodesCoords, shape, out);
         }
-#endif
+    }
+
+    inline void ReferenceElement::computeMapping(const Vector3D &xi,
+                                                 const DynamicVector<Vector3D> &physicalNodesCoords,
+                                                 ShapeEvaluationFlags requestedFields,
+                                                 const ShapeInfo &shape,
+                                                 MappingInfo &out) const
+    {
+        const int n = getNumNodes();
+        const bool wantHessians = hasFlag(requestedFields, ShapeEvaluationFlags::Hessian);
+
+        out.setup(n, wantHessians);
+
+        out.physicalPosition = {0, 0, 0};
+        for (int i = 0; i < n; ++i)
+        {
+            out.physicalPosition += physicalNodesCoords[i] * shape.values[i];
+        }
+
+        // Compute Metrics (Jacobian, Determinant, Inverse)
+        
+        computeJacobian(shape, physicalNodesCoords, out);
 
         if (hasFlag(requestedFields,  ShapeEvaluationFlags::Gradient))
         {
@@ -64,7 +85,7 @@ namespace cfem
                                                   MappingInfo &out) const
     {
         const int dim = dimension();
-        const int n = numNodes();
+        const int n = getNumNodes();
 
         // 1. Accumulate Jacobian components
         // J_jk = dx_j / dxi_k
@@ -143,7 +164,7 @@ namespace cfem
     inline void ReferenceElement::computePhysicalGradients(const ShapeInfo &shape,
                                                            MappingInfo &out) const
     {
-        const int n = numNodes();
+        const int n = getNumNodes();
         out.physicalShapeGradients.resize(n);
 
         const TensorO2 invJT = out.invJacobian.transpose();
@@ -160,7 +181,7 @@ namespace cfem
                                                           MappingInfo &out) const
     {
 
-        const int n = numNodes();
+        const int n = getNumNodes();
         CFEM_ASSERT(out.physicalShapeGradients.size() == static_cast<size_t>(n),
                     "Physical gradients must be computed before physical Hessians.");
 
@@ -192,59 +213,12 @@ namespace cfem
         }
     }
 
-    // Checking the connectivity and quality (degeneracy status)
-    inline int ReferenceElement::checkInversion(const ShapeInfo &shape,
-                                                const DynamicVector<Vector3D> &physicalNodesCoords,
-                                                const Vector3D &refNormal) const
-    {
-        const int dim = dimension();
-        const int n = numNodes();
-
-        // 1. Compute the tangent vectors (Jacobian columns)
-        Vector3D g1{0, 0, 0}, g2{0, 0, 0}, g3{0, 0, 0};
-        for (int i = 0; i < n; ++i)
-        {
-            const Vector3D &gradN = shape.gradients[i];
-            const Vector3D &X = physicalNodesCoords[i];
-
-            g1 += X * gradN.x;
-            if (dim >= 2)
-                g2 += X * gradN.y;
-            if (dim == 3)
-                g3 += X * gradN.z;
-        }
-
-        if (dim == 3)
-        {
-            // Scalar Triple Product: (g1 x g2) . g3
-            CfemReal vol = dot(cross(g1, g2), g3);
-            if (vol < -ZERO_TOLERANCE)
-                return -1; // Inverted
-            if (vol < ZERO_TOLERANCE)
-                return 0; // Degenerate
-            return 1;     // Valid
-        }
-        else if (dim == 2)
-        {
-            Vector3D localNormal = cross(g1, g2);
-            CfemReal areaSq = localNormal.normSquare();
-
-            if (areaSq < ZERO_TOLERANCE * ZERO_TOLERANCE)
-                return 0;
-
-            // Check orientation against reference
-            return (dot(localNormal, refNormal) > 0) ? 1 : -1;
-        }
-
-        return 1; // 1D segments are never "inverted" in this geometric sense
-    }
-
     // ----------------------------------------------------------------------
     // ------------------------------- interpolation ------------------------
     template <typename T>
     inline T ReferenceElement::interpolate(const ShapeInfo &shape, const DynamicVector<T> &nodalValues) const
     {
-        const int n = numNodes();
+        const int n = getNumNodes();
         CFEM_ASSERT(shape.values.size() >= n, "ShapeInfo not evaluated for this element type");
         CFEM_ASSERT(nodalValues.size() == n, "Nodal values size mismatch");
 
@@ -260,7 +234,7 @@ namespace cfem
     inline Vector3D ReferenceElement::interpolateGradient(const MappingInfo &map,
                                                           const DynamicVector<CfemReal> &nodalValues) const
     {
-        const int n = numNodes();
+        const int n = getNumNodes();
         CFEM_ASSERT(map.physicalShapeGradients.size() >= n, "MappingInfo gradients not computed");
         CFEM_ASSERT(nodalValues.size() == n, "Nodal values size mismatch");
 
@@ -275,7 +249,7 @@ namespace cfem
     inline SymTensorO2 ReferenceElement::interpolateHessian(const MappingInfo &map,
                                                             const DynamicVector<CfemReal> &nodalValues) const
     {
-        const int n = numNodes();
+        const int n = getNumNodes();
         CFEM_ASSERT(map.physicalShapeHessians.size() >= n, "MappingInfo hessians not computed");
         CFEM_ASSERT(nodalValues.size() == n, "Nodal values size mismatch");
 

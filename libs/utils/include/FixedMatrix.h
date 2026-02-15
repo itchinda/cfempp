@@ -56,7 +56,7 @@ struct FixedMatrix {
      * @return Reference to the element at (r, c).
      */
     inline T& operator()(int r, int c) {
-        CFEM_ASSERT(r < R && c < C);
+        CFEM_ASSERT(r < R && c < C, "Index outof bounds.");
         return data[r * C + c];
     }
 

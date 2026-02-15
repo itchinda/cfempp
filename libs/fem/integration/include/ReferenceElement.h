@@ -84,6 +84,17 @@ struct MappingInfo {
     inline CfemReal d2Ndydz(int nodeIdx) const { return physicalShapeHessians[nodeIdx].yz(); }
     inline CfemReal d2Ndxdz(int nodeIdx) const { return physicalShapeHessians[nodeIdx].xz(); }
     inline CfemReal d2Ndxdy(int nodeIdx) const { return physicalShapeHessians[nodeIdx].xy(); }
+
+    void computePhysicalGradientsOnly(const ShapeInfo& fieldShape) {
+        physicalShapeGradients.resize(fieldShape.gradients.size());
+        for (size_t i = 0; i < fieldShape.gradients.size(); ++i) {
+            // physicalShapeGradients[i] = invJ_transposed * fieldShape.gradients[i];
+            
+            physicalShapeGradients[i].x = invJacobian(0,0)*fieldShape.gradients[i].x + invJacobian(1,0)*fieldShape.gradients[i].y + invJacobian(2,0)*fieldShape.gradients[i].z;
+            physicalShapeGradients[i].y = invJacobian(0,1)*fieldShape.gradients[i].x + invJacobian(1,1)*fieldShape.gradients[i].y + invJacobian(2,1)*fieldShape.gradients[i].z;
+            physicalShapeGradients[i].z = invJacobian(0,2)*fieldShape.gradients[i].x + invJacobian(1,2)*fieldShape.gradients[i].y + invJacobian(2,2)*fieldShape.gradients[i].z;
+        }
+    }
 };
 
 /**
@@ -100,7 +111,7 @@ public:
     virtual ~ReferenceElement() = default;
 
     virtual int dimension() const = 0;
-    virtual int numNodes() const = 0;
+    virtual int getNumNodes() const = 0;
 
     /**
      * @brief Evaluates shape functions and their local derivatives at point xi.
@@ -116,6 +127,7 @@ public:
      * @brief Returns the coordinates of the nodes in the reference space. 
      */
     const DynamicVector<Vector3D>& referenceNodes() const { return m_nodes; }
+    const Vector3D& getNodeCoords( CfemInt i) const { CFEM_ASSERT( i < m_nodes.size() && i >= 0 ); return m_nodes[i]; }
 
     /**
      * @brief Computes the full geometric mapping at a given point xi.
@@ -130,6 +142,12 @@ public:
                         ShapeEvaluationFlags requestedFields,
                         ShapeInfo& shape, 
                         MappingInfo& out) const;
+
+    inline void computeMapping(const Vector3D &xi,
+                                                 const DynamicVector<Vector3D> &physicalNodesCoords,
+                                                 ShapeEvaluationFlags requestedFields,
+                                                 const ShapeInfo &shape,
+                                                 MappingInfo &out) const;
 
     /**
      * @brief Computes the Jacobian, its determinant (metric), and the pseudo-inverse.
@@ -159,17 +177,6 @@ public:
     void computePhysicalHessians(const DynamicVector<Vector3D>& physicalNodesCoords, 
                                 const ShapeInfo& shape, 
                                 MappingInfo& out) const;
-
-    /**
-     * @brief Standalone logic to check for element inversion or degeneracy.
-     * @param shape Pre-evaluated shape functions at the point of interest (usually the centroid).
-     * @param physicalNodesCoords The actual physical coordinates of the element nodes.
-     * @param refNormal Optional reference vector to define "forward" orientation in 2D.
-     * @return Returns -1 for inverted, 0 for degenerate, and 1 for correctly oriented.
-     */
-    int checkInversion(const ShapeInfo& shape, 
-                       const DynamicVector<Vector3D>& physicalNodesCoords,
-                       const Vector3D& refNormal = Vector3D{0,0,1}) const;
 
     /**
      * @brief Interpolates a field (scalar or vector) at a point evaluated in ShapeInfo.

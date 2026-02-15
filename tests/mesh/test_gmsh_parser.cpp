@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include <fstream>
-#include "GmshParser.h"
 #include "Mesh.h"
 
 using namespace cfem;
@@ -8,8 +7,7 @@ using namespace cfem;
 class GmshHexTest : public ::testing::Test {
 protected:
     const std::string filename = "../tests/grenier/hex.msh";
-    std::shared_ptr<Mesh> mesh = Mesh::create();
-    GmshParser parser;
+    std::shared_ptr<Mesh> mesh;
 
     void SetUp() override {
         ASSERT_TRUE(std::ifstream(filename).good()) << "hex.msh file not found!";
@@ -20,7 +18,7 @@ protected:
  * @test Validates the Universe (Domain) and Order detection.
  */
 TEST_F(GmshHexTest, UniverseAndOrderDetection) {
-    mesh = parser.load(filename);
+    mesh = Mesh::loadFromGmsh(filename);
     ASSERT_TRUE(mesh);
 
     EXPECT_EQ(mesh->getDimension(), 3);
@@ -37,7 +35,7 @@ TEST_F(GmshHexTest, UniverseAndOrderDetection) {
  * @test Validates the mapping of User-Defined Physical Groups.
  */
 TEST_F(GmshHexTest, BoundaryGroupMapping) {
-    mesh = parser.load(filename);
+    mesh = Mesh::loadFromGmsh(filename);
 
     std::vector<std::string> expectedGroups = {
         "Bottom", "Top", "Front", "Right", "Back", "Left", "Bord"
@@ -56,7 +54,7 @@ TEST_F(GmshHexTest, BoundaryGroupMapping) {
  * CFEM++ internally std::swap(vids[8], vids[9])
  */
 TEST_F(GmshHexTest, Tet10Permutation) {
-    mesh = parser.load(filename);
+    mesh = Mesh::loadFromGmsh(filename);
 
     bool foundTet10 = false;
     for (size_t i = 0; i < mesh->getNumCells(); ++i) {
@@ -64,7 +62,7 @@ TEST_F(GmshHexTest, Tet10Permutation) {
         if (cell.type == CellType::TET10) {
             foundTet10 = true;
             // TET10 order: 0-3 corners, 4-9 mid-edges
-            EXPECT_EQ(cell.vertex_ids.size(), 10);
+            EXPECT_EQ(mesh->getCellConnectivity(cell.id).size(), 10);
             break;
         }
     }
@@ -75,7 +73,7 @@ TEST_F(GmshHexTest, Tet10Permutation) {
  * @test Automated System Boundary Detection.
  */
 TEST_F(GmshHexTest, SystemBoundaryDetection) {
-    mesh = parser.load(filename);
+    mesh = Mesh::loadFromGmsh(filename);
 
     MeshEntity* sysBound = mesh->getEntity(cfem::SYS_BOUNDARY_ID);
     ASSERT_NE(sysBound, nullptr);
@@ -95,7 +93,7 @@ TEST_F(GmshHexTest, SystemBoundaryDetection) {
  * Finalize() should ensure vertex lists are unique and sorted.
  */
 TEST_F(GmshHexTest, EntityFinalization) {
-    mesh = parser.load(filename);
+    mesh = Mesh::loadFromGmsh(filename);
 
     MeshEntity* universe = mesh->getEntity(cfem::UNIVERSE_ID);
     const auto& vids = universe->getVertexIds();

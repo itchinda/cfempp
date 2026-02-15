@@ -1,5 +1,7 @@
 add_library(cfem_exporter
+    src/MeshExporter.cpp
     src/VTKExporter.cpp
+    src/VTUExporter.cpp
 )
 
 target_include_directories(cfem_exporter

@@ -53,72 +53,73 @@ make -j
 ```
 
 ```c++
+#include "cfemutils.h"
+#include "Vector3D.h"
 #include "Mesh.h"
-#include "GmshParser.h"
+#include "LagrangeSpace.h"
+#include "FEField.h"
+#include "SymbolicExpression.h"
+#include "DomainIntegrator.h"
 #include "VTKExporter.h"
 
-int main() {
-    // Creates a [-1, 1] x [-1, 1] square mesh with 40,000 quadratic elements.
-    auto mesh = QuadMeshBuilder::create(
-        MeshOrder::Quadratic,
-        QuadMeshBuilder::Subdivisions{100, 100},
-        QuadMeshBuilder::Corners{
-                Vector3D{-1., -1., 0.}, // Bottom-Left
-                Vector3D{ 1., -1., 0.}, // Bottom-Right
-                Vector3D{ 1.,  1., 0.}, // Top-Right
-                Vector3D{-1.,  1., 0.}  // Top-Left
-        },
-        QuadMeshBuilder::ElementType::CrissCross
-    );
+#include <iostream>
+#include <cmath>
+#include <memory>
 
-    std::cout << mesh->info() << std::endl;
+using namespace cfem;
+using namespace cfem::sym;
+static char help[] = "CFEM Example: Field projection on a quadratic mesh.\n\n";
 
-    // Define the polynomial basis on the mesh.
-    auto p1Space = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);   // Pressure (Linear)
-    auto p2Space = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D); // Velocity (Quadratic)
+int main(int argc, char **argv)
+{
+    cfem::Environment::initialize(argc, argv, help);  // Internally handle Petsc initialization and finalization
 
-    // Associate physical fields with their respective function spaces.
-    auto pressure = FEField::create("P", p1Space);
-    auto velocity = FEField::create("U", p2Space);
+    auto mesh = Mesh::block(
+        MeshOrder::Linear,
+        Mesh::BlockSubdivisions{10, 10, 10},
+        Mesh::BlockBounds(
+            Vector3D{0., 0., 0.},
+            Vector3D{1., 1., 1.}),
+        Mesh::BlockElementType::Edge);
 
-    // Define exact solutions and project them onto the FE basis.
-    const CfemReal PI = cfem::pi;
-    auto analytical_p = [&](const Vector3D &X) -> CfemReal {
-        return X.x * X.x + X.y * X.y + X.x*X.y + X.x + X.y + 1;
-    };
-    auto analytical_u = [&](const Vector3D &X) -> Vector3D {
-        return {
-            std::sin(2 * PI * X.x) * std::sin(2 * PI * X.x), 
-            std::cos(2 * PI * X.y) * std::cos(2 * PI * X.y), 
-            0.0
-        };
-    };
-    
-    // Projection step
-    pressure->project(analytical_p);
-    velocity->project(analytical_u);
+    auto pressureSpace = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);
+    auto velocitySpace = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
 
-    // L2 Errors
-    #include "Quadrature.h"
+    auto pressure = FEField::create("P", pressureSpace);
+    auto velocity = FEField::create("U", velocitySpace);
+        
+    auto analytical_p = scalar(x * x + y * y + z * z + x * y + x * z + z * y + x + y + z + 1); // SymEngine expressions
+    auto analytical_u = vector(sin(2 * pi * x) * sin(2 * pi * y) * sin(2 * pi * z),
+                               cos(2 * pi * x) * cos(2 * pi * y) * cos(2 * pi * z),
+                               cos(2 * pi * x) * sin(2 * pi * y) * cos(2 * pi * z));
+
+    // Nodal Projection
+    pressure->project(*analytical_p);
+    velocity->project(*analytical_u);
+
+    // Ability to perform mathematical differentiation grad(), div()
+    auto fe_gradp = grad(pressure);
+
+    // L2- and H1 semi- norms
     IntegrationSchemeParams schemes_params{};
-    schemes_params.NumIntgPtTriElem = 12;
-    CfemReal lNorm_l2_p {FEField::L2NormDistance(*pressure, analytical_p, schemes_params)};
-    CfemReal lNorm_l2_u {FEField::L2NormDistance(*velocity, analytical_u, schemes_params)};
-    std::cout << "L2 Error norm for P: "  << lNorm_l2_p << std::endl;
-    std::cout << "L2 Error norm for U: "  << lNorm_l2_u << std::endl;
-
-    // Prepare the VTK exporter and add fields for visualization.
+    CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
+    DomainIntegrator::L2Norm(pressureSpace, analytical_p - pressure, &l2Norm_P, &h1SemiNorm_P, schemes_params);
+    DomainIntegrator::L2Norm(velocitySpace, analytical_u - velocity, &l2Norm_U, &h1SemiNorm_U, schemes_params);
+    std::cout << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P << std::endl;
+    std::cout << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U << std::endl;
+        
+    // Exportation to  VTU/VTK files (ASCII and BINARY formats supported)
     VTKExporter vtk_exporter(*mesh);
-    // Define which boundary entities to include in the output
-    vtk_exporter.setExportedEntities({"Bottom", "Top", "Right", "Left", "SYS_BOUNDARY"});
+    vtk_exporter.setExportedEntities( {"xmin", "xmax", "ymin", "ymax", "zmin", "zmax"});
+    vtk_exporter.exportCellQuality(true);
+    vtk_exporter.addExpression("P", pressure);
+    vtk_exporter.addExpression("P_exact", analytical_p);
+    vtk_exporter.addExpression("U", velocity);
+    vtk_exporter.addExpression("U_exact", analytical_u);
+    vtk_exporter.addExpression("GradP", fe_gradp);
+    vtk_exporter.setFormat(VTKExporter::Format::ASCII);
+    vtk_exporter.write("cube");
 
-    // Add Field to be exported
-    vtk_exporter.addField(*pressure);
-    vtk_exporter.addField(*velocity);
-
-    //Export execution!
-    vtk_exporter.write("square.vtk");
-    
     return 0;
 }
 

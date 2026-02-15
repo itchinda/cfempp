@@ -14,10 +14,10 @@ namespace cfem {
         }
 
         int dimension() const override { return 2; }
-        int numNodes() const override { return 3; }
+        int getNumNodes() const override { return 3; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const int n = numNodes();
+            const int n = getNumNodes();
     
             if (out.values.size() != n) {
                 out.setup(n); 
@@ -66,7 +66,7 @@ namespace cfem {
         }
 
         int dimension() const override { return 2; }
-        int numNodes() const override { return 6; }
+        int getNumNodes() const override { return 6; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 6;
