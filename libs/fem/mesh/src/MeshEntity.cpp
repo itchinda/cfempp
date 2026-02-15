@@ -62,23 +62,33 @@ std::string MeshEntity::getEntityFormat(bool include_Ids) const {
  * Call this after the parent mesh has been upgraded to quadratic.
  */
 void MeshEntity::update() {
-    std::unordered_set<CfemInt> updated_nodes;
+    m_vertex_ids.clear();
+
+    // We use a temporary vector of flags to track which vertices are used by this entity
+    std::vector<uint8_t> node_marker(m_mesh->getNumVertices(), 0);
 
     for (CfemInt cell_id : m_cell_ids) {
-        const auto& cell = m_mesh->getCell(cell_id);
-        for (CfemInt v_id : cell.vertex_ids) {
-            updated_nodes.insert(v_id);
+        // Use the accessor to reach into the Big Block
+        auto c_vids = m_mesh->getCellConnectivity(cell_id); 
+        for (CfemInt v_id : c_vids) {
+            node_marker[v_id] = 1;
         }
     }
 
     for (CfemInt facet_id : m_facet_ids) {
-        const auto& facet = m_mesh->getFacet(facet_id);
-        for (int i = 0; i < facet.number_of_vertices; ++i) {
-            updated_nodes.insert(facet.vertex_ids[i]);
+        auto f_vids = m_mesh->getFacetConnectivity(facet_id); 
+        for (CfemInt v_id : f_vids) {
+            node_marker[v_id] = 1;
         }
     }
 
-    m_vertex_ids.assign(updated_nodes.begin(), updated_nodes.end());
+    // This naturally keeps node IDs sorted, making finalize() much cheaper
+    for (CfemInt v_id = 0; v_id < (CfemInt)node_marker.size(); ++v_id) {
+        if (node_marker[v_id]) {
+            m_vertex_ids.push_back(v_id);
+        }
+    }
+
     this->finalize(); 
 }
 
@@ -96,22 +106,33 @@ void MeshEntity::updateUniverse() {
 }
 
 void MeshEntity::updateBoundary() {
-    std::unordered_set<CfemInt> boundary_nodes;
     m_facet_ids.clear();
+    m_vertex_ids.clear();
 
-    // Loop through all facets in the mesh
-    for (CfemInt i = 0; i < (CfemInt)m_mesh->getNumFacets(); ++i) {
+    std::vector<bool> node_marker(m_mesh->getNumVertices(), false);
+
+    CfemInt numFacets = static_cast<CfemInt>(m_mesh->getNumFacets());
+    for (CfemInt i = 0; i < numFacets; ++i) {
         const auto& facet = m_mesh->getFacet(i);
         
+        // Logical check for boundary (RightCell == -1)
         if (facet.isBoundary()) {
             m_facet_ids.push_back(i);
-            for (int n = 0; n < facet.number_of_vertices; ++n) {
-                boundary_nodes.insert(facet.vertex_ids[n]);
+            
+            auto f_vids = m_mesh->getFacetConnectivity(i); 
+            
+            for (CfemInt v_id : f_vids) {
+                node_marker[v_id] = true;
             }
         }
     }
 
-    m_vertex_ids.assign(boundary_nodes.begin(), boundary_nodes.end());
+    for (CfemInt v_id = 0; v_id < (CfemInt)node_marker.size(); ++v_id) {
+        if (node_marker[v_id]) {
+            m_vertex_ids.push_back(v_id);
+        }
+    }
+
     this->finalize();
 }
 
@@ -127,6 +148,24 @@ void MeshEntity::finalize() {
     clean(m_vertex_ids);
     clean(m_facet_ids);
     clean(m_cell_ids);
+}
+
+
+void MeshEntity::replaceVertexList(const std::vector<CfemInt>& newVertexIds)
+{
+    if (newVertexIds.empty())
+    {
+        m_vertex_ids.clear();
+        return;
+    }
+
+    // Copy
+    m_vertex_ids = newVertexIds;
+
+    // Remove duplicates (important after remapping)
+    std::sort(m_vertex_ids.begin(), m_vertex_ids.end());
+    auto last = std::unique(m_vertex_ids.begin(), m_vertex_ids.end());
+    m_vertex_ids.erase(last, m_vertex_ids.end());
 }
 
 } //namespace

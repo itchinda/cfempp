@@ -35,7 +35,8 @@
 #ifndef CFEM_GMSH_PARSER_H
 #define CFEM_GMSH_PARSER_H
 
-#include "Mesh.h"
+#include "cfemutils.h"
+#include "Vector3D.h"
 #include <fstream>
 #include <map>
 #include <unordered_map>
@@ -64,7 +65,7 @@ struct VectorHash {
 /**
  * @brief Permutation table for Gmsh HEX27 to CFEM internal ordering.
  */
-static const int GMSH_TO_ODE_HEX27[] = {
+static const int GMSH_TO_CFEM_HEX27[] = {
         0, 1, 2, 3, 4, 5, 6, 7, 8,   // 0-8 (No change)
         11, 13, 9,                   // 9-11 
         16, 18, 19, 17,              // 12-15 
@@ -72,6 +73,8 @@ static const int GMSH_TO_ODE_HEX27[] = {
         22, 23, 21, 24, 20, 25,  // 20-25
         26                           // 26 (No change)
     };
+
+class Mesh;
 
 class GmshParser {
 public:
@@ -89,7 +92,7 @@ public:
      * @param filename Path to the .msh file.
      * @return A shared pointer to the Mesh if successful, raise a CFEM_ERROR otherwise.
      */
-    std::shared_ptr<Mesh> load(const std::string& filename);
+    std::shared_ptr<Mesh> load(const std::string& filename, std::optional<Vector3D> pReferenceNormal = std::nullopt);
 
 private:
     static void parsePhysicalNames(std::ifstream& f, std::map<std::pair<int, int>, std::string>& names);

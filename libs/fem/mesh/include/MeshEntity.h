@@ -64,6 +64,14 @@ public:
 
     std::string getEntityFormat(bool include_Ids = false) const;
 
+    bool isEmpty() { return m_cell_ids.empty() && m_facet_ids.empty() && m_vertex_ids.empty(); }
+    void reserveVertices(CfemInt size) { m_vertex_ids.reserve(size); }
+    void reserveCells(CfemInt size) { m_facet_ids.reserve(size); }
+
+    void replaceVertexList(const std::vector<CfemInt>& newVertexIds);
+
+
+
 private:
     const Mesh* m_mesh;
     CfemInt m_id;

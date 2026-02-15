@@ -47,37 +47,6 @@ namespace cfem
      */
     constexpr CfemInt SYS_BOUNDARY_ID = -2;
 
-
-    // class Environment {
-    // public:
-    //     // The user calls this once in main
-    //     static void initialize(int &argc, char **&argv, const char* help = nullptr) {
-    //         instance(); // ensures life
-    //         PetscInitialize(&argc, &argv, nullptr, help);
-    //     }
-
-    //     static void ensureInitialized() {
-    //     PetscBool initialized = PETSC_FALSE;
-    //     PetscInitialized(&initialized);
-    //     if (!initialized) {
-    //         throw std::runtime_error(
-    //             "[CFEM ERROR] PETSc not initialized.\n"
-    //             "You must call cfem::Environment::initialize(...) "
-    //             "before using CFEM objects."
-    //         );
-    //     }
-    // }
-
-    // private:
-    //     Environment() {} 
-    //     ~Environment() { PetscFinalize(); }
-        
-    //     static Environment& instance() {
-    //         static Environment env; // Guaranteed to be destroyed at program end
-    //         return env;
-    //     }
-    // };
-
 } // namespace
 
 #endif

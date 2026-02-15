@@ -47,14 +47,14 @@ void VTKExporter::write(const std::string& filename) {
     // Calculate total size: sum of (1 + number of nodes per cell)
     size_t totalCellSize = 0;
     for (size_t i = 0; i < m_mesh.getNumCells(); ++i) {
-        totalCellSize += 1 + m_mesh.getCell(i).vertex_ids.size();
+        totalCellSize += 1 + m_mesh.getCellConnectivity(i).size();
     }
 
     out << "\nCELLS " << m_mesh.getNumCells() << " " << totalCellSize << "\n";
     for (size_t i = 0; i < m_mesh.getNumCells(); ++i) {
-        const auto& cell = m_mesh.getCell(i);
-        out << cell.vertex_ids.size();
-        for (auto vid : cell.vertex_ids) out << " " << vid;
+        const auto& cell_ids = m_mesh.getCellConnectivity(i);
+        out << cell_ids.size();
+        for (auto vid : cell_ids) out << " " << vid;
         out << "\n";
     }
 
@@ -85,11 +85,12 @@ void VTKExporter::write(const std::string& filename) {
              */
             for (CfemInt c = 0; c < (CfemInt)m_mesh.getNumCells(); ++c) {
                 const auto& cell = m_mesh.getCell(c);
+                const auto& cell_ids =  m_mesh.getCellConnectivity(c);
                 const auto& refEl = space->getRefElement(cell.type);
                 const auto& xiNodes = refEl.referenceNodes(); 
 
-                for (size_t n = 0; n < cell.vertex_ids.size(); ++n) {
-                    CfemInt vid = cell.vertex_ids[n];
+                for (size_t n = 0; n < cell_ids.size(); ++n) {
+                    CfemInt vid = cell_ids[n];
                     if (nodeComputed[vid]) continue;
 
                     // Evaluate the field at the local xi coordinate of the mesh node
@@ -183,7 +184,9 @@ int VTKExporter::getVTKCellType(CellType type) const {
         case CellType::TET10:   return 24; 
         case CellType::HEX8:    return 12; 
         case CellType::HEX27:   return 29; 
-        default:                return 0; // VTK_EMPTY_CELL
+        case CellType::PRISM6:  return 13;
+        case CellType::PRISM18: return 32;
+        default: CFEM_ERROR("Unsupported cell type."); // VTK_EMPTY_CELL case 13: return CellType::PRISM6; case 32: return CellType::PRISM18;
     }
 }
 

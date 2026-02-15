@@ -14,7 +14,6 @@
 
 #include <iostream>
 #include <vector>
-#include <array>
 #include <string>
 #include <unordered_set>
 #include <stdexcept>
@@ -22,17 +21,30 @@
 #include <utility>
 #include <map>
 #include <set>
+#include <span>
+#include <optional>
 
 #include "cfemutils.h"
 #include "cfem_topology.h"
 #include "MeshEntity.h"
+#include "GmshParser.h"
 #include "Vector3D.h"
 #include "DynamicVector.h"
+#include "GmshParser.h"
+
 
 constexpr int MAX_CELL_TYPES {static_cast<int>(cfem::CellType::COUNT)};
 namespace cfem{
+    class QuadMeshBuilder;
+    class LineMeshBuilder;
+    class DiskMeshBuilder;
+    class BlockMeshBuilder;
+    class SphereMeshBuilder;
+    class AnnulusMeshBuilder;
+
 
 class FESpace;
+
 
 struct TagGroup {
     std::vector<int> gmsh_tags;
@@ -64,9 +76,38 @@ struct LocalFace {
     }
 };
 
-enum class MeshOrder{ None, Linear = 1, Quadratic = 2};
+template <typename T, typename MeshPtr>
+class MeshIterator {
+public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = T;
+    using pointer = T*;
+    using reference = T&;
+
+    MeshIterator(MeshPtr mesh, CfemInt id) : m_mesh(mesh), m_id(id) {}
+
+    // Dereference returns the actual object via the Big Block accessors
+    reference operator*() const { return m_mesh->template getSpecific<T>(m_id); }
+    
+    // Increment simply moves the index
+    MeshIterator& operator++() { ++m_id; return *this; }
+    bool operator!=(const MeshIterator& other) const { return m_id != other.m_id; }
+    
+    CfemInt id() const { return m_id; } // Access the raw index if needed for FE Assembler
+
+private:
+    MeshPtr m_mesh;
+    CfemInt m_id;
+};
 
 class Mesh {
+    friend class GmshParser;
+    friend class QuadMeshBuilder;
+    friend class BlockMeshBuilder;
+    friend class DiskMeshBuilder;
+    friend class AnnulusMeshBuilder;
+    friend class SphereMeshBuilder;
+
 private:
     struct ConstructorToken {};
 
@@ -103,9 +144,11 @@ public:
                     const std::vector<CfemInt>& v_ids);
 
     void buildInverseConnectivities();
+    void buildAdjacency();
     void buildFacets();
 
     void buildMesh();
+    void compactVertices();
 
     CfemInt getDimension() const { return m_meshDim; }
     MeshOrder getOrder() const { return m_meshOrder; }
@@ -122,20 +165,44 @@ public:
     const Facet&  getFacet(CfemInt id)  const { return m_facets.at(id); }
     Facet&  getFacet(CfemInt id) { return m_facets.at(id); }
 
+    // Returns view of Cell nodes
+    std::span<const CfemInt> getCellConnectivity(CfemInt c_id) const {
+        const auto& c = m_cells[c_id];
+        return { &m_allCellVertexIds[c.offset], c.node_count };
+    }
+
+    // Returns view of Facet nodes
+    std::span<const CfemInt> getFacetConnectivity(CfemInt f_id) const {
+        const auto& f = m_facets[f_id];
+        return { &m_allFacetVertexIds[f.offset], f.node_count };
+    }
 
     void getElementCoordinates(CfemInt elementId, cfem::DynamicVector<cfem::Vector3D>& localCoords) const;
 
+    std::span<const CfemInt> getCellNeighbors(CfemInt c_id) const {
+        size_t start = m_neighborOffsets[c_id];
+        size_t count = m_neighborOffsets[c_id + 1] - start;
+        
+        return { &m_allCellNeighbors[start], count };
+    }
+
+    // Returns view of a Cell's facet IDs
+    std::span<const CfemInt> getCellFacetIds(CfemInt c_id) const {
+        size_t start = m_neighborOffsets[c_id];
+        size_t count = m_neighborOffsets[c_id + 1] - start;
+        return { &m_allCellFacetIds[start], count };
+    }
+
     const std::vector<Vertex>& getVertices() const { return m_vertices; }
-    std::vector<Vertex>& getVertices() { return m_vertices; }
     const std::vector<Cell>&   getCells()   const { return m_cells; }
-    std::vector<Cell>&   getCells()  { return m_cells; }
     const std::vector<Facet>&  getFacets()  const { return m_facets; }
-    std::vector<Facet>&  getFacets() { return m_facets; }
     const std::vector<std::unique_ptr<MeshEntity>>&  getEntities()  const { return m_entities; }
     std::vector<std::unique_ptr<MeshEntity>>&  getEntities() { return m_entities; }
 
     void setOrder(MeshOrder newOrder);
     void setDimension(int newDim);
+    void setReferenceNormal(const cfem::Vector3D& norm);
+    void clearReferenceNormal();
 
     CfemInt createEntity(const std::string& name, CfemInt dim);
 
@@ -156,9 +223,12 @@ public:
 
     // HELPERS
     std::string cellTypeToString(CellType type) const;
-    CfemReal computeCellMeasure(CellType type, const std::vector<CfemInt>& v_ids) const; 
+
+    template<typename T>
+    CfemReal computeCellMeasure(CellType type, const T& v_ids) const;
+    //CfemReal computeCellMeasure(CellType type, const auto& v_ids) const; 
     CfemReal compute2NodesLineLength(CfemInt p_idx0, CfemInt p_idx1) const;
-    CfemReal computeSigned3NodesTriangleArea(CfemInt p_idx0, CfemInt p_idx1, CfemInt p_idx2, cfem::Vector3D &pReferenceNormale) const;
+    CfemReal computeSigned3NodesTriangleArea(CfemInt p_idx0, CfemInt p_idx1, CfemInt p_idx2) const;
     CfemReal computeSigned4NodesTetraVolume(CfemInt p_idx0, CfemInt p_idx1, CfemInt p_idx2, CfemInt p_idx3) const;
     CfemInt getDimFromType(CellType type) const;
     MeshOrder getCellOrderFromType(CellType type) const;
@@ -179,34 +249,318 @@ public:
     void setTagGroups(const std::vector<std::vector<int>>& groups) { m_tagGroups = groups; }
     const std::vector<int>& getPhysicalTags(int groupId) const { return m_tagGroups.at(groupId); }
 
-    void relaxMesh(int iterations, double lambda = 0.4);
+    void relaxMesh(CfemInt iterations, CfemReal lambda = 0.4);
 
     void addObserver(std::shared_ptr<FESpace> space);
 
+    void registerFieldName(const std::string& name){
+        NamingPolicy::validate(name);
+        m_globalFieldRegistry.insert(name);
+    }
+
+    bool nameAlreadyUsed(const std::string& name){
+        return m_globalFieldRegistry.find(name) != m_globalFieldRegistry.end();
+    }
+
+    static std::shared_ptr<Mesh> loadFromGmsh(const std::string& filename, std::optional<Vector3D> pReferenceNormal = std::nullopt){
+        GmshParser parser;
+        return parser.load(filename, pReferenceNormal);
+    }
 
 
 
+    struct CellRange {
+        const Mesh* mesh;
+        auto begin() { return MeshIterator<const Cell, const Mesh*>(mesh, 0); }
+        auto end()   { return MeshIterator<const Cell, const Mesh*>(mesh, mesh->getNumCells()); }
+    };
+
+    CellRange cells() const { return { this }; }
+
+    // Range Proxy for Facets
+    struct FacetRange {
+        const Mesh* mesh;
+        auto begin() { return MeshIterator<const Facet, const Mesh*>(mesh, 0); }
+        auto end()   { return MeshIterator<const Facet, const Mesh*>(mesh, mesh->getNumFacets()); }
+    };
+
+    FacetRange facets() const { return { this }; }
+
+    // Mesh builders
+    struct QuadBounds;
+    struct BlockBounds;
+    struct QuadCorners;
+    struct BlockCorners;
+
+    enum class QuadElementType { 
+        Quadrilateral, TriangleFirstDiag, TriangleSecondDiag, TriangleCrissCross
+    };
+
+    enum class BlockElementType { 
+        Hexahedron, Tetrahedron, Edge
+    };
+
+    enum class DiskElementType
+    {
+        Quadrilateral,
+        Triangle
+    };
+
+    enum class SphereElementType
+    {
+        Hexahedron,
+        Tetrahedron
+    };
+
+    enum class CylinderElementType
+    {
+        Wedge,
+        Tetrahedron
+    };
+    
+    using TJunctionElementType = CylinderElementType;
+
+    struct QuadSubdivisions{
+        CfemInt nx {1};
+        CfemInt ny {1};
+        QuadSubdivisions(CfemInt p_nx=1, CfemInt p_ny = 1): nx(p_nx), ny(p_ny){
+            if (nx <= 0 || ny <= 0){
+                CFEM_ERROR("The number of subdivisions in both directions must be strictly positive.");
+            }
+        }
+    };
+
+    struct BlockSubdivisions{
+        CfemInt nx {1};
+        CfemInt ny {1};
+        CfemInt nz {1};
+        BlockSubdivisions(CfemInt p_nx=1, CfemInt p_ny = 1, CfemInt p_nz = 1): nx(p_nx), ny(p_ny), nz(p_nz){
+            if (nx <= 0 || ny <= 0 || nz <= 0){
+                CFEM_ERROR("The number of subdivisions in the three directions must be strictly positive.");
+            }
+        }
+    };
+    
+    struct QuadBoundaryNames 
+    {
+        std::string xmin = "xmin";
+        std::string xmax = "xmax";
+        std::string ymin = "ymin";
+        std::string ymax = "ymax";
+
+    };
+
+    struct BlockBoundaryNames 
+    {
+        std::string xmin = "xmin";
+        std::string xmax = "xmax";
+        std::string ymin = "ymin";
+        std::string ymax = "ymax";
+        std::string zmin = "zmin";
+        std::string zmax = "zmax";
+
+    };
+
+    struct AnnulusBoundaryNames {
+        std::string inner = "inner_circle";
+        std::string outer = "outer_circle";
+    };
+
+    struct CylinderBoundaryNames {
+        std::string lateral = "Lateral";
+        std::string bottom  = "Bottom";
+        std::string top     = "Top";
+    };
+
+    struct HollowCylinderBoundaryNames {
+        std::string inner  = "Inner";
+        std::string outer  = "Outer";
+        std::string bottom = "Bottom";
+        std::string top    = "Top";
+    };
+
+struct TJunctionBoundaryNames
+    {
+        std::string main_inlet  = "main_inlet";
+        std::string main_outlet = "main_outlet";
+        std::string branch_inlet = "branch_inlet";
+        std::string wall = "wall";
+    };
+
+    static std::shared_ptr<Mesh> quad(MeshOrder order,
+                                      const QuadSubdivisions& subDiv,
+                                      const QuadBounds& bounds,
+                                      QuadElementType elemType,
+                                      const QuadBoundaryNames& names);
+    static std::shared_ptr<Mesh> quad(MeshOrder order,
+                                      const QuadSubdivisions& subDiv,
+                                      const QuadBounds& bounds,
+                                      QuadElementType elemType);
+
+    static std::shared_ptr<Mesh> quad(MeshOrder order,
+                                      const QuadSubdivisions& subDiv,
+                                      const QuadCorners& corners,
+                                      QuadElementType elemType,
+                                      const QuadBoundaryNames& names);
+    static std::shared_ptr<Mesh> quad(MeshOrder order,
+                                      const QuadSubdivisions& subDiv,
+                                      const QuadCorners& corners,
+                                      QuadElementType elemType);
+
+    static std::shared_ptr<Mesh> block(
+                                        MeshOrder order,
+                                        const BlockSubdivisions& subDiv, 
+                                        const BlockBounds& bounds,
+                                        BlockElementType elemType,
+                                        const BlockBoundaryNames& names
+                                    );
+
+    static std::shared_ptr<Mesh> block(
+                                        MeshOrder order,
+                                        const BlockSubdivisions& subDiv, 
+                                        const BlockBounds& bounds,
+                                        BlockElementType elemType
+                                    );
+
+    static std::shared_ptr<Mesh> block(
+                                        MeshOrder order,
+                                        const BlockSubdivisions& subDiv, 
+                                        const BlockCorners& corners,
+                                        BlockElementType elemType,
+                                        const BlockBoundaryNames& names
+                                    );
+
+    static std::shared_ptr<Mesh> block(
+                                        MeshOrder order,
+                                        const BlockSubdivisions& subDiv, 
+                                        const BlockCorners& corners,
+                                        BlockElementType elemType
+                                    );
+
+    static std::shared_ptr<Mesh> disk(
+                                        MeshOrder order, 
+                                        CfemReal mesh_size, 
+                                        const Vector3D& center, 
+                                        CfemReal radius,
+                                        const cfem::Vector3D &normal = {0,0,1},
+                                        DiskElementType elemtype = DiskElementType::Triangle
+                                    );
+
+    static std::shared_ptr<Mesh> disk(
+                                        MeshOrder order, 
+                                        CfemReal mesh_size, 
+                                        const Vector3D& center, 
+                                        CfemReal radius,
+                                        DiskElementType elemtype
+                                    );
+
+    static std::shared_ptr<Mesh> annulus(
+                                            MeshOrder order,
+                                            CfemReal h,
+                                            const cfem::Vector3D &center,
+                                            CfemReal radius_in,
+                                            CfemReal radius_out,
+                                            DiskElementType type,
+                                            const AnnulusBoundaryNames &names
+                                        );
+
+    static std::shared_ptr<Mesh> annulus(
+                                            MeshOrder order,
+                                            CfemReal h,
+                                            const cfem::Vector3D &center,
+                                            CfemReal radius_in,
+                                            CfemReal radius_out,
+                                            DiskElementType type = DiskElementType::Triangle
+                                        );
+
+    static std::shared_ptr<Mesh> sphere(
+                                            MeshOrder order, 
+                                            CfemReal mesh_size, 
+                                            const Vector3D& center, 
+                                            CfemReal radius,
+                                            SphereElementType elemtype = SphereElementType::Hexahedron
+                                        );
+
+    static std::shared_ptr<Mesh> cylinder( 
+                                            MeshOrder order,
+                                            CfemReal target_mesh_size,
+                                            const cfem::Vector3D &center,
+                                            CfemReal radius,
+                                            CfemReal height,
+                                            const cfem::Vector3D &axis,
+                                            CylinderElementType type,
+                                            const CylinderBoundaryNames &names
+                                        );
+
+    static std::shared_ptr<Mesh> cylinder( 
+                                            MeshOrder order,
+                                            CfemReal target_mesh_size,
+                                            const cfem::Vector3D &center,
+                                            CfemReal radius,
+                                            CfemReal height,
+                                            const cfem::Vector3D &axis = {0,0,1},
+                                            CylinderElementType type = CylinderElementType::Wedge
+                                        );
+
+    static std::shared_ptr<Mesh> hollow_cylinder(
+                                                    MeshOrder order,
+                                                    CfemReal target_mesh_size,
+                                                    const cfem::Vector3D &center,
+                                                    CfemReal r_in,
+                                                    CfemReal r_out,
+                                                    CfemReal height,
+                                                    const cfem::Vector3D &axis,
+                                                    CylinderElementType type,
+                                                    const HollowCylinderBoundaryNames &names
+                                                );
+    
+    static std::shared_ptr<Mesh> hollow_cylinder(
+                                                    MeshOrder order,
+                                                    CfemReal target_mesh_size,
+                                                    const cfem::Vector3D &center,
+                                                    CfemReal r_in,
+                                                    CfemReal r_out,
+                                                    CfemReal height,
+                                                    const cfem::Vector3D &axis,
+                                                    CylinderElementType type = CylinderElementType::Wedge
+                                                );
+
+    static void projectBoundaryMidNodes(Mesh &mesh, const cfem::Vector3D &center, CfemReal radius);
+
+    int getLocalFacesCount(CellType type) const;
+    LocalFace getLocalFaceData(CfemInt cell_id, int face_idx) const;
 private:
     CfemInt m_meshDim {0};
     MeshOrder m_meshOrder {MeshOrder::None};
 
     std::vector<Vertex> m_vertices;
+
+    std::vector<CfemInt> m_allCellVertexIds; // The "Big Block" for cells
+    std::vector<size_t>  m_cellOffsets;      // Offsets for mixed types (Tet/Hex)
     std::vector<Cell>   m_cells;
+
+    std::vector<CfemInt> m_allFacetVertexIds;
+    std::vector<size_t>  m_facetOffsets;
     std::vector<Facet>  m_facets;
 
-    std::vector<std::unique_ptr<MeshEntity>> m_entities;
+    std::vector<CfemInt> m_allCellNeighbors;  // Stores IDs of adjacent Cells
+    std::vector<CfemInt> m_allCellFacetIds;   // Stores IDs of the Facets (edges/faces)
+    std::vector<size_t>  m_neighborOffsets;   // Offsets into the neighbor blocks
 
+    std::vector<std::unique_ptr<MeshEntity>> m_entities;
     std::unordered_set<CfemInt> m_entity_ids;
 
     std::vector<std::vector<int>> m_tagGroups; // Table de "interning"
 
-    std::vector<std::weak_ptr<FESpace>> m_observers; // list of FESpace attached to the mesh
+    std::vector<std::weak_ptr<FESpace>> m_observers; ///> list of FESpace attached to the mesh
 
     std::bitset<MAX_CELL_TYPES> m_typeFlags;
-    // Compact list for easy iteration
     std::vector<CellType> m_uniqueTypes;
 
     std::vector<CfemInt> m_globalConnectivity;
+
+    std::optional<cfem::Vector3D> m_global_reference_normal;
+    std::map<CellType, size_t> m_invertedCellCounts;
 
     void checkInvariant() const{
         CFEM_INVARIANT(m_meshDim >= 0 && m_meshDim <= 3);
@@ -215,251 +569,39 @@ private:
         }
     }
 
-    void validateConnectivity(CellType type, const std::vector<CfemInt>& v_ids) const;
+    void checkConsistency(CellType type, const std::vector<CfemInt>& v_ids) const;
+    void fixElementOrientation(CellType type, std::vector<CfemInt> &vids);
     void validateEntityName(const std::string& name) const;
 
-    CfemInt getMidpoint(CfemInt p_edgeFirstVertexId, 
-                        CfemInt p_edgeSecondVertexId, 
-                        std::map<std::pair<CfemInt, CfemInt>, CfemInt>& edge_to_midpoint);
+    CfemInt getMidpoint(CfemInt v1, CfemInt v2, auto& edge_map);
+    CfemInt getQuadFaceCenter(CfemInt v1, CfemInt v2, CfemInt v3, CfemInt v4, auto &quadface_map);
 
-    void upgradeLine2ToLine3(Cell& pLineCell, std::map<std::pair<CfemInt, CfemInt>, CfemInt>& edge_to_midpoint);
-    void upgradeTri3ToTri6(Cell& pTriCell, std::map<std::pair<CfemInt, CfemInt>, CfemInt>& edge_to_midpoint);
-    void upgradeQuad4ToQuad9(Cell& pQuadCell, std::map<std::pair<CfemInt, CfemInt>, CfemInt>& edge_to_midpoint);
-    void upgradeTetra4ToTetra10(Cell& pTetraCell, std::map<std::pair<CfemInt, CfemInt>, CfemInt>& edge_to_midpoint);
-    void upgradePrism6ToPrism18(Cell& pPrismCell, std::map<std::pair<CfemInt, CfemInt>, CfemInt>& edge_to_midpoint);
-    void upgradeHex8ToHex27(Cell& pHexCell, std::map<std::pair<CfemInt, CfemInt>, CfemInt>& edge_to_midpoint);
+    void fillLine3Nodes   (std::span<const CfemInt> v, auto& edge_map, std::vector<CfemInt>& quad_buffer_out);
+    void fillTri6Nodes    (std::span<const CfemInt> v, auto& edge_map, std::vector<CfemInt>& quad_buffer_out);
+    void fillQuad9Nodes   (std::span<const CfemInt> v, auto& edge_map, std::vector<CfemInt>& quad_buffer_out);
+    void fillTet10Nodes   (std::span<const CfemInt> v, auto& edge_map, std::vector<CfemInt>& quad_buffer_out);
+    void fillPrism18Nodes (std::span<const CfemInt> v, auto& edge_map, auto &quadface_to_midpoint_map, std::vector<CfemInt>& quad_buffer_out);
+    void fillHex27Nodes   (std::span<const CfemInt> v, auto& edge_map, auto &quadface_to_midpoint_map, std::vector<CfemInt>& quad_buffer_out);
 
-    
-    CfemReal computeTriQuality(const std::vector<CfemInt>& v) const;
-    CfemReal computeQuadQuality(const std::vector<CfemInt>& v) const;
-    CfemReal computeTetQuality(const std::vector<CfemInt>& v) const;
+    CfemReal computeTriQuality(const std::span<const CfemInt>& v) const;
+    CfemReal computeQuadQuality(const std::span<const CfemInt>& v) const;
+    CfemReal computeTetQuality(const std::span<const CfemInt>& v) const;
+    CfemReal computePrismQuality(const std::span<const CfemInt>& v) const;
 
-    int getLocalFacesCount(CellType type) const;
-    LocalFace getLocalFaceData(CfemInt cell_id, int face_idx) const;
+    // int getLocalFacesCount(CellType type) const;
+    // LocalFace getLocalFaceData(CfemInt cell_id, int face_idx) const;
     int findLocalFaceIndex(CfemInt cell_id, const LocalFace& target) const;
 
-};
+    std::set<std::string> m_globalFieldRegistry;
 
-class LineMeshBuilder {
-public:
-    static void build(Mesh& mesh, int nx, const cfem::Vector3D& start, const cfem::Vector3D& end) {
-        mesh.clear();
-        for (int i = 0; i <= nx; ++i) {
-            double t = static_cast<double>(i) / nx;
-            cfem::Vector3D p = start * (1.0 - t) + end * t;
-            mesh.addVertex(p.x, p.y, p.z);
-        }
-
-        for (int i = 0; i < nx; ++i) {
-            mesh.addCell(CellType::LINE2, { (CfemInt)i, (CfemInt)i + 1 });
-        }
-
-        mesh.buildMesh();
-        if (mesh.getOrder() == MeshOrder::Quadratic) mesh.upgradeToQuadratic(); // Becomes LINE3
-    }
-};
-
-class QuadMeshBuilder {
-private:
-    struct ConstructorToken{};
-    
-
-public:
-    enum class ElementType { 
-        Quadrilateral, TriangleFirstDiag, TriangleSecondDiag, TriangleCrissCross 
-    };
-
-    struct Corners{
-        Vector3D P0 = {0,0,0};
-        Vector3D P1 = {1,0,0};
-        Vector3D P2 = {1,1,0};
-        Vector3D P3 = {0,1,0};
-    };
-
-    struct Subdivisions{
-        CfemInt Nx {1};
-        CfemInt Ny {1};
-    };
-
-    struct BoundaryNames {
-        std::string bottom = "Bottom";
-        std::string top    = "Top";
-        std::string left   = "Left";
-        std::string right  = "Right";
-    };
-
-    QuadMeshBuilder(ConstructorToken){};
-
-    static std::shared_ptr<Mesh> create(MeshOrder order,
-                                        const Subdivisions& subDiv,
-                                        const Corners& corners,
-                                        ElementType elemType = ElementType::Quadrilateral) 
-    {
-        return QuadMeshBuilder::create(order, subDiv, corners, elemType, BoundaryNames{});
-    }
-
-    static std::shared_ptr<Mesh> create(MeshOrder order,
-                                        Subdivisions subDiv,
-                                        const Corners& corners,
-                                        ElementType elemType, 
-                                        const BoundaryNames& names ) {
-        auto mesh = Mesh::create(); 
-
-        QuadMeshBuilder builder(ConstructorToken{});
-        
-        builder.build(*mesh, order,subDiv, corners, elemType, names );
-        
-        return mesh;
-    }
-
-private:
-    void applyBoundaryTags(Mesh& mesh, int nx, int ny, 
-                           const std::vector<CfemInt>& grid, 
-                           const BoundaryNames& names);
-                           
-    void build(Mesh& mesh, 
-               MeshOrder order,
-               const Subdivisions& subDiv,
-               const Corners& corners,
-               ElementType elemType,
-               const BoundaryNames& names);
-};
-
-class CubicMeshBuilder {
-private:
-    struct ConstructorToken{};
-    
-public:
-    enum class ElementType {
-        Hexahedron,       // Keep as HEX8
-        Tetrahedron      // Split each Hex into 6 Tetrahedra (standard Kuhn triangulation)
-    };
-
-    struct Subdivisions {
-        CfemInt Nx {1};
-        CfemInt Ny {1};
-        CfemInt Nz {1};
-    };
-
-    struct Corners {
-        Vector3D P0 {0,0,0};
-        Vector3D P1 {1,0,0};
-        Vector3D P2 {1,1,0};
-        Vector3D P3 {0,1,0};
-        Vector3D P4 {0,0,1};
-        Vector3D P5 {1,0,1};
-        Vector3D P6 {1,1,1};
-        Vector3D P7 {0,1,1};
-    };
-
-    CubicMeshBuilder(ConstructorToken){}
-
-    static std::shared_ptr<Mesh> create(MeshOrder order,
-                                        const Subdivisions& subDiv, 
-                                        const Corners& corners,
-                                        ElementType elemType = ElementType::Hexahedron) 
-    {
-        auto mesh = Mesh::create(); 
-
-        CubicMeshBuilder builder(ConstructorToken{});
-        
-        builder.build(*mesh, order, subDiv, corners, elemType );
-        
-        return mesh;
-    }
-
-private:
-
-    void build(Mesh& mesh, 
-               MeshOrder order, 
-               const Subdivisions& subDiv, 
-               const Corners& corners,
-               ElementType elemType = ElementType::Hexahedron);
 
 };
 
-class DiskMeshBuilder {
-private:
-    struct ConstructorToken{};
-
-public:
-    enum class ElementType { 
-        Quadrilateral, 
-        Triangle 
-    };
-
-    DiskMeshBuilder(ConstructorToken){}
-
-    static std::shared_ptr<Mesh> create(MeshOrder order, 
-                                        CfemReal target_mesh_size,
-                                        const cfem::Vector3D& center,
-                                        double radius,
-                                        ElementType type = ElementType::Triangle) 
-    {
-        auto mesh = Mesh::create(); 
-
-        DiskMeshBuilder builder(ConstructorToken{});
-        
-        builder.build(*mesh, order, target_mesh_size, center,  radius, type);
-        
-        return mesh;
-    }
-
-private:
-
-    void build(Mesh& mesh,
-               MeshOrder order,
-               CfemReal target_mesh_size,
-               const cfem::Vector3D& center,
-               double radius,
-               ElementType type = ElementType::Triangle);
-
-    static void projectBoundaryMidNodes(Mesh& mesh, const cfem::Vector3D& center, double radius);
-
-};
-
-class SphereMeshBuilder {
-private:
-    struct ConstructorToken{};
-
-public:
-    enum class ElementType { Hexahedron, Tetrahedron };
-
-    SphereMeshBuilder(ConstructorToken){}
-
-    static std::shared_ptr<Mesh> create(MeshOrder order, 
-                                        CfemReal target_mesh_size,
-                                        const cfem::Vector3D& center,
-                                        double radius,
-                                        ElementType type = ElementType::Tetrahedron) 
-    {
-        auto mesh = Mesh::create(); 
-
-        SphereMeshBuilder builder(ConstructorToken{});
-        
-        builder.build(*mesh, order, target_mesh_size, center,  radius, type);
-        
-        return mesh;
-    }
-
-private:
-    static void build(Mesh& mesh,
-                      MeshOrder order,
-                      CfemReal target_mesh_size,
-                      const cfem::Vector3D& center,
-                      double radius,
-                      ElementType type = ElementType::Tetrahedron);
-
-    static void projectBoundaryNodes(Mesh& mesh,
-                                     const cfem::Vector3D& center,
-                                     double radius);
-
-};
 
 
 struct QualityReport {
-    double minVolume = std::numeric_limits<double>::max();
-    double maxVolume = -std::numeric_limits<double>::max();
+    CfemReal minVolume = std::numeric_limits<CfemReal>::max();
+    CfemReal maxVolume = -std::numeric_limits<CfemReal>::max();
     int invertedCount = 0;
     int degenerateCount = 0; // Near-zero volume
 };
@@ -473,7 +615,7 @@ public:
             const auto& cell = mesh.getCell(i);
             
             // Signed Volume (Jacobian)
-            double vol = mesh.computeCellMeasure(cell.type, cell.vertex_ids);
+            CfemReal vol = mesh.computeCellMeasure(cell.type, mesh.getCellConnectivity(cell.id) );
             
             if (vol < -cfem::ZERO_TOLERANCE) {
                 report.invertedCount++;

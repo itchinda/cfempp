@@ -117,9 +117,10 @@ void LagrangeSpace::enumerateDofs() {
     for (CfemInt c = 0; c < (CfemInt)m_mesh->getNumCells(); ++c) {
         const auto& cell = m_mesh->getCell(c);
         int nodesToUse = getNodesPerCell(cell.type);
+        auto cell_ids = m_mesh->getCellConnectivity(cell.id);
         
         for (int n = 0; n < nodesToUse; ++n) {
-            CfemInt vId = cell.vertex_ids[n];
+            CfemInt vId = cell_ids[n];
             if (m_nodeToLocalIdx[vId] == -1) {
                 m_nodeToLocalIdx[vId] = counter++;
             }
@@ -141,11 +142,12 @@ int LagrangeSpace::getDofsPerCell(CfemInt cellId) const {
 void LagrangeSpace::getElementDofs(CfemInt cellId, std::vector<CfemInt>& globalIndices) const {
     const auto& cell = m_mesh->getCell(cellId);
     int nodesInCell = getNodesPerCell(cell.type);
+    auto cell_ids = m_mesh->getCellConnectivity(cell.id);
     
     globalIndices.resize(nodesInCell * m_dimension);
 
     for (int n = 0; n < nodesInCell; ++n) {
-        CfemInt nodeIdx = m_nodeToLocalIdx[cell.vertex_ids[n]];
+        CfemInt nodeIdx = m_nodeToLocalIdx[cell_ids[n]];
         
         for (int d = 0; d < m_dimension; ++d) {
             // Bloc 0 : Composante 0, Bloc 1 : Composante 1...
@@ -170,9 +172,11 @@ void LagrangeSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
         // On cherche les nœuds connectés
         for (CfemInt cellId : vertex.connected_cells) {
             const auto& cell = m_mesh->getCell(cellId);
+            auto cell_ids = m_mesh->getCellConnectivity(cell.id);
+
             int nInCell = getNodesPerCell(cell.type);
             for (int n = 0; n < nInCell; ++n) {
-                neighborNodes.insert(m_nodeToLocalIdx[cell.vertex_ids[n]]);
+                neighborNodes.insert(m_nodeToLocalIdx[cell_ids[n]]);
             }
         }
 
@@ -254,7 +258,7 @@ void LagrangeSpace::evaluateGradients(CfemInt cellId, const Vector3D& xi, std::v
 
     // 2. Extraction des coordonnées PHYSIQUES des nœuds
     // Comme ton maillage stocke tous les nœuds (P1 ou P2), on prend tout.
-    const std::vector<CfemInt>& nodeIndices = cell.vertex_ids;
+    const auto& nodeIndices = m_mesh->getCellConnectivity( cellId);
     size_t numNodes = nodeIndices.size();
 
     // On utilise DynamicVector car ReferenceElement l'attend

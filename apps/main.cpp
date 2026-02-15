@@ -12,6 +12,7 @@
 #include "cfemutils.h"
 #include "Vector3D.h"
 #include "Mesh.h"
+#include "MeshConformityChecker.h"
 #include "LagrangeSpace.h"
 #include "FEField.h"
 #include "VTKExporter.h"
@@ -26,102 +27,129 @@ static char help[] = "CFEM Example: Field projection on a quadratic mesh.\n\n";
 
 int main(int argc, char **argv)
 {
-    // Initializes PETSc/MPI via RAII. Finalization is handled automatically at exit.
     cfem::Environment::initialize(argc, argv, help);
     {
-        PROFILE_SCOPE("Main");
-        
-        // Creates a [-1, 1] x [-1, 1] square mesh with 10,000 quadratic elements.
-        // auto mesh = QuadMeshBuilder::create(
-        //     MeshOrder::Linear,
-        //     QuadMeshBuilder::Subdivisions{2000, 2000},
-        //     QuadMeshBuilder::Corners{
-        //         Vector3D{-1., -1., 0.}, // Bottom-Left
-        //         Vector3D{ 1., -1., 0.}, // Bottom-Right
-        //         Vector3D{ 1.,  1., 0.}, // Top-Right
-        //         Vector3D{-1.,  1., 0.}  // Top-Left
-        //     },
-        //     QuadMeshBuilder::ElementType::TriangleCrissCross
-        // );
+        for (int i = 0; i < 1; ++i)
+        {
 
-        auto mesh = CubicMeshBuilder::create(
-            MeshOrder::Quadratic,
-            CubicMeshBuilder::Subdivisions{100, 100, 100},
-            CubicMeshBuilder::Corners{
-                Vector3D{-1., -1., -1.},
-                Vector3D{ 1., -1., -1.},
-                Vector3D{ 1.,  1., -1.},
-                Vector3D{-1.,  1., -1.},
-                Vector3D{-1., -1., 1.},
-                Vector3D{ 1., -1., 1.},
-                Vector3D{ 1.,  1., 1.},
-                Vector3D{-1.,  1., 1.} 
-            },
-            CubicMeshBuilder::ElementType::Tetrahedron
-        );
-        
-        // auto mesh = DiskMeshBuilder::create(
-        //     MeshOrder::Linear,
-        //     1.0/1000,
-        //     Vector3D{0., 0., 0.},
-        //     1.0,
-        //     DiskMeshBuilder::ElementType::Triangle
-        // );
+            std::shared_ptr<Mesh> mesh;
 
-        // Define the polynomial basis on the mesh.
-        auto p1Space = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);   // Pressure (Linear)
-        auto p2Space = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D); // Velocity (Quadratic)
+            {
+                PROFILE_SCOPE("MeshBuilding");
 
-        // Associate physical fields with their respective function spaces.
-        auto pressure = FEField::create("P", p1Space);
-        auto velocity = FEField::create("U", p2Space);
+                mesh = Mesh::block(
+                    MeshOrder::Quadratic,
+                    Mesh::BlockSubdivisions{150, 150, 150}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+                    Mesh::BlockBounds(
+                        Vector3D{-1., -1., -1.},
+                        Vector3D{1., 1., 1.}),
+                    Mesh::BlockElementType::Tetrahedron);
 
-        // Define exact solutions and project them onto the FE basis.
-        const CfemReal PI = cfem::pi;
+                //mesh = Mesh::disk(MeshOrder::Quadratic, 0.25/(2<<i),  {0,0,0},  1.0, {0,1,1}, Mesh::DiskElementType::Triangle);
+                // mesh = Mesh::annulus( MeshOrder::Quadratic, 0.05, Vector3D{0,0,0}, 0.75, 1.0, Mesh::DiskElementType::Triangle);
+                // mesh = Mesh::cylinder(MeshOrder::Quadratic, 0.25/(2<<i), Vector3D{0.0, 0.0, 0.0}, 0.5, 2.0, Vector3D{0,1,0}, Mesh::CylinderElementType::Wedge );
+                // mesh = Mesh::hollow_cylinder(MeshOrder::Quadratic, 0.025, Vector3D{0,0,0}, 0.5, 0.75, 2.0, Vector3D{0,0,1}, Mesh::CylinderElementType::Wedge);
+                // mesh = Mesh::create(2, MeshOrder::Linear);
+                // mesh->addVertex(0,0,0); //0 
+                // mesh->addVertex(1,0,0); //1
+                // mesh->addVertex(1,1,0); 
+                // mesh->addVertex(0,1,0);
+                // mesh->addVertex(0.5,0.5,0);
 
-        auto analytical_p = [&](const Vector3D &X) -> CfemReal {
-            return X.x * X.x + X.y * X.y + X.z * X.z + X.x*X.y + X.x*X.z + X.z*X.y + X.x + X.y + X.z + 1;
-        };
+                // mesh->addCell(CellType::TRI3, {0,1,3});
+                // mesh->addCell(CellType::TRI3, {4,2,3});
+                // mesh->buildMesh();
 
-        auto analytical_u = [&](const Vector3D &X) -> Vector3D {
-            return {
-                std::sin(2 * PI * X.x) * std::sin(2 * PI * X.y) * std::sin(2 * PI * X.z), 
-                std::cos(2 * PI * X.x) * std::cos(2 * PI * X.y) * std::cos(2 * PI * X.z), 
-                std::cos(2 * PI * X.y) * std::sin(2 * PI * X.y) * std::cos(2 * PI * X.z)
+                // Mesh::QuadBoundaryNames names = {"xmin", "xmax", "ymin", "ymax"};
+                // Mesh::QuadCorners corners ({
+                //     Vector3D{0,0,0}, Vector3D{1,0,0}, Vector3D{1,1,0}, Vector3D{0,1,0}
+                // });
+                // mesh =  Mesh::quad(MeshOrder::Linear, Mesh::QuadSubdivisions(2,2), corners, Mesh::QuadElementType::Quadrilateral, names);
+
+                // Mesh::BlockCorners corners ({
+                //                         Vector3D{0,0,0}, Vector3D{2,0,0}, Vector3D{2,2,0}, Vector3D{0,2,0},
+                //                         Vector3D{0,0,2}, Vector3D{2,0,2}, Vector3D{2,2,2}, Vector3D{0,2,2}
+                //                     });
+                // mesh = Mesh::block(MeshOrder::Linear, Mesh::BlockSubdivisions(3,3,3), corners, Mesh::BlockElementType::Hexahedron);
+
+                // std::cout << mesh->getMeshFormat() << std::endl;
+                //std::cout << MeshConformityChecker::check(*mesh, true).toString() << std::endl;
+
+                // mesh = Mesh::loadFromGmsh("../tests/grenier/mail.msh", Vector3D{0,0,1});
+
+
+            }
+
+            //std::cout << MeshConformityChecker::check(*mesh, true).toString() << std::endl;
+
+            std::shared_ptr<LagrangeSpace> p1Space, p2Space;
+            {
+                PROFILE_SCOPE("FESpaceCreation");
+                p1Space = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);   // Pressure (Linear)
+                p2Space = LagrangeSpace::create(mesh, Order::P1, FieldType::Vector3D); // Velocity (Quadratic)
+            }
+
+            std::shared_ptr<FEField> pressure, velocity, un;
+
+            {
+                PROFILE_SCOPE("FEFieldCreation");
+                pressure = FEField::create("P", p1Space);
+                un = FEField::create("Un", p1Space);
+                velocity = FEField::create("U", p2Space);
+            }
+
+            const CfemReal PI = cfem::pi;
+
+            auto analytical_p = [&](const Vector3D &X) -> CfemReal
+            {
+                return X.x * X.x + X.y * X.y + X.z * X.z + X.x * X.y + X.x * X.z + X.z * X.y + X.x + X.y + X.z + 1;
             };
-        };
 
-        pressure->project(analytical_p);
-        velocity->project(analytical_u);
+            auto analytical_u = [&](const Vector3D &X) -> Vector3D
+            {
+                return {
+                    std::sin(2 * PI * X.x) * std::sin(2 * PI * X.y) * std::sin(2 * PI * X.z),
+                    std::cos(2 * PI * X.x) * std::cos(2 * PI * X.y) * std::cos(2 * PI * X.z),
+                    std::cos(2 * PI * X.x) * std::sin(2 * PI * X.y) * std::cos(2 * PI * X.z)};
+            };
 
-        #include "Quadrature.h"
+            auto analytical_un = [&](const Vector3D &X) -> CfemReal
+            {
+                return 1.0;
+            };
 
-        IntegrationSchemeParams schemes_params{};
-        schemes_params.NumIntgPtTriElem = 12;
+            {
+                PROFILE_SCOPE("FEFieldProjection");
+                pressure->project(analytical_p);
+                velocity->project(analytical_u);
+                un->project(analytical_un);
+            }
 
-        CfemReal lNorm_l2_p {FEField::L2NormDistance(*pressure, analytical_p, schemes_params)};
-        CfemReal lNorm_l2_u {FEField::L2NormDistance(*velocity, analytical_u, schemes_params)};
-        std::cout << "L2 Error norm for P: "  << lNorm_l2_p << std::endl;
-        std::cout << "L2 Error norm for U: "  << lNorm_l2_u << std::endl;
+            IntegrationSchemeParams schemes_params{};
+            schemes_params.NumIntgPtTriElem = 16;
+            {
+                PROFILE_SCOPE("L2NormDistance");
+                CfemReal lNorm_l2_p{FEField::L2NormDistance(*pressure, analytical_p, schemes_params)};
+                CfemReal lNorm_l2_u{FEField::L2NormDistance(*velocity, analytical_u, schemes_params)};
+                std::cout << "L2 error on the pressure: " << lNorm_l2_p  <<", L2 error on the velocity: " << lNorm_l2_u  << std::endl;
+            //     CfemReal lVolume_sqrt{un->normL2(schemes_params)};
+            //     CfemReal lVolume {lVolume_sqrt*lVolume_sqrt};
+            //     std::cout << "Mesh size: " << 0.5/(2<<i) << ", Volume: " << lVolume  << ", L2 Error: " << std::abs(lVolume - cfem::pi*1.0*1.0) << std::endl;
+            }
 
-        // Prepare the VTK exporter and add fields for visualization.
-        VTKExporter vtk_exporter(*mesh);
+            // VTKExporter vtk_exporter(*mesh);
+            // vtk_exporter.setExportedEntities( {"Lateral", "Top", "Bottom" });
+            // vtk_exporter.setExportQuality(true);
 
-        // // Define which boundary entities to include in the output
-        //vtk_exporter.setExportedEntities({"Bottom", "Top", "Right", "Left", "SYS_BOUNDARY"});
+            // vtk_exporter.addField(*pressure);
+            // vtk_exporter.addField(*velocity);
+            // vtk_exporter.write("cube.vtk");
 
-        vtk_exporter.addField(*pressure);
-        vtk_exporter.addField(*velocity);
-        vtk_exporter.write("cube.vtk");
-
-        // // Print mesh statistics and entity formatting for verification.
-
-        // for (const auto &ent : mesh->getEntities()) {
-        //     std::cout << "Entity: " << ent->getEntityFormat() << std::endl;
-        // }
+            //std::cout << mesh->getMeshFormat() << std::endl;
+        }
     }
 
-    Profiler::instance().saveAndPlot();
+    Profiler::instance().saveProfiler();
 
     return 0;
 }

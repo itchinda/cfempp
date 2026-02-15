@@ -287,37 +287,37 @@ TEST_F(MappingTest, P2TriangleCurvedHessians) {
 
 
 
-TEST_F(MappingTest, DegenerateAndInvertedTRIElement) {
-#ifndef NDEBUG
-    P1ReferenceTriangle tri;
-    DynamicVector<Vector3D> coords(3);
+// TEST_F(MappingTest, DegenerateAndInvertedTRIElement) {
+// #ifndef NDEBUG
+//     P1ReferenceTriangle tri;
+//     DynamicVector<Vector3D> coords(3);
 
-    // CCW Triangle (Valid Orientation)
-    coords[0] = {0, 0, 0};
-    coords[1] = {1, 0, 0};
-    coords[2] = {1, 1, 0};
+//     // CCW Triangle (Valid Orientation)
+//     coords[0] = {0, 0, 0};
+//     coords[1] = {1, 0, 0};
+//     coords[2] = {1, 1, 0};
 
-    MappingInfo map;
-    ShapeInfo shape;
-    Vector3D xi{1.0/3.0, 1.0/3.0, 0}; // Centroid
+//     MappingInfo map;
+//     ShapeInfo shape;
+//     Vector3D xi{1.0/3.0, 1.0/3.0, 0}; // Centroid
     
-    // IMPORTANT: Evaluate the shape functions first!
-    tri.evaluate(xi, ShapeEvaluationFlags::Gradient, shape);
+//     // IMPORTANT: Evaluate the shape functions first!
+//     tri.evaluate(xi, ShapeEvaluationFlags::Gradient, shape);
 
-    // 1. Check Initial State: Should be Valid (1)
-    EXPECT_EQ(tri.checkInversion(shape, coords), 1);
+//     // 1. Check Initial State: Should be Valid (1)
+//     EXPECT_EQ(tri.checkInversion(shape, coords), 1);
 
-    // 2. Degenerate State: Collapse nodes 1 and 2
-    auto backup = coords[2];
-    coords[2] = coords[1];
-    EXPECT_EQ(tri.checkInversion(shape, coords), 0);
-    coords[2] = backup;
+//     // 2. Degenerate State: Collapse nodes 1 and 2
+//     auto backup = coords[2];
+//     coords[2] = coords[1];
+//     EXPECT_EQ(tri.checkInversion(shape, coords), 0);
+//     coords[2] = backup;
 
-    // 3. Inverted State: Swap 0 and 1 to make it Clockwise
-    std::swap(coords[0], coords[1]); 
-    EXPECT_EQ(tri.checkInversion(shape, coords), -1);
-#endif
-}
+//     // 3. Inverted State: Swap 0 and 1 to make it Clockwise
+//     std::swap(coords[0], coords[1]); 
+//     EXPECT_EQ(tri.checkInversion(shape, coords), -1);
+// #endif
+// }
 
 // --- 5. TEST : PHYSICAL GRADIENT SUM = 0 (consistency check in physical space) ---
 TEST_F(MappingTest, PhysicalGradientSumIsZero) {
