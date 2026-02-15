@@ -266,7 +266,7 @@ private:
 
 public:
     enum class ElementType { 
-        None, FirstDiagonal, SecondDiagonal, CrissCross 
+        Quadrilateral, TriangleFirstDiag, TriangleSecondDiag, TriangleCrissCross 
     };
 
     struct Corners{
@@ -293,7 +293,7 @@ public:
     static std::shared_ptr<Mesh> create(MeshOrder order,
                                         const Subdivisions& subDiv,
                                         const Corners& corners,
-                                        ElementType elemType = ElementType::None) 
+                                        ElementType elemType = ElementType::Quadrilateral) 
     {
         return QuadMeshBuilder::create(order, subDiv, corners, elemType, BoundaryNames{});
     }
@@ -331,8 +331,8 @@ private:
     
 public:
     enum class ElementType {
-        None,       // Keep as HEX8
-        SixTet      // Split each Hex into 6 Tetrahedra (standard Kuhn triangulation)
+        Hexahedron,       // Keep as HEX8
+        Tetrahedron      // Split each Hex into 6 Tetrahedra (standard Kuhn triangulation)
     };
 
     struct Subdivisions {
@@ -357,7 +357,7 @@ public:
     static std::shared_ptr<Mesh> create(MeshOrder order,
                                         const Subdivisions& subDiv, 
                                         const Corners& corners,
-                                        ElementType elemType = ElementType::None) 
+                                        ElementType elemType = ElementType::Hexahedron) 
     {
         auto mesh = Mesh::create(); 
 
@@ -374,7 +374,7 @@ private:
                MeshOrder order, 
                const Subdivisions& subDiv, 
                const Corners& corners,
-               ElementType elemType = ElementType::None);
+               ElementType elemType = ElementType::Hexahedron);
 
 };
 

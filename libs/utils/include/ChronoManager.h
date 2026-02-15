@@ -7,77 +7,93 @@
 #include <vector>
 #include <chrono>
 #include <unistd.h>
+#include "ContractException.h"
 
-struct ProfileData {
-    std::string name;
-    double durationMs;
-    long memDiffKB;
-};
+namespace cfem
+{
+    struct ProfileData
+    {
+        std::string name;
+        double durationMs;
+        long memDiffKB;
+    };
 
-class Profiler {
-private:
-    std::vector<ProfileData> records;
-    Profiler() {} // Private constructor for Singleton
+    class Profiler
+    {
+    private:
+        std::vector<ProfileData> records;
+        Profiler() {} // Private constructor for Singleton
 
-public:
-    static Profiler& instance() {
-        static Profiler inst;
-        return inst;
-    }
-
-    // Moved to PUBLIC so ProfilingScope can see it
-    size_t getRSS() {
-        long rss = 0;
-        std::ifstream fp("/proc/self/statm");
-        if (fp.is_open()) {
-            fp >> rss; // Skip VmSize
-            fp >> rss; // Read VmRSS (2nd field)
-            return (size_t)rss * sysconf(_SC_PAGESIZE);
+    public:
+        static Profiler &instance()
+        {
+            static Profiler inst;
+            return inst;
         }
-        return 0;
-    }
 
-    void addRecord(std::string name, double time, long mem) {
-        records.push_back({name, time, mem});
-    }
-
-    void saveAndPlot(std::string filename = "profile_results.csv") {
-        std::ofstream file(filename);
-        if (!file.is_open()) return;
-
-        file << "Method,TotalTime(ms),MemDiff(KB)\n";
-        for (const auto& r : records) {
-            file << r.name << "," << r.durationMs << "," << r.memDiffKB << "\n";
+        // Moved to PUBLIC so ProfilingScope can see it
+        size_t getRSS()
+        {
+            long rss = 0;
+            std::ifstream fp("/proc/self/statm");
+            if (fp.is_open())
+            {
+                fp >> rss; // Skip VmSize
+                fp >> rss; // Read VmRSS (2nd field)
+                return (size_t)rss * sysconf(_SC_PAGESIZE);
+            }
+            return 0;
         }
-        file.close();
 
-        std::cout << "[Profiler] Exported to " << filename << ". Calling Python..." << std::endl;
-        //std::system(("python ../scripts/plot_profile.py " + filename).c_str());
-    }
-};
+        void addRecord(std::string name, double time, long mem)
+        {
+            records.push_back({name, time, mem});
+        }
 
-class ProfilingScope {
-    std::string name;
-    std::chrono::high_resolution_clock::time_point start;
-    size_t startMem;
+        void saveAndPlot(std::string filename = "profile_results.csv")
+        {
+            std::ofstream file(filename);
+            if (!file.is_open())
+                return;
 
-public:
-    ProfilingScope(std::string label) : name(label) {
-        // Fix: Call getRSS directly from the instance
-        startMem = Profiler::instance().getRSS();
-        start = std::chrono::high_resolution_clock::now();
-    }
+            file << "Method,TotalTime(ms),MemDiff(KB)\n";
+            for (const auto &r : records)
+            {
+                file << r.name << "," << r.durationMs << "," << r.memDiffKB << "\n";
+            }
+            file.close();
 
-    ~ProfilingScope() {
-        auto end = std::chrono::high_resolution_clock::now();
-        size_t endMem = Profiler::instance().getRSS();
-        
-        double duration = std::chrono::duration<double, std::milli>(end - start).count();
-        long memDiff = (long)(endMem - startMem) / 1024; // Convert to KB
+#ifndef NDEBUG
+            CFEM_INFO("Profiler Exported to " + filename + ".\n");
+#endif
+        }
+    };
 
-        Profiler::instance().addRecord(name, duration, memDiff);
-    }
-};
+    class ProfilingScope
+    {
+        std::string name;
+        std::chrono::high_resolution_clock::time_point start;
+        size_t startMem;
+
+    public:
+        ProfilingScope(std::string label) : name(label)
+        {
+            // Fix: Call getRSS directly from the instance
+            startMem = Profiler::instance().getRSS();
+            start = std::chrono::high_resolution_clock::now();
+        }
+
+        ~ProfilingScope()
+        {
+            auto end = std::chrono::high_resolution_clock::now();
+            size_t endMem = Profiler::instance().getRSS();
+
+            double duration = std::chrono::duration<double, std::milli>(end - start).count();
+            long memDiff = (long)(endMem - startMem) / 1024; // Convert to KB
+
+            Profiler::instance().addRecord(name, duration, memDiff);
+        }
+    };
 
 // This helper forces the evaluation of __LINE__
 #define PROFILE_SCOPE_CONCAT(name, line) ProfilingScope scope_##line(name)
@@ -87,3 +103,4 @@ public:
 #define PROFILE_SCOPE(name) PROFILE_SCOPE_HELPER(name, __LINE__)
 
 #endif
+}

@@ -20,7 +20,8 @@ protected:
  * @test Validates the Universe (Domain) and Order detection.
  */
 TEST_F(GmshHexTest, UniverseAndOrderDetection) {
-    ASSERT_TRUE(parser.load(*mesh, filename));
+    mesh = parser.load(filename);
+    ASSERT_TRUE(mesh);
 
     EXPECT_EQ(mesh->getDimension(), 3);
     EXPECT_EQ(mesh->getOrder(), MeshOrder::Quadratic);
@@ -36,7 +37,7 @@ TEST_F(GmshHexTest, UniverseAndOrderDetection) {
  * @test Validates the mapping of User-Defined Physical Groups.
  */
 TEST_F(GmshHexTest, BoundaryGroupMapping) {
-    parser.load(*mesh, filename);
+    mesh = parser.load(filename);
 
     std::vector<std::string> expectedGroups = {
         "Bottom", "Top", "Front", "Right", "Back", "Left", "Bord"
@@ -55,7 +56,7 @@ TEST_F(GmshHexTest, BoundaryGroupMapping) {
  * CFEM++ internally std::swap(vids[8], vids[9])
  */
 TEST_F(GmshHexTest, Tet10Permutation) {
-    parser.load(*mesh, filename);
+    mesh = parser.load(filename);
 
     bool foundTet10 = false;
     for (size_t i = 0; i < mesh->getNumCells(); ++i) {
@@ -74,7 +75,7 @@ TEST_F(GmshHexTest, Tet10Permutation) {
  * @test Automated System Boundary Detection.
  */
 TEST_F(GmshHexTest, SystemBoundaryDetection) {
-    parser.load(*mesh, filename);
+    mesh = parser.load(filename);
 
     MeshEntity* sysBound = mesh->getEntity(cfem::SYS_BOUNDARY_ID);
     ASSERT_NE(sysBound, nullptr);
@@ -94,7 +95,7 @@ TEST_F(GmshHexTest, SystemBoundaryDetection) {
  * Finalize() should ensure vertex lists are unique and sorted.
  */
 TEST_F(GmshHexTest, EntityFinalization) {
-    parser.load(*mesh, filename);
+    mesh = parser.load(filename);
 
     MeshEntity* universe = mesh->getEntity(cfem::UNIVERSE_ID);
     const auto& vids = universe->getVertexIds();

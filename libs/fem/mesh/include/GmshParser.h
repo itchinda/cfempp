@@ -42,6 +42,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <memory>
 #include <iostream>
 #include <set>
 
@@ -85,16 +86,15 @@ public:
 
     /**
      * @brief Primary entry point for loading .msh files.
-     * @param mesh Target Mesh object to populate.
      * @param filename Path to the .msh file.
-     * @return true if successful, false otherwise.
+     * @return A shared pointer to the Mesh if successful, raise a CFEM_ERROR otherwise.
      */
-    bool load(cfem::Mesh& mesh, const std::string& filename);
+    std::shared_ptr<Mesh> load(const std::string& filename);
 
 private:
     static void parsePhysicalNames(std::ifstream& f, std::map<std::pair<int, int>, std::string>& names);
     static void parseEntities(std::ifstream& f, std::map<int, std::map<int, std::vector<int>>>& entMap);
-    void parseNodes(std::ifstream& f, cfem::Mesh& mesh, std::map<int, int>& nodeMap);
+    void parseNodes(std::ifstream& f, const std::shared_ptr<Mesh>& mesh, std::map<int, int>& nodeMap);
     void parseElements(std::ifstream& f, std::vector<GMSHElemData>& raw, int& maxDim);
 };
 

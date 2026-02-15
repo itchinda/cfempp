@@ -6,7 +6,6 @@
 #include <sstream>
 #include <petsc.h>
 #include <regex>
-#include "ChronoManager.h"
 
 namespace cfem
 {
@@ -390,7 +389,7 @@ private:
 #endif
 
 #define CFEM_INFO(info) \
-        std::cout << "[CFEM INFO] " info << std::endl
+        std::clog << "[CFEM INFO] " << info << std::endl
 
 
 #endif // CFEM_CONTRACT_EXCEPTION_H

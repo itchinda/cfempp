@@ -1,4 +1,5 @@
 #include "GmshParser.h"
+#include <iostream>
 
 namespace cfem{
 
@@ -162,11 +163,11 @@ void GmshParser::parseEntities(std::ifstream& f, std::map<int, std::map<int, std
  * * This method uses reserve() to prevent reallocations and maps 
  * non-sequential Gmsh IDs to a zero-based internal index system.
  */
-void GmshParser::parseNodes(std::ifstream& f, Mesh& mesh, std::map<int, int>& nodeMap) {
+void GmshParser::parseNodes(std::ifstream& f, const std::shared_ptr<Mesh>& mesh, std::map<int, int>& nodeMap) {
     size_t nBlocks, totalNodes, minT, maxT;
     f >> nBlocks >> totalNodes >> minT >> maxT;
-    int idx = (int)mesh.getNumVertices();
-    mesh.getVertices().reserve(idx + totalNodes);
+    int idx = (int)mesh->getNumVertices();
+    mesh->getVertices().reserve(idx + totalNodes);
     for (size_t b = 0; b < nBlocks; ++b) {
         int d, t, p; 
         size_t n; 
@@ -178,7 +179,7 @@ void GmshParser::parseNodes(std::ifstream& f, Mesh& mesh, std::map<int, int>& no
         for (size_t i = 0; i < n; ++i) {
             double x, y, z; 
             f >> x >> y >> z;
-            mesh.addVertex(x, y, z);
+            mesh->addVertex(x, y, z);
             nodeMap[tags[i]] = idx++;
         }
     }
@@ -215,8 +216,10 @@ void GmshParser::parseElements(std::ifstream& f, std::vector<GMSHElemData>& raw,
     consumeFooter(f, "$EndElements");
 }
 
-bool GmshParser::load(Mesh &mesh, const std::string &filename) 
+
+std::shared_ptr<Mesh> GmshParser::load(const std::string &filename) 
 {
+    auto mesh = Mesh::create();
     // Parsing strategy:
     // 1. I/O Initialization
     // 2. Section Parsing ($PhysicalNames, $Entities, $Nodes, $Elements)
@@ -227,7 +230,7 @@ bool GmshParser::load(Mesh &mesh, const std::string &filename)
     //   - Corner Harvesting: boundary group tags are stored per-node (corners only)
     
     // 5. Topological Reconstruction
-    //   - calls mesh.buildMesh() to generate internal facets and neighbors.
+    //   - calls mesh->buildMesh() to generate internal facets and neighbors.
     
     // 6. Corner-Based Facet Distribution
     //   - For each boundary facet, check if its N primary corner nodes
@@ -239,9 +242,12 @@ bool GmshParser::load(Mesh &mesh, const std::string &filename)
 
 
     std::ifstream file(filename);
-    if (!file.is_open()) return false;
+    if (!file.is_open()) {
+        CFEM_ERROR( ("Failed to open " + filename + ". Make sure the file is in the specified path or is not corrupted.").c_str() );
+        return nullptr;
+    }
 
-    mesh.clear();
+    mesh->clear();
     std::map<std::pair<int, int>, std::string> physicalNames;
     std::map<int, std::map<int, std::vector<int>>> entityToPhysical;
     std::map<int, int> nodeIndexMap;
@@ -257,7 +263,7 @@ bool GmshParser::load(Mesh &mesh, const std::string &filename)
         else if (line.find("$Elements") != std::string::npos) parseElements(file, rawElements, maxDim);
     }
 
-    mesh.setDimension(maxDim);
+    mesh->setDimension(maxDim);
 
     // Mapping IDs Internes & Validation Universe
     std::map<std::pair<int, int>, int> gmshToInternal;
@@ -267,9 +273,9 @@ bool GmshParser::load(Mesh &mesh, const std::string &filename)
         if (name == "Universe" && key.first == maxDim) {
             gmshToInternal[key] = UNIVERSE_ID;
             universeFound = true;
-            mesh.createInternalEntity(UNIVERSE_ID, name, maxDim);
+            mesh->createInternalEntity(UNIVERSE_ID, name, maxDim);
         } else {
-            gmshToInternal[key] = mesh.createEntity(name, key.first);
+            gmshToInternal[key] = mesh->createEntity(name, key.first);
         }
     }
 
@@ -305,7 +311,7 @@ bool GmshParser::load(Mesh &mesh, const std::string &filename)
         CellType cfem_cell_type = mapGmshType(e.type);
 
         if (dim == maxDim) {
-            if (mesh.getOrder() == MeshOrder::None) mesh.setOrder(mesh.getCellOrderFromType(cfem_cell_type));
+            if (mesh->getOrder() == MeshOrder::None) mesh->setOrder(mesh->getCellOrderFromType(cfem_cell_type));
             
             // Permutations for high-order elements (TET10/HEX27) to conform with CFEM++/Paraview ordering standard
             if (cfem_cell_type == CellType::TET10) {
@@ -315,8 +321,8 @@ bool GmshParser::load(Mesh &mesh, const std::string &filename)
                 for (int i = 0; i < 27; ++i) vids[i] = v_orig[GMSH_TO_ODE_HEX27[i]];
             }
 
-            CfemInt c_idx = mesh.addCell(cfem_cell_type, vids);
-            mesh.getCell(c_idx).tag_list_id = gId;
+            CfemInt c_idx = mesh->addCell(cfem_cell_type, vids);
+            mesh->getCell(c_idx).tag_list_id = gId;
         } 
         else if (dim == maxDim - 1) {
             int numCorners = getNumMainCorners(mapGmshType(e.type));
@@ -326,27 +332,27 @@ bool GmshParser::load(Mesh &mesh, const std::string &filename)
         }
     }
 
-    mesh.buildMesh();
-    mesh.setTagGroups(tagGroups);
+    mesh->buildMesh();
+    mesh->setTagGroups(tagGroups);
 
     auto distribute = [&](int gId, CfemInt elementIdx, int dimElem, const std::vector<CfemInt>& v_ids) {
         if (gId < 0) return;
         for (int pTagGmsh : tagGroups[gId]) {
             int internalId = gmshToInternal[{dimElem, pTagGmsh}];
-            MeshEntity *ent = mesh.getEntity(internalId);
+            MeshEntity *ent = mesh->getEntity(internalId);
             if (dimElem == maxDim) ent->addCell(elementIdx);
             else ent->addFacet(elementIdx);
             for (CfemInt vid : v_ids) ent->addVertex(vid);
         }
     };
 
-    for (CfemInt i = 0; i < (CfemInt)mesh.getNumCells(); ++i) {
-        const Cell& c = mesh.getCell(i);
+    for (CfemInt i = 0; i < (CfemInt)mesh->getNumCells(); ++i) {
+        const Cell& c = mesh->getCell(i);
         distribute(c.tag_list_id, i, maxDim, c.vertex_ids);
     }
 
-    for (size_t i = 0; i < mesh.getNumFacets(); ++i) {
-        Facet &f = const_cast<Facet &>(mesh.getFacet(i));
+    for (size_t i = 0; i < mesh->getNumFacets(); ++i) {
+        Facet &f = const_cast<Facet &>(mesh->getFacet(i));
         if (!f.isBoundary()) continue;
 
         int numCorners = getNumMainCorners(f.type);
@@ -366,18 +372,18 @@ bool GmshParser::load(Mesh &mesh, const std::string &filename)
             }
         }
 
-        MeshEntity* sysBound = mesh.getEntity(SYS_BOUNDARY_ID);
+        MeshEntity* sysBound = mesh->getEntity(SYS_BOUNDARY_ID);
         sysBound->addFacet((CfemInt)i);
         for (CfemInt vid : f.vertex_ids) sysBound->addVertex(vid);
     }
 
     // finalize()
     for (auto const& [key, internalId] : gmshToInternal) {
-        mesh.getEntity(internalId)->finalize();
+        mesh->getEntity(internalId)->finalize();
     }
-    mesh.getEntity(SYS_BOUNDARY_ID)->finalize();
+    mesh->getEntity(SYS_BOUNDARY_ID)->finalize();
 
-    return true;
+    return mesh;
 }
 
 } //cfem
