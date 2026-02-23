@@ -35,17 +35,17 @@ namespace cfem
         // Compute Metrics (Jacobian, Determinant, Inverse)
         computeJacobian(shape, physicalNodesCoords, out);
 
-#ifndef NDEBUG
-        int status = checkInversion(shape, physicalNodesCoords);
-        if (status == -1)
-        {
-            CFEM_WARNING("Inverted element detected (detJ < 0)");
-        }
-        else if (status == 0)
-        {
-            CFEM_ASSERT(false, ("Degenerated element detected: The determinant of the jacobian is near zero. detJ = " + std::to_string(out.detJ) + ".").c_str());
-        }
-#endif
+// #ifndef NDEBUG
+//         int status = checkInversion(shape, physicalNodesCoords);
+//         if (status == -1)
+//         {
+//             CFEM_WARNING(("Inverted element detected (detJ < 0). abs(detJ)=" + std::to_string(out.detJ) + ".").c_str());
+//         }
+//         else if (status == 0)
+//         {
+//             CFEM_ASSERT(false, ("Degenerated element detected: The determinant of the jacobian is near zero. detJ = " + std::to_string(out.detJ) + ".").c_str());
+//         }
+// #endif
 
         if (hasFlag(requestedFields,  ShapeEvaluationFlags::Gradient))
         {
@@ -190,53 +190,6 @@ namespace cfem
             // Congruent transformation: J^-T * R * J^-1
             out.physicalShapeHessians[a] = R.quadform(out.invJacobian);
         }
-    }
-
-    // Checking the connectivity and quality (degeneracy status)
-    inline int ReferenceElement::checkInversion(const ShapeInfo &shape,
-                                                const DynamicVector<Vector3D> &physicalNodesCoords,
-                                                const Vector3D &refNormal) const
-    {
-        const int dim = dimension();
-        const int n = numNodes();
-
-        // 1. Compute the tangent vectors (Jacobian columns)
-        Vector3D g1{0, 0, 0}, g2{0, 0, 0}, g3{0, 0, 0};
-        for (int i = 0; i < n; ++i)
-        {
-            const Vector3D &gradN = shape.gradients[i];
-            const Vector3D &X = physicalNodesCoords[i];
-
-            g1 += X * gradN.x;
-            if (dim >= 2)
-                g2 += X * gradN.y;
-            if (dim == 3)
-                g3 += X * gradN.z;
-        }
-
-        if (dim == 3)
-        {
-            // Scalar Triple Product: (g1 x g2) . g3
-            CfemReal vol = dot(cross(g1, g2), g3);
-            if (vol < -ZERO_TOLERANCE)
-                return -1; // Inverted
-            if (vol < ZERO_TOLERANCE)
-                return 0; // Degenerate
-            return 1;     // Valid
-        }
-        else if (dim == 2)
-        {
-            Vector3D localNormal = cross(g1, g2);
-            CfemReal areaSq = localNormal.normSquare();
-
-            if (areaSq < ZERO_TOLERANCE * ZERO_TOLERANCE)
-                return 0;
-
-            // Check orientation against reference
-            return (dot(localNormal, refNormal) > 0) ? 1 : -1;
-        }
-
-        return 1; // 1D segments are never "inverted" in this geometric sense
     }
 
     // ----------------------------------------------------------------------

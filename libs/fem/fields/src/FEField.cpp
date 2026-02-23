@@ -117,10 +117,11 @@ void FEField::evaluateAt(CfemInt cellId, const Vector3D& xi, std::vector<double>
     
     refEl.evaluate(xi, ShapeEvaluationFlags::Value, shape);
     const auto& shapeValues = shape.values;
+    const auto& cell_ids = m_space->getMesh()->getCellConnectivity(cell.id);
     
     // 2. INTERPOLATION STRICTE
     for (size_t i = 0; i < shapeValues.size(); ++i) {
-        CfemInt mNodeId = cell.vertex_ids[i]; 
+        CfemInt mNodeId = cell_ids[i]; 
         CfemInt dofIdx = m_space->getLocalNodeIdx(mNodeId);
         
         if (dofIdx != -1) {

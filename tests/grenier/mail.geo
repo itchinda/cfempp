@@ -241,11 +241,13 @@ Curve Loop(7) = {15, -11, -4, -3, -9, 35, 47, 24, 25, 26, 48, 36, 14, 19};
 //+
 Plane Surface(7) = {7};
 //+
+Mesh.ElementOrder = 2;
+//+
 Physical Curve("Entree", 51) = {10};
 //+
 Physical Curve("Sortie", 52) = {11};
 //+
 Physical Curve("Parois", 53) = {15, 19, 14, 18, 20, 17, 13, 16, 12, 1, 2, 5, 7, 6, 8, 9, 3, 4};
 //+
-Physical Surface("Elements", 54) = {6, 7, 1, 5, 4, 2, 3};
+Physical Surface("Universe", 54) = {6, 7, 1, 5, 4, 2, 3};
 

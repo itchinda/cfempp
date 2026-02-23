@@ -10,6 +10,8 @@
 
 namespace cfem{
 
+enum class MeshOrder{ None, Linear = 1, Quadratic = 2};
+
 struct Vertex
 {
     cfem::Vector3D coords;
@@ -19,7 +21,7 @@ struct Vertex
     const CfemInt* connected_cells_ptr = nullptr;
     CfemInt num_connected_cells = 0;
 
-    // Helper for easier looping in your existing code
+    // Helper for easier looping
     auto getConnectedCells() const {
         return std::span<const CfemInt>(connected_cells_ptr, num_connected_cells);
     }
@@ -33,11 +35,14 @@ enum class CellType
     COUNT
 };
 
-struct Cell
-{
+
+struct Cell {
+    CfemInt id{-1};
     CellType type;
-    std::vector<CfemInt> vertex_ids{};
-    int tag_list_id = -1;
+    int tag_list_id{-1};
+
+    size_t offset{0};
+    size_t node_count{0};
 
     inline static CellType getLinearEquivalent(CellType type) {
         switch (type) {
@@ -64,17 +69,17 @@ struct Cell
     }
 };
 
-struct Facet
-{
+struct Facet {
     CfemInt id{-1};
     CellType type;
-    std::vector<CfemInt> vertex_ids{};
-    CfemInt number_of_vertices{0};
     CfemInt left_cell{-1};
     CfemInt right_cell{-1};
-    int tag_list_id = -1;
+    
+    // Index-based storage
+    size_t offset{0};
+    size_t node_count{0};
 
-    bool isBoundary() const { return right_cell < 0; }
+    bool isBoundary() const { return right_cell == -1; }
 };
 
 } // namespace

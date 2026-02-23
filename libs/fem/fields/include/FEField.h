@@ -21,7 +21,6 @@ namespace cfem
     {
 
     private:
-        inline static std::set<std::string> s_globalFieldRegistry;
         struct ConstructorToken
         {
         };
@@ -92,15 +91,7 @@ namespace cfem
         {
             auto field = std::make_shared<FEField>(ConstructorToken{}, name, space);
 
-            NamingPolicy::validate(name);
-
-            if (s_globalFieldRegistry.find(name) != s_globalFieldRegistry.end())
-            {
-                CFEM_ERROR(" Global naming collision: Field with name '" + name + "' already exists.");
-            }
-
             space->registerField(field);
-            s_globalFieldRegistry.insert(name);
 
             return field;
         }
@@ -180,69 +171,6 @@ namespace cfem
                                   { return 0.0; }, scheme_params);
         }
 
-        // /**
-        //  * @brief Computes ||u - v||_{L2}.
-        //  * Handles combinations of (FEField vs FEField) and (FEField vs Lambda).
-        //  * @tparam T1 Can be FEField or a Lambda/Functor.
-        //  * @tparam T2 Can be FEField or a Lambda/Functor.
-        //  */
-        // template <typename T1, typename T2>
-        // static CfemReal L2NormDistance(const T1& u, const T2& v, IntegrationSchemeParams scheme_params = {}) {
-
-        //     CfemReal totalErrorSqr = 0.0;
-        //     PROFILE_SCOPE("FEField::L2NormDistance");
-        //     {
-        //         // 1. Resolve Context: Find which argument provides the Mesh
-        //         const FEField* contextField = nullptr;
-        //         if constexpr (std::is_convertible_v<T1, const FEField&>)
-        //         {
-        //             contextField = &u; u.updateLocalBuffer();
-        //         }
-        //         else if constexpr (std::is_convertible_v<T2, const FEField&>) {
-        //             contextField = &v;
-        //             v.updateLocalBuffer();
-        //         }
-        //         else CFEM_ERROR("L2Diff requires at least one FEField argument.");
-
-        //         auto mesh = contextField->getSpace()->getMesh();
-
-        //         IntegrationScheme scheme;
-        //         ShapeInfo shape;
-        //         MappingInfo map;
-        //         DynamicVector<Vector3D> physCoords; // Buffer for element vertices
-        //         std::vector<CfemReal> fieldBuffer;  // Buffer for field evaluation
-
-        //         for (CfemInt i = 0; i < mesh->getNumCells(); ++i) {
-        //             const auto& cell = mesh->getCell(i);
-
-        //             // Use high-order quadrature (e.g., 5-point) to capture P2*P2 interactions
-        //             const auto& quad = scheme.getRule(cell.type, scheme_params.getNumIntgPt(cell.type) );
-
-        //             mesh->getCellVerticesCoords(i, physCoords);
-        //             const auto& refEl = contextField->getSpace()->getRefElement(cell.type);
-
-        //             CfemReal cellIntegral = 0.0;
-
-        //             for (const auto& qp : quad.getPoints()) {
-        //                 // Compute Geometry (Reference -> Physical)
-        //                 refEl.computeMapping(qp.xi, physCoords, ShapeEvaluationFlags::Value, shape, map);
-
-        //                 // Fetch Values using the generic helper'
-
-        //                 auto valU = fetchValue(u, i, qp.xi, map.physicalPosition, fieldBuffer);
-        //                 auto valV = fetchValue(v, i, qp.xi, map.physicalPosition, fieldBuffer);
-
-        //                 auto diff = valU - valV;
-
-        //                 // Accumulate: works for Scalar (diff*diff) or Vector (diff.dot(diff))
-        //                 cellIntegral += magnitude_sqr(diff) * std::abs(map.detJ) * qp.weight;
-        //             }
-        //             totalErrorSqr += cellIntegral;
-        //         }
-        //     }
-        //     return std::sqrt(totalErrorSqr);
-        // }
-
         /**
          * @brief Optimized L2 Norm distance calculation ||u - v||.
          * Uses a flat cache for basis functions and OpenMP for parallelization.
@@ -269,7 +197,7 @@ namespace cfem
             {
                 CFEM_ERROR("L2Diff requires at least one FEField argument.");
             }
-
+        
             auto mesh = contextField->getSpace()->getMesh();
             auto space = contextField->getSpace();
             IntegrationScheme scheme;
@@ -284,6 +212,7 @@ namespace cfem
             // Pre-fill only the types present in the mesh
             ShapeEvaluationFlags internalFields = ShapeEvaluationFlags::Value | ShapeEvaluationFlags::Gradient;
             
+            
             for (CellType type : mesh->getCellTypesPresent())
             {
                 int idx = static_cast<int>(type);
@@ -292,8 +221,12 @@ namespace cfem
 
                 const DynamicVector<QuadraturePoint>& lQuadPts = quad.getPoints();
 
+                CFEM_ASSERT(lQuadPts.size()>0, "le vecteur des points de quadrature est vide.");
+
                 fastCache[idx].quad = &quad;
                 fastCache[idx].v_shapes.resize(lQuadPts.size());
+
+    
 
                 // Pre-compute N_j(xi_q) for the reference element
                 for (size_t q = 0; q < lQuadPts.size(); ++q)
@@ -318,15 +251,19 @@ namespace cfem
 #pragma omp for
                 for (CfemInt i = 0; i < mesh->getNumCells(); ++i)
                 {
+                    
                     const auto &cell = mesh->getCell(i);
                     auto &cache = fastCache[static_cast<int>(cell.type)];
                     const auto &refEl = space->getRefElement(cell.type);
 
                     // Get physical coordinates of the cell vertices
+                    
                     mesh->getCellVerticesCoords(i, physCoords);
+                    
                     CfemReal cellIntegral = 0.0;
 
                     // Integration Loop
+                    
                     for (size_t q = 0; q < cache.quad->getPoints().size(); ++q)
                     {
                         const auto &qp = cache.quad->getPoints()[q];
@@ -335,6 +272,7 @@ namespace cfem
                         // Note: We use ShapeEvaluationFlags::None because we use our cache for N(xi)
                         refEl.computeMapping(qp.xi, physCoords, ShapeEvaluationFlags::None, cache.v_shapes[q], map);
                         // Fetch Values: FEField uses local evaluations, Lambdas use physical positions
+                        
                         auto valU = fetchValue(u, i, qp.xi, map.physicalPosition, fieldBuffer);
                         auto valV = fetchValue(v, i, qp.xi, map.physicalPosition, fieldBuffer);
 

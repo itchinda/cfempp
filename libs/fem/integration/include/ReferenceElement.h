@@ -161,17 +161,6 @@ public:
                                 MappingInfo& out) const;
 
     /**
-     * @brief Standalone logic to check for element inversion or degeneracy.
-     * @param shape Pre-evaluated shape functions at the point of interest (usually the centroid).
-     * @param physicalNodesCoords The actual physical coordinates of the element nodes.
-     * @param refNormal Optional reference vector to define "forward" orientation in 2D.
-     * @return Returns -1 for inverted, 0 for degenerate, and 1 for correctly oriented.
-     */
-    int checkInversion(const ShapeInfo& shape, 
-                       const DynamicVector<Vector3D>& physicalNodesCoords,
-                       const Vector3D& refNormal = Vector3D{0,0,1}) const;
-
-    /**
      * @brief Interpolates a field (scalar or vector) at a point evaluated in ShapeInfo.
      * @tparam T The field type (e.g., CfemReal, Vector3D, or even Tensor types).
      * @param shape Pre-evaluated shape functions at point xi.
