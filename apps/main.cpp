@@ -29,8 +29,7 @@ int main(int argc, char **argv)
 {
     cfem::Environment::initialize(argc, argv, help);
     {
-        for (int i = 0; i < 1; ++i)
-        {
+
 
             std::shared_ptr<Mesh> mesh;
 
@@ -39,48 +38,12 @@ int main(int argc, char **argv)
 
                 mesh = Mesh::block(
                     MeshOrder::Quadratic,
-                    Mesh::BlockSubdivisions{150, 150, 150}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+                    Mesh::BlockSubdivisions{10, 10, 10}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
                     Mesh::BlockBounds(
                         Vector3D{-1., -1., -1.},
                         Vector3D{1., 1., 1.}),
                     Mesh::BlockElementType::Tetrahedron);
-
-                //mesh = Mesh::disk(MeshOrder::Quadratic, 0.25/(2<<i),  {0,0,0},  1.0, {0,1,1}, Mesh::DiskElementType::Triangle);
-                // mesh = Mesh::annulus( MeshOrder::Quadratic, 0.05, Vector3D{0,0,0}, 0.75, 1.0, Mesh::DiskElementType::Triangle);
-                // mesh = Mesh::cylinder(MeshOrder::Quadratic, 0.25/(2<<i), Vector3D{0.0, 0.0, 0.0}, 0.5, 2.0, Vector3D{0,1,0}, Mesh::CylinderElementType::Wedge );
-                // mesh = Mesh::hollow_cylinder(MeshOrder::Quadratic, 0.025, Vector3D{0,0,0}, 0.5, 0.75, 2.0, Vector3D{0,0,1}, Mesh::CylinderElementType::Wedge);
-                // mesh = Mesh::create(2, MeshOrder::Linear);
-                // mesh->addVertex(0,0,0); //0 
-                // mesh->addVertex(1,0,0); //1
-                // mesh->addVertex(1,1,0); 
-                // mesh->addVertex(0,1,0);
-                // mesh->addVertex(0.5,0.5,0);
-
-                // mesh->addCell(CellType::TRI3, {0,1,3});
-                // mesh->addCell(CellType::TRI3, {4,2,3});
-                // mesh->buildMesh();
-
-                // Mesh::QuadBoundaryNames names = {"xmin", "xmax", "ymin", "ymax"};
-                // Mesh::QuadCorners corners ({
-                //     Vector3D{0,0,0}, Vector3D{1,0,0}, Vector3D{1,1,0}, Vector3D{0,1,0}
-                // });
-                // mesh =  Mesh::quad(MeshOrder::Linear, Mesh::QuadSubdivisions(2,2), corners, Mesh::QuadElementType::Quadrilateral, names);
-
-                // Mesh::BlockCorners corners ({
-                //                         Vector3D{0,0,0}, Vector3D{2,0,0}, Vector3D{2,2,0}, Vector3D{0,2,0},
-                //                         Vector3D{0,0,2}, Vector3D{2,0,2}, Vector3D{2,2,2}, Vector3D{0,2,2}
-                //                     });
-                // mesh = Mesh::block(MeshOrder::Linear, Mesh::BlockSubdivisions(3,3,3), corners, Mesh::BlockElementType::Hexahedron);
-
-                // std::cout << mesh->getMeshFormat() << std::endl;
-                //std::cout << MeshConformityChecker::check(*mesh, true).toString() << std::endl;
-
-                // mesh = Mesh::loadFromGmsh("../tests/grenier/mail.msh", Vector3D{0,0,1});
-
-
             }
-
-            //std::cout << MeshConformityChecker::check(*mesh, true).toString() << std::endl;
 
             std::shared_ptr<LagrangeSpace> p1Space, p2Space;
             {
@@ -132,21 +95,16 @@ int main(int argc, char **argv)
                 CfemReal lNorm_l2_p{FEField::L2NormDistance(*pressure, analytical_p, schemes_params)};
                 CfemReal lNorm_l2_u{FEField::L2NormDistance(*velocity, analytical_u, schemes_params)};
                 std::cout << "L2 error on the pressure: " << lNorm_l2_p  <<", L2 error on the velocity: " << lNorm_l2_u  << std::endl;
-            //     CfemReal lVolume_sqrt{un->normL2(schemes_params)};
-            //     CfemReal lVolume {lVolume_sqrt*lVolume_sqrt};
-            //     std::cout << "Mesh size: " << 0.5/(2<<i) << ", Volume: " << lVolume  << ", L2 Error: " << std::abs(lVolume - cfem::pi*1.0*1.0) << std::endl;
             }
 
-            // VTKExporter vtk_exporter(*mesh);
-            // vtk_exporter.setExportedEntities( {"Lateral", "Top", "Bottom" });
-            // vtk_exporter.setExportQuality(true);
+            VTKExporter vtk_exporter(*mesh);
+            vtk_exporter.setExportedEntities( {"Lateral", "Top", "Bottom" });
+            vtk_exporter.setExportQuality(true);
 
-            // vtk_exporter.addField(*pressure);
-            // vtk_exporter.addField(*velocity);
-            // vtk_exporter.write("cube.vtk");
+            vtk_exporter.addField(*pressure);
+            vtk_exporter.addField(*velocity);
+            vtk_exporter.write("cube.vtk");
 
-            //std::cout << mesh->getMeshFormat() << std::endl;
-        }
     }
 
     Profiler::instance().saveProfiler();

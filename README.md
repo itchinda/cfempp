@@ -53,72 +53,68 @@ make -j
 ```
 
 ```c++
+#include "cfemutils.h"
 #include "Mesh.h"
-#include "GmshParser.h"
+#include "LagrangeSpace.h"
+#include "FEField.h"
 #include "VTKExporter.h"
 
-int main() {
-    // Creates a [-1, 1] x [-1, 1] square mesh with 40,000 quadratic elements.
-    auto mesh = QuadMeshBuilder::create(
+using namespace cfem;
+
+int main(int argc, char **argv)
+{
+    cfem::Environment::initialize(argc, argv);  // This internally call PetscInitialize and PetscFinalize when the program is completed
+
+    auto mesh = Mesh::block(
         MeshOrder::Quadratic,
-        QuadMeshBuilder::Subdivisions{100, 100},
-        QuadMeshBuilder::Corners{
-                Vector3D{-1., -1., 0.}, // Bottom-Left
-                Vector3D{ 1., -1., 0.}, // Bottom-Right
-                Vector3D{ 1.,  1., 0.}, // Top-Right
-                Vector3D{-1.,  1., 0.}  // Top-Left
-        },
-        QuadMeshBuilder::ElementType::CrissCross
-    );
+        Mesh::BlockSubdivisions{10, 10, 10}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+        Mesh::BlockBounds(
+            Vector3D{-1., -1., -1.},
+            Vector3D{1., 1., 1.}
+            ),
+        Mesh::BlockElementType::Tetrahedron);
 
-    std::cout << mesh->info() << std::endl;
-
-    // Define the polynomial basis on the mesh.
+    // Lagrange spaces creation
     auto p1Space = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);   // Pressure (Linear)
     auto p2Space = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D); // Velocity (Quadratic)
 
-    // Associate physical fields with their respective function spaces.
+    // fields creation
     auto pressure = FEField::create("P", p1Space);
     auto velocity = FEField::create("U", p2Space);
 
-    // Define exact solutions and project them onto the FE basis.
     const CfemReal PI = cfem::pi;
-    auto analytical_p = [&](const Vector3D &X) -> CfemReal {
-        return X.x * X.x + X.y * X.y + X.x*X.y + X.x + X.y + 1;
+
+    auto analytical_p = [&](const Vector3D &X) -> CfemReal{
+        return X.x * X.x + X.y * X.y + X.z * X.z + X.x * X.y + X.x * X.z + X.z * X.y + X.x + X.y + X.z + 1;
     };
-    auto analytical_u = [&](const Vector3D &X) -> Vector3D {
+
+    auto analytical_u = [&](const Vector3D &X) -> Vector3D{
         return {
-            std::sin(2 * PI * X.x) * std::sin(2 * PI * X.x), 
-            std::cos(2 * PI * X.y) * std::cos(2 * PI * X.y), 
-            0.0
-        };
+            std::sin(2 * PI * X.x) * std::sin(2 * PI * X.y) * std::sin(2 * PI * X.z),
+            std::cos(2 * PI * X.x) * std::cos(2 * PI * X.y) * std::cos(2 * PI * X.z),
+            std::cos(2 * PI * X.x) * std::sin(2 * PI * X.y) * std::cos(2 * PI * X.z)};
     };
-    
-    // Projection step
+
+    // Field projection
     pressure->project(analytical_p);
     velocity->project(analytical_u);
 
-    // L2 Errors
-    #include "Quadrature.h"
+    // Quadrature rule for l2-norm calculation
     IntegrationSchemeParams schemes_params{};
-    schemes_params.NumIntgPtTriElem = 12;
-    CfemReal lNorm_l2_p {FEField::L2NormDistance(*pressure, analytical_p, schemes_params)};
-    CfemReal lNorm_l2_u {FEField::L2NormDistance(*velocity, analytical_u, schemes_params)};
-    std::cout << "L2 Error norm for P: "  << lNorm_l2_p << std::endl;
-    std::cout << "L2 Error norm for U: "  << lNorm_l2_u << std::endl;
+    schemes_params.NumIntgPtTriElem = 16;
 
-    // Prepare the VTK exporter and add fields for visualization.
+    CfemReal lNorm_l2_p{FEField::L2NormDistance(*pressure, analytical_p, schemes_params)};
+    CfemReal lNorm_l2_u{FEField::L2NormDistance(*velocity, analytical_u, schemes_params)};
+    std::cout << "L2 error on the pressure: " << lNorm_l2_p  <<", L2 error on the velocity: " << lNorm_l2_u  << std::endl;
+
+    // Exportation
     VTKExporter vtk_exporter(*mesh);
-    // Define which boundary entities to include in the output
-    vtk_exporter.setExportedEntities({"Bottom", "Top", "Right", "Left", "SYS_BOUNDARY"});
 
-    // Add Field to be exported
     vtk_exporter.addField(*pressure);
     vtk_exporter.addField(*velocity);
 
-    //Export execution!
-    vtk_exporter.write("square.vtk");
-    
+    vtk_exporter.write("block.vtk");
+
     return 0;
 }
 
