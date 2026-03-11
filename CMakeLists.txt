@@ -78,22 +78,20 @@ if(SymEngine_FOUND)
     include_directories(SYSTEM ${SymEngine_INCLUDE_DIRS})
 endif()
 
-# get_target_property(_sym_libs SymEngine::libsymengine INTERFACE_LINK_LIBRARIES)
-# if(_sym_libs)
-#     # On retire toute mention de LLVMjit des dépendances héritées
-#     string(REPLACE "LLVMjit" "" _sym_libs_clean "${_sym_libs}")
-#     set_target_properties(SymEngine::libsymengine PROPERTIES INTERFACE_LINK_LIBRARIES "${_sym_libs_clean}")
-# endif()
-
 # Une fois SymEngine trouvé, il nous faut LLVM car SymEngine est lié statiquement
 find_package(LLVM REQUIRED CONFIG)
-# Dans ton Root CMakeLists.txt
 if(LLVM_FOUND)
-    # Remplace 'engine' par 'mcjit' et 'orcjit'
-    llvm_map_components_to_libnames(llvm_libs core mcjit orcjit native ipo)
-    
-    set(LLVM_SYSTEM_LIBS z zstd dl pthread m)
+    # Ajout de 'bitreader', 'target', 'mc' et 'support' qui manquent dans ton log
+    llvm_map_components_to_libnames(llvm_libs 
+        core mcjit orcjit native ipo bitreader target mc support
+    )
+    # LLVM a aussi besoin de libffi et libterminfo (tinfo) sur Ubuntu
+    set(LLVM_SYSTEM_LIBS z zstd dl pthread m ffi tinfo)
 endif()
+
+find_package(LLVM REQUIRED CONFIG)
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+message(STATUS "LLVM include dirs: ${LLVM_INCLUDE_DIRS}")
 
 find_library(GMP_LIB NAMES gmp REQUIRED)
 find_library(MPFR_LIB NAMES mpfr REQUIRED)
