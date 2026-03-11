@@ -65,7 +65,7 @@ jobs:
           -DWITH_SYMENGINE_TEUCHOS=OFF\
           -DWITH_LLVM=ON
         make -j$(nproc)
-        make install
+        sudo make install
 
     # 5- Configure and build project
     - name: Configure and Build Project
