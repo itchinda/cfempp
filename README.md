@@ -18,8 +18,13 @@ Designed to handle **10^7+ Degrees of Freedom (DoFs)**, the project focuses on t
 * **Corner-Based Mapping:** A specialized algorithm for quadratic elements (TET10, HEX27) that identifies physical entities by intersecting geometric vertices (corners), effectively solving the "mismatched diagonal" problem in high-order meshes.
 
 
+### 2. Advanced Symbolic Engine (JIT Accelerated)
+* **SymEngine Integration:** Define analytical solutions and source terms using natural mathematical syntax.
+* **Just-In-Time (JIT) Compilation:** Leveraging **LLVM** to compile symbolic expressions into machine code at runtime for near-native evaluation speeds during assembly.
+* **Automatic Differentiation:** High-performance `grad()`, `div()`, and `curl()` operators on finite element fields.
 
-### 2. High-Performance Computing (HPC)
+
+### 3. High-Performance Computing (HPC)
 Leveraging **PETSc** for its linear algebra core, CFEM++ provides:
 * **Distributed Computing:** MPI-parallelized operations using `Vec` and `Mat` (AIJ format).
 * **Advanced Solvers:** Optimized for **Preconditioned Conjugate Gradient (PCG)** with **Algebraic Multigrid (GAMG)** preconditioning.
@@ -38,18 +43,38 @@ Leveraging **PETSc** for its linear algebra core, CFEM++ provides:
 
 ## 🛠 Installation & Dependencies
 
+CFEM++ requires a specific stack for symbolic JIT and HPC linear algebra.
+
+### System Prerequisites
+```bash
+# Ubuntu/Debian example
+sudo apt-get update
+sudo apt-get install -y build-essential gfortran cmake python3 m4 wget \
+        libgmp-dev libmpfr-dev libmpc-dev libzstd-dev llvm-dev \
+        libedit-dev libcurl4-openssl-dev libomp-dev
+sudo apt-get install libpetsc-dev libsymengine-dev libgmp-dev libmpfr-dev libomp-dev
+```
+
+
 Ensure you have the following installed:
-* **C++17 Compiler** (GCC, Clang, or MSVC)
+* **C++20 Compiler** (GCC, Clang, or MSVC)
 * **CMake** (3.15+)
 * **PETSc** (configured with MPI and HYPRE/MUMPS recommended)
-* **Gmsh** (for mesh generation)
+* **SymEngine** (Symbolic math and JIT compilation)
+* **OpenMP** (Parallel multi-threading support, usually bundled with GCC/Clang)
+
 
 ```bash
-git clone [https://github.com/username/cfempp.git](https://github.com/username/cfempp.git)
+git clone [https://github.com/itchinda/cfempp.git](https://github.com/itchinda/cfempp.git)
 cd cfempp
 mkdir build && cd build
-cmake ..
-make -j
+
+# Point to your PETSc and SymEngine installations if they are in non-standard paths
+cmake .. -DCMAKE_BUILD_TYPE=Release \
+         -DPETSC_DIR=$PETSC_DIR \
+         -DPETSC_ARCH=$PETSC_ARCH
+         
+make -j$(nproc)
 ```
 
 ```c++
