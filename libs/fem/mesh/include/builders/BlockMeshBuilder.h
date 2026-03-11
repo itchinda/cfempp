@@ -117,6 +117,15 @@ namespace cfem
             const BlockBoundaryNames &names
         );
 
+        void build_omp(
+            Mesh &mesh,
+            MeshOrder order,
+            const BlockSubdivisions &subDiv,
+            const BlockCorners &corners,
+            BlockElementType elemType,
+            const BlockBoundaryNames &names
+        );
+
         /**
          * @brief Assign boundary facets to named entities.
          *
@@ -131,6 +140,15 @@ namespace cfem
          * @param names  Boundary entity names.
          */
         void applyBoundaryTags(
+            Mesh &mesh,
+            CfemInt nx,
+            CfemInt ny,
+            CfemInt nz,
+            const std::vector<CfemInt> &grid,
+            const BlockBoundaryNames &names
+        );
+
+        void applyBoundaryTags_omp(
             Mesh &mesh,
             CfemInt nx,
             CfemInt ny,

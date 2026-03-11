@@ -389,7 +389,12 @@ private:
 #endif
 
 #define CFEM_INFO(info) \
-        std::clog << "[CFEM INFO] " << info << std::endl
+        std::clog << "[CFEM LOG] " << info << std::endl
 
+#define CFEM_LOG(info) \
+        std::clog << "[CFEM LOG] " << info << std::endl
+
+#define CFEM_STATIC_ASSERT(condition, message) \
+    static_assert(condition, "[CFEM STATIC ASSERT] " message)
 
 #endif // CFEM_CONTRACT_EXCEPTION_H

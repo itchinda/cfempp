@@ -15,7 +15,7 @@ enum class MeshOrder{ None, Linear = 1, Quadratic = 2};
 struct Vertex
 {
     cfem::Vector3D coords;
-    std::vector<CfemInt> connected_cells;
+    //std::vector<CfemInt> connected_cells;
     int tag_list_id = -1;
 
     const CfemInt* connected_cells_ptr = nullptr;
@@ -43,6 +43,30 @@ struct Cell {
 
     size_t offset{0};
     size_t node_count{0};
+
+    // --- Consistent with Vertex: View-based pointers ---
+    const CfemInt* neighbor_cells_ptr = nullptr;
+    const CfemInt* facet_ids_ptr = nullptr;
+    CfemInt num_faces = 0;
+
+    /** 
+     * @brief Helpers for easier looping
+     * @code
+     *      for (CfemInt neighborId : cell.getNeighborCells()) {
+     *          if (neighborId != -1) {
+     *              // Process internal neighbor
+     *          } else {
+     *              // This face is on the boundary
+     *          }
+     *      }
+     */
+    auto getNeighborCells() const {
+        return std::span<const CfemInt>(neighbor_cells_ptr, num_faces);
+    }
+
+    auto getCellFacets() const {
+        return std::span<const CfemInt>(facet_ids_ptr, num_faces);
+    }
 
     inline static CellType getLinearEquivalent(CellType type) {
         switch (type) {

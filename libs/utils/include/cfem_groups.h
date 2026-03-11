@@ -23,3 +23,8 @@
  * @defgroup Fields Finite Element Fields
  * @brief Discrete fields and projections.
  */
+
+/**
+ * @defgroup Expressions Symbolic Expressions
+ * @brief Utilities for handling symbolic expressions in CFEM++.
+ */

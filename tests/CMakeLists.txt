@@ -5,6 +5,7 @@ add_executable(unit_tests
     fem/test_fem.cpp
     fem/test_reference_element.cpp
     fem/test_quadrature.cpp
+    fem/test_fields.cpp
     mesh/test_mesh.cpp
     mesh/test_gmsh_parser.cpp
     utils/test_dynamic_vector.cpp
@@ -21,6 +22,7 @@ target_link_libraries(unit_tests
         cfem_utils
         cfem_mesh
         cfem_fem_integration
+        cfem_fields
 )
 
 # This command tells CMake to find all TEST() macros in the binary

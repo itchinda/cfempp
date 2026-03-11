@@ -275,72 +275,80 @@ namespace cfem
         }
     }
 
-   void Mesh::buildAdjacency() 
-{
-    PROFILE_SCOPE("Mesh::buildAdjacency");
-
-    m_allCellNeighbors.clear();
-    m_allCellFacetIds.clear();
-    m_neighborOffsets.clear();
-
-    const size_t numCells = m_cells.size();
-    m_neighborOffsets.assign(numCells + 1, 0);
-    
-    size_t totalSlots = 0;
-    for (size_t i = 0; i < numCells; ++i) {
-        m_neighborOffsets[i] = totalSlots;
-        totalSlots += getLocalFacesCount(m_cells[i].type);
-    }
-    m_neighborOffsets[numCells] = totalSlots; 
-
-    m_allCellNeighbors.assign(totalSlots, -1);
-    m_allCellFacetIds.assign(totalSlots, -1);
-
-    for (const auto& f : m_facets) 
+    void Mesh::buildAdjacency() 
     {
-        auto f_nodes = getFacetConnectivity(f.id);
+        PROFILE_SCOPE("Mesh::buildAdjacency");
 
-        // --- UNIVERSAL 2D/3D MATCHER ---
-        auto getLocalFaceIdx = [&](CfemInt cell_id) -> int {
-            int num_faces = getLocalFacesCount(m_cells[cell_id].type);
-            
-            for (int i = 0; i < num_faces; ++i) {
-                // Use your existing helper that knows the HEX8/QUAD4 face patterns
-                LocalFace currentLocal = getLocalFaceData(cell_id, i);
-                
-                // Compare the set of nodes (order independent)
-                if (static_cast<size_t>(currentLocal.size) == f_nodes.size()) {
-                    bool match = true;
-                    for(size_t fn : f_nodes) {
-                        bool found = false;
-                        for(int k=0; k < currentLocal.size; ++k) {
-                            if(currentLocal.v[k] == (CfemInt)fn) { found = true; break; }
+        m_allCellNeighbors.clear();
+        m_allCellFacetIds.clear();
+        m_neighborOffsets.clear();
+
+        const size_t numCells = m_cells.size();
+        m_neighborOffsets.assign(numCells + 1, 0);
+        
+        size_t totalSlots = 0;
+        for (size_t i = 0; i < numCells; ++i) {
+            m_neighborOffsets[i] = totalSlots;
+            totalSlots += getLocalFacesCount(m_cells[i].type);
+        }
+        m_neighborOffsets[numCells] = totalSlots; 
+
+        m_allCellNeighbors.assign(totalSlots, -1);
+        m_allCellFacetIds.assign(totalSlots, -1);
+
+        for (const auto& f : m_facets) 
+        {
+            auto f_nodes = getFacetConnectivity(f.id);
+
+            auto getLocalFaceIdx = [&](CfemInt cell_id) -> int {
+                int num_faces = getLocalFacesCount(m_cells[cell_id].type);
+                for (int i = 0; i < num_faces; ++i) {
+                    LocalFace currentLocal = getLocalFaceData(cell_id, i);
+                    if (static_cast<size_t>(currentLocal.size) == f_nodes.size()) {
+                        bool match = true;
+                        for(size_t fn : f_nodes) {
+                            bool found = false;
+                            for(int k=0; k < currentLocal.size; ++k) {
+                                if(currentLocal.v[k] == (CfemInt)fn) { found = true; break; }
+                            }
+                            if(!found) { match = false; break; }
                         }
-                        if(!found) { match = false; break; }
+                        if(match) return i;
                     }
-                    if(match) return i;
+                }
+                return -1;
+            };
+
+            // Link Left Cell
+            int localIdxL = getLocalFaceIdx(f.left_cell);
+            if (localIdxL != -1) {
+                size_t pos = m_neighborOffsets[f.left_cell] + localIdxL;
+                m_allCellNeighbors[pos] = f.right_cell;
+                m_allCellFacetIds[pos] = f.id;
+            }
+
+            // Link Right Cell
+            if (!f.isBoundary()) {
+                int localIdxR = getLocalFaceIdx(f.right_cell);
+                if (localIdxR != -1) {
+                    size_t pos = m_neighborOffsets[f.right_cell] + localIdxR;
+                    m_allCellNeighbors[pos] = f.left_cell;
+                    m_allCellFacetIds[pos] = f.id;
                 }
             }
-            return -1;
-        };
-
-        // Link Left Cell
-        int localIdxL = getLocalFaceIdx(f.left_cell);
-        if (localIdxL != -1) {
-            m_allCellNeighbors[m_neighborOffsets[f.left_cell] + localIdxL] = f.right_cell;
-            m_allCellFacetIds[m_neighborOffsets[f.left_cell] + localIdxL] = f.id;
         }
 
-        // Link Right Cell
-        if (!f.isBoundary()) {
-            int localIdxR = getLocalFaceIdx(f.right_cell);
-            if (localIdxR != -1) {
-                m_allCellNeighbors[m_neighborOffsets[f.right_cell] + localIdxR] = f.left_cell;
-                m_allCellFacetIds[m_neighborOffsets[f.right_cell] + localIdxR] = f.id;
-            }
+        // Link the pointers in the Cell structs (Consistency Pass)
+        for (size_t i = 0; i < numCells; ++i) {
+            Cell& cell = m_cells[i];
+            size_t startIdx = m_neighborOffsets[i];
+            cell.num_faces = static_cast<CfemInt>(getLocalFacesCount(cell.type));
+            
+            // Point to the data inside the Mesh's big blocks
+            cell.neighbor_cells_ptr = &m_allCellNeighbors[startIdx];
+            cell.facet_ids_ptr     = &m_allCellFacetIds[startIdx];
         }
     }
-}
 
     void Mesh::buildFacets() 
     {
@@ -863,11 +871,9 @@ namespace cfem
                 it = m_observers.erase(it); // Nettoyage automatique
             }
         }
+        CFEM_LOG( "Mesh successfully upgraded to quadratic." );
+        CFEM_LOG( this->info() );
 
-#ifndef NDEBUG
-        CFEM_INFO( "Mesh successfully upgraded to quadratic." );
-        CFEM_INFO( this->info() );
-#endif
     }
 
 

@@ -16,7 +16,7 @@ namespace cfem {
         }
 
         int dimension() const override { return 2; }
-        int numNodes() const override { return 4; }
+        int getNumNodes() const override { return 4; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 4;
@@ -78,7 +78,7 @@ class Q2ReferenceQuad : public ReferenceElement {
         }
 
         int dimension() const override { return 2; }
-        int numNodes() const override { return 9; }
+        int getNumNodes() const override { return 9; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 9;

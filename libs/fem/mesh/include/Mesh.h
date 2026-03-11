@@ -199,6 +199,8 @@ public:
     const std::vector<std::unique_ptr<MeshEntity>>&  getEntities()  const { return m_entities; }
     std::vector<std::unique_ptr<MeshEntity>>&  getEntities() { return m_entities; }
 
+    const std::vector<CellType>& getUniqueCellTypes() const{return m_uniqueTypes;}
+
     void setOrder(MeshOrder newOrder);
     void setDimension(int newDim);
     void setReferenceNormal(const cfem::Vector3D& norm);

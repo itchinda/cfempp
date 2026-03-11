@@ -39,6 +39,8 @@ private:
     /** @brief Initializes reference elements based on the space order. */
     void initReferenceElements();
 
+    std::vector<CfemInt> m_localToMeshNodeIdx;
+
     /** @brief Checks mesh compatibility (e.g., P2 space requires a Quadratic Mesh). */
     void validate() const override{
         FESpace::validate();
@@ -95,6 +97,24 @@ public:
         return space;
     }
 
+    /**
+     * @brief Create a Taylor-Hood finite element pair on a given mesh.
+     * 
+     * Velocity space: higher-order Lagrange (P2, vector field)
+     * Pressure space: lower-order Lagrange (P1, scalar field)
+     *
+     * @param mesh The mesh on which to define the spaces.
+     * @return std::pair<std::shared_ptr<LagrangeSpace>, std::shared_ptr<LagrangeSpace>>
+     *         First: velocity space, Second: pressure space
+     */
+    static std::pair<std::shared_ptr<LagrangeSpace>, std::shared_ptr<LagrangeSpace>>
+        TaylorHood(const std::shared_ptr<Mesh>& mesh) {
+            auto velocitySpace = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
+            auto pressureSpace = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);
+            return {velocitySpace, pressureSpace}; 
+        }
+
+
     ~LagrangeSpace() override = default;
 
     /** @brief Total size for PETSc vectors/matrices (m_numActiveNodes * dimension). */
@@ -106,6 +126,9 @@ public:
     
     /** @brief Converts a mesh vertex ID to the local nodal index (ignoring components). */
     CfemInt getLocalNodeIdx(CfemInt meshNodeId) const { return m_nodeToLocalIdx[meshNodeId]; }
+    CfemInt getMeshNodeIdFromLocal(CfemInt localIdx) const { 
+        return m_localToMeshNodeIdx[localIdx]; 
+    }
     
     const ReferenceElement& getRefElement(CellType type) const;
 

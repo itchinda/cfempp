@@ -2,7 +2,7 @@
 #define CFEM_REFERENCE_ELEMENT_FACTORY_H
 
 #include "ReferenceElement.h"
-#include "Mesh.h" // Pour CellType
+#include "cfem_topology.h" // Pour CellType
 #include <map>
 #include <memory>
 

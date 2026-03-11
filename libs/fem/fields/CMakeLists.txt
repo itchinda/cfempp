@@ -2,21 +2,30 @@ add_library(cfem_fields
     src/FESpace.cpp
     src/LagrangeSpace.cpp
     src/FEField.cpp
+    src/DomainIntegrator.cpp
 )
 
-find_package(OpenMP REQUIRED)
-
-# 2. Add the flags to your executable or library
-if(OpenMP_CXX_FOUND)
-    target_link_libraries(cfem_fields PUBLIC OpenMP::OpenMP_CXX)
-endif()
-
-
+# Use the variables SymEngine provides explicitly
 target_include_directories(cfem_fields
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PUBLIC 
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${SYMENGINE_INCLUDE_DIRS}  # <--- Explicitly add SymEngine headers
 )
+
+find_path(GMP_INCLUDE_DIR NAMES gmp.h)
+find_library(GMP_LIBRARY NAMES gmp)
 
 target_link_libraries(cfem_fields
-    PUBLIC cfem_utils cfem_mesh cfem_fem_integration
+    PUBLIC 
+        cfem_utils 
+        cfem_mesh 
+        cfem_fem_integration
+        cfem_expressions
+        symengine
+        mpfr
+        mpc
+        gmp
+        OpenMP::OpenMP_CXX
+        ${PETSC_LIBRARIES} # Use the variable if the imported target is acting up
+        ${GMP_LIBRARY}
 )
-

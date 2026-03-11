@@ -15,7 +15,7 @@ public:
     }
 
     int dimension() const override { return 3; }
-    int numNodes() const override { return 6; }
+    int getNumNodes() const override { return 6; }
 
     void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
         const int n = 6;
@@ -81,7 +81,7 @@ public:
         }
 
         int dimension() const override { return 3; }
-        int numNodes() const override { return 18; }
+        int getNumNodes() const override { return 18; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 18;

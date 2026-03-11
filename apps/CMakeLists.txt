@@ -14,6 +14,7 @@ target_link_libraries(${APP_PROJECT_NAME}
         cfem_mesh
         cfem_fields
         cfem_exporter
+        cfem_expressions
         cfem_petsc_wrappers
 )
 
