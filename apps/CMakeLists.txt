@@ -36,5 +36,8 @@ target_link_libraries(${APP_PROJECT_NAME}
         cfem_petsc_wrappers
         ${GMP_LIB}    # On force le lien ici
         ${MPFR_LIB}   # On force le lien ici
-        dl
+        # dl
+        # --- DÉPENDANCES LLVM (Fixe les erreurs de ton log) ---
+        ${llvm_libs}
+        ${LLVM_SYSTEM_LIBS}
 )
