@@ -34,10 +34,10 @@ target_link_libraries(${APP_PROJECT_NAME}
         cfem_exporter
         cfem_expressions
         cfem_petsc_wrappers
-        ${GMP_LIB}    # On force le lien ici
-        ${MPFR_LIB}   # On force le lien ici
-        # dl
-        # --- DÉPENDANCES LLVM (Fixe les erreurs de ton log) ---
-        ${llvm_libs}
-        ${LLVM_SYSTEM_LIBS}
+        SymEngine::libsymengine   # 1. La lib statique qui demande des symboles
+        ${llvm_libs}              # 2. Les libs LLVM qui fournissent les symboles
+        ${GMP_LIB}                # 3. Les libs de calcul
+        ${MPFR_LIB}
+        ${MPC_LIB}
+        ${LLVM_SYSTEM_LIBS}       # 4. Les libs système de bas niveau
 )

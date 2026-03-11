@@ -24,11 +24,10 @@ target_link_libraries(unit_tests
         cfem_fem_integration
         cfem_fields
         cfem_expressions
-        ${GMP_LIB}    # On force le lien ici
-        ${MPFR_LIB}   # On force le lien ici
-        # dl
-        # --- DÉPENDANCES LLVM (Fixe les erreurs de ton log) ---
+        SymEngine::libsymengine 
         ${llvm_libs}
+        ${GMP_LIB}
+        ${MPFR_LIB}
         ${LLVM_SYSTEM_LIBS}
 )
 
