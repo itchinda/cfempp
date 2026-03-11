@@ -4,43 +4,43 @@ on:
   push:
     branches: [ master, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ master, develop ]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
     strategy:
+      # matrix permet de tester plusieurs configurations en parallèle
       matrix:
-        mpi_ranks: [2, 4]  # test with 2 and 4 MPI ranks
+        mpi_ranks: [2, 4]
 
     steps:
-    # 1- Checkout code
+    # 1- Checkout du code
     - name: Checkout Project Code
       uses: actions/checkout@v4
 
-    # 2- Install dependencies
+    # 2- Installation des dépendances système (toujours nécessaire pour le linker)
     - name: Install System Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential gfortran cmake python3 m4 wget
+        sudo apt-get install -y build-essential gfortran cmake python3 m4 wget \
+                                libgmp-dev libmpfr-dev libmpc-dev libzstd-dev \
+                                libedit-dev libcurl4-openssl-dev
 
-    # 3- Cache PETSc
-    - name: Prepare PETSc directory
-      run: mkdir -p $HOME/petsc
-      
+    # 3- Cache PETSc (la clé est basée sur la version, pas sur tes fichiers)
     - name: Cache PETSc
       id: cache-petsc
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
-        path: $HOME/petsc
-        key: ${{ runner.os }}-petsc-3.24-opt-${{ hashFiles('**/CMakeLists.txt') }}
+        path: ~/petsc
+        key: ${{ runner.os }}-petsc-3.24-opt-v1
 
-    # 4- Clone and build PETSc if not cached
+    # 4- Build PETSc (uniquement si le cache est vide)
     - name: Build PETSc
       if: steps.cache-petsc.outputs.cache-hit != 'true'
       run: |
-        git clone -b release https://gitlab.com/petsc/petsc.git $HOME/petsc
-        cd $HOME/petsc
+        git clone -b release https://gitlab.com/petsc/petsc.git ~/petsc
+        cd ~/petsc
         ./configure --with-debugging=no \
                     --download-fblaslapack \
                     --download-mpich \
@@ -48,38 +48,38 @@ jobs:
                     --PETSC_ARCH=arch-linux-c-opt
         make PETSC_DIR=$HOME/petsc PETSC_ARCH=arch-linux-c-opt all
 
-    # 4- Clone and build SymEngine if not cached
+    # 5- Cache SymEngine
     - name: Cache SymEngine
       id: cache-symengine
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
-        path: $HOME/symengine_install
-        key: ${{ runner.os }}-symengine-v1
+        path: ~/symengine_install
+        key: ${{ runner.os }}-symengine-v14-opt
 
+    # 6- Build SymEngine (uniquement si le cache est vide)
     - name: Build SymEngine
       if: steps.cache-symengine.outputs.cache-hit != 'true'
       run: |
-        sudo apt-get update
-        sudo apt-get install -y libgmp-dev libmpfr-dev libmpc-dev llvm-dev libzstd-dev libedit-dev libcurl4-openssl-dev
-        git clone https://github.com/symengine/symengine $HOME/symengine
-        cd $HOME/symengine
+        git clone https://github.com/symengine/symengine ~/symengine
+        cd ~/symengine
         mkdir build && cd build
         cmake .. \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=$HOME/symengine_install \
           -DWITH_SYMENGINE_RCP=ON \
-          -DWITH_SYMENGINE_TEUCHOS=OFF \
           -DWITH_LLVM=ON \
           -Dln_depend_mode=OFF
         make -j$(nproc)
         make install
 
-    # 5- Configure and build project
+    # 7- Configuration et Build de ton projet (CFEM)
     - name: Configure and Build Project
       run: |
+        # On définit les variables pour que CMake trouve PETSc et son MPI
         export PETSC_DIR=$HOME/petsc
         export PETSC_ARCH=arch-linux-c-opt
-        # Tell CMake where to find your custom SymEngine install
+        export PATH=$PETSC_DIR/$PETSC_ARCH/bin:$PATH
+        
         mkdir -p build && cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release \
                  -DPETSC_DIR=$PETSC_DIR \
@@ -87,17 +87,12 @@ jobs:
                  -DSymEngine_DIR=$HOME/symengine_install/lib/cmake/symengine
         make -j$(nproc)
 
-    # 6- Run unit tests with MPI
+    # 8- Exécution des tests unitaires via mpiexec
     - name: Run Unit Tests
-      env:
-        PETSC_DIR: $HOME/petsc
-        PETSC_ARCH: arch-linux-c-opt
-        PATH: $HOME/petsc/arch-linux-c-opt/bin:$PATH
       run: |
         export PETSC_DIR=$HOME/petsc
         export PETSC_ARCH=arch-linux-c-opt
         export PATH=$PETSC_DIR/$PETSC_ARCH/bin:$PATH
         cd build
         echo "Running unit tests with ${{ matrix.mpi_ranks }} MPI ranks"
-        mpiexec -n ${{ matrix.mpi_ranks }} tests/unit_tests
-
+        mpiexec -n ${{ matrix.mpi_ranks }} ./tests/unit_tests

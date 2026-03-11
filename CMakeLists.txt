@@ -66,9 +66,40 @@ set(SymEngine_HINTS
 # On cherche le package. CMake regardera dans les dossiers standards système 
 # (/usr/local, /usr) ET dans nos HINTS.
 find_package(SymEngine REQUIRED CONFIG HINTS ${SymEngine_HINTS})
+if(SymEngine_FOUND)
+    # On vérifie quel est le nom de la cible réelle
+    if(TARGET symengine)
+        add_library(SymEngine::libsymengine ALIAS symengine)
+    elseif(TARGET libsymengine)
+        add_library(SymEngine::libsymengine ALIAS libsymengine)
+    endif()
+    
+    # Sécurité : On s'assure que les dossiers d'include sont globaux
+    include_directories(SYSTEM ${SymEngine_INCLUDE_DIRS})
+endif()
+
+# get_target_property(_sym_libs SymEngine::libsymengine INTERFACE_LINK_LIBRARIES)
+# if(_sym_libs)
+#     # On retire toute mention de LLVMjit des dépendances héritées
+#     string(REPLACE "LLVMjit" "" _sym_libs_clean "${_sym_libs}")
+#     set_target_properties(SymEngine::libsymengine PROPERTIES INTERFACE_LINK_LIBRARIES "${_sym_libs_clean}")
+# endif()
 
 # Une fois SymEngine trouvé, il nous faut LLVM car SymEngine est lié statiquement
 find_package(LLVM REQUIRED CONFIG)
+# Dans ton Root CMakeLists.txt
+if(LLVM_FOUND)
+    # Remplace 'engine' par 'mcjit' et 'orcjit'
+    llvm_map_components_to_libnames(llvm_libs core mcjit orcjit native ipo)
+    
+    set(LLVM_SYSTEM_LIBS z zstd dl pthread m)
+endif()
+
+find_library(GMP_LIB NAMES gmp REQUIRED)
+find_library(MPFR_LIB NAMES mpfr REQUIRED)
+find_library(MPC_LIB NAMES mpc REQUIRED)
+
+message(STATUS "Found GMP: ${GMP_LIB}")
 
 message(STATUS "Found SymEngine version: ${SymEngine_VERSION}")
 message(STATUS "SymEngine include dirs: ${SymEngine_INCLUDE_DIRS}")
