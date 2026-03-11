@@ -18,6 +18,20 @@ target_link_libraries(${APP_PROJECT_NAME}
         cfem_petsc_wrappers
 )
 
+# find_package(SymEngine REQUIRED)
+
+# target_link_libraries(${APP_PROJECT_NAME}
+#     PRIVATE
+#         cfem_solvers
+#         cfem_utils
+#         cfem_mesh
+#         cfem_fields
+#         cfem_exporter
+#         cfem_expressions
+#         cfem_petsc_wrappers
+#         SymEngine::libsymengine ${LLVM_AVAILABLE_LIBS}
+# )
+
 # Optional: Add more apps as you go
 # add_executable(wave_equation_2d wave_2d.cpp)
 # target_link_libraries(wave_equation_2d PRIVATE cfem_solvers)

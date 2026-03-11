@@ -55,13 +55,23 @@ endif()
 pkg_search_module(PETSC REQUIRED IMPORTED_TARGET petsc)
 
 # ------------------------------------------------------------
-# Find SymEngine (Sibling directory lookup)
+# Find SymEngine
 # ------------------------------------------------------------
+# On définit d'abord les chemins de recherche potentiels (HINTS)
+set(SymEngine_HINTS 
+    "${CMAKE_SOURCE_DIR}/../symengine/${SYMENGINE_BUILD_DIR}"
+    "/usr/local/lib/cmake/symengine"
+)
 
-set(SymEngine_DIR "${CMAKE_SOURCE_DIR}/../symengine/${SYMENGINE_BUILD_DIR}")
-find_package(SymEngine REQUIRED CONFIG)
+# On cherche le package. CMake regardera dans les dossiers standards système 
+# (/usr/local, /usr) ET dans nos HINTS.
+find_package(SymEngine REQUIRED CONFIG HINTS ${SymEngine_HINTS})
 
-message(STATUS "Found SymEngine at: ${SymEngine_DIR}")
+# Une fois SymEngine trouvé, il nous faut LLVM car SymEngine est lié statiquement
+find_package(LLVM REQUIRED CONFIG)
+
+message(STATUS "Found SymEngine version: ${SymEngine_VERSION}")
+message(STATUS "SymEngine include dirs: ${SymEngine_INCLUDE_DIRS}")
 
 find_package(OpenMP REQUIRED)
 if(OpenMP_CXX_FOUND)
