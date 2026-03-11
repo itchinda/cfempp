@@ -1,25 +1,12 @@
 # apps/CMakeLists.txt
 
 # Define the main simulation executable
-add_executable(${APP_PROJECT_NAME} 
-    main.cpp
-)
+# add_executable(${APP_PROJECT_NAME} 
+#     main.cpp
+# )
 
 # Link against the solver library
 # This automatically pulls in fem, mesh, wrappers, and PETSc
-target_link_libraries(${APP_PROJECT_NAME}
-    PRIVATE
-        cfem_solvers
-        cfem_utils
-        cfem_mesh
-        cfem_fields
-        cfem_exporter
-        cfem_expressions
-        cfem_petsc_wrappers
-)
-
-# find_package(SymEngine REQUIRED)
-
 # target_link_libraries(${APP_PROJECT_NAME}
 #     PRIVATE
 #         cfem_solvers
@@ -29,9 +16,25 @@ target_link_libraries(${APP_PROJECT_NAME}
 #         cfem_exporter
 #         cfem_expressions
 #         cfem_petsc_wrappers
-#         SymEngine::libsymengine ${LLVM_AVAILABLE_LIBS}
+#         # --- LA RÉSOLUTION DU PROBLÈME EST ICI ---
+#         SymEngine::libsymengine
+#         ${llvm_libs}
+#         dl     # Souvent requis par LLVM sur Linux
+#         z      # Souvent requis par LLVM sur Linux
 # )
 
-# Optional: Add more apps as you go
-# add_executable(wave_equation_2d wave_2d.cpp)
-# target_link_libraries(wave_equation_2d PRIVATE cfem_solvers)
+add_executable(${APP_PROJECT_NAME} main.cpp)
+
+target_link_libraries(${APP_PROJECT_NAME}
+    PRIVATE
+        cfem_solvers
+        cfem_utils
+        cfem_mesh
+        cfem_fields
+        cfem_exporter
+        cfem_expressions
+        cfem_petsc_wrappers
+        ${GMP_LIB}    # On force le lien ici
+        ${MPFR_LIB}   # On force le lien ici
+        dl
+)

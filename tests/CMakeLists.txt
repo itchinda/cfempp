@@ -23,6 +23,7 @@ target_link_libraries(unit_tests
         cfem_mesh
         cfem_fem_integration
         cfem_fields
+        cfem_expressions
 )
 
 # This command tells CMake to find all TEST() macros in the binary
