@@ -1,4 +1,4 @@
-name: ODEPP Project CI
+name: CFEM++ Project CI
 
 on:
   push:
