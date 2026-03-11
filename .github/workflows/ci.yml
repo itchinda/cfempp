@@ -49,34 +49,42 @@ jobs:
         make PETSC_DIR=$HOME/petsc PETSC_ARCH=arch-linux-c-opt all
 
     # 4- Clone and build SymEngine if not cached
+    - name: Cache SymEngine
+      id: cache-symengine
+      uses: actions/cache@v3
+      with:
+        path: $HOME/symengine_install
+        key: ${{ runner.os }}-symengine-v1
+
     - name: Build SymEngine
+      if: steps.cache-symengine.outputs.cache-hit != 'true'
       run: |
-        cd $HOME
         sudo apt-get update
-        sudo apt-get install libgmp-dev libmpfr-dev libmpc-dev llvm-dev libzstd-dev libedit-dev libcurl4-openssl-dev
-        llvm-config --cmakedir
-        git clone https://github.com/symengine/symengine
-        cd symengine
+        sudo apt-get install -y libgmp-dev libmpfr-dev libmpc-dev llvm-dev libzstd-dev libedit-dev libcurl4-openssl-dev
+        git clone https://github.com/symengine/symengine $HOME/symengine
         cd $HOME/symengine
-        mkdir build_release && cd build_release
+        mkdir build && cd build
         cmake .. \
           -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=$HOME/symengine_install \
           -DWITH_SYMENGINE_RCP=ON \
-          -DWITH_SYMENGINE_TEUCHOS=OFF\
-          -DWITH_LLVM=ON
+          -DWITH_SYMENGINE_TEUCHOS=OFF \
+          -DWITH_LLVM=ON \
+          -Dln_depend_mode=OFF
         make -j$(nproc)
-        sudo make install
+        make install
 
     # 5- Configure and build project
     - name: Configure and Build Project
       run: |
         export PETSC_DIR=$HOME/petsc
         export PETSC_ARCH=arch-linux-c-opt
-        mkdir -p build
-        cd build
+        # Tell CMake where to find your custom SymEngine install
+        mkdir -p build && cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release \
                  -DPETSC_DIR=$PETSC_DIR \
-                 -DPETSC_ARCH=$PETSC_ARCH
+                 -DPETSC_ARCH=$PETSC_ARCH \
+                 -DSymEngine_DIR=$HOME/symengine_install/lib/cmake/symengine
         make -j$(nproc)
 
     # 6- Run unit tests with MPI
