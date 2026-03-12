@@ -38,7 +38,6 @@ sudo apt-get install -y build-essential gfortran cmake python3 m4 wget git \
                         libedit-dev libcurl4-openssl-dev llvm-dev libomp-dev zlib1g-dev
 
 # --- 3. ARGUMENT PARSING & BUILD MODE ---
-# Default to release if no argument provided
 MODE_ARG=$(echo "${1:-release}" | tr '[:upper:]' '[:lower:]')
 
 if [[ "$MODE_ARG" == "debug" ]]; then
@@ -57,23 +56,26 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PARENT_DIR="$(cd "$PROJECT_ROOT/.." && pwd)"
 
+# Logic: Group all auto-installs in a single "software" directory
+LOCAL_SOFTWARE_DIR="$USER_HOME/software"
+mkdir -p "$LOCAL_SOFTWARE_DIR"
+
 # --- 5. SMART PETSC DETECTION ---
 echo -e "==> Searching for PETSc installation ($PETSC_ARCH)..."
 
-# Check if user already has a valid PETSC_DIR in their environment
 if [ -n "$PETSC_DIR" ] && [ -d "$PETSC_DIR/$PETSC_ARCH" ]; then
     echo -e "${GREEN}[OK] Using existing PETSC_DIR from environment: $PETSC_DIR${NC}"
 else
-    # Search the home directory up to 4 levels deep for the specific architecture configuration file
+    # Search Home for the variables file matching our current ARCH
     SEARCH_PETSC=$(find "$USER_HOME" -maxdepth 4 -name "petscvariables" 2>/dev/null | grep "$PETSC_ARCH" | head -n 1)
 
     if [ -n "$SEARCH_PETSC" ]; then
-        # Navigate up from .../lib/petsc/conf/petscvariables to the root PETSc directory
+        # Backtrack to the PETSc root
         export PETSC_DIR=$(cd "$(dirname "$SEARCH_PETSC")/../../../.." && pwd)
         echo -e "${GREEN}[OK] Automatically detected PETSC_DIR at: $PETSC_DIR${NC}"
     else
-        export PETSC_DIR="$USER_HOME/projects/petsc"
-        echo -e "${RED}[WARN] PETSc ($PETSC_ARCH) not found. Defaulting to: $PETSC_DIR${NC}"
+        export PETSC_DIR="$LOCAL_SOFTWARE_DIR/petsc"
+        echo -e "${RED}[WARN] PETSc ($PETSC_ARCH) not found. Fallback path: $PETSC_DIR${NC}"
     fi
 fi
 
@@ -81,11 +83,10 @@ fi
 echo -e "==> Searching for SymEngine..."
 IS_LOCAL_BUILD=false
 
-# Search for the config file fingerprint
+# Look for the config file in sibling/parent directories
 SEARCH_RESULTS=$(find "$PARENT_DIR" -maxdepth 4 -name "SymEngineConfig.cmake" 2>/dev/null)
 
 if [ -n "$SEARCH_RESULTS" ]; then
-    # Prioritize match for current mode
     MATCHING_PATH=$(echo "$SEARCH_RESULTS" | grep -i "$MODE_ARG" | head -n 1)
     FINAL_CONFIG=$(if [ -n "$MATCHING_PATH" ]; then echo "$MATCHING_PATH"; else echo "$SEARCH_RESULTS" | head -n 1; fi)
     
@@ -101,32 +102,31 @@ if [ -n "$SEARCH_RESULTS" ]; then
     fi
     echo -e "${GREEN}[OK] SymEngine found at: $SYMENGINE_INSTALL_DIR${NC}"
 else
-    export SYMENGINE_INSTALL_DIR="$USER_HOME/symengine_install"
+    export SYMENGINE_INSTALL_DIR="$LOCAL_SOFTWARE_DIR/symengine_install"
     SYMENGINE_CMAKE_PATH="$SYMENGINE_INSTALL_DIR/lib/cmake/symengine"
     IS_LOCAL_BUILD=false
-    echo -e "${RED}[WARN] SymEngine not found. Defaulting to: $SYMENGINE_INSTALL_DIR${NC}"
+    echo -e "${RED}[WARN] SymEngine not found. Fallback path: $SYMENGINE_INSTALL_DIR${NC}"
 fi
 
+# Summary of chosen paths
+echo -e "-------------------------------------------------------"
 echo -e "Build Mode     : ${BLUE}$CMAKE_BUILD_TYPE${NC}"
 echo -e "PETSC_DIR      : $PETSC_DIR"
 echo -e "PETSC_ARCH     : $PETSC_ARCH"
+echo -e "SymEngine Dir  : $SYMENGINE_INSTALL_DIR"
+echo -e "-------------------------------------------------------"
 
-# --- 7. AUTOMATED INSTALLATIONS (If missing) ---
+# --- 7. AUTOMATED INSTALLATIONS ---
 
-# PETSc Installation
+# PETSc Build Logic
 if [ ! -d "$PETSC_DIR/$PETSC_ARCH" ]; then
-    echo -e "${BLUE}==> PETSc architecture $PETSC_ARCH not detected. Cloning and building...${NC}"
+    echo -e "${BLUE}==> PETSc architecture $PETSC_ARCH missing. Starting build...${NC}"
     if [ ! -d "$PETSC_DIR" ]; then
         git clone -b release https://gitlab.com/petsc/petsc.git "$PETSC_DIR"
     fi
     cd "$PETSC_DIR"
     
-    # Enable debugging only if in Debug mode
-    if [[ "$CMAKE_BUILD_TYPE" == "Debug" ]]; then
-        DEBUG_FLAG="yes"
-    else
-        DEBUG_FLAG="no"
-    fi
+    DEBUG_FLAG=$(if [[ "$CMAKE_BUILD_TYPE" == "Debug" ]]; then echo "yes"; else echo "no"; fi)
 
     ./configure --with-debugging=$DEBUG_FLAG \
                 --download-fblaslapack \
@@ -138,9 +138,9 @@ if [ ! -d "$PETSC_DIR/$PETSC_ARCH" ]; then
     cd -
 fi
 
-# SymEngine Installation
+# SymEngine Build Logic
 if [ ! -d "$SYMENGINE_INSTALL_DIR" ]; then
-    echo -e "${BLUE}==> SymEngine not detected. Cloning and building...${NC}"
+    echo -e "${BLUE}==> SymEngine not found. Installing into $SYMENGINE_INSTALL_DIR...${NC}"
     git clone https://github.com/symengine/symengine ~/symengine_source
     mkdir -p ~/symengine_source/build && cd ~/symengine_source/build
     cmake .. -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
@@ -158,7 +158,7 @@ export PATH="$PETSC_DIR/$PETSC_ARCH/bin:$PATH"
 echo -e "${BLUE}==> Configuring CFEM++ Project with CMake...${NC}"
 cd "$PROJECT_ROOT"
 mkdir -p build && cd build
-rm -f CMakeCache.txt # Clean cache to ensure clean mode switch
+rm -f CMakeCache.txt # Important for switching Release/Debug
 
 cmake .. -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
          -DPETSC_DIR="$PETSC_DIR" \
@@ -167,5 +167,6 @@ cmake .. -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
 
 echo -e "${GREEN}============================================="
 echo -e "  CFEM++ Environment is READY (${CMAKE_BUILD_TYPE})!"
-echo -e "  Run 'cd build && make -j' to compile."
+echo -e "  Location: $PROJECT_ROOT/build"
+echo -e "  Run 'make -j' to compile."
 echo -e "=============================================${NC}"
