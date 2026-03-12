@@ -58,7 +58,8 @@ pkg_search_module(PETSC REQUIRED IMPORTED_TARGET petsc)
 # Find SymEngine
 # ------------------------------------------------------------
 # On définit d'abord les chemins de recherche potentiels (HINTS)
-set(SymEngine_HINTS 
+set(SymEngine_HINTS
+    "$ENV{SYMENGINE_INSTALL_DIR}"
     "${CMAKE_SOURCE_DIR}/../symengine/${SYMENGINE_BUILD_DIR}"
     "/usr/local/lib/cmake/symengine"
 )
