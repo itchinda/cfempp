@@ -20,7 +20,7 @@ echo -e "${BLUE}==> Installing system dependencies...${NC}"
 sudo apt-get update
 sudo apt-get install -y build-essential gfortran cmake m4 wget git \
                         libgmp-dev libmpfr-dev libmpc-dev libzstd-dev \
-                        libedit-dev libcurl4-openssl-dev llvm-dev libomp-dev
+                        libedit-dev libcurl4-openssl-dev llvm-dev libomp-dev zlib1g-dev
 
 # --- 2. ENVIRONMENT VARIABLES PATHS ---
 # Uses CI default paths if not already set in the shell
