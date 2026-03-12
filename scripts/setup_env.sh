@@ -6,7 +6,7 @@ BLUE='\033[0;34m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# --- SECURITY CHECK ---
+# --- 1. SECURITY CHECK ---
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo -e "${RED}[ERROR] Please run this script using 'source':${NC}"
     echo -e "      source scripts/setup_env.sh [release|debug]"
@@ -15,13 +15,13 @@ fi
 
 echo -e "${BLUE}==> [CFEM++] Initializing Environment Setup...${NC}"
 
-# --- COMPILER & SYSTEM CHECKS ---
+# --- 2. COMPILER & SYSTEM CHECKS ---
 echo -e "==> Checking Compiler Capabilities..."
 GCC_VERSION=$(g++ -dumpfullversion | cut -d'.' -f1)
 if [ "$GCC_VERSION" -lt 10 ]; then
     echo -e "${RED}[ERROR] Your g++ version ($GCC_VERSION) is too old.${NC}"
     echo -e "CFEM++ requires at least g++ 10 for C++20 support."
-    exit 1
+    return 1
 fi
 
 if ! command -v pkg-config &> /dev/null; then
@@ -33,33 +33,53 @@ fi
 
 echo -e "${BLUE}==> Installing system dependencies...${NC}"
 sudo apt-get update
-sudo apt-get install -y build-essential gfortran cmake m4 wget git \
+sudo apt-get install -y build-essential gfortran cmake python3 m4 wget git \
                         libgmp-dev libmpfr-dev libmpc-dev libzstd-dev \
                         libedit-dev libcurl4-openssl-dev llvm-dev libomp-dev zlib1g-dev
 
-# --- ARGUMENT PARSING & BUILD MODE ---
+# --- 3. ARGUMENT PARSING & BUILD MODE ---
 # Default to release if no argument provided
 MODE_ARG=$(echo "${1:-release}" | tr '[:upper:]' '[:lower:]')
 
 if [[ "$MODE_ARG" == "debug" ]]; then
     export CMAKE_BUILD_TYPE="Debug"
-    DEFAULT_PETSC_ARCH="arch-linux-c-debug"
-    LOOK_FOR="build_debug"
+    export PETSC_ARCH="arch-linux-c-debug"
 else
     export CMAKE_BUILD_TYPE="Release"
-    DEFAULT_PETSC_ARCH="arch-linux-c-opt"
-    LOOK_FOR="build_release"
+    export PETSC_ARCH="arch-linux-c-opt"
 fi
 
-# --- ENVIRONMENT PATHS ---
+echo -e "${BLUE}==> [CFEM++] Setting up environment for ${GREEN}${CMAKE_BUILD_TYPE}${BLUE} mode...${NC}"
+
+# --- 4. ENVIRONMENT PATHS ---
 USER_HOME=$(eval echo "~$USER")
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PARENT_DIR="$(cd "$PROJECT_ROOT/.." && pwd)"
 
-# --- SMART SYMENGINE DETECTION ---
-IS_LOCAL_BUILD=false
+# --- 5. SMART PETSC DETECTION ---
+echo -e "==> Searching for PETSc installation ($PETSC_ARCH)..."
+
+# Check if user already has a valid PETSC_DIR in their environment
+if [ -n "$PETSC_DIR" ] && [ -d "$PETSC_DIR/$PETSC_ARCH" ]; then
+    echo -e "${GREEN}[OK] Using existing PETSC_DIR from environment: $PETSC_DIR${NC}"
+else
+    # Search the home directory up to 4 levels deep for the specific architecture configuration file
+    SEARCH_PETSC=$(find "$USER_HOME" -maxdepth 4 -name "petscvariables" 2>/dev/null | grep "$PETSC_ARCH" | head -n 1)
+
+    if [ -n "$SEARCH_PETSC" ]; then
+        # Navigate up from .../lib/petsc/conf/petscvariables to the root PETSc directory
+        export PETSC_DIR=$(cd "$(dirname "$SEARCH_PETSC")/../../../.." && pwd)
+        echo -e "${GREEN}[OK] Automatically detected PETSC_DIR at: $PETSC_DIR${NC}"
+    else
+        export PETSC_DIR="$USER_HOME/projects/petsc"
+        echo -e "${RED}[WARN] PETSc ($PETSC_ARCH) not found. Defaulting to: $PETSC_DIR${NC}"
+    fi
+fi
+
+# --- 6. SMART SYMENGINE DETECTION ---
 echo -e "==> Searching for SymEngine..."
+IS_LOCAL_BUILD=false
 
 # Search for the config file fingerprint
 SEARCH_RESULTS=$(find "$PARENT_DIR" -maxdepth 4 -name "SymEngineConfig.cmake" 2>/dev/null)
@@ -84,29 +104,41 @@ else
     export SYMENGINE_INSTALL_DIR="$USER_HOME/symengine_install"
     SYMENGINE_CMAKE_PATH="$SYMENGINE_INSTALL_DIR/lib/cmake/symengine"
     IS_LOCAL_BUILD=false
+    echo -e "${RED}[WARN] SymEngine not found. Defaulting to: $SYMENGINE_INSTALL_DIR${NC}"
 fi
-
-# --- PETSC SETTINGS ---
-export PETSC_ARCH=${PETSC_ARCH:-$DEFAULT_PETSC_ARCH}
-export PETSC_DIR=${PETSC_DIR:-$USER_HOME/projects/petsc}
 
 echo -e "Build Mode     : ${BLUE}$CMAKE_BUILD_TYPE${NC}"
 echo -e "PETSC_DIR      : $PETSC_DIR"
 echo -e "PETSC_ARCH     : $PETSC_ARCH"
 
-# --- 3. PETSC INSTALLATION ---
-if [ ! -d "$PETSC_DIR" ]; then
-    echo -e "${BLUE}==> PETSc not detected. Cloning and building...${NC}"
-    git clone -b release https://gitlab.com/petsc/petsc.git "$PETSC_DIR"
+# --- 7. AUTOMATED INSTALLATIONS (If missing) ---
+
+# PETSc Installation
+if [ ! -d "$PETSC_DIR/$PETSC_ARCH" ]; then
+    echo -e "${BLUE}==> PETSc architecture $PETSC_ARCH not detected. Cloning and building...${NC}"
+    if [ ! -d "$PETSC_DIR" ]; then
+        git clone -b release https://gitlab.com/petsc/petsc.git "$PETSC_DIR"
+    fi
     cd "$PETSC_DIR"
-    ./configure --with-debugging=no --download-fblaslapack --download-mpich --with-shared-libraries=1 --PETSC_ARCH="$PETSC_ARCH"
+    
+    # Enable debugging only if in Debug mode
+    if [[ "$CMAKE_BUILD_TYPE" == "Debug" ]]; then
+        DEBUG_FLAG="yes"
+    else
+        DEBUG_FLAG="no"
+    fi
+
+    ./configure --with-debugging=$DEBUG_FLAG \
+                --download-fblaslapack \
+                --download-mpich \
+                --with-shared-libraries=1 \
+                --PETSC_ARCH="$PETSC_ARCH"
+                
     make PETSC_DIR="$PETSC_DIR" PETSC_ARCH="$PETSC_ARCH" all
     cd -
-else
-    echo -e "${GREEN}[OK] PETSc found.${NC}"
 fi
 
-# --- 4. SYMENGINE INSTALLATION ---
+# SymEngine Installation
 if [ ! -d "$SYMENGINE_INSTALL_DIR" ]; then
     echo -e "${BLUE}==> SymEngine not detected. Cloning and building...${NC}"
     git clone https://github.com/symengine/symengine ~/symengine_source
@@ -119,13 +151,14 @@ if [ ! -d "$SYMENGINE_INSTALL_DIR" ]; then
     IS_LOCAL_BUILD=false
 fi
 
-# --- 5. SESSION UPDATE ---
+# --- 8. SESSION UPDATE ---
 export PATH="$PETSC_DIR/$PETSC_ARCH/bin:$PATH"
 
-# --- 6. CFEM++ CONFIGURATION ---
+# --- 9. CFEM++ CONFIGURATION ---
 echo -e "${BLUE}==> Configuring CFEM++ Project with CMake...${NC}"
+cd "$PROJECT_ROOT"
 mkdir -p build && cd build
-rm -f CMakeCache.txt # Clean cache to ensure mode switch
+rm -f CMakeCache.txt # Clean cache to ensure clean mode switch
 
 cmake .. -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
          -DPETSC_DIR="$PETSC_DIR" \
