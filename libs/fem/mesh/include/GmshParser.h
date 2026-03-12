@@ -44,7 +44,7 @@
 #include <string>
 #include <algorithm>
 #include <memory>
-#include <iostream>
+#include <optional>
 #include <set>
 
 namespace cfem{
