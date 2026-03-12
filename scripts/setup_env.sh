@@ -8,6 +8,17 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}==> [CFEM++] Initializing Environment Setup...${NC}"
 
+echo -e "==> Checking Compiler Capabilities..."
+
+# Check GCC version (Needs 10+ for solid C++20 support)
+GCC_VERSION=$(g++ -dumpfullversion | cut -d'.' -f1)
+if [ "$GCC_VERSION" -lt 10 ]; then
+    echo -e "${RED}[ERROR] Your g++ version ($GCC_VERSION) is too old.${NC}"
+    echo -e "CFEM++ requires at least g++ 10 for C++20 support."
+    exit 1
+fi
+
+
 # --- 1. PKG-CONFIG & SYSTEM DEPENDENCIES ---
 if ! command -v pkg-config &> /dev/null; then
     echo -e "${BLUE}==> pkg-config not found. Installing...${NC}"
@@ -24,9 +35,17 @@ sudo apt-get install -y build-essential gfortran cmake m4 wget git \
 
 # --- 2. ENVIRONMENT VARIABLES PATHS ---
 # Uses CI default paths if not already set in the shell
-export PETSC_DIR=${PETSC_DIR:-$HOME/petsc}
+# export PETSC_DIR=${PETSC_DIR:-$HOME/petsc}
+# export PETSC_ARCH=${PETSC_ARCH:-arch-linux-c-opt}
+# export SYMENGINE_INSTALL_DIR=${SYMENGINE_INSTALL_DIR:-$HOME/symengine_install}
+
+USER_HOME=$(eval echo "~$USER")
+
+export PETSC_DIR=${PETSC_DIR:-$USER_HOME/petsc}
 export PETSC_ARCH=${PETSC_ARCH:-arch-linux-c-opt}
-export SYMENGINE_INSTALL_DIR=${SYMENGINE_INSTALL_DIR:-$HOME/symengine_install}
+export SYMENGINE_INSTALL_DIR=${SYMENGINE_INSTALL_DIR:-$USER_HOME/symengine_install}
+
+echo -e "Installations will be directed to: ${GREEN}$USER_HOME${NC}"
 
 echo -e "PETSC_DIR  : $PETSC_DIR"
 echo -e "PETSC_ARCH : $PETSC_ARCH"
