@@ -6,11 +6,17 @@ BLUE='\033[0;34m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# --- SECURITY CHECK ---
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    echo -e "${RED}[ERROR] Please run this script using 'source':${NC}"
+    echo -e "      source scripts/setup_env.sh [release|debug]"
+    exit 1
+fi
+
 echo -e "${BLUE}==> [CFEM++] Initializing Environment Setup...${NC}"
 
+# --- COMPILER & SYSTEM CHECKS ---
 echo -e "==> Checking Compiler Capabilities..."
-
-# Check GCC version (Needs 10+ for solid C++20 support)
 GCC_VERSION=$(g++ -dumpfullversion | cut -d'.' -f1)
 if [ "$GCC_VERSION" -lt 10 ]; then
     echo -e "${RED}[ERROR] Your g++ version ($GCC_VERSION) is too old.${NC}"
@@ -18,8 +24,6 @@ if [ "$GCC_VERSION" -lt 10 ]; then
     exit 1
 fi
 
-
-# --- 1. PKG-CONFIG & SYSTEM DEPENDENCIES ---
 if ! command -v pkg-config &> /dev/null; then
     echo -e "${BLUE}==> pkg-config not found. Installing...${NC}"
     sudo apt-get update && sudo apt-get install -y pkg-config
@@ -33,68 +37,102 @@ sudo apt-get install -y build-essential gfortran cmake m4 wget git \
                         libgmp-dev libmpfr-dev libmpc-dev libzstd-dev \
                         libedit-dev libcurl4-openssl-dev llvm-dev libomp-dev zlib1g-dev
 
-# --- 2. ENVIRONMENT VARIABLES PATHS ---
-# Uses CI default paths if not already set in the shell
-# export PETSC_DIR=${PETSC_DIR:-$HOME/petsc}
-# export PETSC_ARCH=${PETSC_ARCH:-arch-linux-c-opt}
-# export SYMENGINE_INSTALL_DIR=${SYMENGINE_INSTALL_DIR:-$HOME/symengine_install}
+# --- ARGUMENT PARSING & BUILD MODE ---
+# Default to release if no argument provided
+MODE_ARG=$(echo "${1:-release}" | tr '[:upper:]' '[:lower:]')
 
+if [[ "$MODE_ARG" == "debug" ]]; then
+    export CMAKE_BUILD_TYPE="Debug"
+    DEFAULT_PETSC_ARCH="arch-linux-c-debug"
+    LOOK_FOR="build_debug"
+else
+    export CMAKE_BUILD_TYPE="Release"
+    DEFAULT_PETSC_ARCH="arch-linux-c-opt"
+    LOOK_FOR="build_release"
+fi
+
+# --- ENVIRONMENT PATHS ---
 USER_HOME=$(eval echo "~$USER")
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PARENT_DIR="$(cd "$PROJECT_ROOT/.." && pwd)"
 
-export PETSC_DIR=${PETSC_DIR:-$USER_HOME/petsc}
-export PETSC_ARCH=${PETSC_ARCH:-arch-linux-c-opt}
-export SYMENGINE_INSTALL_DIR=${SYMENGINE_INSTALL_DIR:-$USER_HOME/symengine_install}
+# --- SMART SYMENGINE DETECTION ---
+IS_LOCAL_BUILD=false
+echo -e "==> Searching for SymEngine..."
 
-echo -e "Installations will be directed to: ${GREEN}$USER_HOME${NC}"
+# Search for the config file fingerprint
+SEARCH_RESULTS=$(find "$PARENT_DIR" -maxdepth 4 -name "SymEngineConfig.cmake" 2>/dev/null)
 
-echo -e "PETSC_DIR  : $PETSC_DIR"
-echo -e "PETSC_ARCH : $PETSC_ARCH"
+if [ -n "$SEARCH_RESULTS" ]; then
+    # Prioritize match for current mode
+    MATCHING_PATH=$(echo "$SEARCH_RESULTS" | grep -i "$MODE_ARG" | head -n 1)
+    FINAL_CONFIG=$(if [ -n "$MATCHING_PATH" ]; then echo "$MATCHING_PATH"; else echo "$SEARCH_RESULTS" | head -n 1; fi)
+    
+    CONFIG_DIR=$(dirname "$FINAL_CONFIG")
+    if [[ "$CONFIG_DIR" == *"lib/cmake"* ]]; then
+        export SYMENGINE_INSTALL_DIR=$(cd "$CONFIG_DIR/../../.." && pwd)
+        SYMENGINE_CMAKE_PATH="$CONFIG_DIR"
+        IS_LOCAL_BUILD=false
+    else
+        export SYMENGINE_INSTALL_DIR=$(cd "$CONFIG_DIR" && pwd)
+        SYMENGINE_CMAKE_PATH="$SYMENGINE_INSTALL_DIR"
+        IS_LOCAL_BUILD=true
+    fi
+    echo -e "${GREEN}[OK] SymEngine found at: $SYMENGINE_INSTALL_DIR${NC}"
+else
+    export SYMENGINE_INSTALL_DIR="$USER_HOME/symengine_install"
+    SYMENGINE_CMAKE_PATH="$SYMENGINE_INSTALL_DIR/lib/cmake/symengine"
+    IS_LOCAL_BUILD=false
+fi
 
-# --- 3. PETSC INSTALLATION (Automated if folder is missing) ---
+# --- PETSC SETTINGS ---
+export PETSC_ARCH=${PETSC_ARCH:-$DEFAULT_PETSC_ARCH}
+export PETSC_DIR=${PETSC_DIR:-$USER_HOME/projects/petsc}
+
+echo -e "Build Mode     : ${BLUE}$CMAKE_BUILD_TYPE${NC}"
+echo -e "PETSC_DIR      : $PETSC_DIR"
+echo -e "PETSC_ARCH     : $PETSC_ARCH"
+
+# --- 3. PETSC INSTALLATION ---
 if [ ! -d "$PETSC_DIR" ]; then
-    echo -e "${BLUE}==> PETSc not detected. Cloning and building in $PETSC_DIR...${NC}"
+    echo -e "${BLUE}==> PETSc not detected. Cloning and building...${NC}"
     git clone -b release https://gitlab.com/petsc/petsc.git "$PETSC_DIR"
     cd "$PETSC_DIR"
-    ./configure --with-debugging=no \
-                --download-fblaslapack \
-                --download-mpich \
-                --with-shared-libraries=1 \
-                --PETSC_ARCH="$PETSC_ARCH"
+    ./configure --with-debugging=no --download-fblaslapack --download-mpich --with-shared-libraries=1 --PETSC_ARCH="$PETSC_ARCH"
     make PETSC_DIR="$PETSC_DIR" PETSC_ARCH="$PETSC_ARCH" all
     cd -
 else
-    echo -e "${GREEN}[OK] PETSc found in $PETSC_DIR${NC}"
+    echo -e "${GREEN}[OK] PETSc found.${NC}"
 fi
 
-# --- 4. SYMENGINE INSTALLATION (Automated if folder is missing) ---
+# --- 4. SYMENGINE INSTALLATION ---
 if [ ! -d "$SYMENGINE_INSTALL_DIR" ]; then
     echo -e "${BLUE}==> SymEngine not detected. Cloning and building...${NC}"
     git clone https://github.com/symengine/symengine ~/symengine_source
     mkdir -p ~/symengine_source/build && cd ~/symengine_source/build
-    cmake .. -DCMAKE_BUILD_TYPE=Release \
+    cmake .. -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
              -DCMAKE_INSTALL_PREFIX="$SYMENGINE_INSTALL_DIR" \
-             -DWITH_SYMENGINE_RCP=ON \
-             -DWITH_LLVM=ON \
-             -Dln_depend_mode=OFF
+             -DWITH_SYMENGINE_RCP=ON -DWITH_LLVM=ON -Dln_depend_mode=OFF
     make -j$(nproc) install
-    cd -
-    rm -rf ~/symengine_source # Clean up source folder after installation
-else
-    echo -e "${GREEN}[OK] SymEngine found in $SYMENGINE_INSTALL_DIR${NC}"
+    cd - && rm -rf ~/symengine_source
+    IS_LOCAL_BUILD=false
 fi
 
-# --- 5. SESSION ENVIRONMENT UPDATE ---
+# --- 5. SESSION UPDATE ---
 export PATH="$PETSC_DIR/$PETSC_ARCH/bin:$PATH"
 
-# --- 6. CFEM++ PROJECT CONFIGURATION ---
+# --- 6. CFEM++ CONFIGURATION ---
 echo -e "${BLUE}==> Configuring CFEM++ Project with CMake...${NC}"
 mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release \
+rm -f CMakeCache.txt # Clean cache to ensure mode switch
+
+cmake .. -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
          -DPETSC_DIR="$PETSC_DIR" \
          -DPETSC_ARCH="$PETSC_ARCH" \
-         -DSymEngine_DIR="$SYMENGINE_INSTALL_DIR/lib/cmake/symengine"
+         -DSymEngine_DIR="$SYMENGINE_CMAKE_PATH"
 
 echo -e "${GREEN}============================================="
-echo -e "  CFEM++ Environment is READY!"
+echo -e "  CFEM++ Environment is READY (${CMAKE_BUILD_TYPE})!"
 echo -e "  Run 'cd build && make -j' to compile."
 echo -e "=============================================${NC}"
