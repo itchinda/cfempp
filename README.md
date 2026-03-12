@@ -84,46 +84,41 @@ using namespace cfem;
 using namespace cfem::sym;
 
 int main(int argc, char **argv) {
-    // Initialize PETSc and CFEM environment
+    // 1. One call to rule them all: Handles MPI, PETSc, and CFEM internal state
     cfem::Environment::initialize(argc, argv);
 
-    // 1. Generate a 10x10x10 Tetrahedral Block Mesh
+    // 2. Generate Mesh
     auto mesh = Mesh::block(MeshOrder::Linear, 
-                            Mesh::BlockSubdivisions{10, 10, 10}, 
+                            {10, 10, 10}, 
                             Mesh::BlockBounds({0,0,0}, {1,1,1}), 
                             Mesh::BlockElementType::Tetrahedron);
 
-    // 2. Setup a P2 (Quadratic) Vector Field
+    // 3. Setup P2 Vector Space and Field
     auto velocitySpace = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
     auto velocity = FEField::create("U", velocitySpace);
         
-    // 3. Define analytical solution using SymEngine syntax (JIT-compiled via LLVM)
-    auto analytical_u = vector(sin(2 * pi * x) * sin(2 * pi * y),
-                               cos(2 * pi * x) * cos(2 * pi * y),
-                               0.0);
+    // 4. JIT-compiled Symbolic Definition
+    auto analytical_u = vector(sin(2 * pi * x), cos(2 * pi * y), sin(pi * x * y * z));
 
-    // 4. Project symbolic expression onto the Finite Element space
+    // 5. High-level Projection
     velocity->project(*analytical_u);
 
-    // 5. Calculate L2 and H1-semi error norms
-    IntegrationSchemeParams schemes_params{};
+    // 6. Error Analysis (Clean syntax, no explicit scheme params needed)
     CfemReal l2Norm_U, h1SemiNorm_U;
-    DomainIntegrator::L2Norm(velocitySpace, analytical_u - velocity, 
-                             &l2Norm_U, &h1SemiNorm_U, schemes_params);
+    DomainIntegrator::L2Norm(velocitySpace, analytical_u - velocity, &l2Norm_U, &h1SemiNorm_U);
     
-    std::cout << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U << std::endl;
+    std::cout << "L2-norm error on U: " << l2Norm_U << std::endl;
+    std::cout << "H1-semi norm error on U: " << h1SemiNorm_U << std::endl;
         
-    // 6. Export to Binary VTU for high-performance visualization in ParaView
+    // 7. High-performance Binary Export
     VTUExporter vtu_exporter(*mesh);
-    vtu_exporter.exportCellQuality(true);
     vtu_exporter.addExpression("U", velocity);
-    vtu_exporter.addExpression("U_exact", analytical_u);
     vtu_exporter.setFormat(VTUExporter::Format::BINARY);
     vtu_exporter.write("simulation_results");
 
-    return 0;
+    return 0; 
+    // cfem::Environment handles finalization automatically on scope exit or via atexit
 }
-
 ```
 **From Preprocessing to Visualization**: Our robust `GmshParser` handles non-trivial manifolds with ease. Shown below is a 3D heart model imported into CFEM++ and visualized in ParaView. The seamless integration ensures that physical tags and boundary conditions remain consistent from the initial `.msh` file to the final visual results.
 
