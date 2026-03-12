@@ -32,7 +32,7 @@ Leveraging **PETSc** for its linear algebra core, CFEM++ provides:
 
 
 
-### 3. Comprehensive Element Library
+### 4. Comprehensive Element Library
 | Dimension | Linear Elements | Quadratic Elements |
 | :--- | :--- | :--- |
 | **1D** | LINE2 | LINE3 |
@@ -41,109 +41,85 @@ Leveraging **PETSc** for its linear algebra core, CFEM++ provides:
 
 ---
 
-## 🛠 Installation & Dependencies
+## 🛠 Installation & Automated Setup
 
-CFEM++ requires a specific stack for symbolic JIT and HPC linear algebra.
+CFEM++ includes a **Smart Setup Script** that automates the installation of PETSc, SymEngine, and system dependencies.
 
-### System Prerequisites
+### 1. Initialize Environment
+Run the setup script from the project root. This will verify your compiler, install required `apt` packages, and configure dependencies.
+
 ```bash
-# Ubuntu/Debian example
-sudo apt-get update
-sudo apt-get install -y build-essential gfortran cmake python3 m4 wget \
-        libgmp-dev libmpfr-dev libmpc-dev libzstd-dev llvm-dev \
-        libedit-dev libcurl4-openssl-dev libomp-dev
-sudo apt-get install libpetsc-dev libsymengine-dev libgmp-dev libmpfr-dev libomp-dev
+# Recommended: Standard Release mode
+source scripts/setup_env.sh release
+
+# For development: Debug mode with heavy error-checking
+source scripts/setup_env.sh debug
+         
 ```
 
-
-Ensure you have the following installed:
-* **C++20 Compiler** (GCC, Clang, or MSVC)
-* **CMake** (3.15+)
-* **PETSc** (configured with MPI and HYPRE/MUMPS recommended)
-* **SymEngine** (Symbolic math and JIT compilation)
-* **OpenMP** (Parallel multi-threading support, usually bundled with GCC/Clang)
-
-
+### 2. Build Project
 ```bash
-git clone [https://github.com/itchinda/cfempp.git](https://github.com/itchinda/cfempp.git)
-cd cfempp
-mkdir build && cd build
-
-# Point to your PETSc and SymEngine installations if they are in non-standard paths
-cmake .. -DCMAKE_BUILD_TYPE=Release \
-         -DPETSC_DIR=$PETSC_DIR \
-         -DPETSC_ARCH=$PETSC_ARCH
-         
+cd build
 make -j$(nproc)
 ```
 
+### 3. Run Tests
+```bash
+# Execute unit tests across 4 MPI ranks
+mpiexec -n 4 ./tests/unit_tests
+```
+
+## 💻 C++ API Example: Field Projection
+The following example demonstrates how to generate a tetrahedral mesh, project a symbolic JIT-compiled velocity field, calculate numerical errors (L2/H1 norms), and export the results for ParaView.
+
 ```c++
 #include "cfemutils.h"
-#include "Vector3D.h"
 #include "Mesh.h"
-#include "LagrangeSpace.h"
 #include "FEField.h"
-#include "SymbolicExpression.h"
+#include "MathOperators.h"
 #include "DomainIntegrator.h"
-#include "VTKExporter.h"
-
-#include <iostream>
-#include <cmath>
-#include <memory>
+#include "VTUExporter.h"
 
 using namespace cfem;
 using namespace cfem::sym;
-static char help[] = "CFEM Example: Field projection on a quadratic mesh.\n\n";
 
-int main(int argc, char **argv)
-{
-    cfem::Environment::initialize(argc, argv, help);  // Internally handle Petsc initialization and finalization
+int main(int argc, char **argv) {
+    // Initialize PETSc and CFEM environment
+    cfem::Environment::initialize(argc, argv);
 
-    auto mesh = Mesh::block(
-        MeshOrder::Linear,
-        Mesh::BlockSubdivisions{10, 10, 10},
-        Mesh::BlockBounds(
-            Vector3D{0., 0., 0.},
-            Vector3D{1., 1., 1.}),
-        Mesh::BlockElementType::Edge);
+    // 1. Generate a 10x10x10 Tetrahedral Block Mesh
+    auto mesh = Mesh::block(MeshOrder::Linear, 
+                            Mesh::BlockSubdivisions{10, 10, 10}, 
+                            Mesh::BlockBounds({0,0,0}, {1,1,1}), 
+                            Mesh::BlockElementType::Tetrahedron);
 
-    auto pressureSpace = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);
+    // 2. Setup a P2 (Quadratic) Vector Field
     auto velocitySpace = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
-
-    auto pressure = FEField::create("P", pressureSpace);
     auto velocity = FEField::create("U", velocitySpace);
         
-    auto analytical_p = scalar(x * x + y * y + z * z + x * y + x * z + z * y + x + y + z + 1); // SymEngine expressions
-    auto analytical_u = vector(sin(2 * pi * x) * sin(2 * pi * y) * sin(2 * pi * z),
-                               cos(2 * pi * x) * cos(2 * pi * y) * cos(2 * pi * z),
-                               cos(2 * pi * x) * sin(2 * pi * y) * cos(2 * pi * z));
+    // 3. Define analytical solution using SymEngine syntax (JIT-compiled via LLVM)
+    auto analytical_u = vector(sin(2 * pi * x) * sin(2 * pi * y),
+                               cos(2 * pi * x) * cos(2 * pi * y),
+                               0.0);
 
-    // Nodal Projection
-    pressure->project(*analytical_p);
+    // 4. Project symbolic expression onto the Finite Element space
     velocity->project(*analytical_u);
 
-    // Ability to perform mathematical differentiation grad(), div()
-    auto fe_gradp = grad(pressure);
-
-    // L2- and H1 semi- norms
+    // 5. Calculate L2 and H1-semi error norms
     IntegrationSchemeParams schemes_params{};
-    CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
-    DomainIntegrator::L2Norm(pressureSpace, analytical_p - pressure, &l2Norm_P, &h1SemiNorm_P, schemes_params);
-    DomainIntegrator::L2Norm(velocitySpace, analytical_u - velocity, &l2Norm_U, &h1SemiNorm_U, schemes_params);
-    std::cout << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P << std::endl;
+    CfemReal l2Norm_U, h1SemiNorm_U;
+    DomainIntegrator::L2Norm(velocitySpace, analytical_u - velocity, 
+                             &l2Norm_U, &h1SemiNorm_U, schemes_params);
+    
     std::cout << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U << std::endl;
         
-    // Exportation to  VTU/VTK files (ASCII and BINARY formats supported)
-    VTKExporter vtk_exporter(*mesh);
-    vtk_exporter.setExportedEntities( {"xmin", "xmax", "ymin", "ymax", "zmin", "zmax"});
-    vtk_exporter.exportCellQuality(true);
-    vtk_exporter.addExpression("P", pressure);
-    vtk_exporter.addExpression("P_exact", analytical_p);
-    vtk_exporter.addExpression("U", velocity);
-    vtk_exporter.addExpression("U_exact", analytical_u);
-    vtk_exporter.addExpression("GradP", fe_gradp);
-    vtk_exporter.setFormat(VTKExporter::Format::ASCII);
-    vtk_exporter.write("cube");
+    // 6. Export to Binary VTU for high-performance visualization in ParaView
+    VTUExporter vtu_exporter(*mesh);
+    vtu_exporter.exportCellQuality(true);
+    vtu_exporter.addExpression("U", velocity);
+    vtu_exporter.addExpression("U_exact", analytical_u);
+    vtu_exporter.setFormat(VTUExporter::Format::BINARY);
+    vtu_exporter.write("simulation_results");
 
     return 0;
 }
