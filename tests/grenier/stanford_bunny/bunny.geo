@@ -10,4 +10,4 @@ Mesh.CharacteristicLengthMin = 0.5;
 
 Surface Loop(1) = {1}; // Définit l'enveloppe (vérifiez l'ID de la surface)
 Volume(1) = {1}; // Crée le volume interne pour le maillage 3D
-Physical Volume("Elements") = {1};
+Physical Volume("Universe") = {1};

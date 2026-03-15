@@ -20,7 +20,7 @@ public:
                         const std::string& name, 
                         CfemInt dim);
 
-    const Mesh& mesh() const { return *m_mesh; }
+    const Mesh& getMesh() const { return *m_mesh; }
     CfemInt getDimension() const { return m_dim; }
     CfemInt getId() const { return m_id; }
     const std::string& getName() const { return m_name; }
@@ -32,7 +32,6 @@ public:
     const std::vector<CfemInt>& getVertexIds() const { return m_vertex_ids; }
     const std::vector<CfemInt>& getFacetIds()  const { return m_facet_ids; }
     const std::vector<CfemInt>& getCellIds()   const { return m_cell_ids; }
-
     
     size_t getNumVertices() const { return m_vertex_ids.size(); }
     size_t getNumCells()    const { return m_cell_ids.size(); }
@@ -69,6 +68,7 @@ public:
     void reserveCells(CfemInt size) { m_facet_ids.reserve(size); }
 
     void replaceVertexList(const std::vector<CfemInt>& newVertexIds);
+    void replaceVertexList(std::vector<CfemInt>&& newVertexIds);
 
 
 
@@ -80,6 +80,13 @@ private:
     std::vector<CfemInt> m_cell_ids;
     std::vector<CfemInt> m_facet_ids;
     std::vector<CfemInt> m_vertex_ids;
+
+    void processAndStore(std::vector<CfemInt>& vec) {
+        if (!std::is_sorted(vec.begin(), vec.end())) {
+            std::sort(vec.begin(), vec.end());
+        }
+        vec.erase(std::unique(vec.begin(), vec.end()), vec.end());
+    }
 
 };
 

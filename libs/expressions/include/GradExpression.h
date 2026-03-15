@@ -30,6 +30,8 @@ namespace cfem::sym
         CfemInt getDimension() const override { return m_expr->getDimension() * 3; }
         void prepare() const override { m_expr->prepare(); }
         void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
+        ExpressionType getType() const override { return ExpressionType::Gradient; }
+    
     };
 
 

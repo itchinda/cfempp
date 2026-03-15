@@ -32,8 +32,8 @@ target_include_directories(cfem_fields
 
 target_link_libraries(cfem_fields
     PUBLIC 
-        cfem_utils 
-        cfem_mesh 
+        cfem_utils
+        cfem_mesh
         cfem_fem_integration
         cfem_expressions
         # On utilise la cible IMPORTED, elle s'occupe de GMP, MPFR, et des includes !

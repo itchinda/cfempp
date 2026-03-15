@@ -122,17 +122,21 @@ int main(int argc, char **argv) {
 ```
 **From Preprocessing to Visualization**: Our robust `GmshParser` handles non-trivial manifolds with ease. Shown below is a 3D heart model imported into CFEM++ and visualized in ParaView. The seamless integration ensures that physical tags and boundary conditions remain consistent from the initial `.msh` file to the final visual results.
 
+<div align="center">
+
+![Figure 1: Complex cardiac geometry imported from Gmsh and visualized in ParaView.](tests/grenier/heart.png)
+
+*Figure 1: Complex cardiac geometry imported from Gmsh and visualized in ParaView.*
+
+</div>
+
 <p align="center">
-  <img src="tests/grenier/heart.png" width="600px" alt="Human Heart Mesh in ParaView">
-  <br>
-  <i>Figure 1: Complex cardiac geometry imported from Gmsh and visualized in ParaView.</i>
+  <img src="tests/grenier/heart.png" width="40%">
+</p>
+<p align="center">
+  <em>Figure 1: Complex cardiac geometry imported from Gmsh and visualized in ParaView.</em>
 </p>
 
-## 📊 Performance Benchmark
-
-- **Hardware**: Intel Core Ultra 7 (165U), 32GB RAM.
-- **Workload**: 7.9M nodes, 5.8M cells (3D Quadratic).
-- **Load Time**: ~29 seconds (ASCII Parsing + Topological Reconstruction).
 
 ## 📝 Metadata & License
 - **Lead Developer**: itchinda

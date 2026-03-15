@@ -32,7 +32,7 @@ namespace cfem::sym
         if (!g) {CFEM_ERROR("You requested the gradient, but the object is in wrong state. nullptr."); return nullptr;}
         auto two = std::make_shared<ConstantExpression>(std::vector<CfemReal>{2.0});
         // grad(f^2) = 2 * f * grad(f)
-        //return two * m_expr * g;
+        // return two * m_expr * g;
         return std::make_shared<BinaryExpression>(std::make_shared<BinaryExpression>(two, m_expr, MathOp::Mul), g, MathOp::Mul);
     }
 

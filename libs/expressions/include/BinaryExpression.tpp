@@ -100,5 +100,77 @@ namespace cfem::sym
         ctx.releaseToBookmark(bookmark);
     }
 
-    
+    inline int getPrecedence(MathOp op)
+    {
+        switch (op)
+        {
+            case MathOp::Add:
+            case MathOp::Sub:
+                return 1;
+
+            case MathOp::Mul:
+            case MathOp::Div:
+                return 2;
+
+            case MathOp::Dot:
+            case MathOp::Inner:
+            case MathOp::Cross:
+            case MathOp::Pow:
+            case MathOp::Max:
+            case MathOp::Min:
+            case MathOp::Atan2:
+                return 3;
+
+            default:
+                return 4;
+        }
+    }
+
+    inline CfemInt BinaryExpression::precedence() const{
+        return getPrecedence(m_op);
+    }
+
+    inline std::string maybeParen( const std::shared_ptr<const CfemExpression>& expr, CfemInt parentPrec)
+    {
+        if (expr->precedence() < parentPrec)
+            return "(" + expr->toString() + ")";
+        else
+            return expr->toString();
+    }
+
+    // inline std::string BinaryExpression::toString() const {
+    //     switch (m_op)
+    //     {
+    //         case MathOp::Add:
+    //         case MathOp::Sub:
+    //         case MathOp::Mul:
+    //         case MathOp::Div:
+    //             return "(" + m_lhs->toString() + opToSym(m_op) + m_rhs->toString() + ")";
+    //             break;
+    //         default:
+    //             return opToSym(m_op) + "(" + m_lhs->toString() + ", " + m_rhs->toString() + ")";
+    //     }
+
+    // }
+    std::string BinaryExpression::toString() const
+    {
+        CfemInt prec = precedence();
+
+        std::string L = maybeParen(m_lhs, prec);
+        std::string R = maybeParen(m_rhs, prec);
+
+        switch(m_op)
+        {
+            case MathOp::Add:    return L + " + " + R; break;
+            case MathOp::Sub:    return L + " - " + R; break;
+            case MathOp::Mul:    return L + " * " + R; break;
+            case MathOp::Div:    return L + " / " + R; break;
+            case MathOp::Pow:    return L + "**" + R; break;
+            default:    
+                return opToSym(m_op) + "(" + m_lhs->toString() + ", " + m_rhs->toString() + ")";
+                break;
+        }
+
+        return "";
+    }
 }

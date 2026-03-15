@@ -238,6 +238,10 @@ private:
                     "Names must start with a letter/underscore and contain only alphanumeric characters."
                 );
             }
+
+            if (name == "x" || name == "y" || name== "z" || name == "t"){
+                throw std::runtime_error("[CFEM ERROR]: '" + name + " is a reserved name.");
+            }
         }
     };
 

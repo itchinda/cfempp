@@ -27,6 +27,9 @@ namespace cfem::sym
                       std::span<CfemReal> out, EvalContext& ctx) const override;
 
         std::shared_ptr<const CfemExpression> grad() const override;
+        std::string toString() const override;
+        CfemInt precedence() const override;
+        ExpressionType getType() const override { return ExpressionType::Unary; }
 
     private:
         std::shared_ptr<const CfemExpression> m_expr;

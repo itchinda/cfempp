@@ -6,13 +6,13 @@
 #include "CfemExpression.h"
 #include "cfem_topology.h"
 
+
 #include <memory>
 #include <string>
 
 namespace cfem {
 
     class Mesh;
-    //class CfemExpression;
 
     /**
      * @defgroup MeshExporter Mesh Export Infrastructure
@@ -49,9 +49,7 @@ namespace cfem {
          *
          * @param mesh Reference to the mesh to export.
          */
-        explicit MeshExporter(const Mesh& mesh)
-            : m_mesh(mesh)
-        {}
+        explicit MeshExporter(const Mesh& mesh);
 
         /// Virtual destructor.
         virtual ~MeshExporter() = default;
@@ -70,15 +68,7 @@ namespace cfem {
          * @throws Runtime error if a field with the same name already exists.
          */
         void addExpression(const std::string& name,
-                           std::shared_ptr<const sym::CfemExpression> expr)
-        {
-            for (const auto& [name_used, stored_expr] : m_entries) {
-                if (name_used == name) {
-                    CFEM_ERROR("A field with name '" + name + "' is already present.");
-                }
-            }
-            m_entries.push_back({name, std::move(expr)});
-        }
+                           std::shared_ptr<const sym::CfemExpression> expr);
 
         /**
          * @brief Attach a finite element field for export.
@@ -87,11 +77,7 @@ namespace cfem {
          *
          * @param field Shared pointer to the FEField.
          */
-        void addField(std::shared_ptr<const FEField> field)
-        {
-            // addExpression(field->getName(), std::move(field));
-            addExpression(field->getName(), field);
-        }
+        void addField(std::shared_ptr<const FEField> field);
 
         /**
          * @brief Restrict export to specific physical entities.
@@ -100,10 +86,7 @@ namespace cfem {
          *
          * @param entityNames List of physical entity names to export.
          */
-        void setExportedEntities(const std::vector<std::string>& entityNames)
-        {
-            m_exportedEntityNames = entityNames;
-        }
+        void setExportedEntities(const std::vector<std::string>& entityNames);
 
         /**
          * @brief Enable or disable cell quality export.
@@ -113,10 +96,7 @@ namespace cfem {
          *
          * @param enable True to export quality metrics.
          */
-        void exportCellQuality(bool enable)
-        {
-            m_exportQuality = enable;
-        }
+        void exportCellQuality(bool enable);
 
         /**
          * @brief Write mesh and attached fields to file.
@@ -147,24 +127,7 @@ namespace cfem {
          * @param type The internal CFEM CellType.
          * @return The corresponding VTK integer ID.
          */
-        static int getVTKCellType(CellType type)
-        {
-            switch (type) {
-                case CellType::LINE2:   return 3;   
-                case CellType::LINE3:   return 21; 
-                case CellType::TRI3:    return 5;   
-                case CellType::TRI6:    return 22; 
-                case CellType::QUAD4:   return 9;   
-                case CellType::QUAD9:   return 28; 
-                case CellType::TET4:    return 10; 
-                case CellType::TET10:   return 24; 
-                case CellType::HEX8:    return 12; 
-                case CellType::HEX27:   return 29; 
-                case CellType::PRISM6:  return 13;
-                case CellType::PRISM18: return 32;
-                default: CFEM_ERROR("Unsupported cell type."); // VTK_EMPTY_CELL case 13: return CellType::PRISM6; case 32: return CellType::PRISM18;
-            }
-        }
+        static CfemInt getVTKCellType(CellType type);
 
         std::string validateFilename(std::string filename,
                                      const std::string& requiredExtension) const;

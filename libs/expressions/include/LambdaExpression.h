@@ -38,7 +38,9 @@ namespace cfem::sym
         }
 
         std::shared_ptr<const CfemExpression> grad() const override { return m_gradExpr; }
-
+        std::string toString() const override { return "LambdaExpression_dim_"+std::to_string(m_dim) ; }
+        ExpressionType getType() const override { return ExpressionType::Lambda; }
+        
         static std::shared_ptr<const LambdaExpression> fromScalar(
                                                     const std::function<CfemReal(const Vector3D&)>& f,
                                                     std::shared_ptr<const CfemExpression>           gradient = nullptr);
@@ -50,6 +52,9 @@ namespace cfem::sym
         static std::shared_ptr<const LambdaExpression> fromTensor(
                                                     const std::function<TensorO2(const Vector3D&)>& f,
                                                     std::shared_ptr<const CfemExpression>           gradient = nullptr);
+                        
+        
     };
+
 
 }

@@ -92,4 +92,21 @@ namespace cfem::sym
         ctx.releaseToBookmark(bookmark); 
         }
     }
+
+    inline CfemInt UnaryExpression::precedence() const{
+        return 5;
+    }
+
+    inline std::string UnaryExpression::toString() const {
+        switch (m_op){
+            case MathOp::Negate: return "(-(" + m_expr->toString() + "))";
+                break;
+            default:
+                return opToSym(m_op) + "(" + m_expr->toString() + ")";
+                break;
+        }
+        return opToSym(m_op) + "(" + m_expr->toString() + ")";
+    }
+
+    
 }
