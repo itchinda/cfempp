@@ -7,6 +7,7 @@
 #include "CfemExpression.h"
 #include "FEField.h"
 #include "LagrangeSpace.h"
+#include "Mesh.h"
 #include "ReferenceElementFactory.h"
 #include <algorithm>
 #include <iomanip>
@@ -146,16 +147,15 @@ namespace cfem
                     if (computed[vid])
                         continue;
 
-                    // COMPUTE MAPPING ONCE PER NODE
-                    MappingInfo map;
+                    ctx.resetBuffers(); 
+
                     refEl.computeMapping(xiNodes[n],
-                                         physCoords,
-                                         ShapeEvaluationFlags::None,
-                                         cache.nodeShapes[n], map);
+                                        physCoords,
+                                        ShapeEvaluationFlags::None,
+                                        cache.nodeShapes[n], ctx.scratchMapping);
 
-                    ctx.physPos = map.physicalPosition;
+                    ctx.physPos = ctx.scratchMapping.physicalPosition;
 
-                    // EVALUATE ALL EXPRESSIONS FOR THIS NODE
                     for (size_t i = 0; i < numEntries; ++i)
                     {
                         int dim = m_entries[i].expr->getDimension();
@@ -396,27 +396,27 @@ namespace cfem
 
                 m_mesh.getCellVerticesCoords(c, physCoords);
 
-                for (std::size_t n = 0; n < connectivity.size(); ++n)
+                for (size_t n = 0; n < connectivity.size(); ++n)
                 {
                     CfemInt vid = connectivity[n];
                     if (computed[vid])
                         continue;
 
-                    MappingInfo map;
+                    ctx.resetBuffers(); 
+
                     refEl.computeMapping(xiNodes[n],
-                                         physCoords,
-                                         ShapeEvaluationFlags::Value,
-                                         cache.nodeShapes[n], map);
+                                        physCoords,
+                                        ShapeEvaluationFlags::None,
+                                        cache.nodeShapes[n], ctx.scratchMapping);
 
-                    ctx.physPos = map.physicalPosition;
+                    ctx.physPos = ctx.scratchMapping.physicalPosition;
 
-                    for (std::size_t i = 0; i < numEntries; ++i)
+                    for (size_t i = 0; i < numEntries; ++i)
                     {
                         int dim = m_entries[i].expr->getDimension();
-                        std::span<double> outSpan(&allResults[i][vid * dim], dim);
+                        std::span<CfemReal> outSpan(&allResults[i][vid * dim], dim);
                         m_entries[i].expr->evaluate(c, xiNodes[n], outSpan, ctx);
                     }
-
                     computed[vid] = true;
                 }
             }

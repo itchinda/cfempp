@@ -48,6 +48,11 @@ namespace cfem::sym
         MathOp getOp() const { return m_op; }
 
         std::shared_ptr<const CfemExpression> grad() const override;
+
+        CfemInt precedence() const override;
+        inline std::string toString() const  override;
+        ExpressionType getType() const override { return ExpressionType::Binary; }
+
     };
 
 }

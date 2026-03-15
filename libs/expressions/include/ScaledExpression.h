@@ -1,0 +1,62 @@
+#pragma once
+#include "CfemExpression.h"
+#include "BinaryExpression.h"
+#include <memory>
+
+namespace cfem::sym {
+
+    class ScaledExpression : public CfemExpression {
+    public:
+        ScaledExpression(CfemReal coeff, std::shared_ptr<const CfemExpression> expr)
+            : m_coeff(coeff), m_base(std::move(expr)) 
+        {
+        }
+
+        virtual void prepare() const override { m_base->prepare(); }
+
+        virtual void evaluate(CfemInt cellId, const Vector3D &xi, 
+                              std::span<CfemReal> out, EvalContext &ctx) const override {
+            m_base->evaluate(cellId, xi, out, ctx);
+            for (auto& val : out) {
+                val *= m_coeff; // Apply the scale
+            }
+        }
+
+        CfemInt getDimension() const override { return m_base->getDimension(); }
+        
+        // Helper accessors for the "Smart Builder"
+        CfemReal getCoeff() const { return m_coeff; }
+        const CfemExpression* getBasePtr() const { return m_base.get(); }
+        std::shared_ptr<const CfemExpression> getBaseShared() const { return m_base; }
+
+        std::shared_ptr<const CfemExpression> grad() const override {
+            // Gradient of k*u is k*grad(u)
+            return std::make_shared<ScaledExpression>(m_coeff, m_base->grad());
+        }
+
+        // std::string toString() const override {
+        //     if (m_coeff == -1.0) return "-(" + m_base->toString() + ")";
+        //     return "(" + std::to_string(m_coeff) + " * " + m_base->toString() + ")";
+        // }
+
+        ExpressionType getType() const override { return ExpressionType::Scaled; }
+
+        std::string toString() const override{
+            std::string baseStr = m_base->toString();
+            
+            if (m_base->getType() == ExpressionType::Binary) {
+                auto bin = std::static_pointer_cast<const BinaryExpression>(m_base);
+                if (bin->getOp() == MathOp::Add || bin->getOp() == MathOp::Sub) {
+                    baseStr = "(" + baseStr + ")";
+                }
+            }
+
+            std::string coeffStr = formatCoefficient(m_coeff);
+            return coeffStr + " * " + baseStr;
+        }
+
+    private:
+        CfemReal m_coeff;
+        std::shared_ptr<const CfemExpression> m_base;
+    };
+}

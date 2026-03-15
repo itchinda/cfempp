@@ -69,6 +69,9 @@ namespace cfem
                 !std::is_same_v<std::decay_t<Func>, std::shared_ptr<sym::CfemExpression>>)
         void project(const Func& func);
 
+        sym::ExpressionType getType() const override { return sym::ExpressionType::FEField; }
+
+
     };
 } 
 

@@ -17,6 +17,7 @@ namespace cfem::sym{
             inputs.push_back(v);
 
         m_evaluator = std::make_unique<SymbolicEvaluator>(m_expression.get_basic(), inputs);
+
     }
 
     std::shared_ptr<const CfemExpression> ScalarSymbolicExpression::grad() const {

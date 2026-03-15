@@ -19,7 +19,8 @@ namespace cfem::sym
         CfemInt m_dim {0};
 
     public:
-        ZeroExpression (CfemInt dim = 0): m_dim(dim) {}
+        ZeroExpression (CfemInt dim = 0): m_dim(dim) {
+        }
 
         int getDimension() const override { return m_dim; }
         bool isPointwise() const override { return true; }
@@ -33,6 +34,22 @@ namespace cfem::sym
         std::shared_ptr<const CfemExpression> grad() const {
             return std::make_shared<ZeroExpression>(m_dim * 3);
         }
+        ExpressionType getType() const override { return ExpressionType::Zero; }
+
+        std::string toString() const override { 
+            CfemInt dim = getDimension();
+            if (dim==1) return "0";
+
+            std::ostringstream out;
+            CfemInt i = 0;
+            out << "[";
+            for (CfemInt i = 0; i< m_dim-1; ++i){
+                out << "0" << ", ";
+                ++i;
+            }
+            out << "0" << "]";
+            return out.str();
+         }
     };
 
     namespace zeros{

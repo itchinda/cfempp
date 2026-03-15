@@ -6,6 +6,8 @@
 #include <type_traits>
 #include "ContractException.h"
 #include "ChronoManager.h"
+#include <sstream>
+#include <iomanip>
 //#include "numeric_policy.h"
 
 // CFEM TYPES
@@ -37,16 +39,18 @@ namespace cfem
     constexpr CfemReal MACHINE_EPSILON = std::numeric_limits<CfemReal>::epsilon();
 
     /**
-     * @brief Sentinel value indicating an unassigned or invalid ID.
-     * * Commonly used to initialize indices before they are mapped to the mesh
-     * or to represent a "null" relationship in connectivity arrays.
+     * @brief Internal identifier representing the global simulation universe.
+     * * This ID is used to tag entities or regions that belong to the overall 
+     * domain background, typically used when an entity is not associated with 
+     * a specific subdomain or physical material.
      */
     constexpr CfemInt UNIVERSE_ID = -1;
 
     /**
-     * @brief Sentinel value reserved for system-level boundary conditions.
-     * * Used to distinguish internal mesh interfaces from external boundaries
-     * where constraints (Dirichlet/Neumann) are applied.
+     * @brief Internal identifier reserved for the mesh boundary entity.
+     * This ID distinguishes entities that lie on the geometric frontier of the 
+     * mesh. It is used during assembly and boundary condition mapping to 
+     * identify nodes or faces that belong to the external mesh surface.
      */
     constexpr CfemInt SYS_BOUNDARY_ID = -2;
 
@@ -71,6 +75,16 @@ namespace cfem
                    relative_tol * scale + absolute_tol;
         }
     };
+
+
+
+    inline std::string formatCoefficient(CfemReal val) {
+        std::ostringstream out;
+        // 'noshowpoint' removes the decimal if it's not needed (e.g., 7.0 -> 7)
+        // 'precision' controls how many significant digits to keep
+        out << std::noshowpoint << std::setprecision(15) << val;
+        return out.str();
+    }
 
 } // namespace
 

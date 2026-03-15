@@ -2,6 +2,7 @@
 
 
 #include "BinaryExpression.h"
+#include "CachedExpression.h"
 #include "ConstantExpression.h"
 #include "GradExpression.h"
 #include "LambdaExpression.h"
@@ -13,6 +14,9 @@
 #include "symengine/VectorSymbolicExpression.h"
 #include "symengine/TensorSymbolicExpression.h"
 #include "ZeroExpression.h"
+#include "ScaledExpression.h"
+#include "AlgebraicSimplifier.h"
+
 
 namespace cfem::sym
 {
@@ -66,41 +70,209 @@ namespace cfem::sym
         return std::make_shared<ConstantExpression>(std::vector<CfemReal>(u->getDimension(), 1.0));
     }
 
-        inline std::shared_ptr<const CfemExpression> operator-(std::shared_ptr<const CfemExpression> u) {
+    // inline bool isIdentical(const std::shared_ptr<const CfemExpression>& a, 
+    //                 const std::shared_ptr<const CfemExpression>& b) {
+    //     if (!a || !b) return a == b;
+    //     if (a.get() == b.get()) return true; // Fastest check
+    //     if (a->getDimension() != b->getDimension()) return false;
+
+    //     auto cA = std::dynamic_pointer_cast<const ConstantExpression>(a);
+    //     auto cB = std::dynamic_pointer_cast<const ConstantExpression>(b);
+    //     if (cA && cB) {
+    //         return cA->getValues() == cB->getValues();
+    //     }
+
+    //     // 1. Check for UnaryExpression equality (e.g., sin(u) == sin(u))
+    //     auto uA = std::dynamic_pointer_cast<const UnaryExpression>(a);
+    //     auto uB = std::dynamic_pointer_cast<const UnaryExpression>(b);
+    //     if (uA && uB) {
+    //         return (uA->getOp() == uB->getOp() && isIdentical(uA->getInner(), uB->getInner()));
+    //     }
+
+    //     // 2. Check for ScalarSymbolicExpression (SymEngine wrapper)
+    //     auto sA = std::dynamic_pointer_cast<const ScalarSymbolicExpression>(a);
+    //     auto sB = std::dynamic_pointer_cast<const ScalarSymbolicExpression>(b);
+    //     if (sA && sB) {
+    //         return sA->get_expression() == sB->get_expression(); 
+    //     }
+
+    //     auto vA = std::dynamic_pointer_cast<const VectorSymbolicExpression>(a);
+    //     auto vB = std::dynamic_pointer_cast<const VectorSymbolicExpression>(b);
+    //     if (vA && vB) {
+    //         for (int i = 0; i < 3; ++i) {
+    //             if (!isIdentical(vA->getComponent(i), vB->getComponent(i))) return false;
+    //         }
+    //         return true;
+    //     }
+
+    //     // 5. Tensor Check (assuming 3x3 or Voigt notation)
+    //     auto tA = std::dynamic_pointer_cast<const TensorSymbolicExpression>(a);
+    //     auto tB = std::dynamic_pointer_cast<const TensorSymbolicExpression>(b);
+    //     if (tA && tB) {
+    //         for (size_t i = 0; i < 9; ++i) {
+    //             if (!isIdentical(tA->getComponent(i), tB->getComponent(i))) return false;
+    //         }
+    //         return true;
+    //     }
+
+    //     return false; // Default: assume different if not explicitly matched
+    // }
+
+
+    inline std::shared_ptr<const CfemExpression> operator-(std::shared_ptr<const CfemExpression> u) 
+    {
         if (u->isZero()) return u;
-        return foldUnary(u, MathOp::Negate, [](CfemReal x) { return -x; });
+
+        // 2. Constant folding check
+        if (auto cU = std::dynamic_pointer_cast<const ConstantExpression>(u)) {
+            const auto& v = cU->getValues();
+            std::vector<CfemReal> res(v.size());
+            for(size_t i = 0; i < v.size(); ++i) res[i] = -v[i];
+            return std::make_shared<ConstantExpression>(std::move(res));
+        }
+
+        // 3. Smart Scaling: - (k * u) -> (-k) * u
+        if (auto uScaled = std::dynamic_pointer_cast<const ScaledExpression>(u)) {
+            return std::make_shared<ScaledExpression>(-uScaled->getCoeff(), uScaled->getBaseShared());
+        }
+
+        // 4. Default: Treat -u as (-1.0) * u
+        return std::make_shared<ScaledExpression>(-1.0, u);
     }
 
     inline std::shared_ptr<const CfemExpression> operator-(std::shared_ptr<const CfemExpression> lhs, 
-                                                           std::shared_ptr<const CfemExpression> rhs) 
+                                                       std::shared_ptr<const CfemExpression> rhs) 
     {
-        if (lhs->getDimension() != rhs->getDimension()) {
-            CFEM_ERROR("Dimension mismatch in operator-");
-        }
-
-        if (rhs->isZero()) return lhs; // x - 0 = x
-        if (lhs->isZero()) return -rhs; // 0 - x = -x
-
-        return foldBinary(lhs, rhs, MathOp::Sub, lhs->getDimension(), 
-            [](const auto& vL, const auto& vR, auto& res) {
-                for(size_t i = 0; i < vL.size(); ++i) res[i] = vL[i] - vR[i];
-            });
+        return lhs + (-rhs); 
     }
 
-    inline std::shared_ptr<const CfemExpression> operator+(std::shared_ptr<const CfemExpression> lhs, 
-                                                           std::shared_ptr<const CfemExpression> rhs) 
+
+
+    // inline std::shared_ptr<const CfemExpression> operator+(std::shared_ptr<const CfemExpression> lhs, 
+    //                                                    std::shared_ptr<const CfemExpression> rhs) 
+    // {
+    //     if (lhs->getDimension() != rhs->getDimension()) {
+    //         std::cout << "Dim left: " << lhs->getDimension()  << " Dim Right: " << rhs->getDimension() << std::endl;
+    //         CFEM_ERROR("Dimension mismatch in operator+");
+    //     }
+
+    //     if (rhs->isZero()) return lhs;
+    //     if (lhs->isZero()) return rhs;
+
+    //     if (lhs.get() == rhs.get()) {
+    //         return std::make_shared<const ScaledExpression>(2.0, lhs); 
+    //     }
+
+    //     // 2. Unary Structural Check
+    //     auto lU = std::dynamic_pointer_cast<const UnaryExpression>(lhs);
+    //     auto rU = std::dynamic_pointer_cast<const UnaryExpression>(rhs);
+
+    //     if (lU && rU) {
+    //         // If it's the same math operation (e.g. SIN) acting on the exact same object
+    //         if (lU->getOp() == rU->getOp() && lU->getInner().get() == rU->getInner().get()) {
+    //             return std::make_shared<const ScaledExpression>(2.0, lhs);
+    //         }
+    //     }
+
+    //     // --- Scale Awareness ---
+    //     auto lS = std::dynamic_pointer_cast<const ScaledExpression>(lhs);
+    //     auto rS = std::dynamic_pointer_cast<const ScaledExpression>(rhs);
+
+    //     if (lS && rS && lS->getBasePtr() == rS->getBasePtr()) {
+    //         return std::make_shared<const ScaledExpression>(lS->getCoeff() + rS->getCoeff(), lS->getBaseShared());
+    //     }
+    //     if (lS && lS->getBasePtr() == rhs.get()) {
+    //         auto coeff = lS->getCoeff()+ 1.0;
+    //         if (NumericPolicy::isZero(coeff)) 
+    //             return std::make_shared<const ZeroExpression>(lS->getDimension());
+    //         return std::make_shared<const ScaledExpression>(coeff, rhs);
+    //     }
+    //     if (rS && rS->getBasePtr() == lhs.get()) {
+    //         auto coeff = rS->getCoeff()+ 1.0;
+    //         if (NumericPolicy::isZero(coeff)) 
+    //             return std::make_shared<const ZeroExpression>(rS->getDimension());
+    //         return std::make_shared<const ScaledExpression>(coeff, lhs);
+    //     }
+
+    //     // --- RECURSIVE PEEK LOGIC ---
+    //     auto bl = std::dynamic_pointer_cast<const BinaryExpression>(lhs);
+    //     auto br = std::dynamic_pointer_cast<const BinaryExpression>(rhs);
+
+    //     bool blIsSum = bl && (bl->getOp() == MathOp::Add || bl->getOp() == MathOp::Sub);
+    //     bool brIsSum = br && (br->getOp() == MathOp::Add || br->getOp() == MathOp::Sub);
+
+    //     auto getEffectiveRHS = [](const std::shared_ptr<const BinaryExpression>& b) -> std::shared_ptr<const CfemExpression> {
+    //         if (b->getOp() == MathOp::Add) return b->getRHS();
+    //         if (b->getOp() == MathOp::Sub) return std::make_shared<const ScaledExpression>(-1.0, b->getRHS());
+    //         return nullptr;
+    //     };
+
+    //     auto isSimplified = [](const std::shared_ptr<const CfemExpression>& e) {
+    //         auto bin = std::dynamic_pointer_cast<const BinaryExpression>(e);
+    //         return !bin || (bin->getOp() != MathOp::Add && bin->getOp() != MathOp::Sub);
+    //     };
+
+    //     // PRIORITY 1: Try merging entire RHS into LHS's branches
+    //     if (blIsSum) {
+    //         auto L1 = bl->getLHS();
+    //         auto L2 = getEffectiveRHS(bl);
+
+    //         auto tryRight = L2 + rhs;
+    //         if (isSimplified(tryRight)) return L1 + tryRight;
+
+    //         auto tryLeft = L1 + rhs;
+    //         if (isSimplified(tryLeft)) return tryLeft + L2;
+    //     } 
+        
+    //     // PRIORITY 2: Try merging entire LHS into RHS's branches
+    //     if (brIsSum) {
+    //         auto R1 = br->getLHS();
+    //         auto R2 = getEffectiveRHS(br);
+
+    //         auto tryLeft = lhs + R1;
+    //         if (isSimplified(tryLeft)) return tryLeft + R2;
+
+    //         auto tryRight = lhs + R2;
+    //         if (isSimplified(tryRight)) return R1 + tryRight;
+    //     }
+
+    //     // PRIORITY 3: Only if whole-tree merges failed, try dismantling both
+    //     if (blIsSum && brIsSum) {
+    //         auto L1 = bl->getLHS();
+    //         auto L2 = getEffectiveRHS(bl);
+    //         auto R1 = br->getLHS();
+    //         auto R2 = getEffectiveRHS(br);
+
+    //         auto tryLL = L1 + R1;
+    //         if (isSimplified(tryLL)) return tryLL + (L2 + R2);
+
+    //         auto tryLR = L1 + R2;
+    //         if (isSimplified(tryLR)) return tryLR + (L2 + R1);
+
+    //         auto tryRL = L2 + R1;
+    //         if (isSimplified(tryRL)) return tryRL + (L1 + R2);
+
+    //         auto tryRR = L2 + R2;
+    //         if (isSimplified(tryRR)) return tryRR + (L1 + R1);
+    //     }
+
+    //     // Fallback: Just build a standard Binary Add node
+    //     return foldBinary(lhs, rhs, MathOp::Add, lhs->getDimension(), 
+    //         [](const auto& vL, const auto& vR, auto& res) {
+    //             for(size_t i = 0; i < vL.size(); ++i) res[i] = vL[i] + vR[i];
+    //         });
+    // }
+
+    inline std::shared_ptr<const CfemExpression>
+    operator+(std::shared_ptr<const CfemExpression> lhs, std::shared_ptr<const CfemExpression> rhs)
     {
-        if (lhs->getDimension() != rhs->getDimension()) {
+        if (lhs->getDimension() != rhs->getDimension())
             CFEM_ERROR("Dimension mismatch in operator+");
-        }
 
-        if (rhs->isZero()) return lhs;
         if (lhs->isZero()) return rhs;
+        if (rhs->isZero()) return lhs;
 
-        return foldBinary(lhs, rhs, MathOp::Add, lhs->getDimension(), 
-            [](const auto& vL, const auto& vR, auto& res) {
-                for(size_t i = 0; i < vL.size(); ++i) res[i] = vL[i] + vR[i];
-            });
+        return simplifyAdd(lhs, rhs);
     }
 
     inline std::shared_ptr<const CfemExpression> operator*(std::shared_ptr<const CfemExpression> lhs, 
@@ -123,12 +295,23 @@ namespace cfem::sym
         }
 
         if (lhs->isConstant() && dimL == 1) {
-            auto cLhs = std::static_pointer_cast<const ConstantExpression>(lhs);
-            if (cLhs->getValues()[0] == 1.0) return rhs;
+            CfemReal k = std::static_pointer_cast<const ConstantExpression>(lhs)->getValues()[0];
+            if (k == 1.0) return rhs;
+            
+            // If we are scaling something already scaled: k1 * (k2 * u) -> (k1*k2) * u
+            if (auto rScaled = std::dynamic_pointer_cast<const ScaledExpression>(rhs)) {
+                return std::make_shared<ScaledExpression>(k * rScaled->getCoeff(), rScaled->getBaseShared());
+            }
+            return std::make_shared<ScaledExpression>(k, rhs);
         }
+
         if (rhs->isConstant() && dimR == 1) {
-            auto cRhs = std::static_pointer_cast<const ConstantExpression>(rhs);
-            if (cRhs->getValues()[0] == 1.0) return lhs;
+            CfemReal k = std::static_pointer_cast<const ConstantExpression>(rhs)->getValues()[0];
+            if (k == 1.0) return lhs;
+            if (auto lScaled = std::dynamic_pointer_cast<const ScaledExpression>(lhs)) {
+                return std::make_shared<ScaledExpression>(k * lScaled->getCoeff(), lScaled->getBaseShared());
+            }
+            return std::make_shared<ScaledExpression>(k, lhs);
         }
 
         return foldBinary(lhs, rhs, MathOp::Mul, outDim, 
@@ -627,6 +810,7 @@ namespace cfem::sym
                                                         const Expression& ez) {
         return std::make_shared<VectorSymbolicExpression>(scalar(ex), scalar(ey), scalar(ez));
     }
+
 
 
     // SymEngine:

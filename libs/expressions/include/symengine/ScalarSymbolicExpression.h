@@ -15,11 +15,18 @@
 #include <symengine/basic.h>
 
 #include "SymbolicEvaluator.h"
-
+#include <regex>
 
 namespace cfem::sym
 {
 
+    inline std::string finalizeString(std::string str) {
+        // This regex looks for a decimal point followed by zeros at the end of a number
+        // It turns 1.0 -> 1, 4.0 -> 4, and 3.14000 -> 3.14
+        str = std::regex_replace(str, std::regex(R"(\.0+(?![0-9]))"), "");
+        str = std::regex_replace(str, std::regex(R"((\.[0-9]*[1-9])0+(?![0-9]))"), "$1");
+        return str;
+    }
     /** *************************************************************************
      * @brief 
      * 
@@ -47,11 +54,16 @@ namespace cfem::sym
         }
 
         std::shared_ptr<const CfemExpression> grad() const override;
+        std::string toString() const override { return finalizeString( m_expression.get_basic()->__str__() ); } // e.g., "x"
+        ExpressionType getType() const override { return ExpressionType::ScalarSymbolic; }
 
     private:
         SymEngine::Expression                                m_expression;
         std::vector<SymEngine::RCP<const SymEngine::Symbol>> m_vars;
         std::unique_ptr<SymbolicEvaluator>                   m_evaluator;   //! Compiled evaluator owned by this expression instance
     };
+
+
+
 
 }

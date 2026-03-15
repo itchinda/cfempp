@@ -2,6 +2,7 @@ add_executable(unit_tests
     test_main.cpp
     wrappers/test_petsc_wrappers.cpp
     solvers/test_solvers.cpp
+    expressions/test_symbolic_simplification.cpp
     fem/test_fem.cpp
     fem/test_reference_element.cpp
     fem/test_quadrature.cpp

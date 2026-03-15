@@ -46,6 +46,8 @@ namespace cfem::sym
             return m_components[i];
         }
 
+        ExpressionType getType() const override { return ExpressionType::TensorSymbolic; }
+
 
     private:
         std::shared_ptr<const ScalarSymbolicExpression> m_components[9];

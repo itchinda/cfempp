@@ -11,6 +11,7 @@ add_library(cfem_mesh
     src/MeshEntity.cpp
     src/MeshConformityChecker.cpp
     src/GmshParser.cpp
+    src/MeshQualityTool.cpp
 
 )
 

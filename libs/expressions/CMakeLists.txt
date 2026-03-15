@@ -1,4 +1,5 @@
 add_library(cfem_expressions
+    src/AlgebraicSimplifier.cpp
     src/BinaryExpression.cpp
     src/GradExpression.cpp
     src/LambdaExpression.cpp

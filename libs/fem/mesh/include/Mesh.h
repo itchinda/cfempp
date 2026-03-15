@@ -1,13 +1,24 @@
 /**
  * @file Mesh.h
- * @author your name (you@domain.com)
- * @brief 
- * @version 0.2
- * @date 2026-01-31
- * 
- * @copyright Copyright (c) 2026
- * 
+ * @brief Core mesh data structure used by CFEM.
+ *
+ * The Mesh class represents the geometric and topological structure
+ * of a finite element discretization. It stores vertices, cells
+ * (elements), facets (edges or faces), and their connectivity.
+ *
+ * A Mesh is responsible for:
+ * - Storing mesh geometry (vertex coordinates)
+ * - Storing element connectivity
+ * - Constructing adjacency relationships
+ * - Managing boundary and physical entities
+ * - Providing geometric queries used by finite element algorithms
+ *
+ * The mesh supports mixed element types, multiple polynomial orders,
+ * and efficient memory layouts suitable for large-scale simulations.
+ *
+ * @ingroup Mesh
  */
+
 
 #ifndef CFEMPP_MESH
 #define CFEMPP_MESH
@@ -100,6 +111,307 @@ private:
     CfemInt m_id;
 };
 
+
+/** *******************************************************************************
+ * @class Mesh
+ * @brief Central geometric and topological representation of a finite element mesh.
+ *
+ * The Mesh class stores the discretized domain used by CFEM for
+ * finite element simulations. It manages:
+ *
+ * - Vertex coordinates
+ * - Cell (element) connectivity
+ * - Facets (edges in 2D, faces in 3D)
+ * - Adjacency relations between elements
+ * - Boundary and physical entities
+ *
+ * The mesh acts as the **foundation of the finite element pipeline**,
+ * providing geometry and topology information required for:
+ *
+ * - Finite element space construction
+ * - Numerical integration
+ * - Assembly of linear systems
+ * - Visualization and export
+ *
+ * ---
+ *
+ * # Mesh Components
+ *
+ * A mesh consists of three primary geometric components:
+ *
+ * ## Vertices
+ *
+ * Vertices store the geometric coordinates of the mesh nodes.
+ *
+ * ```text
+ * Vertex:
+ *   (x, y, z)
+ * ```
+ *
+ * They are stored in the container:
+ *
+ * ```cpp
+ * std::vector<Vertex> m_vertices;
+ * ```
+ *
+ * ---
+ *
+ * ## Cells (Elements)
+ *
+ * Cells represent the topological elements used for discretization
+ * (triangles, quadrilaterals, tetrahedra, hexahedra, etc.).
+ *
+ * Each cell references its vertices through an index-based connectivity.
+ *
+ * The connectivity is stored in a **compact contiguous buffer**:
+ *
+ * ```cpp
+ * std::vector<CfemInt> m_allCellVertexIds;
+ * ```
+ *
+ * Each Cell stores:
+ *
+ * - the offset into the connectivity buffer
+ * - the number of nodes
+ * - the element type
+ *
+ * This layout improves cache efficiency and supports mixed element meshes.
+ *
+ * ---
+ *
+ * ## Facets
+ *
+ * Facets represent element boundaries:
+ *
+ * | Mesh Dimension | Facet Type |
+ * |---------------|------------|
+ * | 2D            | Edges      |
+ * | 3D            | Faces      |
+ *
+ * Facets are constructed automatically during mesh building and are
+ * used for:
+ *
+ * - boundary condition detection
+ * - adjacency relationships
+ * - flux integrals
+ *
+ * ---
+ *
+ * # Connectivity Structures
+ *
+ * The mesh stores multiple connectivity structures used by FEM algorithms:
+ *
+ * ### Cell → Vertices
+ *
+ * ```
+ * cell → vertex indices
+ * ```
+ *
+ * Used during element integration.
+ *
+ * ---
+ *
+ * ### Cell → Facets
+ *
+ * ```
+ * cell → facet indices
+ * ```
+ *
+ * Used to traverse element boundaries.
+ *
+ * ---
+ *
+ * ### Cell → Neighbor Cells
+ *
+ * ```
+ * cell → adjacent cells
+ * ```
+ *
+ * Used in:
+ *
+ * - flux computations
+ * - discontinuous Galerkin methods
+ * - mesh smoothing
+ *
+ * ---
+ *
+ * # Mesh Entities
+ *
+ * Mesh entities represent **physical or logical groups of mesh elements**.
+ * These correspond to **Gmsh physical groups**.
+ *
+ * Examples:
+ *
+ * ```
+ * "wall"
+ * "inlet"
+ * "outlet"
+ * "symmetry"
+ * ```
+ *
+ * Entities allow attaching:
+ *
+ * - boundary conditions
+ * - source terms
+ * - material properties
+ *
+ * Entities are represented by the class:
+ *
+ * ```
+ * MeshEntity
+ * ```
+ *
+ * and stored as:
+ *
+ * ```cpp
+ * std::vector<std::unique_ptr<MeshEntity>> m_entities;
+ * ```
+ *
+ * ---
+ *
+ * # Mesh Construction
+ *
+ * Mesh objects are typically created using **factory methods**
+ * rather than direct constructors.
+ *
+ * Example:
+ *
+ * ```cpp
+ * auto mesh = Mesh::create(3, MeshOrder::Linear);
+ * ```
+ *
+ * Or using a geometry generator:
+ *
+ * ```cpp
+ * auto mesh = Mesh::block(
+ *     MeshOrder::Linear,
+ *     Mesh::BlockSubdivisions{10,10,10},
+ *     Mesh::BlockBounds({0,0,0},{1,1,1}),
+ *     Mesh::BlockElementType::Tetrahedron
+ * );
+ * ```
+ *
+ * ---
+ *
+ * # Mesh Generation Utilities
+ *
+ * The Mesh class provides built-in generators for common geometries:
+ *
+ * | Geometry | Factory Method |
+ * |--------|--------|
+ * | Rectangle | `Mesh::quad()` |
+ * | Block | `Mesh::block()` |
+ * | Disk | `Mesh::disk()` |
+ * | Annulus | `Mesh::annulus()` |
+ * | Sphere | `Mesh::sphere()` |
+ * | Cylinder | `Mesh::cylinder()` |
+ * | Hollow cylinder | `Mesh::hollow_cylinder()` |
+ *
+ * These generators produce structured or semi-structured meshes
+ * with automatically generated boundary entities.
+ *
+ * ---
+ *
+ * # Mesh Building Pipeline
+ *
+ * After vertices and cells are added, the mesh topology must be finalized.
+ *
+ * Typical workflow:
+ *
+ * ```cpp
+ * mesh->addVertex(...);
+ * mesh->addCell(...);
+ *
+ * mesh->buildMesh();
+ * ```
+ *
+ * Internally this performs:
+ *
+ * 1. Facet construction
+ * 2. Inverse connectivity generation
+ * 3. Cell adjacency computation
+ *
+ * ---
+ *
+ * # Polynomial Order
+ *
+ * The mesh supports:
+ *
+ * | Order | Description |
+ * |-----|------|
+ * | Linear | Nodes only at vertices |
+ * | Quadratic | Mid-edge / mid-face nodes |
+ *
+ * The order can be modified using:
+ *
+ * ```cpp
+ * upgradeToQuadratic();
+ * downgradeToLinear();
+ * ```
+ *
+ * ---
+ *
+ * # Memory Layout
+ *
+ * The mesh uses **compact storage** to support large meshes efficiently.
+ *
+ * Key structures:
+ *
+ * ```
+ * m_vertices            → vertex coordinates
+ * m_allCellVertexIds    → cell connectivity
+ * m_cells               → cell metadata
+ * m_facets              → facet metadata
+ * m_allCellNeighbors    → adjacency graph
+ * ```
+ *
+ * This design minimizes memory fragmentation and improves
+ * cache locality during finite element assembly.
+ *
+ * ---
+ *
+ * # Observers
+ *
+ * Finite element spaces may register as observers of the mesh.
+ *
+ * When the mesh topology changes (e.g. order upgrade), observers
+ * are notified so they can update internal structures.
+ *
+ * ---
+ *
+ * # File Import
+ *
+ * Meshes can be imported from **Gmsh files**:
+ *
+ * ```cpp
+ * auto mesh = Mesh::loadFromGmsh("mesh.msh");
+ * ```
+ *
+ * Physical groups in Gmsh are automatically converted into
+ * mesh entities.
+ *
+ * ---
+ *
+ * # Thread Safety
+ *
+ * Mesh objects are **not thread-safe for modification**.
+ * However, once built they can safely be accessed concurrently
+ * for read-only operations.
+ *
+ * ---
+ *
+ * # Design Notes
+ *
+ * The mesh is designed to:
+ *
+ * - support mixed element types
+ * - scale to large meshes
+ * - integrate with symbolic expressions
+ * - support high-order finite elements
+ *
+ * It serves as the central data structure used throughout the CFEM.
+ * 
+ *********************************************************************************** */
 class Mesh {
     friend class GmshParser;
     friend class QuadMeshBuilder;
@@ -158,6 +470,14 @@ public:
     size_t getNumCells()    const { return m_cells.size(); }
     size_t getNumFacets()   const { return m_facets.size(); }
 
+    /**
+     * @brief Get a vertex by index.
+     *
+     * @param id Vertex identifier.
+     * @return Reference to the vertex.
+     *
+     * @throws CFEM_ERROR If the id is invalid.
+     */
     const Vertex& getVertex(CfemInt id) const { return m_vertices.at(id); }
     Vertex& getVertex(CfemInt vid) {  return m_vertices.at(vid); }
     const Cell&   getCell(CfemInt id)   const { return m_cells.at(id); }
@@ -165,13 +485,33 @@ public:
     const Facet&  getFacet(CfemInt id)  const { return m_facets.at(id); }
     Facet&  getFacet(CfemInt id) { return m_facets.at(id); }
 
-    // Returns view of Cell nodes
+    /**
+     * @brief Get the vertex indices of a cell.
+     *
+     * Returns a lightweight view of the cell connectivity.
+     * The returned span references the internal connectivity buffer
+     * and remains valid as long as the mesh is not modified.
+     *
+     * @param c_id Cell index.
+     *
+     * @return A span containing the vertex indices of the cell.
+     */
     std::span<const CfemInt> getCellConnectivity(CfemInt c_id) const {
         const auto& c = m_cells[c_id];
         return { &m_allCellVertexIds[c.offset], c.node_count };
     }
 
-    // Returns view of Facet nodes
+    /**
+     * @brief Get the vertex indices of a Facet.
+     *
+     * Returns a lightweight view of the Facet connectivity.
+     * The returned span references the internal connectivity buffer
+     * and remains valid as long as the mesh is not modified.
+     *
+     * @param f_id facet index.
+     *
+     * @return A span containing the vertex indices of the facet.
+     */
     std::span<const CfemInt> getFacetConnectivity(CfemInt f_id) const {
         const auto& f = m_facets[f_id];
         return { &m_allFacetVertexIds[f.offset], f.node_count };
@@ -597,58 +937,6 @@ private:
     std::set<std::string> m_globalFieldRegistry;
 
 
-};
-
-
-
-struct QualityReport {
-    CfemReal minVolume = std::numeric_limits<CfemReal>::max();
-    CfemReal maxVolume = -std::numeric_limits<CfemReal>::max();
-    int invertedCount = 0;
-    int degenerateCount = 0; // Near-zero volume
-};
-
-class MeshQualityTool {
-public:
-    static QualityReport analyze(const Mesh& mesh) {
-        QualityReport report;
-
-        for (size_t i = 0; i < mesh.getNumCells(); ++i) {
-            const auto& cell = mesh.getCell(i);
-            
-            // Signed Volume (Jacobian)
-            CfemReal vol = mesh.computeCellMeasure(cell.type, mesh.getCellConnectivity(cell.id) );
-            
-            if (vol < -cfem::ZERO_TOLERANCE) {
-                report.invertedCount++;
-            } else if (std::abs(vol) <= cfem::ZERO_TOLERANCE) {
-                report.degenerateCount++;
-            }
-
-            report.minVolume = std::min(report.minVolume, vol);
-            report.maxVolume = std::max(report.maxVolume, vol);
-        }
-
-        return report;
-    }
-
-    static void printSummary(const QualityReport& report) {
-        std::cout << "\n--- CFEM MESH QUALITY REPORT ---" << std::endl;
-        std::cout << "Min Volume: " << report.minVolume << std::endl;
-        std::cout << "Max Volume: " << report.maxVolume << std::endl;
-        
-        if (report.invertedCount > 0) {
-            CFEM_WARNING("Mesh contains " + std::to_string(report.invertedCount) + " inverted elements!");
-        }
-        if (report.degenerateCount > 0) {
-            CFEM_WARNING("Mesh contains " + std::to_string(report.degenerateCount) + " degenerate (zero-volume) elements!");
-        }
-        
-        if (report.invertedCount == 0 && report.degenerateCount == 0) {
-            std::cout << "Result: Mesh is valid for simulation." << std::endl;
-        }
-        std::cout << "--------------------------------\n" << std::endl;
-    }
 };
 
 }  // namespace
