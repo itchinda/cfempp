@@ -9,7 +9,12 @@
 
 namespace cfem::sym
 {
+
+    
+    inline std::shared_ptr<const CfemExpression> identityO2TensorExpr();
     inline std::shared_ptr<const CfemExpression> transpose(std::shared_ptr<const CfemExpression> u);
+    inline std::shared_ptr<const CfemExpression> trace(std::shared_ptr<const CfemExpression> u);
+
     inline std::shared_ptr<const CfemExpression> dot(std::shared_ptr<const CfemExpression> lhs, 
                                                  std::shared_ptr<const CfemExpression> rhs);
     inline std::shared_ptr<const CfemExpression> inner(std::shared_ptr<const CfemExpression> lhs, 
@@ -57,10 +62,7 @@ namespace cfem::sym
     inline std::shared_ptr<const CfemExpression> erf(std::shared_ptr<const CfemExpression> u);
     inline std::shared_ptr<const CfemExpression> erfc(std::shared_ptr<const CfemExpression> u);
     std::shared_ptr<const CfemExpression>        tgamma(std::shared_ptr<const CfemExpression> u);
-
-    #if __cplusplus >= 201703L
     inline std::shared_ptr<const CfemExpression> zeta(std::shared_ptr<const CfemExpression> u);
-    #endif
 
     // ==========================================
     // Opérateurs de Base
@@ -127,6 +129,15 @@ namespace cfem::sym
                                             const std::function<CfemReal(const Vector3D &)> &f, 
                                             std::shared_ptr<const CfemExpression> gradient = nullptr);
 
+    std::shared_ptr<const CfemExpression> scalar(
+                                            const std::function<CfemReal(const Vector3D &, CfemReal)> &f,
+                                            std::shared_ptr<const CfemExpression> gradient = nullptr,
+                                            std::shared_ptr<const CfemExpression> timeDeriv = nullptr);
+    
+    std::shared_ptr<const CfemExpression> scalar(std::shared_ptr<const CfemExpression> expr);
+
+    std::shared_ptr<const CfemExpression> constant(CfemReal c);
+
     /**
      * @brief Wrap a vector lambda as a CfemExpression.
      * @param f Lambda function returning a Vector3D from a 3D point.
@@ -140,7 +151,17 @@ namespace cfem::sym
     std::shared_ptr<const CfemExpression> vector(
                                             const std::function<Vector3D(const Vector3D &)> &f,
                                             std::shared_ptr<const CfemExpression> gradient = nullptr);
+
+    std::shared_ptr<const CfemExpression> vector(
+                                            const std::function<Vector3D(const Vector3D &, CfemReal)> &f,
+                                            std::shared_ptr<const CfemExpression> gradient = nullptr,
+                                            std::shared_ptr<const CfemExpression> timeDeriv = nullptr);
+
+    std::shared_ptr<const CfemExpression> vector(std::shared_ptr<const CfemExpression> expr);
     
+    std::shared_ptr<const CfemExpression> vector(std::shared_ptr<const CfemExpression> expr_x,
+                                                 std::shared_ptr<const CfemExpression> expr_y,
+                                                 std::shared_ptr<const CfemExpression> expr_z);                                      
     /**
      * @brief Wrap a 2nd-order tensor lambda as a CfemExpression.
      * @param f Lambda returning a 9-component array (3x3 tensor) from a 3D point.
@@ -155,6 +176,36 @@ namespace cfem::sym
                                             const std::function<TensorO2(const Vector3D &)> &f,
                                             std::shared_ptr<const CfemExpression> gradient = nullptr);
 
+    std::shared_ptr<const CfemExpression> tensor(
+                                            const std::function<TensorO2(const Vector3D &, CfemReal)> &f,
+                                            std::shared_ptr<const CfemExpression> gradient = nullptr,
+                                            std::shared_ptr<const CfemExpression> timeDeriv = nullptr);
+
+    std::shared_ptr<const CfemExpression> tensor(std::shared_ptr<const CfemExpression> expr);
+    
+    std::shared_ptr<const CfemExpression> tensor(std::shared_ptr<const CfemExpression> expr_xx,
+                                                 std::shared_ptr<const CfemExpression> expr_xy,
+                                                 std::shared_ptr<const CfemExpression> expr_xz,
+                                                 std::shared_ptr<const CfemExpression> expr_yx,
+                                                 std::shared_ptr<const CfemExpression> expr_yy,
+                                                 std::shared_ptr<const CfemExpression> expr_yz,
+                                                 std::shared_ptr<const CfemExpression> expr_zx,
+                                                 std::shared_ptr<const CfemExpression> expr_zy,
+                                                 std::shared_ptr<const CfemExpression> expr_zz);
+
+    std::shared_ptr<const CfemExpression> symmetricTensor(std::shared_ptr<const CfemExpression> xx, 
+                                                          std::shared_ptr<const CfemExpression> yy, 
+                                                          std::shared_ptr<const CfemExpression> zz,
+                                                          std::shared_ptr<const CfemExpression> yz, 
+                                                          std::shared_ptr<const CfemExpression> xz, 
+                                                          std::shared_ptr<const CfemExpression> xy);
+
+    std::shared_ptr<const CfemExpression> diag(std::shared_ptr<const CfemExpression> a,
+                                               std::shared_ptr<const CfemExpression> b,
+                                               std::shared_ptr<const CfemExpression> c);
+    std::shared_ptr<const CfemExpression> diag(CfemReal a, CfemReal b, CfemReal c);
+
+    std::shared_ptr<const CfemExpression> identity();
     /**
      * @brief Compute the gradient of a CFEM expression.
      * @param e Shared pointer to the input expression (scalar or vector)
@@ -184,7 +235,9 @@ namespace cfem::sym
      * @param ex The scalar symbolic expression
      * @return Shared pointer to a CfemExpression (ScalarSymbolicExpression)
      */
-    std::shared_ptr<const CfemExpression> scalar(const Expression &ex);
+    std::shared_ptr<const CfemExpression> scalar(const SymEngine::Expression &ex);
+
+
 
     /**
      * @brief Convert three SymEngine expressions into a vector CFEM expression.
@@ -193,10 +246,20 @@ namespace cfem::sym
      * @param ez Expression for z-component
      * @return Shared pointer to a CfemExpression (VectorSymbolicExpression)
      */
-    std::shared_ptr<const CfemExpression> vector(const Expression &ex,
-                                                 const Expression &ey,
-                                                 const Expression &ez);
+    std::shared_ptr<const CfemExpression> vector(const SymEngine::Expression &ex,
+                                                 const SymEngine::Expression &ey,
+                                                 const SymEngine::Expression &ez);
+
+    std::shared_ptr<const CfemExpression> variable(const std::string name, CfemInt dimIndex);
 
 }
 
 #include "MathOperators.tpp"
+
+
+namespace cfem::sym::cfemvars{
+    inline auto x = variable("x", 0);
+    inline auto y = variable("y", 1);
+    inline auto z = variable("z", 2);
+    inline auto t = variable("t", 3);
+}

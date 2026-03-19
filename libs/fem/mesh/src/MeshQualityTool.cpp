@@ -31,10 +31,10 @@ namespace cfem
         std::cout << "Max Volume: " << report.maxVolume << std::endl;
         
         if (report.invertedCount > 0) {
-            CFEM_WARNING("Mesh contains " + std::to_string(report.invertedCount) + " inverted elements!");
+            CFEM_WARN << "Mesh contains " << std::to_string(report.invertedCount) << " inverted elements!";
         }
         if (report.degenerateCount > 0) {
-            CFEM_WARNING("Mesh contains " + std::to_string(report.degenerateCount) + " degenerate (zero-volume) elements!");
+            CFEM_WARN << "Mesh contains " << std::to_string(report.degenerateCount) << " degenerate (zero-volume) elements!";
         }
         
         if (report.invertedCount == 0 && report.degenerateCount == 0) {

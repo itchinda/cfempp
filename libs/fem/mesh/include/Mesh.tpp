@@ -452,7 +452,7 @@ namespace cfem
                 lf.v[8] = v[17];
             }
             else{
-                CFEM_ERROR("face_idx out of bound.");
+                CFEM_ERROR << "face_idx out of bound.";
             }
             break;
 
@@ -604,7 +604,7 @@ namespace cfem
                 return 6;
 
             default:
-                CFEM_ERROR("Unsupported cell type."); 
+                CFEM_ERROR << "Unsupported cell type."; 
                 return -1;
         }
     }
@@ -1205,10 +1205,10 @@ namespace cfem
             CfemInt equal_count = x_equal + y_equal + z_equal;
 
             if (equal_count != 1)
-                CFEM_ERROR("QuadBounds: must lie in XY, YZ or XZ plane.");
+                CFEM_ERROR << "QuadBounds: must lie in XY, YZ or XZ plane.";
 
             if (std::abs((max - min).norm()) < eps)
-                CFEM_ERROR("QuadBounds: degenerate geometry.");
+                CFEM_ERROR << "QuadBounds: degenerate geometry.";
         }
     };
 
@@ -1251,7 +1251,7 @@ namespace cfem
                 std::abs(max.y - min.y) < eps ||
                 std::abs(max.z - min.z) < eps)
             {
-                CFEM_ERROR("BlockBounds: Degenerate block.");
+                CFEM_ERROR << "BlockBounds: Degenerate block.";
             }
         }
     };
@@ -1294,7 +1294,7 @@ namespace cfem
 
             if ((normal_0.norm() < cfem::ZERO_TOLERANCE) || (normal_3.norm() < cfem::ZERO_TOLERANCE))
             {
-                CFEM_ERROR("QuadCorners: vertices are degenerate or collinear.");
+                CFEM_ERROR << "QuadCorners: vertices are degenerate or collinear.";
             }
         }
 
@@ -1302,7 +1302,7 @@ namespace cfem
         {
             if (!(i >= 0 && i < 4))
             {
-                CFEM_ERROR("Index out of bound.");
+                CFEM_ERROR << "Index out of bound.";
             }
 
             return vertices[i];
@@ -1344,7 +1344,7 @@ namespace cfem
         {
             double vol = compute_volume();
             if (vol < cfem::ZERO_TOLERANCE)
-                CFEM_ERROR("BlockCorners: degenerate hexahedron with zero or negative volume.");
+                CFEM_ERROR << "BlockCorners: degenerate hexahedron with zero or negative volume.";
 
             // Check each face is roughly coplanar
             check_faces_coplanar();
@@ -1384,7 +1384,7 @@ namespace cfem
             Vector3D normal = (b - a).cross(c - a);
             double dist = std::abs((d - a).dot(normal)) / normal.norm();
             if (dist > eps)
-                CFEM_ERROR("Corners<3>: face is not coplanar");
+                CFEM_ERROR << "Corners<3>: face is not coplanar";
         }
 
         void check_faces_coplanar() const
@@ -1453,13 +1453,13 @@ namespace cfem
 
             if ((std::abs(A1) <= cfem::ZERO_TOLERANCE) || (std::abs(A2) <= cfem::ZERO_TOLERANCE))
             {
-                CFEM_WARNING("Sub-triangle in QUAD4 has zero area. Check if nodes are colinear.");
+                CFEM_WARN << "Sub-triangle in QUAD4 has zero area. Check if nodes are colinear.";
             }
 
             if ((A1 > cfem::ZERO_TOLERANCE && A2 < -cfem::ZERO_TOLERANCE) ||
                 (A1 < -cfem::ZERO_TOLERANCE && A2 > cfem::ZERO_TOLERANCE))
             {
-                CFEM_WARNING("Poor quality QUAD4 cell: Self-intersecting geometry detected.");
+                CFEM_WARN << "Poor quality QUAD4 cell: Self-intersecting geometry detected.";
             }
 
             CfemReal totalArea = A1 + A2;
@@ -1496,7 +1496,7 @@ namespace cfem
 
             if (positiveTets > 0 && negativeTets > 0)
             {
-                CFEM_WARNING("Invalid PRISM6: Twisted/Self-intersecting geometry detected.");
+                CFEM_WARN << "Invalid PRISM6: Twisted/Self-intersecting geometry detected.";
             }
 
             return std::abs(lTotalVolume);
@@ -1523,7 +1523,7 @@ namespace cfem
 
                 if (std::abs(tetra_vol) <= cfem::ZERO_TOLERANCE)
                 {
-                    CFEM_WARNING("Invalid HEX8: Sub-tetra in HEX8 has zero volume. Check if nodes are coplanar.");
+                    CFEM_WARN << "Invalid HEX8: Sub-tetra in HEX8 has zero volume. Check if nodes are coplanar.";
                 }
 
                 if (tetra_vol > 0)
@@ -1536,14 +1536,15 @@ namespace cfem
 
             if (positiveTets > 0 && negativeTets > 0)
             {
-                CFEM_WARNING("Invalid HEX8: Twisted/Self-intersecting geometry detected.");
+                CFEM_WARN << "Invalid HEX8: Twisted/Self-intersecting geometry detected.";
             }
 
             return lTotalVolume;
         }
 
         default:
-            CFEM_ERROR("Measure calculation not implemented for " + cellTypeToString(type));
+            CFEM_ERROR << "Measure calculation not implemented for " << cellTypeToString(type);
+            return 0;
         }
     }
 

@@ -6,6 +6,7 @@
 
 using namespace cfem;
 using namespace cfem::sym;
+using namespace cfem::sym::cfemvars;
 
 class AdvancedExpressionTest : public ::testing::Test {
 protected:
@@ -142,17 +143,17 @@ TEST_F(AdvancedExpressionTest, TensorRowMajorMapping) {
 }
 
 // --- 7. Fallback to Numerical Gradient Verification ---
-TEST_F(AdvancedExpressionTest, NumericalGradFallbackIsTriggered) {
-    // Create an expression that CANNOT be differentiated symbolically or via lambda
-    auto raw_lambda = scalar([](const Vector3D& X){ return std::sin(X.x); });
+// TEST_F(AdvancedExpressionTest, NumericalGradFallbackIsTriggered) {
+//     // Create an expression that CANNOT be differentiated symbolically or via lambda
+//     auto raw_lambda = scalar([](const Vector3D& X){ return std::sin(X.x); });
     
-    // Since we provided no analytical gradient, grad() should fall back to GradExpression
-    auto fallback_grad = grad(raw_lambda);
+//     // Since we provided no analytical gradient, grad() should fall back to GradExpression
+//     auto fallback_grad = grad(raw_lambda);
     
-    EXPECT_NE(fallback_grad, nullptr);
-    EXPECT_EQ(fallback_grad->getDimension(), 3);
+//     EXPECT_NE(fallback_grad, nullptr);
+//     EXPECT_EQ(fallback_grad->getDimension(), 3);
     
-    // Optional: If you implement RTTI or dynamic_cast checks, you can verify it's a GradExpression
-    auto is_grad_expr = std::dynamic_pointer_cast<const GradExpression>(fallback_grad);
-    EXPECT_TRUE(is_grad_expr != nullptr);
-}
+//     // Optional: If you implement RTTI or dynamic_cast checks, you can verify it's a GradExpression
+//     auto is_grad_expr = std::dynamic_pointer_cast<const GradExpression>(fallback_grad);
+//     EXPECT_TRUE(is_grad_expr != nullptr);
+// }

@@ -80,7 +80,7 @@ namespace cfem::sym
             return;
         }
 
-        CFEM_ERROR("GradExpression: Failed to differentiate expression tree.");
+        CFEM_ERROR << "GradExpression: Failed to differentiate expression tree.";
     }
 
 }

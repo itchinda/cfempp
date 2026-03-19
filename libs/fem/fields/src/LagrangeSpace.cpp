@@ -188,7 +188,7 @@ const ReferenceElement& LagrangeSpace::getRefElement(CellType type) const {
     CFEM_ASSERT(!m_refElements.empty());
     auto it = m_refElements.find(type);
     if (it == m_refElements.end()) {
-        CFEM_ERROR("LagrangeSpace: Element type not supported or not initialized.");
+        CFEM_ERROR << "LagrangeSpace: Element type not supported or not initialized.";
     }
     return *it->second;
 }

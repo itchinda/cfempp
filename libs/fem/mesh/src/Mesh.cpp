@@ -92,13 +92,13 @@ namespace cfem
             fixElementOrientation(type, final_vids);
             measure = computeCellMeasure(type, final_vids);
             if (measure < -cfem::ZERO_TOLERANCE){
-                CFEM_ERROR("Orientation fix failed. Element might be mangled.");
+                CFEM_ERROR << "Orientation fix failed. Element might be mangled.";
             }
             m_invertedCellCounts[type]++;
         }
         else if (std::abs(measure) <= cfem::ZERO_TOLERANCE)
         {
-            CFEM_WARNING("Degenerate (zero area/volume) cell added to mesh.");
+            CFEM_WARN << "Degenerate (zero area/volume) cell added to mesh.";
         }
 #endif
 
@@ -177,33 +177,33 @@ namespace cfem
         MeshOrder cellOrder = getCellOrderFromType(type);
         if (cellOrder != m_meshOrder)
         {
-            CFEM_ERROR("Cannot add " + cellTypeToString(type) +
-                       " to a " + (m_meshOrder == MeshOrder::Linear ? "linear mesh." 
+            CFEM_ERROR << "Cannot add " << cellTypeToString(type) <<
+                       " to a " << (m_meshOrder == MeshOrder::Linear ? "linear mesh." 
                                  : m_meshOrder == MeshOrder::Quadratic ? "quadratic mesh."
-                                                                       : "mesh with unkmown order.") );
+                                                                       : "mesh with unkmown order.");
         }
 
         CfemInt cellDim = getDimFromType(type);
         if (cellDim != m_meshDim)
         {
-            CFEM_ERROR("Cannot add a " + std::to_string(cellDim) + "D element (" +
-                       cellTypeToString(type) + ") to a " + std::to_string(m_meshDim) + "D mesh.");
+            CFEM_ERROR << "Cannot add a " << std::to_string(cellDim) << "D element (" <<
+                       cellTypeToString(type) << ") to a " << std::to_string(m_meshDim) << "D mesh.";
         }
 
         if (v_ids.size() != getNodeCountPerCell(type))
         {
-            CFEM_ERROR("Topology error: " + cellTypeToString(type) +
-                       " expects " + std::to_string(getNodeCountPerCell(type)) +
-                       " nodes, but " + std::to_string(v_ids.size()) + " were provided.");
+            CFEM_ERROR << "Topology error: " << cellTypeToString(type) <<
+                       " expects " << std::to_string(getNodeCountPerCell(type)) <<
+                       " nodes, but " << std::to_string(v_ids.size()) << " were provided.";
         }
 
         for (CfemInt v_id : v_ids)
         {
             if (v_id < 0 || v_id >= static_cast<CfemInt>(m_vertices.size()))
             {
-                CFEM_ERROR("Index out of bounds: vertex " + std::to_string(v_id) +
-                           " does not exist in a mesh with " +
-                           std::to_string(m_vertices.size()) + " vertices.");
+                CFEM_ERROR << "Index out of bounds: vertex " << std::to_string(v_id) <<
+                           " does not exist in a mesh with " <<
+                           std::to_string(m_vertices.size()) << " vertices.";
             }
         }
     }
@@ -313,7 +313,7 @@ namespace cfem
                 // Vertical edges 12,13,14 and face centers 15,16,17 stay put.
                 break;
             }
-            default: CFEM_ERROR("Unsupported cell type.");
+            default: CFEM_ERROR << "Unsupported cell type.";
         }
     }
 
@@ -936,7 +936,7 @@ namespace cfem
         CFEM_ASSERT(newDim >= 1 || newDim <= 3);
         if (!(this->m_cells.empty()))
         {
-            CFEM_ERROR("ARE YOU TRYING TO SET THE DIMENSION OF A MESH THAT ALREADY CONTAINS ELEMENTS? MAKE SURE THE MESH IS EMPTY.");
+            CFEM_ERROR << "ARE YOU TRYING TO SET THE DIMENSION OF A MESH THAT ALREADY CONTAINS ELEMENTS? MAKE SURE THE MESH IS EMPTY.";
         }
         m_meshDim = newDim;
     }
@@ -1102,7 +1102,7 @@ namespace cfem
     void Mesh::buildMesh()
     {
         if (m_cells.empty() || m_vertices.size() == 0 || m_meshDim == 0) {
-            CFEM_ERROR("buildMesh failed: Mesh is empty.");
+            CFEM_ERROR << "buildMesh failed: Mesh is empty.";
             return;
         }
 
@@ -1156,13 +1156,15 @@ namespace cfem
     #ifndef NDEBUG
         ConformityReport report = MeshConformityChecker::check(*this, true);
         if (!report.is_valid) {
-            CFEM_INFO(report.toString().c_str());
-            CFEM_ERROR("Non conforming or degenerated mesh detected in debug build.");
+            CFEM_INFO << report.toString().c_str();
+            CFEM_ERROR << "Non conforming or degenerated mesh detected in debug build.";
         }
     #endif
-        CFEM_INFO(("Mesh built: " + std::to_string(m_vertices.size()) + " Nodes, " 
-                + std::to_string(m_cells.size()) + " Cells, " 
-                + std::to_string(m_facets.size()) + " Facets.\n").c_str());
+        CFEM_INFO << "Mesh built: " 
+                         << std::to_string(m_vertices.size()) 
+                         << " Nodes, " 
+                         << std::to_string(m_cells.size()) + " Cells, " 
+                         << std::to_string(m_facets.size()) + " Facets.\n";
 
         if (!m_invertedCellCounts.empty())
         {
@@ -1175,8 +1177,8 @@ namespace cfem
                 details += "\n  - " + cellTypeToString(type) + ": " + std::to_string(count);
             }
 
-            CFEM_INFO("Orientation Check: " + std::to_string(totalFixed) + 
-                    " inverted cells found and successfully fixed." + details);
+            CFEM_INFO << "Orientation Check: " << std::to_string(totalFixed) << 
+                    " inverted cells found and successfully fixed." << details;
             
             m_invertedCellCounts.clear();
         }
@@ -1623,7 +1625,7 @@ namespace cfem
      ***************************************************************************************************************************************/
     void Mesh::upgradeToQuadratic() {
 #ifndef NDEBUG
-        CFEM_INFO( "Upgrading the mesh to quadratic... ");
+        CFEM_INFO << "Upgrading the mesh to quadratic... ";
 #endif
         if (this->isQuadratic()) return;
         PROFILE_SCOPE("Mesh::upgradeToQuadratic");
@@ -1694,7 +1696,7 @@ namespace cfem
                 case CellType::TET4:   fillTet10Nodes(linear_vids, edge_to_midpoint, quad_buffer); break;
                 case CellType::PRISM6: fillPrism18Nodes(linear_vids, edge_to_midpoint, quadface_to_midpoint, quad_buffer); break;
                 case CellType::HEX8:   fillHex27Nodes(linear_vids, edge_to_midpoint, quadface_to_midpoint, quad_buffer); break;
-                default: CFEM_ERROR("UNSUPPORTED CELL TYPE."); break; 
+                default: CFEM_ERROR << "UNSUPPORTED CELL TYPE."; break; 
             }
 
             // Update the Cell view to point to the NEW Big Block
@@ -1739,8 +1741,8 @@ namespace cfem
                 it = m_observers.erase(it); // Nettoyage automatique
             }
         }
-        CFEM_LOG( "Mesh successfully upgraded to quadratic." );
-        CFEM_LOG( this->info() );
+        CFEM_INFO <<  "Mesh successfully upgraded to quadratic.";
+        CFEM_INFO <<  this->info();
 
     }
 
@@ -2197,9 +2199,9 @@ namespace cfem
     {
         if (name == "Universe" || name == "SYS_BOUNDARY")
         {
-            CFEM_ERROR("Reserved Name Violation: The name '" + name +
-                       "' is reserved for internal mesh topology. " +
-                       "Please use a different name for the physical group.");
+            CFEM_ERROR << "Reserved Name Violation: The name '" << name <<
+                       "' is reserved for internal mesh topology. " <<
+                       "Please use a different name for the physical group.";
         }
     }
 
@@ -2278,7 +2280,7 @@ namespace cfem
         if (dz < ZERO_TOLERANCE) collapsed++;
 
         if (collapsed != 1)
-            CFEM_ERROR("QuadBounds must collapse exactly one dimension.");
+            CFEM_ERROR << "QuadBounds must collapse exactly one dimension.";
 
         QuadCorners corners =
             (dz < ZERO_TOLERANCE)
@@ -2487,7 +2489,7 @@ namespace cfem
             dy < ZERO_TOLERANCE ||
             dz < ZERO_TOLERANCE)
         {
-            CFEM_ERROR("BlockBounds must define a non-degenerate 3D volume.");
+            CFEM_ERROR << "BlockBounds must define a non-degenerate 3D volume.";
         }
 
         // Standard hexahedron node ordering (right-handed, FEM-safe)

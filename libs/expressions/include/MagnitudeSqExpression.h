@@ -34,6 +34,9 @@ namespace cfem::sym
 
         std::shared_ptr<const CfemExpression> getInner() const { return m_expr; }
         std::shared_ptr<const CfemExpression> grad() const override;
+        std::shared_ptr<const CfemExpression> timeDerivative() const override;
+
+
         CfemInt precedence() const override { return 5; }
         ExpressionType getType() const override { return ExpressionType::MagnitudeSq; }
         std::string toString() const override { return "grad(" + m_expr->toString() + ")"; }

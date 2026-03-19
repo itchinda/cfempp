@@ -44,18 +44,38 @@ namespace cfem::sym
         const std::vector<SymEngine::RCP<const SymEngine::Symbol>> &get_vars() const { return m_vars; }
 
         void evaluate(CfemInt, const Vector3D &, std::span<CfemReal> out, EvalContext &ctx) const{
-            const CfemReal input[3] = { ctx.physPos.x, ctx.physPos.y, ctx.physPos.z };
+            const CfemReal input[4] = { ctx.physPos.x, ctx.physPos.y, ctx.physPos.z, ctx.currentTime};
             out[0] = static_cast<CfemReal>(m_evaluator->evaluate(input));
         }
 
-        std::shared_ptr<const ScalarSymbolicExpression> diff(
-            const SymEngine::RCP<const SymEngine::Symbol> &var) const {
+        std::shared_ptr<const ScalarSymbolicExpression> diff( const SymEngine::RCP<const SymEngine::Symbol> &var) const {
             return std::make_shared<ScalarSymbolicExpression>(m_expression.diff(var), m_vars);
         }
+
+        std::shared_ptr<const CfemExpression> diff(CfemInt var_idx ) const override{
+            if (var_idx == 0) {
+                return diff(x_rcp);
+            }
+            else if (var_idx == 1){
+                return diff(y_rcp);
+            }
+            else if (var_idx == 2){
+                return diff(z_rcp);
+            }
+            else if (var_idx == 3){
+                return diff(t_rcp);
+            }
+            else{
+                CFEM_ERROR << "index out of bounds. Use 0, 1, 2, and 3, respectively for the derivative with respect to x, y, z, and t.";
+            }
+        }
+
+        std::shared_ptr<const CfemExpression> timeDerivative() const override;
 
         std::shared_ptr<const CfemExpression> grad() const override;
         std::string toString() const override { return finalizeString( m_expression.get_basic()->__str__() ); } // e.g., "x"
         ExpressionType getType() const override { return ExpressionType::ScalarSymbolic; }
+
 
     private:
         SymEngine::Expression                                m_expression;

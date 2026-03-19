@@ -271,6 +271,8 @@
 
 using namespace cfem;
 using namespace cfem::sym;
+using namespace cfem::sym::cfemvars;
+
 static char help[] = "CFEM Example: Benchmark expression evaluation modes (Raw, Cached, Compiled).\n\n";
 
 int main(int argc, char **argv)
@@ -282,45 +284,41 @@ int main(int argc, char **argv)
     {
         PROFILE_SCOPE("MeshBuilding");
         mesh = Mesh::block(
-            MeshOrder::Quadratic,
+            MeshOrder::Linear,
             Mesh::BlockSubdivisions{10, 10, 10},
             Mesh::BlockBounds(Vector3D{0., 0., 0.},
                               Vector3D{1., 1., 1.}),
             Mesh::BlockElementType::Tetrahedron);
     }
 
-    auto X = scalar(x);
-    auto Y = X - X;
+    // auto Y = sin(x) - sin(x);
 
-    std::cout << std::endl;
-    std::cout << "Y = " << Y->toString() << std::endl;
-    std::cout << std::endl;
+    // std::cout << std::endl;
+    // std::cout << "Y = " << Y->toString() << std::endl;
+    // std::cout << std::endl;
 
     // Define expression for benchmarking
-    auto raw = scalar(
-        cfem::sym::pow(sin(pi * x), 4.0) * exp(-x * x) * log(1.0 + x * x) * sqrt(1.0 + y * y)
-    );
+    auto raw = (sym::pow(sin(pi * x), 4.0) * exp(-x * x) * log(1.0 + x * x) * sqrt(1.0 + y * y));
 
-    std::cout << "raw = "<< raw->toString() << std::endl;
+    std::cout << "raw = "<< scalar(raw)->toString() << std::endl;
 
     // Create repeated subtree for testing
     auto subtree =
         raw + sin(raw) + cos(raw) + exp(raw) + sqrt(abs(raw));
 
-    std::cout << "subtree = "<< subtree->toString() << std::endl;
+    std::cout << "subtree = "<< scalar(subtree)<< std::endl;
 
     // BIG expression (repeated subtree)
-    auto big = subtree + subtree + subtree + raw + subtree + sin(subtree) - sin(subtree) + subtree - subtree;
-    std::cout << "big = "<< big->toString() << std::endl;
+    auto big = subtree + subtree + subtree + subtree + subtree + subtree + subtree + subtree + subtree;
+    CFEM_INFO << "big = "<< scalar(big);
 
-    std::cout << "sin(subtree) - sin(subtree) = "<< (sin(subtree) - sin(subtree))->toString() << std::endl;
     // Benchmark Raw Evaluation
     {
         PROFILE_SCOPE("RawExport");
         VTUExporter vtk_exporter(*mesh);
 
         // Benchmark: Raw expression
-        vtk_exporter.addExpression("raw", big);
+        vtk_exporter.addExpression("raw", scalar(big));
         vtk_exporter.setFormat(VTUExporter::Format::BINARY);
         vtk_exporter.write("cube_raw");
     }
@@ -330,7 +328,7 @@ int main(int argc, char **argv)
         PROFILE_SCOPE("CachedExport");
 
         // Cache the repeated subtree
-        auto subtree_cached = cache(subtree);
+        auto subtree_cached = scalar(subtree);
 
         // Benchmark: Cached expression
         VTUExporter vtk_exporter(*mesh);
@@ -340,6 +338,10 @@ int main(int argc, char **argv)
         vtk_exporter.setFormat(VTUExporter::Format::BINARY);
         vtk_exporter.write("cube_cached");
     }
+
+    auto u = vector(sin(x), y, tan(z)/x);
+    auto v = vector(z, y, u);
+    CFEM_INFO << grad(u);
 
     // Output Profiler results
     Profiler::instance().saveProfiler();

@@ -47,9 +47,9 @@ private:
         MeshOrder meshOrder = m_mesh->getOrder();
         if (m_order == Order::P2 && (meshOrder==MeshOrder::None || meshOrder==MeshOrder::Linear) ) {
 
-            CFEM_ERROR("LagrangeSpace Order Mismatch: P2 Space requires a"
-                       " Quadratic Mesh (order 2), but the provided mesh " +\
-                       (meshOrder == MeshOrder::Linear? "is linear." : "has not been assigned any order." ));
+            CFEM_ERROR << "LagrangeSpace Order Mismatch: P2 Space requires a"
+                       " Quadratic Mesh (order 2), but the provided mesh " <<\
+                       (meshOrder == MeshOrder::Linear? "is linear." : "has not been assigned any order." );
         }
     }
 
@@ -75,12 +75,12 @@ public:
         else if (field_type == FieldType::Vector2D) dim = 2;
 
         if (order == Order::P0) {
-            CFEM_ERROR("LagrangeSpace Error: P0 is a discontinuous space and is not supported by LagrangeSpace. "
-                       "Please use DGSpace or upgrade the order to P1.");
+            CFEM_ERROR << "LagrangeSpace Error: P0 is a discontinuous space and is not supported by LagrangeSpace. "
+                       "Please use DGSpace or upgrade the order to P1.";
         }
 
         if (order == Order::P2 && mesh->getOrder() == MeshOrder::Linear) {
-            CFEM_INFO("LagrangeSpace: Auto-upgrading mesh to quadratic to support P2 space.");
+            CFEM_INFO << "LagrangeSpace: Auto-upgrading mesh to quadratic to support P2 space.";
             mesh->upgradeToQuadratic(); 
         }
 

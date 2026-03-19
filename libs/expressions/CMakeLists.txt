@@ -4,6 +4,8 @@ add_library(cfem_expressions
     src/GradExpression.cpp
     src/LambdaExpression.cpp
     src/UnaryExpression.cpp
+    src/VectorExpression.cpp
+    src/TensorExpression.cpp
     src/symengine/ScalarSymbolicExpression.cpp
     src/symengine/SymEngineSymbols.cpp
     src/symengine/TensorSymbolicExpression.cpp

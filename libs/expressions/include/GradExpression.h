@@ -23,7 +23,7 @@ namespace cfem::sym
         explicit GradExpression(std::shared_ptr<const CfemExpression> expr) : m_expr(std::move(expr)) {
             if (auto lambda = std::dynamic_pointer_cast<const LambdaExpression>(expr) ){
                 if (!(lambda->grad()))
-                    CFEM_ERROR("LambdaExpressions are currentely not supported by the automatic differentation.");
+                    CFEM_ERROR << "LambdaExpressions are currentely not supported by the automatic differentation.";
             }
         }
 
@@ -31,6 +31,19 @@ namespace cfem::sym
         void prepare() const override { m_expr->prepare(); }
         void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
         ExpressionType getType() const override { return ExpressionType::Gradient; }
+
+        std::shared_ptr<const CfemExpression> timeDerivative() const override{
+            return std::make_shared<GradExpression>(m_expr->timeDerivative());
+        }
+
+        std::string toString() const override{ return "grad(" + m_expr->toString() +")"; }
+
+        std::shared_ptr<const CfemExpression> grad() const override {
+            CFEM_ERROR << "GradExpression does not yet support grad(). Cannot compute spatial derivatives for GradExpression.";
+            return nullptr; 
+        }
+
+
     
     };
 

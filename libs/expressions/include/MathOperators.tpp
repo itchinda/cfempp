@@ -4,6 +4,7 @@
 #include "BinaryExpression.h"
 #include "CachedExpression.h"
 #include "ConstantExpression.h"
+#include "CoordinateExpression.h"
 #include "GradExpression.h"
 #include "LambdaExpression.h"
 #include "MagnitudeSqExpression.h"
@@ -13,9 +14,12 @@
 #include "symengine/SymEngineSymbols.h"
 #include "symengine/VectorSymbolicExpression.h"
 #include "symengine/TensorSymbolicExpression.h"
+#include "VectorExpression.h"
+#include "TensorExpression.h"
 #include "ZeroExpression.h"
 #include "ScaledExpression.h"
 #include "AlgebraicSimplifier.h"
+#include "MathOperators.h"
 
 
 namespace cfem::sym
@@ -153,7 +157,7 @@ namespace cfem::sym
     // {
     //     if (lhs->getDimension() != rhs->getDimension()) {
     //         std::cout << "Dim left: " << lhs->getDimension()  << " Dim Right: " << rhs->getDimension() << std::endl;
-    //         CFEM_ERROR("Dimension mismatch in operator+");
+    //         CFEM_ERROR << "Dimension mismatch in operator << ";
     //     }
 
     //     if (rhs->isZero()) return lhs;
@@ -267,7 +271,7 @@ namespace cfem::sym
     operator+(std::shared_ptr<const CfemExpression> lhs, std::shared_ptr<const CfemExpression> rhs)
     {
         if (lhs->getDimension() != rhs->getDimension())
-            CFEM_ERROR("Dimension mismatch in operator+");
+            CFEM_ERROR << "Dimension mismatch in operator << ";
 
         if (lhs->isZero()) return rhs;
         if (rhs->isZero()) return lhs;
@@ -282,7 +286,7 @@ namespace cfem::sym
         CfemInt dimR = rhs->getDimension();
 
         if (dimL != dimR && dimL != 1 && dimR != 1) {
-            CFEM_ERROR("Invalid operator*");
+            CFEM_ERROR << "Invalid operator*";
         }
 
         CfemInt outDim = std::max(dimL, dimR);
@@ -334,12 +338,12 @@ namespace cfem::sym
         CfemInt dimR = rhs->getDimension();
 
         if (dimL != dimR && dimR != 1) {
-            CFEM_ERROR("Invalid operator/: Divisor must be a scalar or match numerator dimension. Got " 
-                    + std::to_string(dimL) + " / " + std::to_string(dimR));
+            CFEM_ERROR << "Invalid operator/: Divisor must be a scalar or match numerator dimension. Got " 
+                    << std::to_string(dimL) << " / " << std::to_string(dimR);
         }
 
         if (rhs->isZero()) {
-            CFEM_ERROR("Division by Zero detected in symbolic expression setup!");
+            CFEM_ERROR << "Division by Zero detected in symbolic expression setup!";
         }
 
         if (lhs->isZero()) {
@@ -357,12 +361,12 @@ namespace cfem::sym
             [dimL, dimR](const auto& vL, const auto& vR, auto& res) {
                 if (dimL == dimR) { // Division Élément par élément
                     for(size_t i = 0; i < dimL; ++i) {
-                        if (vR[i] == 0.0) CFEM_ERROR("Constant folding detected division by zero!");
+                        if (vR[i] == 0.0) CFEM_ERROR << "Constant folding detected division by zero!";
                         res[i] = vL[i] / vR[i];
                     }
                 } else { // Division Multi-dim / Scalaire
                     CfemReal divisor = vR[0];
-                    if (divisor == 0.0) CFEM_ERROR("Constant folding detected division by zero!");
+                    if (divisor == 0.0) CFEM_ERROR << "Constant folding detected division by zero!";
                     for(size_t i = 0; i < dimL; ++i) {
                         res[i] = vL[i] / divisor;
                     }
@@ -370,8 +374,13 @@ namespace cfem::sym
             });
     }
 
+    inline std::shared_ptr<const CfemExpression> identityO2TensorExpr(){
+        return std::make_shared<const ConstantExpression>(IdentityTensor());
+    }
+
+
     inline std::shared_ptr<const CfemExpression> transpose(std::shared_ptr<const CfemExpression> u) {
-        if (u->getDimension() != 9) return u; 
+        if (u->getDimension() != 9) CFEM_ERROR << "`transpose()` expects a second order tensor argument."; 
         if (u->isZero()) return u;
 
         if (u->isConstant()) {
@@ -387,8 +396,23 @@ namespace cfem::sym
         return std::make_shared<UnaryExpression>(u, MathOp::Transpose);
     }
 
+
+    inline std::shared_ptr<const CfemExpression> trace(std::shared_ptr<const CfemExpression> u){
+        if (u->getDimension() != 9) CFEM_ERROR << "`trace()` expects a second order tensor argument."; 
+        if (u->isZero()) return std::make_shared<ZeroExpression>(0.0);
+
+        if (u->isConstant()) {
+            auto cU = std::static_pointer_cast<const ConstantExpression>(u);
+            const auto& v = cU->getValues();
+            return std::make_shared<ConstantExpression>(v[0] + v[4] + v[8]);
+        }
+
+        return std::make_shared<UnaryExpression>(u, MathOp::Trace);
+    }
+
+
     inline std::shared_ptr<const CfemExpression> dot(std::shared_ptr<const CfemExpression> lhs, 
-                                                 std::shared_ptr<const CfemExpression> rhs)
+                                                     std::shared_ptr<const CfemExpression> rhs)
     {
         CfemInt dimL = lhs->getDimension();
         CfemInt dimR = rhs->getDimension();
@@ -400,7 +424,7 @@ namespace cfem::sym
         else if (dimL == 9 && dimR == 9) outDim = 9; // Tenseur . Tenseur = Tenseur
         else if (dimL == 3 && dimR == 3) outDim = 1; // Vecteur . Vecteur = Scalaire
         else {
-            CFEM_ERROR("Invalid dimensions for dot(): " + std::to_string(dimL) + " . " + std::to_string(dimR));
+            CFEM_ERROR << "Invalid dimensions for dot(): " << std::to_string(dimL) << " . " << std::to_string(dimR);
         }
 
         // Zero Pruning
@@ -437,7 +461,7 @@ namespace cfem::sym
                                                    std::shared_ptr<const CfemExpression> rhs) 
     {
         if (lhs->getDimension() != 9 || rhs->getDimension() != 9) {
-            CFEM_ERROR("inner() product (double contraction) requires two dim 9 tensors.");
+            CFEM_ERROR << "inner() product (double contraction) requires two dim 9 tensors.";
         }
 
         if (lhs->isZero() || rhs->isZero()) return zeros::Zero1D;
@@ -454,7 +478,7 @@ namespace cfem::sym
                                                    std::shared_ptr<const CfemExpression> rhs)
     {
         if (lhs->getDimension() != 3 || rhs->getDimension() != 3) {
-            CFEM_ERROR("cross() product is only defined for dim 3 vectors.");
+            CFEM_ERROR << "cross() product is only defined for dim 3 vectors.";
         }
 
         if (lhs->isZero() || rhs->isZero()) return zeros::Zero3D;
@@ -475,7 +499,7 @@ namespace cfem::sym
 
         // Détermination de la dimension (autorise le mix Scalaire/Vecteur)
         if (dimY != dimX && dimY != 1 && dimX != 1) {
-            CFEM_ERROR("Invalid dimensions for atan2(): " + std::to_string(dimY) + " , " + std::to_string(dimX));
+            CFEM_ERROR << "Invalid dimensions for atan2(): " << std::to_string(dimY) << " , " << std::to_string(dimX);
         }
 
         CfemInt outDim = std::max(dimY, dimX);
@@ -502,7 +526,7 @@ namespace cfem::sym
         CfemInt dimExp  = exp->getDimension();
 
         if (dimBase != dimExp && dimBase != 1 && dimExp != 1) {
-            CFEM_ERROR("Invalid dimensions for pow(): " + std::to_string(dimBase) + " ^ " + std::to_string(dimExp));
+            CFEM_ERROR << "Invalid dimensions for pow(): " << std::to_string(dimBase) << " ^ " << std::to_string(dimExp);
         }
 
         CfemInt outDim = std::max(dimBase, dimExp);
@@ -669,14 +693,64 @@ namespace cfem::sym
         return foldUnary(u, MathOp::Zeta, [](CfemReal x) { return std::riemann_zeta(x); });
     }
 
+
+
+
+
+
+
     inline std::shared_ptr<const CfemExpression> scalar(const std::function<CfemReal(const Vector3D&)>& f, 
                                                         std::shared_ptr<const CfemExpression> gradient){
         return LambdaExpression::fromScalar(f, gradient);
     }
 
-    inline std::shared_ptr<const CfemExpression> vector(const std::function<Vector3D(const Vector3D&)>& f,
-                                                        std::shared_ptr<const CfemExpression> gradient) {
+    inline std::shared_ptr<const CfemExpression> scalar(
+                                            const std::function<CfemReal(const Vector3D &, CfemReal)> &f,
+                                            std::shared_ptr<const CfemExpression> gradient,
+                                            std::shared_ptr<const CfemExpression> timeDeriv)
+    {
+        return LambdaExpression::fromScalar(f, gradient, timeDeriv);
+    }
+
+    inline std::shared_ptr<const CfemExpression> scalar(std::shared_ptr<const CfemExpression> expr)
+    {
+        if (expr->getDimension() != 1 ) CFEM_ERROR << "expr must be a scalar (dimension 1) expression.";
+        return expr;
+    }
+
+    inline std::shared_ptr<const CfemExpression> constant(CfemReal c)
+    {
+        return std::make_shared<const ConstantExpression>(c);
+    }
+
+    inline std::shared_ptr<const CfemExpression> vector(const std::function<Vector3D(const Vector3D &)> &f,
+                                                        std::shared_ptr<const CfemExpression> gradient)
+    {
         return LambdaExpression::fromVector(f, gradient);
+    }
+
+    inline std::shared_ptr<const CfemExpression> vector(
+                                            const std::function<Vector3D(const Vector3D &, CfemReal)> &f,
+                                            std::shared_ptr<const CfemExpression> gradient,
+                                            std::shared_ptr<const CfemExpression> timeDeriv)
+    {
+        return LambdaExpression::fromVector(f, gradient, timeDeriv);
+    }
+
+    inline std::shared_ptr<const CfemExpression> vector(std::shared_ptr<const CfemExpression> expr)
+    {
+        if (expr->getDimension() != 3 ) CFEM_ERROR << "expr must be a vector (dimesion 3) expression.";
+        return expr;
+    }
+
+    inline std::shared_ptr<const CfemExpression> vector(std::shared_ptr<const CfemExpression> expr_x, 
+                                                 std::shared_ptr<const CfemExpression> expr_y,
+                                                 std::shared_ptr<const CfemExpression> expr_z)
+    {
+        if (expr_x->getDimension() != 1 || expr_y->getDimension() != 1 || expr_z->getDimension() != 1 )
+            CFEM_ERROR << "expr_x, expr_y and expr_z must be scalar (dimesion 1) expressions.";
+
+        return std::make_shared<const VectorExpression>(expr_x, expr_y, expr_z);
     }
 
     inline std::shared_ptr<const CfemExpression> tensor(
@@ -684,6 +758,81 @@ namespace cfem::sym
                                             std::shared_ptr<const CfemExpression> gradient )
     {
         return LambdaExpression::fromTensor(f, gradient);
+    }
+
+    inline std::shared_ptr<const CfemExpression> tensor(
+                                            const std::function<TensorO2(const Vector3D &, CfemReal)> &f,
+                                            std::shared_ptr<const CfemExpression> gradient,
+                                            std::shared_ptr<const CfemExpression> timeDeriv)
+    {
+        return LambdaExpression::fromTensor(f, gradient, timeDeriv);
+    }
+
+    inline std::shared_ptr<const CfemExpression> tensor(std::shared_ptr<const CfemExpression> expr)
+    {
+        if (expr->getDimension() != 9 ) CFEM_ERROR << "expr must be a scalar expression.";
+        return expr;
+    }
+
+    inline std::shared_ptr<const CfemExpression> tensor(std::shared_ptr<const CfemExpression> expr_xx,
+                                                 std::shared_ptr<const CfemExpression> expr_xy,
+                                                 std::shared_ptr<const CfemExpression> expr_xz,
+                                                 std::shared_ptr<const CfemExpression> expr_yx,
+                                                 std::shared_ptr<const CfemExpression> expr_yy,
+                                                 std::shared_ptr<const CfemExpression> expr_yz,
+                                                 std::shared_ptr<const CfemExpression> expr_zx,
+                                                 std::shared_ptr<const CfemExpression> expr_zy,
+                                                 std::shared_ptr<const CfemExpression> expr_zz)
+    {
+        return std::make_shared<const TensorExpression>(std::move(expr_xx), std::move(expr_xy), std::move(expr_xz), 
+                                                        std::move(expr_yx), std::move(expr_yy), std::move(expr_yz), 
+                                                        std::move(expr_zx), std::move(expr_zy), std::move(expr_zz));
+    }
+
+    inline std::shared_ptr<const CfemExpression> symmetricTensor(std::shared_ptr<const CfemExpression> xx, 
+                                                                 std::shared_ptr<const CfemExpression> yy, 
+                                                                 std::shared_ptr<const CfemExpression> zz,
+                                                                 std::shared_ptr<const CfemExpression> yz, 
+                                                                 std::shared_ptr<const CfemExpression> xz, 
+                                                                 std::shared_ptr<const CfemExpression> xy) 
+    {
+        return std::make_shared<const TensorExpression>(xx, xy, xz, 
+                                                        xy, yy, yz, 
+                                                        xz, yz, zz);
+    }
+
+    /**
+     * @brief Creates a diagonal tensor expression: diag(a, b, c)
+     */
+    inline std::shared_ptr<const CfemExpression> diag(std::shared_ptr<const CfemExpression> a,
+                                                      std::shared_ptr<const CfemExpression> b,
+                                                      std::shared_ptr<const CfemExpression> c)
+    {
+        return std::make_shared<const TensorExpression>(
+            a,    zeros::Zero1D, zeros::Zero1D,
+            zeros::Zero1D, b,    zeros::Zero1D,
+            zeros::Zero1D, zeros::Zero1D, c
+        );
+    }
+
+    inline std::shared_ptr<const CfemExpression> diag(CfemReal a,
+                                                      CfemReal b,
+                                                      CfemReal c)
+    {
+        return std::make_shared<const TensorExpression>(
+            constant(a),    zeros::Zero1D, zeros::Zero1D,
+            zeros::Zero1D, constant(b),    zeros::Zero1D,
+            zeros::Zero1D, zeros::Zero1D, constant(c)
+        );
+    }
+
+    /**
+     * @brief Standard Identity matrix factory
+     */
+    inline std::shared_ptr<const CfemExpression> identity()
+    {
+        auto one = std::make_shared<const ConstantExpression>(1.0);
+        return diag(one, one, one);
     }
 
     inline std::shared_ptr<const CfemExpression> grad(const std::shared_ptr<const CfemExpression>& e) {
@@ -725,7 +874,7 @@ namespace cfem::sym
             //     tensor->getComponent(7)->diff(x_rcp), tensor->getComponent(7)->diff(y_rcp), tensor->getComponent(7)->diff(z_rcp), 
             //     tensor->getComponent(8)->diff(x_rcp), tensor->getComponent(8)->diff(y_rcp), tensor->getComponent(8)->diff(z_rcp)
             // );
-            CFEM_ERROR("TODO: Gradient of a second order tensor currentely not supported. Please implement the class TensorO3SymbolicExpression.");
+            CFEM_ERROR << "TODO: Gradient of a second order tensor currentely not supported. Please implement the class TensorO3SymbolicExpression.";
 
         }
 
@@ -766,34 +915,178 @@ namespace cfem::sym
         return std::make_shared<GradExpression>(e);
     }
 
+    // inline std::shared_ptr<const CfemExpression> div(const std::shared_ptr<const CfemExpression>& e) {
+    //     if (auto v = std::dynamic_pointer_cast<const VectorSymbolicExpression>(e)) {
+    //         auto scalar_comp = std::static_pointer_cast<const ScalarSymbolicExpression>(v->getComponent(0));
+    //         auto res = v->getComponent(0)->get_expression().diff(x_rcp) + 
+    //                    v->getComponent(1)->get_expression().diff(y_rcp) + 
+    //                    v->getComponent(2)->get_expression().diff(z_rcp);
+    //         return scalar(res);
+    //     }
+
+    //     if (auto t = std::dynamic_pointer_cast<const TensorSymbolicExpression>(e)) {
+    //         auto r0 = t->getComponent(0)->get_expression().diff(x_rcp) + 
+    //                   t->getComponent(1)->get_expression().diff(y_rcp) + 
+    //                   t->getComponent(2)->get_expression().diff(z_rcp);
+    //         auto r1 = t->getComponent(3)->get_expression().diff(x_rcp) + 
+    //                   t->getComponent(4)->get_expression().diff(y_rcp) + 
+    //                   t->getComponent(5)->get_expression().diff(z_rcp);
+    //         auto r2 = t->getComponent(6)->get_expression().diff(x_rcp) + 
+    //                   t->getComponent(7)->get_expression().diff(y_rcp) + 
+    //                   t->getComponent(8)->get_expression().diff(z_rcp);
+
+            
+    //         // TODO : Etendre aux lambda
+    //         return std::make_shared<VectorSymbolicExpression>(scalar(r0), scalar(r1), scalar(r2));
+    //     }
+
+    //     CFEM_ERROR << "div() only supports Symbolic Vector/Tensor types currently.";
+    //     return nullptr;
+    // }
+
     inline std::shared_ptr<const CfemExpression> div(const std::shared_ptr<const CfemExpression>& e) {
+        // 1. Handle Symbolic Vector
         if (auto v = std::dynamic_pointer_cast<const VectorSymbolicExpression>(e)) {
-            auto scalar_comp = std::static_pointer_cast<const ScalarSymbolicExpression>(v->getComponent(0));
             auto res = v->getComponent(0)->get_expression().diff(x_rcp) + 
-                       v->getComponent(1)->get_expression().diff(y_rcp) + 
-                       v->getComponent(2)->get_expression().diff(z_rcp);
+                    v->getComponent(1)->get_expression().diff(y_rcp) + 
+                    v->getComponent(2)->get_expression().diff(z_rcp);
             return scalar(res);
         }
 
+        // 2. Handle Symbolic Tensor
         if (auto t = std::dynamic_pointer_cast<const TensorSymbolicExpression>(e)) {
             auto r0 = t->getComponent(0)->get_expression().diff(x_rcp) + 
-                      t->getComponent(1)->get_expression().diff(y_rcp) + 
-                      t->getComponent(2)->get_expression().diff(z_rcp);
+                    t->getComponent(1)->get_expression().diff(y_rcp) + 
+                    t->getComponent(2)->get_expression().diff(z_rcp);
             auto r1 = t->getComponent(3)->get_expression().diff(x_rcp) + 
-                      t->getComponent(4)->get_expression().diff(y_rcp) + 
-                      t->getComponent(5)->get_expression().diff(z_rcp);
+                    t->getComponent(4)->get_expression().diff(y_rcp) + 
+                    t->getComponent(5)->get_expression().diff(z_rcp);
             auto r2 = t->getComponent(6)->get_expression().diff(x_rcp) + 
-                      t->getComponent(7)->get_expression().diff(y_rcp) + 
-                      t->getComponent(8)->get_expression().diff(z_rcp);
+                    t->getComponent(7)->get_expression().diff(y_rcp) + 
+                    t->getComponent(8)->get_expression().diff(z_rcp);
 
-            
-            // TODO : Etendre aux lambda
             return std::make_shared<VectorSymbolicExpression>(scalar(r0), scalar(r1), scalar(r2));
         }
 
+        // 3. Handle General Expressions (Lambdas, Variables, or Custom Containers)
+        CfemInt dim = e->getDimension();
         
+        // 2. Recursive Lambda to extract the i-th scalar component safely from ANY vector expression
+        std::function<std::shared_ptr<const CfemExpression>(std::shared_ptr<const CfemExpression>, int)> extractComponent = 
+            [&extractComponent](std::shared_ptr<const CfemExpression> expr, int idx) -> std::shared_ptr<const CfemExpression> 
+        {
+            if (!expr) return nullptr;
 
-        CFEM_ERROR("div() only supports Symbolic Vector/Tensor types currently.");
+            // --- Transparent Container Types ---
+            if (auto v = std::dynamic_pointer_cast<const VectorSymbolicExpression>(expr)) {
+                return v->getComponent(idx);
+            }
+            else if (auto v = std::dynamic_pointer_cast<const VectorExpression>(expr)) {
+                return v->getComponent(idx);
+            }
+            
+            // --- Unary and Scaled Modifiers ---
+            else if (auto v = std::dynamic_pointer_cast<const ScaledExpression>(expr)) {
+                return std::make_shared<ScaledExpression>(v->getCoeff(), extractComponent(v->getBaseShared(), idx));
+            }
+            else if (auto v = std::dynamic_pointer_cast<const UnaryExpression>(expr)) {
+                return std::make_shared<UnaryExpression>(extractComponent(v->getInner(), idx), v->getOp());
+            }
+
+            // --- Binary Operations (The Missing Piece) ---
+            else if (auto b = std::dynamic_pointer_cast<const BinaryExpression>(expr)) {
+                MathOp op = b->getOp();
+                
+                // Vector +/- Vector
+                if (op == MathOp::Add || op == MathOp::Sub) {
+                    return std::make_shared<BinaryExpression>(
+                        extractComponent(b->getLHS(), idx), 
+                        extractComponent(b->getRHS(), idx), op);
+                }
+                // Scalar * Vector  OR  Vector * Scalar
+                else if (op == MathOp::Mul) {
+                    if (b->getLHS()->getDimension() == 1) {
+                        return std::make_shared<BinaryExpression>(b->getLHS(), extractComponent(b->getRHS(), idx), op);
+                    } else if (b->getRHS()->getDimension() == 1) {
+                        return std::make_shared<BinaryExpression>(extractComponent(b->getLHS(), idx), b->getRHS(), op);
+                    }
+                }
+                // Vector / Scalar
+                else if (op == MathOp::Div) {
+                    if (b->getRHS()->getDimension() == 1) {
+                        return std::make_shared<BinaryExpression>(extractComponent(b->getLHS(), idx), b->getRHS(), op);
+                    }
+                }
+                // Cross Product: A x B
+                else if (op == MathOp::Cross) {
+                    // C_idx = A_i1 * B_i2 - A_i2 * B_i1
+                    int i1 = (idx + 1) % 3;
+                    int i2 = (idx + 2) % 3;
+                    auto term1 = std::make_shared<BinaryExpression>(
+                        extractComponent(b->getLHS(), i1), extractComponent(b->getRHS(), i2), MathOp::Mul);
+                    auto term2 = std::make_shared<BinaryExpression>(
+                        extractComponent(b->getLHS(), i2), extractComponent(b->getRHS(), i1), MathOp::Mul);
+                    return std::make_shared<BinaryExpression>(term1, term2, MathOp::Sub);
+                }
+                // If it's a Pow, Max, Min, etc. applied to vectors, it will fall through to the lambda wrapper below.
+            }
+
+            // --- Opaque Black Box Fallback (Lambdas, Variables, Unhandled Ops) ---
+            // We use the static factory 'fromScalar' from your LambdaExpression class!
+            auto eval_func = [expr, idx](const Vector3D& pos, CfemReal t) -> CfemReal {
+                CfemReal temp[3] = {0.0, 0.0, 0.0};
+                EvalContext ctx;
+                ctx.physPos = pos;
+                ctx.currentTime = t;
+                expr->evaluate(-1, pos, temp, ctx); 
+                return temp[idx];
+            };
+
+            std::shared_ptr<const CfemExpression> comp_time_deriv = nullptr;
+            try {
+                if (auto td = expr->timeDerivative()) {
+                    comp_time_deriv = extractComponent(td, idx);
+                }
+            } catch (...) { /* Safe to ignore if no time derivative exists */ }
+
+            return LambdaExpression::fromScalar(eval_func, nullptr, comp_time_deriv);
+        };
+
+        // Divergence of a Vector (Dim 3) -> Returns a Scalar
+        if (dim == 3) {
+            // div(v) = trace(grad(v))
+            auto g = e->grad(); // This returns a Tensor-like expression
+            // We use the same component extraction logic we built for grad()
+            auto dvx_dx = extractComponent(g, 0);
+            auto dvy_dy = extractComponent(g, 4);
+            auto dvz_dz = extractComponent(g, 8);
+            
+            // Return a Binary Add tree: (du/dx + dv/dy) + dw/dz
+            return (dvx_dx + dvy_dy) + dvz_dz;
+        }
+
+        // Divergence of a Tensor (Dim 9) -> Returns a Vector
+        // if (dim == 9) {
+        //     auto g = e->grad(); // Note: Gradient of a 2nd order tensor is a 3rd order tensor
+        //     // If your system doesn't support 3rd order tensors yet, we use the row-wise logic:
+        //     // We assume 'e' can be split into rows.
+            
+        //     auto row0_div = (extractComponent(e, 0)->grad()->getComponent(0) + 
+        //                     extractComponent(e, 1)->grad()->getComponent(1) + 
+        //                     extractComponent(e, 2)->grad()->getComponent(2));
+                            
+        //     auto row1_div = (extractComponent(e, 3)->grad()->getComponent(0) + 
+        //                     extractComponent(e, 4)->grad()->getComponent(1) + 
+        //                     extractComponent(e, 5)->grad()->getComponent(2));
+                            
+        //     auto row2_div = (extractComponent(e, 6)->grad()->getComponent(0) + 
+        //                     extractComponent(e, 7)->grad()->getComponent(1) + 
+        //                     extractComponent(e, 8)->grad()->getComponent(2));
+
+        //     return vector(row0_div, row1_div, row2_div);
+        // }
+
+        CFEM_ERROR << "div() is not defined for expressions with dimension " << dim;
         return nullptr;
     }
 
@@ -801,14 +1094,18 @@ namespace cfem::sym
         return std::make_shared<MagnitudeSqExpression>(std::move(a));
     }
 
-    inline std::shared_ptr<const CfemExpression> scalar(const Expression& ex) {
-        return std::make_shared<ScalarSymbolicExpression>(ex, std::vector{x_rcp, y_rcp, z_rcp});
+    inline std::shared_ptr<const CfemExpression> scalar(const SymEngine::Expression& ex) {
+        return std::make_shared<ScalarSymbolicExpression>(ex, std::vector{x_rcp, y_rcp, z_rcp, t_rcp});
     }
 
-    inline std::shared_ptr<const CfemExpression> vector(const Expression& ex, 
-                                                        const Expression& ey, 
-                                                        const Expression& ez) {
+    inline std::shared_ptr<const CfemExpression> vector(const SymEngine::Expression& ex, 
+                                                        const SymEngine::Expression& ey, 
+                                                        const SymEngine::Expression& ez) {
         return std::make_shared<VectorSymbolicExpression>(scalar(ex), scalar(ey), scalar(ez));
+    }
+
+    inline std::shared_ptr<const CfemExpression> variable(const std::string name, CfemInt dimIndex){
+        return std::make_shared<CoordinateExpression>(name, dimIndex);
     }
 
 
@@ -818,45 +1115,45 @@ namespace cfem::sym
      * @name Common math functions
      *  @{
      */
-    inline Expression sin(const Expression &e) { return SymEngine::sin(e); }
-    inline Expression cos(const Expression &e) { return SymEngine::cos(e); }
-    inline Expression tan(const Expression &e) { return SymEngine::tan(e); }
-    inline Expression cot(const Expression &e) { return SymEngine::cot(e); }
-    inline Expression sec(const Expression &e) { return SymEngine::sec(e); }
-    inline Expression csc(const Expression &e) { return SymEngine::csc(e); }
+    inline SymEngine::Expression sin(const SymEngine::Expression &e) { return SymEngine::sin(e); }
+    inline SymEngine::Expression cos(const SymEngine::Expression &e) { return SymEngine::cos(e); }
+    inline SymEngine::Expression tan(const SymEngine::Expression &e) { return SymEngine::tan(e); }
+    inline SymEngine::Expression cot(const SymEngine::Expression &e) { return SymEngine::cot(e); }
+    inline SymEngine::Expression sec(const SymEngine::Expression &e) { return SymEngine::sec(e); }
+    inline SymEngine::Expression csc(const SymEngine::Expression &e) { return SymEngine::csc(e); }
 
-    inline Expression asin(const Expression &e) { return SymEngine::asin(e); }
-    inline Expression acos(const Expression &e) { return SymEngine::acos(e); }
-    inline Expression atan(const Expression &e) { return SymEngine::atan(e); }
-    inline Expression acot(const Expression &e) { return SymEngine::acot(e); }
-    inline Expression asec(const Expression &e) { return SymEngine::asec(e); }
-    inline Expression acsc(const Expression &e) { return SymEngine::acsc(e); }
+    inline SymEngine::Expression asin(const SymEngine::Expression &e) { return SymEngine::asin(e); }
+    inline SymEngine::Expression acos(const SymEngine::Expression &e) { return SymEngine::acos(e); }
+    inline SymEngine::Expression atan(const SymEngine::Expression &e) { return SymEngine::atan(e); }
+    inline SymEngine::Expression acot(const SymEngine::Expression &e) { return SymEngine::acot(e); }
+    inline SymEngine::Expression asec(const SymEngine::Expression &e) { return SymEngine::asec(e); }
+    inline SymEngine::Expression acsc(const SymEngine::Expression &e) { return SymEngine::acsc(e); }
 
-    inline Expression sinh(const Expression &e) { return SymEngine::sinh(e); }
-    inline Expression cosh(const Expression &e) { return SymEngine::cosh(e); }
-    inline Expression tanh(const Expression &e) { return SymEngine::tanh(e); }
-    inline Expression coth(const Expression &e) { return SymEngine::coth(e); }
-    inline Expression asinh(const Expression &e) { return SymEngine::asinh(e); }
-    inline Expression acosh(const Expression &e) { return SymEngine::acosh(e); }
-    inline Expression atanh(const Expression &e) { return SymEngine::atanh(e); }
+    inline SymEngine::Expression sinh(const SymEngine::Expression &e) { return SymEngine::sinh(e); }
+    inline SymEngine::Expression cosh(const SymEngine::Expression &e) { return SymEngine::cosh(e); }
+    inline SymEngine::Expression tanh(const SymEngine::Expression &e) { return SymEngine::tanh(e); }
+    inline SymEngine::Expression coth(const SymEngine::Expression &e) { return SymEngine::coth(e); }
+    inline SymEngine::Expression asinh(const SymEngine::Expression &e) { return SymEngine::asinh(e); }
+    inline SymEngine::Expression acosh(const SymEngine::Expression &e) { return SymEngine::acosh(e); }
+    inline SymEngine::Expression atanh(const SymEngine::Expression &e) { return SymEngine::atanh(e); }
 
-    inline Expression exp(const Expression &e) { return SymEngine::exp(e); }
-    inline Expression log(const Expression &e) { return SymEngine::log(e); }
-    inline Expression ln(const Expression &e) { return SymEngine::log(e); }
+    inline SymEngine::Expression exp(const SymEngine::Expression &e) { return SymEngine::exp(e); }
+    inline SymEngine::Expression log(const SymEngine::Expression &e) { return SymEngine::log(e); }
+    inline SymEngine::Expression ln(const SymEngine::Expression &e) { return SymEngine::log(e); }
 
-    inline Expression sqrt(const Expression &e) { return SymEngine::sqrt(e); }
-    inline Expression cbrt(const Expression &e) { return SymEngine::cbrt(e); }
-    inline Expression pow(const Expression &b, const Expression &e) { return SymEngine::pow(b, e); }
+    inline SymEngine::Expression sqrt(const SymEngine::Expression &e) { return SymEngine::sqrt(e); }
+    inline SymEngine::Expression cbrt(const SymEngine::Expression &e) { return SymEngine::cbrt(e); }
+    inline SymEngine::Expression pow(const SymEngine::Expression &b, const SymEngine::Expression &e) { return SymEngine::pow(b, e); }
 
-    inline Expression abs(const Expression &e) { return SymEngine::abs(e); }
+    inline SymEngine::Expression abs(const SymEngine::Expression &e) { return SymEngine::abs(e); }
 
-    inline Expression max(const Expression &a, const Expression &b) { return SymEngine::max({a, b}); }
-    inline Expression min(const Expression &a, const Expression &b) { return SymEngine::min({a, b}); }
+    inline SymEngine::Expression max(const SymEngine::Expression &a, const SymEngine::Expression &b) { return SymEngine::max({a, b}); }
+    inline SymEngine::Expression min(const SymEngine::Expression &a, const SymEngine::Expression &b) { return SymEngine::min({a, b}); }
 
-    inline Expression gamma(const Expression &e) { return SymEngine::gamma(e); }
-    inline Expression erf(const Expression &e) { return SymEngine::erf(e); }
-    inline Expression erfc(const Expression &e) { return SymEngine::erfc(e); }
-    inline Expression zeta(const Expression &e) { return SymEngine::zeta(e); }
+    inline SymEngine::Expression gamma(const SymEngine::Expression &e) { return SymEngine::gamma(e); }
+    inline SymEngine::Expression erf(const SymEngine::Expression &e) { return SymEngine::erf(e); }
+    inline SymEngine::Expression erfc(const SymEngine::Expression &e) { return SymEngine::erfc(e); }
+    inline SymEngine::Expression zeta(const SymEngine::Expression &e) { return SymEngine::zeta(e); }
     /** @} */
 
 }

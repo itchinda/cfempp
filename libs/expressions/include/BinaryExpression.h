@@ -8,15 +8,13 @@
 #include <span>
 #include <memory>
 
-
 namespace cfem::sym
+
 {
 
-
-
     /** *************************************************************************
-     * @brief 
-     * 
+     * @brief
+     *
      **************************************************************************** */
     class BinaryExpression : public CfemExpression
     {
@@ -30,30 +28,34 @@ namespace cfem::sym
     public:
         BinaryExpression(std::shared_ptr<const CfemExpression> lhs,
                          std::shared_ptr<const CfemExpression> rhs,
-                         MathOp                                op);
+                         MathOp op);
 
         CfemInt getDimension() const override { return m_dimOut; }
-        void prepare() const override{
+
+        void prepare() const override
+        {
             m_lhs->prepare();
             m_rhs->prepare();
         }
 
         bool isPointwise() const override { return m_lhs->isPointwise() && m_rhs->isPointwise(); }
         bool isBinary() const override { return true; }
-
         void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
-
+        
         std::shared_ptr<const CfemExpression> getLHS() const { return m_lhs; }
         std::shared_ptr<const CfemExpression> getRHS() const { return m_rhs; }
+
         MathOp getOp() const { return m_op; }
 
         std::shared_ptr<const CfemExpression> grad() const override;
+        std::shared_ptr<const CfemExpression> timeDerivative() const override;
 
         CfemInt precedence() const override;
-        inline std::string toString() const  override;
+        std::string toString() const override;
         ExpressionType getType() const override { return ExpressionType::Binary; }
 
     };
 
 }
+
 #include "BinaryExpression.tpp"

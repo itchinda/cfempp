@@ -29,4 +29,13 @@ namespace cfem::sym
                                                           comps[3], comps[4], comps[5], 
                                                           comps[6], comps[7], comps[8]);
     }
+
+    std::shared_ptr<const CfemExpression> VectorSymbolicExpression::timeDerivative() const {
+        std::shared_ptr<const ScalarSymbolicExpression> comps[3];
+        for (CfemInt i=0; i<3; ++i){
+            comps[i] = m_components[i]->diff(sym::t_rcp);
+        }
+        
+        return std::make_shared<VectorSymbolicExpression>(comps[0], comps[1], comps[2]);
+    }
 }

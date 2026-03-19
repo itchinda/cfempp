@@ -47,6 +47,10 @@ namespace cfem::sym {
             return std::make_shared<const CachedExpression>(m_inner->grad());
         }
 
+        std::shared_ptr<const CfemExpression> timeDerivative() const override {
+            return std::make_shared<const CachedExpression>(m_inner->timeDerivative());
+        }
+
         std::string toString() const override { return m_inner->toString(); }
         ExpressionType getType() const override { return m_inner->getType(); }
 

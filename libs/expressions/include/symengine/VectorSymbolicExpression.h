@@ -42,6 +42,7 @@ namespace cfem::sym
         }
 
         ExpressionType getType() const override { return ExpressionType::VectorSymbolic; }
+        std::shared_ptr<const CfemExpression> timeDerivative() const override;
     private:
         std::shared_ptr<const ScalarSymbolicExpression> m_components[3];
     };

@@ -61,6 +61,10 @@ namespace cfem
         void evaluateWithShape(CfemInt cellId, const ShapeInfo& shape, std::span<CfemReal> out) const;
         void evaluateGradientAt(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const;
         void evaluateGradientWithCachedMapping(CfemInt cellId, const MappingInfo& mapping, std::span<CfemReal> out) const;
+        std::shared_ptr<const CfemExpression> timeDerivative() const override{
+            CFEM_ERROR << "You requested the time derivative of a FEField, but logic is not yet implemented.";
+            return nullptr;
+        }
 
         // --- Nodal projections ---
         void project(const sym::CfemExpression& recipe);

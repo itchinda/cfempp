@@ -26,14 +26,33 @@ namespace cfem::sym
         ctx.releaseToBookmark(bookmark); 
     }
 
-        // --- MagnitudeSq Analytical Gradient (Chain Rule) ---
-    inline std::shared_ptr<const CfemExpression> MagnitudeSqExpression::grad() const {
-        auto g = m_expr->grad();
-        if (!g) {CFEM_ERROR("You requested the gradient, but the object is in wrong state. nullptr."); return nullptr;}
-        auto two = std::make_shared<ConstantExpression>(std::vector<CfemReal>{2.0});
-        // grad(f^2) = 2 * f * grad(f)
-        // return two * m_expr * g;
-        return std::make_shared<BinaryExpression>(std::make_shared<BinaryExpression>(two, m_expr, MathOp::Mul), g, MathOp::Mul);
+     /**
+     * @brief Computes 2 * u * grad(u).
+     * Since u is dim N and grad(u) is dim N*3, the dot product results in dim 3.
+     */
+    inline std::shared_ptr<const CfemExpression> MagnitudeSqExpression::grad() const 
+    {
+        auto two = std::make_shared<ConstantExpression>(2.0);
+        return std::make_shared<BinaryExpression>(
+            two, 
+            std::make_shared<BinaryExpression>(m_expr, m_expr->grad(), MathOp::Dot),
+            MathOp::Mul
+        );
+    }
+
+    /**
+     * @brief Computes 2 * u * u_dot.
+     * Scalar result (dim 1).
+     */
+    inline std::shared_ptr<const CfemExpression> MagnitudeSqExpression::timeDerivative() const 
+    {
+        auto two = std::make_shared<ConstantExpression>(2.0);
+        
+        return std::make_shared<BinaryExpression>(
+            two,
+            std::make_shared<BinaryExpression>(m_expr, m_expr->timeDerivative(), MathOp::Dot),
+            MathOp::Mul
+        );
     }
 
 }

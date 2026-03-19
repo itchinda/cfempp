@@ -2,6 +2,7 @@
 #include "MathOperators.h" // Your symbolic headers
 
 using namespace cfem::sym;
+using namespace cfem::sym::symengine;
 
 class SymbolicSimplificationTest : public ::testing::Test {
 protected:

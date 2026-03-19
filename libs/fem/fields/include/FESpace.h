@@ -87,10 +87,10 @@ protected:
 
     virtual void validate() const {
         if (m_mesh->getNumCells() == 0) {
-            CFEM_ERROR("FESpace Error: Mesh is empty.");
+            CFEM_ERROR << "FESpace Error: Mesh is empty.";
         }
         if (m_dimension < 1) {
-            CFEM_ERROR("FESpace Error: Field dimension must be >= 1.");
+            CFEM_ERROR << "FESpace Error: Field dimension must be >= 1.";
         }
     }
 };

@@ -46,6 +46,11 @@ namespace cfem::sym
          {
          }
 
+         ConstantExpression(CfemReal val, CfemInt dim)
+            : m_value(dim, val)
+        {
+        }
+
         int getDimension() const override { return m_value.size(); }
         bool isPointwise() const override { return true; }
         bool isConstant() const override {return true; }
@@ -60,6 +65,10 @@ namespace cfem::sym
             if (dim == 1) return zeros::Zero3D;
             if (dim == 3) return zeros::ZeroTensor;
             return std::make_shared<ZeroExpression>(dim * 3);
+        }
+
+        std::shared_ptr<const CfemExpression> timeDerivative() const override {
+            return std::make_shared<ZeroExpression>(getDimension());
         }
 
         CfemInt precedence() const override{ return 10; }

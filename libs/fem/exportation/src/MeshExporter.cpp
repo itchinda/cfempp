@@ -16,7 +16,7 @@ namespace cfem
     {
         for (const auto& [name_used, stored_expr] : m_entries) {
             if (name_used == name) {
-                CFEM_ERROR("A field with name '" + name + "' is already present.");
+                CFEM_ERROR << "A field with name '" << name << "' is already present.";
             }
         }
         m_entries.push_back({name, std::move(expr)});
@@ -41,21 +41,21 @@ namespace cfem
                                                const std::string &requiredExtension) const
     {
         if (filename.empty())
-            CFEM_ERROR("Filename cannot be empty.");
+            CFEM_ERROR << "Filename cannot be empty.";
 
         // Remove trailing spaces
         while (!filename.empty() && std::isspace(filename.back()))
             filename.pop_back();
 
         if (filename.empty())
-            CFEM_ERROR("Filename cannot be empty after trimming.");
+            CFEM_ERROR << "Filename cannot be empty after trimming.";
 
         // Reject dangerous characters
         static const std::regex allowedPattern(
             R"(^[a-zA-Z0-9_\-./\\]+$)");
 
         if (!std::regex_match(filename, allowedPattern))
-            CFEM_ERROR("Filename contains invalid characters: " + filename);
+            CFEM_ERROR << "Filename contains invalid characters: " << filename;
 
         // Normalize extension
         std::filesystem::path p(filename);
@@ -66,7 +66,7 @@ namespace cfem
         }
         else if (p.extension() != requiredExtension)
         {
-            CFEM_ERROR("Invalid file extension. Expected " + requiredExtension);
+            CFEM_ERROR << "Invalid file extension. Expected " << requiredExtension;
         }
 
         return p.string();
@@ -87,7 +87,9 @@ namespace cfem
             case CellType::HEX27:   return 29; 
             case CellType::PRISM6:  return 13;
             case CellType::PRISM18: return 32;
-            default: CFEM_ERROR("Unsupported cell type."); // VTK_EMPTY_CELL case 13: return CellType::PRISM6; case 32: return CellType::PRISM18;
+            default: 
+                CFEM_ERROR << "Unsupported cell type."; // VTK_EMPTY_CELL case 13: return CellType::PRISM6; case 32: return CellType::PRISM18;
+                return 0;
         }
     }
 }

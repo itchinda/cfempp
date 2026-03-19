@@ -34,6 +34,11 @@ namespace cfem::sym {
             return std::make_shared<ScaledExpression>(m_coeff, m_base->grad());
         }
 
+        
+        std::shared_ptr<const CfemExpression> timeDerivative() const override{
+            return std::make_shared<ScaledExpression>(m_coeff, m_base->timeDerivative());
+        }
+
         // std::string toString() const override {
         //     if (m_coeff == -1.0) return "-(" + m_base->toString() + ")";
         //     return "(" + std::to_string(m_coeff) + " * " + m_base->toString() + ")";
@@ -51,6 +56,13 @@ namespace cfem::sym {
                 }
             }
 
+            if (NumericPolicy::areEqual(m_coeff, 1.0)){
+                return baseStr;
+            }
+            else if (NumericPolicy::areEqual(m_coeff, -1.0)){
+                return "-" + baseStr;
+            }
+            
             std::string coeffStr = formatCoefficient(m_coeff);
             return coeffStr + " * " + baseStr;
         }

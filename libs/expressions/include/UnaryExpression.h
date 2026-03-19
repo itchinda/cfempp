@@ -27,6 +27,8 @@ namespace cfem::sym
                       std::span<CfemReal> out, EvalContext& ctx) const override;
 
         std::shared_ptr<const CfemExpression> grad() const override;
+        std::shared_ptr<const CfemExpression> timeDerivative() const override;
+
         std::string toString() const override;
         CfemInt precedence() const override;
         ExpressionType getType() const override { return ExpressionType::Unary; }
@@ -36,6 +38,8 @@ namespace cfem::sym
         MathOp m_op;
         CfemInt m_dimIn;
         CfemInt m_dimOut;
+
+        std::shared_ptr<const CfemExpression> getDerivativeWrtInner() const;
     };
 }
 

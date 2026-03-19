@@ -45,7 +45,7 @@ namespace cfem
         std::ofstream out(filename);
         if (!out.is_open())
         {
-            CFEM_ERROR("Cannot open VTK file for writing: " + filename);
+            CFEM_ERROR << "Cannot open VTK file for writing: " << filename;
         }
 
         // High precision is required to avoid artifacts in derivative calculations in ParaView
@@ -258,7 +258,7 @@ namespace cfem
     {
         std::ofstream out(filename, std::ios::binary);
         if (!out.is_open())
-            CFEM_ERROR("Cannot open VTK file for writing: " + filename);
+            CFEM_ERROR << "Cannot open VTK file for writing: " << filename;
 
         auto writeBigEndian = [&](auto *data, std::size_t count)
         {

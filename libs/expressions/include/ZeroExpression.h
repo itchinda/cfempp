@@ -34,6 +34,7 @@ namespace cfem::sym
         std::shared_ptr<const CfemExpression> grad() const {
             return std::make_shared<ZeroExpression>(m_dim * 3);
         }
+
         ExpressionType getType() const override { return ExpressionType::Zero; }
 
         std::string toString() const override { 
@@ -50,6 +51,11 @@ namespace cfem::sym
             out << "0" << "]";
             return out.str();
          }
+
+         std::shared_ptr<const CfemExpression> timeDerivative() const override{
+            return std::make_shared<ZeroExpression>(m_dim);
+         }
+         
     };
 
     namespace zeros{

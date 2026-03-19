@@ -6,7 +6,7 @@
 #include "TensorO2.h"
 #include <span>
 #include <memory>
-
+#include <ostream>
 
 
 namespace cfem::sym
@@ -20,7 +20,8 @@ namespace cfem::sym
         // Binary
         Add, Sub, Mul, Div, Dot, Inner, Cross, Pow, Max, Min, Atan2,
         // Unary
-        Negate, Transpose, Abs, Sqrt, Cbrt, 
+        Negate, Transpose, Trace, Det, Inv,
+        Abs, Sqrt, Cbrt, 
         Sign, Heaviside,
         Sin, Cos, Tan, Cot, Sec, Csc, 
         Asin, Acos, Atan, Acot, Asec, Acsc, 
@@ -29,19 +30,19 @@ namespace cfem::sym
     };
 
     enum class ExpressionType {
-        Constant,           // A literal value or vector of values
-        ScalarSymbolic,     // A SymEngine/Symbolic variable (x, y, t)
-        Variable,           // A FEM field (u, v, p)
-        Zero,               // Specialized zero node for optimization
-        Unary,              // sin, cos, exp, log, sqrt, abs
-        Binary,             // +, -, *, /, power
-        Scaled,             // k * expression (the "optimization" node)
-        VectorSymbolic,     // Container for 3 scalars
-        TensorSymbolic,     // Container for 9 scalars (or Voigt)
-        Gradient,           // Grad(u)
-        MagnitudeSq,        // |u|^2
-        Divergence,         // div(u)
-        Lambda,             // Custom user-defined functions
+        Constant,           /// A literal value or vector of values
+        ScalarSymbolic,     /// A SymEngine/Symbolic variable (x, y, t)
+        Variable,           /// A FEM field (u, v, p)
+        Zero,               /// Specialized zero node for optimization
+        Unary,              /// sin, cos, exp, log, sqrt, abs
+        Binary,             /// +, -, *, /, power
+        Scaled,             /// k * expression (the "optimization" node)
+        VectorSymbolic,     /// Container for 3 scalars
+        TensorSymbolic,     /// Container for 9 scalars (or Voigt)
+        Gradient,           /// Grad(u)
+        MagnitudeSq,        /// |u|^2
+        Divergence,         /// div(u)
+        Lambda,             /// Custom user-defined functions
         FEField
     };
 
@@ -66,34 +67,43 @@ namespace cfem::sym
         virtual bool isZero() const {return false; }
         virtual bool isConstant() const {return false; }
 
-        virtual std::shared_ptr<const CfemExpression> grad() const { return nullptr; }
+        virtual std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const {return nullptr; } 
+
+        virtual std::shared_ptr<const CfemExpression> grad()      const { return nullptr; }
+        // virtual std::shared_ptr<const CfemExpression> div()       const { return nullptr; } // to be implemented
+        // virtual std::shared_ptr<const CfemExpression> cross()     const { return nullptr; } // to be implemented
+        // virtual std::shared_ptr<const CfemExpression> trace()     const { return nullptr; } // to be implemented
+        // virtual std::shared_ptr<const CfemExpression> transpose() const { return nullptr; }
 
         virtual std::string toString() const { return "???"; }
-        virtual int precedence() const {  return 10; }
+        virtual CfemInt     precedence() const {  return 10; }
+        virtual std::shared_ptr<const CfemExpression> timeDerivative() const = 0;
 
     };
 
-    inline void hash_combine(size_t& seed, size_t v) {
-        // Standard hash_combine from Boost/C++ standards proposals
-        seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    inline std::ostream& operator<< (std::ostream& os, const std::shared_ptr<const CfemExpression>& expr){
+        return os << expr->toString();
     }
     
 
     inline std::string opToSym(MathOp op) {
         switch (op) {
-            case MathOp::Add: return "+"; break;
-            case MathOp::Sub: return "-"; break;
-            case MathOp::Mul: return "*"; break;
-            case MathOp::Div: return "/"; break;
-            case MathOp::Dot: return "dot"; break;
+            case MathOp::Add:   return "+";     break;
+            case MathOp::Sub:   return "-";     break;
+            case MathOp::Mul:   return "*";     break;
+            case MathOp::Div:   return "/";     break;
+            case MathOp::Dot:   return "dot";   break;
             case MathOp::Inner: return "Inner"; break;
             case MathOp::Cross: return "cross"; break;
-            case MathOp::Pow: return "pow"; break;
-            case MathOp::Max: return "max"; break; 
-            case MathOp::Min: return "min"; break;
+            case MathOp::Pow:   return "pow";   break;
+            case MathOp::Max:   return "max";   break; 
+            case MathOp::Min:   return "min";   break;
             case MathOp::Atan2: return "atan2"; break;
             // Matrix Operations
             case MathOp::Transpose: return "transpose"; break;
+            case MathOp::Trace: return "trace"; break;
+            case MathOp::Det: return "det"; break;
+            case MathOp::Inv: return "inv"; break;
             // Basic Math
             case MathOp::Negate: return "-"; break;
             case MathOp::Abs:    return "abs"; break;
@@ -101,7 +111,7 @@ namespace cfem::sym
             case MathOp::Cbrt:   return "cbrt"; break;
             // Logical / Step Functions
             case MathOp::Sign:   return "sign"; break;
-            case MathOp::Heaviside: "Heaviside"; break;
+            case MathOp::Heaviside: return "heaviside"; break;
             // Trigonometry
             case MathOp::Sin: return "sin"; break;
             case MathOp::Cos: return "cos"; break;
@@ -132,12 +142,39 @@ namespace cfem::sym
             case MathOp::Zeta:  return "Zeta"; break;
 
             default:
-                CFEM_ERROR("Unsupported math operation.");
+                CFEM_ERROR << "Unsupported math operation.";
                 break;
         }
         return "???";
     }
 
 
+}
+
+#include <set>
+#include <string>
+#include <stdexcept>
+
+namespace cfem::sym {
+    class VariableRegistry {
+        inline static std::set<std::string> reserved_names = {"x", "y", "z", "t"};
+        inline static std::set<std::string> active_variables;
+
+    public:
+        static bool isReserved(const std::string& name) {
+            return reserved_names.contains(name);
+        }
+
+        static void registerVariable(const std::string& name) {
+            // If it's a reserved coordinate name, we allow it (it's "pre-validated")
+            if (isReserved(name)) return;
+
+            // Otherwise, check if it's already used by someone else to avoid collisions
+            if (active_variables.contains(name)) {
+                CFEM_ERROR << "Variable name '" << name << "' is already in use.";
+            }
+            active_variables.insert(name);
+        }
+    };
 }
 

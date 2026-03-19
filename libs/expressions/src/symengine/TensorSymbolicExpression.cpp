@@ -1,4 +1,5 @@
 #include "symengine/TensorSymbolicExpression.h"
+#include "symengine/SymEngineSymbols.h"
 
 namespace cfem::sym
 {
@@ -19,4 +20,15 @@ namespace cfem::sym
     }
 
     // std::shared_ptr<const CfemExpression> TensorSymbolicExpression::grad() const  //TODO:  grad implementation goes here.
+
+    std::shared_ptr<const CfemExpression> TensorSymbolicExpression::timeDerivative() const {
+        std::shared_ptr<const ScalarSymbolicExpression> comps[9];
+        for (CfemInt i=0; i<9; ++i){
+            comps[i] = m_components[i]->diff(t_rcp);
+        }
+        
+        return std::make_shared<TensorSymbolicExpression>(comps[0], comps[1], comps[2],
+                                                          comps[3], comps[4], comps[5],
+                                                          comps[6], comps[7], comps[8]);
+    }
 }

@@ -667,7 +667,7 @@ public:
         CfemInt ny {1};
         QuadSubdivisions(CfemInt p_nx=1, CfemInt p_ny = 1): nx(p_nx), ny(p_ny){
             if (nx <= 0 || ny <= 0){
-                CFEM_ERROR("The number of subdivisions in both directions must be strictly positive.");
+                CFEM_ERROR << "The number of subdivisions in both directions must be strictly positive.";
             }
         }
     };
@@ -678,7 +678,7 @@ public:
         CfemInt nz {1};
         BlockSubdivisions(CfemInt p_nx=1, CfemInt p_ny = 1, CfemInt p_nz = 1): nx(p_nx), ny(p_ny), nz(p_nz){
             if (nx <= 0 || ny <= 0 || nz <= 0){
-                CFEM_ERROR("The number of subdivisions in the three directions must be strictly positive.");
+                CFEM_ERROR << "The number of subdivisions in the three directions must be strictly positive.";
             }
         }
     };
