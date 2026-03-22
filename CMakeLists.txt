@@ -39,7 +39,7 @@ project(cfem LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-# set(CMAKE_CXX_FLAGS_ASAN "-O1 -g -fsanitize=address -fno-omit-frame-pointer" CACHE STRING "") # For intense debug/segmentation fault/ illegal memory acces
+#set(CMAKE_CXX_FLAGS_ASAN "-O1 -g -fsanitize=address -fno-omit-frame-pointer" CACHE STRING "") # For intense debug/segmentation fault/ illegal memory acces
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -DNDEBUG -DTEUCHOS_DEBUG_OFF" CACHE STRING "")   # For pure performance (HPC)
 
 # Define the App name here so it's available in the subdirectories

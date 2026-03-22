@@ -6,6 +6,7 @@
 #include "UnaryExpression.h"
 #include "ScaledExpression.h"
 #include "LambdaExpression.h"
+#include "GradExpression.h"
 
 namespace cfem::sym
 {
@@ -38,7 +39,7 @@ namespace cfem::sym
                 return std::make_shared<UnaryExpression>(extractComponent(v->getInner(), idx), v->getOp());
             }
 
-            // --- Binary Operations (The Missing Piece) ---
+            // --- Binary Operations ---
             else if (auto b = std::dynamic_pointer_cast<const BinaryExpression>(expr)) {
                 MathOp op = b->getOp();
                 
@@ -64,7 +65,6 @@ namespace cfem::sym
                 }
                 // Cross Product: A x B
                 else if (op == MathOp::Cross) {
-                    // C_idx = A_i1 * B_i2 - A_i2 * B_i1
                     int i1 = (idx + 1) % 3;
                     int i2 = (idx + 2) % 3;
                     auto term1 = std::make_shared<BinaryExpression>(
@@ -73,13 +73,42 @@ namespace cfem::sym
                         extractComponent(b->getLHS(), i2), extractComponent(b->getRHS(), i1), MathOp::Mul);
                     return std::make_shared<BinaryExpression>(term1, term2, MathOp::Sub);
                 }
-                // If it's a Pow, Max, Min, etc. applied to vectors, it will fall through to the lambda wrapper below.
+            }
+
+            // --- EXPLICIT GRADIENT HANDLING (THIS BREAKS THE INFINITE LOOP) ---
+            else if (auto g = std::dynamic_pointer_cast<const GradExpression>(expr)) {
+                auto eval_func = [g, idx](const Vector3D& pos, CfemReal t) -> CfemReal {
+                    std::vector<CfemReal> temp(g->getDimension(), 0.0);
+                    EvalContext ctx;
+                    ctx.physPos = pos;
+                    ctx.currentTime = t;
+                    g->evaluate(-1, pos, temp, ctx);
+                    return temp[idx];
+                };
+
+                std::shared_ptr<const CfemExpression> comp_time_deriv = nullptr;
+                try {
+                    if (auto td = g->timeDerivative()) {
+                        // Do NOT recurse extractComponent here. Wrap it safely to stop the loop.
+                        auto td_eval = [td, idx](const Vector3D& pos, CfemReal t) -> CfemReal {
+                            std::vector<CfemReal> temp(td->getDimension(), 0.0);
+                            EvalContext ctx;
+                            ctx.physPos = pos;
+                            ctx.currentTime = t;
+                            td->evaluate(-1, pos, temp, ctx);
+                            return temp[idx];
+                        };
+                        comp_time_deriv = LambdaExpression::fromScalar(td_eval, nullptr, nullptr);
+                    }
+                } catch (...) { /* Safe to ignore */ }
+
+                return LambdaExpression::fromScalar(eval_func, nullptr, comp_time_deriv);
             }
 
             // --- Opaque Black Box Fallback (Lambdas, Variables, Unhandled Ops) ---
-            // We use the static factory 'fromScalar' from your LambdaExpression class!
             auto eval_func = [expr, idx](const Vector3D& pos, CfemReal t) -> CfemReal {
-                CfemReal temp[3] = {0.0, 0.0, 0.0};
+                // Dynamically size based on expression dimension to prevent buffer overflows
+                std::vector<CfemReal> temp(expr->getDimension(), 0.0);
                 EvalContext ctx;
                 ctx.physPos = pos;
                 ctx.currentTime = t;
@@ -90,12 +119,25 @@ namespace cfem::sym
             std::shared_ptr<const CfemExpression> comp_time_deriv = nullptr;
             try {
                 if (auto td = expr->timeDerivative()) {
-                    comp_time_deriv = extractComponent(td, idx);
+                    // Prevent infinite recursion if the time derivative type is the same wrapper
+                    if (td->getType() == expr->getType()) {
+                         auto td_eval = [td, idx](const Vector3D& pos, CfemReal t) -> CfemReal {
+                            std::vector<CfemReal> temp(td->getDimension(), 0.0);
+                            EvalContext ctx;
+                            ctx.physPos = pos; ctx.currentTime = t;
+                            td->evaluate(-1, pos, temp, ctx);
+                            return temp[idx];
+                        };
+                        comp_time_deriv = LambdaExpression::fromScalar(td_eval, nullptr, nullptr);
+                    } else {
+                        comp_time_deriv = extractComponent(td, idx);
+                    }
                 }
-            } catch (...) { /* Safe to ignore if no time derivative exists */ }
+            } catch (...) { /* Safe to ignore */ }
 
             return LambdaExpression::fromScalar(eval_func, nullptr, comp_time_deriv);
         };
+
 
         // 3. Extract components row by row
         auto Cxx = extractComponent(g_x, 0); auto Cxy = extractComponent(g_x, 1); auto Cxz = extractComponent(g_x, 2);

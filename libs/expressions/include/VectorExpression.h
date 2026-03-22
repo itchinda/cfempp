@@ -31,7 +31,7 @@ namespace cfem::sym
 
             for (int i = 0; i < 3; ++i) {
                 if (!m_components[i] || m_components[i]->getDimension() != 1) {
-                    CFEM_ERROR << "VectorExpression component " << i << " must be a valid scalar expression.";
+                    CFEM_ERROR << "VectorExpression component " << i << " must be a valid scalar expression. Got dim = " << m_components[i]->getDimension();
                 }
             }
 
@@ -79,6 +79,9 @@ namespace cfem::sym
         }
 
         std::shared_ptr<const CfemExpression> grad() const override;
+        std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const {
+            return std::make_shared<const VectorExpression>(m_components[0]->diff(var_idx), m_components[1]->diff(var_idx), m_components[2]->diff(var_idx));
+        }
         //     CFEM_ERROR << "The gradient of a tensor expression is not yet implemented. Would required a 3rd order tensor expression.";
         //     return nullptr;
         // }

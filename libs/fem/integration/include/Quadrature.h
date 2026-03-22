@@ -205,12 +205,12 @@ private:
  * @brief Configuration for quadrature orders per element type.
  */
 struct IntegrationSchemeParams {
-    int NumIntgPt1DElem    = 3;   /// 5th order
-    int NumIntgPtTriElem   = 6;   /// 4th order
-    int NumIntgPtQuadElem  = 9;   /// 5th order
-    int NumIntgPtTetElem   = 11;  /// 4th order
-    int NumIntgPtPrismElem = 18;  /// 4th order
-    int NumIntgPtHexElem   = 27;  /// 5th order
+    int NumIntgPt1DElem    = 3;   /// 5th order accuracy
+    int NumIntgPtTriElem   = 6;   /// 4th order accuracy
+    int NumIntgPtQuadElem  = 9;   /// 5th order accuracy
+    int NumIntgPtTetElem   = 11;  /// 4th order accuracy
+    int NumIntgPtPrismElem = 18;  /// 4th order accuracy
+    int NumIntgPtHexElem   = 27;  /// 5th order accuracy
 
     /**
      * @brief Helper to get the order for a specific element type.

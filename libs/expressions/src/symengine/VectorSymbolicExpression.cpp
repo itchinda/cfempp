@@ -18,6 +18,22 @@ namespace cfem::sym
             "VectorSymbolicExpression: All components must be of type ScalarSymbolicExpression.");
     }
 
+    std::shared_ptr<const CfemExpression> VectorSymbolicExpression::diff(CfemInt var_idx) const {
+        auto var = x_rcp;
+        if (var_idx == 1){
+            var = y_rcp;
+        }
+        else if (var_idx == 2){
+            var = z_rcp;
+        }
+        else if (var_idx == 3){
+            var = t_rcp;
+        }else {
+            if(var_idx != 0) CFEM_ERROR << "Index out of bounds.";
+        }
+        return std::make_shared<const VectorSymbolicExpression>(m_components[0]->diff(var), m_components[1]->diff(var), m_components[2]->diff(var));
+    }
+
     std::shared_ptr<const CfemExpression> VectorSymbolicExpression::grad() const {
         std::shared_ptr<const ScalarSymbolicExpression> comps[9];
         for(int i=0; i<3; ++i) {

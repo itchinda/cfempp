@@ -3,6 +3,7 @@
 
 #include "FESpace.h"
 #include "ReferenceElement.h"
+#include "DynamicVector.h"
 #include <vector>
 #include <memory>
 #include <map>

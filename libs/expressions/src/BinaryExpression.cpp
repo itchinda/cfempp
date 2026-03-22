@@ -1,7 +1,8 @@
 #include "BinaryExpression.h"    
 #include "UnaryExpression.h"
 #include "ConstantExpression.h"
-    
+#include "MathOperators.h"
+
 namespace cfem::sym
 {    
     BinaryExpression::BinaryExpression(std::shared_ptr<const CfemExpression> lhs,
@@ -78,103 +79,96 @@ namespace cfem::sym
         }
     }
 
-    // void BinaryExpression::evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
-    // {
-    //     auto bookmark = ctx.getBookmark();
+    std::shared_ptr<const CfemExpression> BinaryExpression::diff(CfemInt var_idx) const {
+        auto dL = m_lhs->diff(var_idx);
+        auto dR = m_rhs->diff(var_idx);
 
-    //     std::span<CfemReal> spanL = ctx.getBuffer(m_dimL);
-    //     std::span<CfemReal> spanR = ctx.getBuffer(m_dimR);
+        if (!dL || !dR) {
+            CFEM_ERROR << "One of the children couldn't be differentiated";
+            return nullptr;
+        }
 
-    //     m_lhs->evaluate(cellId, xi, spanL, ctx);
-    //     m_rhs->evaluate(cellId, xi, spanR, ctx);
+        // Optimization: If both derivatives are zero, the whole derivative is zero.
+        // Assuming you have an isZero() virtual method on CfemExpression.
+        if (dL->isZero() && dR->isZero()) {
+            return std::make_shared<ZeroExpression>(m_dimOut);
+        }
 
-    //     switch (m_op)
-    //     {
-    //     case MathOp::Add:
-    //         for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] + spanR[i];
-    //         break;
+        switch (m_op) {
+            case MathOp::Add:
+                return dL + dR;
 
-    //     case MathOp::Sub:
-    //         for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] - spanR[i];
-    //         break;
+            case MathOp::Sub:
+                return std::make_shared<const BinaryExpression>(dL, dR, MathOp::Sub);
 
-    //     case MathOp::Mul:
-    //         if (m_dimL == 1) // Scalaire * (Vecteur ou Tenseur)
-    //             for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[0] * spanR[i];
-    //         else if (m_dimR == 1) // (Vecteur ou Tenseur) * Scalaire
-    //             for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] * spanR[0];
-    //         else // Multiplication élément par élément (Hadamard)
-    //             for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] * spanR[i];
-    //         break;
+            case MathOp::Mul:
+                // Product Rule: (u*v)' = u'*v + u*v'
+                if (dL->isZero()) return m_lhs * dR;
+                if (dR->isZero()) return dL * m_rhs;
+                return (dL * m_rhs) + (m_lhs * dR);
 
-    //     case MathOp::Div:
-    //         if (m_dimR == 1) // (Vecteur ou Tenseur) / Scalaire
-    //             for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] / spanR[0];
-    //         else // Division élément par élément
-    //             for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] / spanR[i];
-    //         break;
+            case MathOp::Div:
+                // Quotient Rule: (u/v)' = (u'*v - u*v') / v^2
+                if (dR->isZero()) return dL / m_rhs; // Simplified if denominator is constant
+                return ((dL * m_rhs) - (m_lhs * dR)) / (m_rhs * m_rhs);
 
-    //     case MathOp::Dot: 
-    //         if (m_dimL == 3 && m_dimR == 3) { // Vecteur . Vecteur -> Scalaire
-    //             out[0] = spanL[0]*spanR[0] + spanL[1]*spanR[1] + spanL[2]*spanR[2];
-    //         }
-    //         else if (m_dimL == 9 && m_dimR == 3) { // Tenseur . Vecteur -> Vecteur
-    //             out[0] = spanL[0]*spanR[0] + spanL[1]*spanR[1] + spanL[2]*spanR[2];
-    //             out[1] = spanL[3]*spanR[0] + spanL[4]*spanR[1] + spanL[5]*spanR[2];
-    //             out[2] = spanL[6]*spanR[0] + spanL[7]*spanR[1] + spanL[8]*spanR[2];
-    //         }
-    //         else if (m_dimL == 3 && m_dimR == 9) { // Vecteur . Tenseur -> Vecteur
-    //             out[0] = spanL[0]*spanR[0] + spanL[1]*spanR[3] + spanL[2]*spanR[6];
-    //             out[1] = spanL[0]*spanR[1] + spanL[1]*spanR[4] + spanL[2]*spanR[7];
-    //             out[2] = spanL[0]*spanR[2] + spanL[1]*spanR[5] + spanL[2]*spanR[8];
-    //         }
-    //         else if (m_dimL == 9 && m_dimR == 9) { // Tenseur . Tenseur -> Tenseur (MatMul)
-    //             for (int i = 0; i < 3; ++i) {
-    //                 for (int j = 0; j < 3; ++j) {
-    //                     out[i*3 + j] = spanL[i*3 + 0] * spanR[0*3 + j] +
-    //                                 spanL[i*3 + 1] * spanR[1*3 + j] +
-    //                                 spanL[i*3 + 2] * spanR[2*3 + j];
-    //                 }
-    //             }
-    //         }
-    //         break;
+            case MathOp::Dot:
+                // Dot Product Rule: (u . v)' = u' . v + u . v'
+                if (dL->isZero()) return dot(m_lhs, dR);
+                if (dR->isZero()) return dot(dL, m_rhs);
+                return dot(dL, m_rhs) + dot(m_lhs, dR);
 
-    //     case MathOp::Inner: { // Double contraction sigma : epsilon -> Scalaire
-    //         CfemReal sum = 0.0;
-    //         for (int i = 0; i < 9; ++i) sum += spanL[i] * spanR[i];
-    //         out[0] = sum;
-    //         break;
-    //     }
+            case MathOp::Inner:
+                // Double contraction (A : B)' = A' : B + A : B'
+                if (dL->isZero()) return inner(m_lhs, dR);
+                if (dR->isZero()) return inner(dL, m_rhs);
+                return inner(dL, m_rhs) + inner(m_lhs, dR);
 
-    //     case MathOp::Cross: // Uniquement 3D
-    //         out[0] = spanL[1] * spanR[2] - spanL[2] * spanR[1];
-    //         out[1] = spanL[2] * spanR[0] - spanL[0] * spanR[2];
-    //         out[2] = spanL[0] * spanR[1] - spanL[1] * spanR[0];
-    //         break;
+            case MathOp::Cross:
+                // Cross Product Rule: (u x v)' = u' x v + u x v'
+                if (dL->isZero()) return cross(m_lhs, dR);
+                if (dR->isZero()) return cross(dL, m_rhs);
+                return cross(dL, m_rhs) + cross(m_lhs, dR);
 
-    //     case MathOp::Pow:
-    //         for (int i = 0; i < m_dimOut; ++i) out[i] = std::pow(spanL[i], spanR[i]);
-    //         break;
+            case MathOp::Pow: {
+                // Power Rule: d(u^v) = u^v * (v' * ln(u) + v * u' / u)
+                if (dR->isZero()) {
+                    // If the exponent is a constant (e.g., x^2), optimize to: v * u^(v-1) * u'
+                    auto v_minus_1 = m_rhs - std::make_shared<ConstantExpression>(1.0);
+                    return m_rhs * pow(m_lhs, v_minus_1) * dL;
+                }
+                auto term1 = dR * log(m_lhs);
+                auto term2 = m_rhs * dL / m_lhs;
+                return pow(m_lhs, m_rhs) * (term1 + term2);
+            }
 
-    //     case MathOp::Max:
-    //         for (int i = 0; i < m_dimOut; ++i) out[i] = std::max(spanL[i], spanR[i]);
-    //         break;
+            case MathOp::Max: {
+                // max(u, v)' = u' * H(u - v) + v' * H(v - u)
+                // Assuming you have a helper for Heaviside, e.g., heaviside(expr)
+                auto H_u_gt_v = heaviside(m_lhs - m_rhs);
+                auto H_v_gt_u = heaviside(m_rhs - m_lhs);
+                return (dL * H_u_gt_v) + (dR * H_v_gt_u);
+            }
 
-    //     case MathOp::Min:
-    //         for (int i = 0; i < m_dimOut; ++i) out[i] = std::min(spanL[i], spanR[i]);
-    //         break;
+            case MathOp::Min: {
+                // min(u, v)' = u' * H(v - u) + v' * H(u - v)
+                auto H_v_gt_u = heaviside(m_rhs - m_lhs);
+                auto H_u_gt_v = heaviside(m_lhs - m_rhs);
+                return (dL * H_v_gt_u) + (dR * H_u_gt_v);
+            }
 
-    //     case MathOp::Atan2:
-    //         for (int i = 0; i < m_dimOut; ++i) out[i] = std::atan2(spanL[i], spanR[i]);
-    //         break;
+            case MathOp::Atan2: {
+                // atan2(y, x)' = (x * y' - y * x') / (x^2 + y^2)
+                // Note: lhs = y, rhs = x
+                auto num = (m_rhs * dL) - (m_lhs * dR);
+                auto den = (m_lhs * m_lhs) + (m_rhs * m_rhs);
+                return num / den;
+            }
 
-    //     default:
-    //         break;
-    //     }
-
-    //     // On libère la mémoire utilisée par spanL et spanR pour les prochains nœuds
-    //     ctx.releaseToBookmark(bookmark);
-    // }
+            default:
+                return std::make_shared<ZeroExpression>(m_dimOut);
+        }
+    }
 
     std::shared_ptr<const CfemExpression> BinaryExpression::grad() const {
         auto L = m_lhs;

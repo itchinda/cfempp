@@ -36,9 +36,13 @@ namespace cfem
     // template <typename Func>
     //     requires(!std::is_base_of_v<sym::CfemExpression, std::decay_t<Func>> &&
     //              !std::is_convertible_v<Func, std::shared_ptr<sym::CfemExpression>>)
+    // template <typename Func>
+    // requires (!std::is_same_v<std::decay_t<Func>, sym::CfemExpression> &&
+    //         !std::is_same_v<std::decay_t<Func>, std::shared_ptr<sym::CfemExpression>>)
+    // void FEField::project(const Func& func)
     template <typename Func>
-    requires (!std::is_same_v<std::decay_t<Func>, sym::CfemExpression> &&
-            !std::is_same_v<std::decay_t<Func>, std::shared_ptr<sym::CfemExpression>>)
+    requires (!std::is_base_of_v<sym::CfemExpression, std::decay_t<Func>> && 
+            !std::is_convertible_v<std::decay_t<Func>, std::shared_ptr<const sym::CfemExpression>>)
     void FEField::project(const Func& func)
     {
         auto mesh = m_space->getMesh();

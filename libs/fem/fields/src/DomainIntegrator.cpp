@@ -65,7 +65,7 @@ namespace cfem
         {
             std::vector<CfemReal> threadTotals(numTargets, 0.0);
             EvalContext ctx;
-            CfemReal outVal[1] = {0.0};
+            CfemReal outVal[9] = {0.0};
             std::span<CfemReal> spanOut(outVal, 1);
 
             MappingInfo threadMapP2; // Le mapping maître (Géométrie)

@@ -49,26 +49,10 @@ namespace cfem::sym
         }
 
         std::shared_ptr<const ScalarSymbolicExpression> diff( const SymEngine::RCP<const SymEngine::Symbol> &var) const {
-            return std::make_shared<ScalarSymbolicExpression>(m_expression.diff(var), m_vars);
+            return std::make_shared<const ScalarSymbolicExpression>(m_expression.diff(var), m_vars);
         }
 
-        std::shared_ptr<const CfemExpression> diff(CfemInt var_idx ) const override{
-            if (var_idx == 0) {
-                return diff(x_rcp);
-            }
-            else if (var_idx == 1){
-                return diff(y_rcp);
-            }
-            else if (var_idx == 2){
-                return diff(z_rcp);
-            }
-            else if (var_idx == 3){
-                return diff(t_rcp);
-            }
-            else{
-                CFEM_ERROR << "index out of bounds. Use 0, 1, 2, and 3, respectively for the derivative with respect to x, y, z, and t.";
-            }
-        }
+        std::shared_ptr<const CfemExpression> diff(CfemInt var_idx ) const override;
 
         std::shared_ptr<const CfemExpression> timeDerivative() const override;
 

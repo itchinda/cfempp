@@ -31,6 +31,14 @@ namespace cfem::sym
         }
 
         CfemInt getDimension() const override { return 1;}
+        CfemInt getIndex() const { return m_dimIndex; }
+        
+        std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override {
+            if (var_idx == m_dimIndex) {
+                return std::make_shared<ConstantExpression>(1.0);
+            }
+            return std::make_shared<ZeroExpression>(1);
+        }
 
         std::shared_ptr<const CfemExpression> grad() const override
         {            

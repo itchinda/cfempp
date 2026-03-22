@@ -88,6 +88,20 @@ namespace cfem::sym
         }
     }
 
+    std::shared_ptr<const CfemExpression> UnaryExpression::diff(CfemInt var_idx) const {
+        auto d_inner = m_expr->diff(var_idx);
+        if (!d_inner) return nullptr;
+
+        if (d_inner->isZero()) return std::make_shared<ZeroExpression>(m_dimOut);
+
+        // Get outer derivative ( f'(u) )
+        auto d_op = getDerivativeWrtInner();
+        if (!d_op) return nullptr;
+
+        // Chain rule
+        return d_op * d_inner; 
+    }
+
     // --- grad() Implementation ---
     inline std::shared_ptr<const CfemExpression> UnaryExpression::grad() const {
 

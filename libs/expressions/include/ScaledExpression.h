@@ -8,17 +8,20 @@ namespace cfem::sym {
     class ScaledExpression : public CfemExpression {
     public:
         ScaledExpression(CfemReal coeff, std::shared_ptr<const CfemExpression> expr)
-            : m_coeff(coeff), m_base(std::move(expr)) 
+            : m_coeff(coeff), m_base(std::move(expr))
         {
+            CFEM_ASSERT(m_base, "ScaledExpression requires a valid base CfemExpression.");
         }
 
         virtual void prepare() const override { m_base->prepare(); }
 
         virtual void evaluate(CfemInt cellId, const Vector3D &xi, 
                               std::span<CfemReal> out, EvalContext &ctx) const override {
+
             m_base->evaluate(cellId, xi, out, ctx);
-            for (auto& val : out) {
-                val *= m_coeff; // Apply the scale
+            CfemInt dim = m_base->getDimension();
+            for (CfemInt i = 0; i < dim; ++i) {
+                out[i] *= m_coeff; 
             }
         }
 
@@ -29,11 +32,20 @@ namespace cfem::sym {
         const CfemExpression* getBasePtr() const { return m_base.get(); }
         std::shared_ptr<const CfemExpression> getBaseShared() const { return m_base; }
 
-        std::shared_ptr<const CfemExpression> grad() const override {
-            // Gradient of k*u is k*grad(u)
-            return std::make_shared<ScaledExpression>(m_coeff, m_base->grad());
-        }
+        // std::shared_ptr<const CfemExpression> grad() const override {
+        //     // Gradient of k*u is k*grad(u)
+        //     return std::make_shared<ScaledExpression>(m_coeff, m_base->grad());
+        // }
 
+        std::shared_ptr<const CfemExpression> grad() const override {
+            CFEM_ASSERT(m_base, "ScaledExpression::grad: base expression must be valid");
+
+            auto baseGrad = m_base->grad();
+            CFEM_ASSERT(baseGrad, "ScaledExpression:grad: base gradient is invalid!" );
+            if (!baseGrad) return nullptr; // Or return a ZeroExpression of correct dim
+            
+            return std::make_shared<ScaledExpression>(m_coeff, baseGrad);
+        }
         
         std::shared_ptr<const CfemExpression> timeDerivative() const override{
             return std::make_shared<ScaledExpression>(m_coeff, m_base->timeDerivative());

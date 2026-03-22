@@ -2,6 +2,7 @@
 #define CFEM_FEFIELD_H
 
 #include "CfemExpression.h"
+#include "GradExpression.h"
 #include "EvalContext.h"
 #include "LagrangeSpace.h"
 #include "PetscVector.h"
@@ -66,14 +67,34 @@ namespace cfem
             return nullptr;
         }
 
+        std::shared_ptr<const sym::CfemExpression> grad () const override{
+            return std::make_shared<sym::GradExpression>(shared_from_this());
+        }
         // --- Nodal projections ---
+        // void project(const sym::CfemExpression& recipe);
+        // template <typename Func>
+        // requires (!std::is_same_v<std::decay_t<Func>, sym::CfemExpression> &&
+        //         !std::is_same_v<std::decay_t<Func>, std::shared_ptr<sym::CfemExpression>>)
+        // void project(const Func& func);
+
         void project(const sym::CfemExpression& recipe);
+
+        // 2. Pointer version (for u->project(analytical_u))
+        // This is the one you are missing that makes life easy!
+        void project(std::shared_ptr<const sym::CfemExpression> recipe) {
+            if (recipe) project(*recipe);
+            else
+                CFEM_ERROR << "project requires a valid CfemExpression object.";
+        }
+
+        // 3. The Template version (for Lambdas)
         template <typename Func>
-        requires (!std::is_same_v<std::decay_t<Func>, sym::CfemExpression> &&
-                !std::is_same_v<std::decay_t<Func>, std::shared_ptr<sym::CfemExpression>>)
+        requires (!std::is_base_of_v<sym::CfemExpression, std::decay_t<Func>> && 
+                !std::is_convertible_v<std::decay_t<Func>, std::shared_ptr<const sym::CfemExpression>>)
         void project(const Func& func);
 
         sym::ExpressionType getType() const override { return sym::ExpressionType::FEField; }
+        std::string toString() const override { return "FEField::" + m_name; }
 
 
     };

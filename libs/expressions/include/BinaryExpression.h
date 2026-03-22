@@ -47,6 +47,7 @@ namespace cfem::sym
 
         MathOp getOp() const { return m_op; }
 
+        std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override;
         std::shared_ptr<const CfemExpression> grad() const override;
         std::shared_ptr<const CfemExpression> timeDerivative() const override;
 

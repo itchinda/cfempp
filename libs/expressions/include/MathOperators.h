@@ -7,9 +7,16 @@
 #include "symengine/SymEngineSymbols.h"
 
 
+namespace cfem
+{
+    class LagrangeSpace;
+    class FEField; 
+}
+
 namespace cfem::sym
 {
 
+    class TestFunction;
     
     inline std::shared_ptr<const CfemExpression> identityO2TensorExpr();
     inline std::shared_ptr<const CfemExpression> transpose(std::shared_ptr<const CfemExpression> u);
@@ -252,6 +259,8 @@ namespace cfem::sym
 
     std::shared_ptr<const CfemExpression> variable(const std::string name, CfemInt dimIndex);
 
+    std::shared_ptr<FEField> Trial(std::shared_ptr<LagrangeSpace> V, const std::string& name = "u");
+    std::shared_ptr<const TestFunction>  Test (std::shared_ptr<LagrangeSpace> V, const std::string& name = "v");
 }
 
 #include "MathOperators.tpp"

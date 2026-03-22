@@ -26,6 +26,7 @@ namespace cfem::sym
         void evaluate(CfemInt cellIdx, const Vector3D& point, 
                       std::span<CfemReal> out, EvalContext& ctx) const override;
 
+        std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override;
         std::shared_ptr<const CfemExpression> grad() const override;
         std::shared_ptr<const CfemExpression> timeDerivative() const override;
 

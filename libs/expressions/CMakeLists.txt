@@ -1,5 +1,6 @@
 add_library(cfem_expressions
     src/AlgebraicSimplifier.cpp
+    src/CfemExpression.cpp
     src/BinaryExpression.cpp
     src/GradExpression.cpp
     src/LambdaExpression.cpp
@@ -24,6 +25,7 @@ target_link_libraries(cfem_expressions
         cfem_utils 
         cfem_mesh 
         cfem_fem_integration
+        cfem_fields
         # On utilise la cible IMPORTED, elle s'occupe de GMP, MPFR, et des includes !
         SymEngine::libsymengine 
         PkgConfig::PETSC

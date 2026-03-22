@@ -19,6 +19,25 @@ namespace cfem::sym
         m_components[8] = std::move(dzz);
     }
 
+    std::shared_ptr<const CfemExpression> TensorSymbolicExpression::diff(CfemInt var_idx) const {
+        auto var = x_rcp;
+        if (var_idx == 1){
+            var = y_rcp;
+        }
+        else if (var_idx == 2){
+            var = z_rcp;
+        }
+        else if (var_idx == 3){
+            var = t_rcp;
+        }else {
+            if(var_idx != 0) CFEM_ERROR << "Index out of bounds.";
+        }
+
+        return std::make_shared<const TensorSymbolicExpression>(m_components[0]->diff(var), m_components[1]->diff(var), m_components[2]->diff(var),
+                                                                m_components[3]->diff(var), m_components[4]->diff(var), m_components[5]->diff(var),
+                                                                m_components[6]->diff(var), m_components[7]->diff(var), m_components[8]->diff(var));
+    }
+
     // std::shared_ptr<const CfemExpression> TensorSymbolicExpression::grad() const  //TODO:  grad implementation goes here.
 
     std::shared_ptr<const CfemExpression> TensorSymbolicExpression::timeDerivative() const {

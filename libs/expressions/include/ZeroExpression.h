@@ -31,7 +31,11 @@ namespace cfem::sym
             std::ranges::fill(out, 0.0);
         }
 
-        std::shared_ptr<const CfemExpression> grad() const {
+        std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override {
+            return std::make_shared<ZeroExpression>(this->getDimension());
+        }
+
+        std::shared_ptr<const CfemExpression> grad() const override {
             return std::make_shared<ZeroExpression>(m_dim * 3);
         }
 

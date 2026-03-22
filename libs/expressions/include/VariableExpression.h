@@ -34,6 +34,22 @@ namespace cfem::sym
             for (CfemInt i = 0; i < m_dim; ++i) out[i] = m_dataPtr[i];
         }
 
+        // std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override {
+        //     if (var_idx == 3) {
+        //         return timeDerivative();
+        //     }
+            
+        //     // 2. Spatial derivative (x=0, y=1, z=2)
+        //     auto g = grad();
+        //     if (!g) {
+        //         CFEM_ERROR << "Cannot compute diff() because grad() is not set for variable: " << m_name;
+        //     }
+            
+        //     // Assuming grad() returns a Vector Expression for a scalar variable:
+        //     // grad() = [du/dx, du/dy, du/dz]. We just extract the 'var_idx' component.
+        //     return extractComponent(g, var_idx); 
+        // }
+
         std::shared_ptr<const CfemExpression> grad() const override {
             if (!m_gradExpr) {
                 CFEM_ERROR << "Gradient was not provided. Cannot compute spatial derivatives for VariableExpression.";

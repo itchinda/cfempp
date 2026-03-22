@@ -129,8 +129,8 @@ namespace cfem {
     };
 
     struct EvalContext {
-        Vector3D physPos;
-        CfemReal currentTime;
+        Vector3D physPos = {};
+        CfemReal currentTime = 0;
         const ShapeInfo* shapeP1 = nullptr;
         const ShapeInfo* shapeP2 = nullptr;
         const MappingInfo* mappingP2 = nullptr; 
@@ -139,9 +139,19 @@ namespace cfem {
         CfemInt currentCellId = -1;
         Vector3D currentXi = {-1e9, -1e9, -1e9};
 
+        const ShapeInfo* trialShape = nullptr;
+        const ShapeInfo* testShape  = nullptr;
+
+        const MappingInfo* trialMapping = nullptr;
+        const MappingInfo* testMapping  = nullptr;
+
+        CfemInt trialDof = -1;
+        CfemInt testDof  = -1;
+
         ShapeInfo scratchShape;
         MappingInfo scratchMapping;
         DynamicVector<Vector3D> scratchCoords;
+        std::vector<CfemInt> scratchDofs;
 
     private:
         static constexpr size_t PAGE_SIZE = 4096; 

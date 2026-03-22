@@ -54,10 +54,21 @@ namespace cfem::sym
         int getDimension() const override { return m_value.size(); }
         bool isPointwise() const override { return true; }
         bool isConstant() const override {return true; }
+        bool isZero() const override {
+            for (auto val : m_value) {
+                if (! NumericPolicy::isZero(std::abs(val)) ) return false;
+            }
+            return true;
+        }
+
         const std::vector<CfemReal>& getValues() const { return m_value; }
 
         void evaluate(CfemInt, const Vector3D &, std::span<CfemReal> out, EvalContext &) const override {
             std::copy(m_value.begin(), m_value.end(), out.begin());
+        }
+
+        std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override {
+            return std::make_shared<ZeroExpression>(this->getDimension());
         }
 
         std::shared_ptr<const CfemExpression> grad() const override {

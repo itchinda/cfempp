@@ -38,6 +38,8 @@ namespace cfem::sym
             for (int i = 0; i < 9; ++i) m_components[i]->evaluate(cellId, xi, out.subspan(i, 1), ctx);
         }
 
+        std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override;
+
         // TODO Implement grad()
 
         std::shared_ptr<const ScalarSymbolicExpression> getComponent(CfemInt i) const
