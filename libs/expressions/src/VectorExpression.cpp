@@ -75,7 +75,6 @@ namespace cfem::sym
                 }
             }
 
-            // --- EXPLICIT GRADIENT HANDLING (THIS BREAKS THE INFINITE LOOP) ---
             else if (auto g = std::dynamic_pointer_cast<const GradExpression>(expr)) {
                 auto eval_func = [g, idx](const Vector3D& pos, CfemReal t) -> CfemReal {
                     std::vector<CfemReal> temp(g->getDimension(), 0.0);

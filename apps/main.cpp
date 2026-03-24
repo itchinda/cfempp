@@ -29,7 +29,7 @@
 
 using namespace cfem;
 using namespace cfem::sym;
-using namespace cfem::sym::cfemvars;
+using namespace cfem::sym::symengine;
 static char help[] = "CFEM Example: Field projection on a quadratic mesh.\n\n";
 
 int main(int argc, char **argv)
@@ -45,29 +45,28 @@ int main(int argc, char **argv)
 
             mesh = Mesh::block(
                 MeshOrder::Linear,
-                Mesh::BlockSubdivisions{10, 10, 10}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+                Mesh::BlockSubdivisions{50, 50, 50}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
                 Mesh::BlockBounds(
                     Vector3D{0., 0., 0.},
-                    Vector3D{1., 1., 1.}),
+                    Vector3D{1., 1., 1.}
+                ),
                 Mesh::BlockElementType::Tetrahedron);
 
         }
 
+        auto Q = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);
+        auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
 
-
-        auto pressureSpace = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);
-        auto velocitySpace = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
-        
-
-        auto p = Trial(pressureSpace, "p");
-        auto u = Trial(velocitySpace, "u");
-        auto q = Test(pressureSpace, "q");
-        auto v = Test(velocitySpace, "v");
+        auto p = Trial(Q, "p");
+        auto u = Trial(V, "u");
+        auto q = Test (Q, "q");
+        auto v = Test (V, "v");
 
         auto analytical_p = scalar(x * x + y * y + z * z + x * y + x * z + z * y + x + y + z + 1); // SymEngine expressions
         auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * y ) * sin(2 * pi * z ),
                                    cos(2 * pi * x ) * cos(2 * pi * y ) * cos(2 * pi * z ),
                                    cos(2 * pi * x ) * sin(2 * pi * y ) * cos(2 * pi * z ));
+        CFEM_INFO << -grad(analytical_u);
     {
         PROFILE_SCOPE("FieldProjection");
         u->project(analytical_u);
@@ -102,8 +101,8 @@ int main(int argc, char **argv)
             IntegrationSchemeParams schemes_params{};
             // schemes_params.NumIntgPtHexElem = 1;
             CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
-            DomainIntegrator::L2Norm(pressureSpace, p - analytical_p, &l2Norm_P, &h1SemiNorm_P, schemes_params);
-            DomainIntegrator::L2Norm(velocitySpace, u - analytical_u, &l2Norm_U, &h1SemiNorm_U, schemes_params);
+            DomainIntegrator::L2Norm(Q, p - analytical_p, &l2Norm_P, &h1SemiNorm_P, schemes_params);
+            DomainIntegrator::L2Norm(V, u - analytical_u, &l2Norm_U, &h1SemiNorm_U, schemes_params);
             std::cout << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P << std::endl;
             std::cout << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U << std::endl;
 

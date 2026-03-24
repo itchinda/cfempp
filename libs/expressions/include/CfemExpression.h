@@ -37,8 +37,10 @@ namespace cfem::sym
         Unary,              /// sin, cos, exp, log, sqrt, abs
         Binary,             /// +, -, *, /, power
         Scaled,             /// k * expression (the "optimization" node)
+        VectorExpression,
         VectorSymbolic,     /// Container for 3 scalars
-        TensorSymbolic,     /// Container for 9 scalars (or Voigt)
+        TensorExpression,   /// Container for 9 scalars (or Voigt)
+        TensorSymbolic,
         Gradient,           /// Grad(u)
         MagnitudeSq,        /// |u|^2
         Divergence,         /// div(u)

@@ -78,7 +78,7 @@ namespace cfem::sym
             return m_components[i];
         }
 
-        ExpressionType getType() const override { return ExpressionType::VectorSymbolic; }
+        ExpressionType getType() const override { return ExpressionType::TensorExpression; }
 
         std::string toString() const override {
             std::ostringstream os;

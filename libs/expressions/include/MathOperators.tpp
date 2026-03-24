@@ -89,10 +89,7 @@ namespace cfem::sym
         }
 
         if (auto sym = std::dynamic_pointer_cast<const ScalarSymbolicExpression>(u)) {
-            return std::make_shared<ScalarSymbolicExpression>(
-                -sym->get_expression(),
-                sym->get_vars()
-            );
+            return std::make_shared<ScalarSymbolicExpression>( -sym->get_expression(), sym->get_vars() );
         }
 
         if (auto sym = std::dynamic_pointer_cast<const VectorSymbolicExpression>(u)) {
@@ -133,14 +130,54 @@ namespace cfem::sym
         return lhs + (-rhs); 
     }
 
-    inline std::shared_ptr<const CfemExpression>
-    operator+(std::shared_ptr<const CfemExpression> lhs, std::shared_ptr<const CfemExpression> rhs)
+    inline std::shared_ptr<const CfemExpression> operator+(std::shared_ptr<const CfemExpression> lhs, 
+                                                           std::shared_ptr<const CfemExpression> rhs)
     {
         if (lhs->getDimension() != rhs->getDimension())
             CFEM_ERROR << "Dimension mismatch in operator << ";
 
         if (lhs->isZero()) return rhs;
         if (rhs->isZero()) return lhs;
+
+
+        if (lhs->getType() == ExpressionType::ScalarSymbolic && rhs->getType() == ExpressionType::ScalarSymbolic){
+            auto L = std::dynamic_pointer_cast<const ScalarSymbolicExpression>(lhs);
+            auto R = std::dynamic_pointer_cast<const ScalarSymbolicExpression>(rhs);
+            auto vars = L->get_vars();
+            if (vars != R->get_vars()) CFEM_ERROR << "Symbolic Expressions must depend on the same list of variables";
+
+            return std::make_shared<ScalarSymbolicExpression>( L->get_expression() + R->get_expression(), vars);
+        }
+
+        if (lhs->getType() == ExpressionType::VectorSymbolic && rhs->getType() == ExpressionType::VectorSymbolic){
+            auto L = std::dynamic_pointer_cast<const VectorSymbolicExpression>(lhs);
+            auto R = std::dynamic_pointer_cast<const VectorSymbolicExpression>(rhs);
+
+            auto vars = L->getComponent(0)->get_vars();
+            if (vars != R->getComponent(0)->get_vars()) CFEM_ERROR << "Symbolic Expressions must depend on the same list of variables";
+
+            return std::make_shared<VectorSymbolicExpression>( std::dynamic_pointer_cast<const ScalarSymbolicExpression>( L->getComponent(0) + R->getComponent(0) ),
+                                                               std::dynamic_pointer_cast<const ScalarSymbolicExpression>( L->getComponent(1) + R->getComponent(1) ),
+                                                               std::dynamic_pointer_cast<const ScalarSymbolicExpression>( L->getComponent(2) + R->getComponent(2) ) );
+        }
+
+        if (lhs->getType() == ExpressionType::TensorSymbolic && rhs->getType() == ExpressionType::TensorSymbolic){
+            auto L = std::dynamic_pointer_cast<const TensorSymbolicExpression>(lhs);
+            auto R = std::dynamic_pointer_cast<const TensorSymbolicExpression>(rhs);
+
+            auto vars = L->getComponent(0)->get_vars();
+            if (vars != R->getComponent(0)->get_vars()) CFEM_ERROR << "Symbolic Expressions must depend on the same list of variables";
+
+            return std::make_shared<TensorSymbolicExpression>( std::dynamic_pointer_cast<const ScalarSymbolicExpression>( L->getComponent(0) + R->getComponent(0) ),
+                                                               std::dynamic_pointer_cast<const ScalarSymbolicExpression>( L->getComponent(1) + R->getComponent(1) ),
+                                                               std::dynamic_pointer_cast<const ScalarSymbolicExpression>( L->getComponent(2) + R->getComponent(2) ),
+                                                               std::dynamic_pointer_cast<const ScalarSymbolicExpression>( L->getComponent(3) + R->getComponent(3) ),
+                                                               std::dynamic_pointer_cast<const ScalarSymbolicExpression>( L->getComponent(4) + R->getComponent(4) ),
+                                                               std::dynamic_pointer_cast<const ScalarSymbolicExpression>( L->getComponent(5) + R->getComponent(5) ),
+                                                               std::dynamic_pointer_cast<const ScalarSymbolicExpression>( L->getComponent(6) + R->getComponent(6) ),
+                                                               std::dynamic_pointer_cast<const ScalarSymbolicExpression>( L->getComponent(7) + R->getComponent(7) ),
+                                                               std::dynamic_pointer_cast<const ScalarSymbolicExpression>( L->getComponent(8) + R->getComponent(8) ) );
+        }
 
         return simplifyAdd(lhs, rhs);
     }
@@ -708,6 +745,9 @@ namespace cfem::sym
             auto analyticalGrad = lamb->grad();
             if (analyticalGrad) {
                 return analyticalGrad;
+            }
+            else{
+                CFEM_ERROR << "Analytical gradient not provided for LambdaExpression";
             }
         }
 
