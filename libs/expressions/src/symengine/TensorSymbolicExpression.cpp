@@ -38,6 +38,29 @@ namespace cfem::sym
                                                                 m_components[6]->diff(var), m_components[7]->diff(var), m_components[8]->diff(var));
     }
 
+    std::shared_ptr<const CfemExpression> TensorSymbolicExpression::div() const {
+        // Row 1 (X component of the resulting vector)
+        auto div_x = m_components[0]->get_expression().diff(x_rcp) +
+                     m_components[1]->get_expression().diff(y_rcp) +
+                     m_components[2]->get_expression().diff(z_rcp);
+
+        // Row 2 (Y component of the resulting vector)
+        auto div_y = m_components[3]->get_expression().diff(x_rcp) +
+                     m_components[4]->get_expression().diff(y_rcp) +
+                     m_components[5]->get_expression().diff(z_rcp);
+
+        // Row 3 (Z component of the resulting vector)
+        auto div_z = m_components[6]->get_expression().diff(x_rcp) +
+                     m_components[7]->get_expression().diff(y_rcp) +
+                     m_components[8]->get_expression().diff(z_rcp);
+
+        return std::make_shared<VectorSymbolicExpression>( 
+            std::make_shared<ScalarSymbolicExpression>(div_x, m_components[0]->get_vars()), 
+            std::make_shared<ScalarSymbolicExpression>(div_y, m_components[0]->get_vars()), 
+            std::make_shared<ScalarSymbolicExpression>(div_z, m_components[0]->get_vars())
+        );
+    }
+
     // std::shared_ptr<const CfemExpression> TensorSymbolicExpression::grad() const  //TODO:  grad implementation goes here.
 
     std::shared_ptr<const CfemExpression> TensorSymbolicExpression::timeDerivative() const {

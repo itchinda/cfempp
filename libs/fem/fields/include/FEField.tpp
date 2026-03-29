@@ -4,35 +4,6 @@
 
 namespace cfem
 {
-
-    template <typename T>
-    Vector3D FEField::fetchValue(
-                            const T &obj, 
-                            CfemInt cellId,
-                            const Vector3D &xi,
-                            const Vector3D &physPos,
-                            std::span<CfemReal> buffer
-                        )
-    {
-        if constexpr (std::is_convertible_v<T, const FEField &>)
-        {
-            obj.evaluateAt(cellId, xi, buffer);
-            if (buffer.size() == 1)
-                return Vector3D{buffer[0], 0.0, 0.0};
-            if (buffer.size() == 2)
-                return Vector3D{buffer[0], buffer[1], 0.0};
-            return Vector3D{buffer[0], buffer[1], buffer[2]};
-        }
-        else
-        {
-            auto result = obj(physPos);
-            if constexpr (std::is_arithmetic_v<decltype(result)>)
-                return Vector3D{static_cast<CfemReal>(result), 0.0, 0.0};
-            else
-                return result;
-        }
-    }
-
     // template <typename Func>
     //     requires(!std::is_base_of_v<sym::CfemExpression, std::decay_t<Func>> &&
     //              !std::is_convertible_v<Func, std::shared_ptr<sym::CfemExpression>>)
@@ -62,7 +33,8 @@ namespace cfem
             if constexpr (std::is_same_v<decltype(result), Vector3D>)
             {
                 for (int d = 0; d < dim; ++d)
-                    vec.setValue(nodeIdx + d * N, result[d], INSERT_VALUES);
+                    // vec.setValue(nodeIdx + d * N, result[d], INSERT_VALUES);
+                    m_data.setValue(nodeIdx + d * N, result[d], INSERT_VALUES);
             }
             else
             {

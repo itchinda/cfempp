@@ -434,20 +434,49 @@ public:
     Mesh& operator=(Mesh&&) = default;
 
     /**
-     * @brief Factory pour un maillage vide
+     * @brief Factory method to create an empty, uninitialized mesh.
+     * * This creates a default mesh instance with no dimension or order assigned.
+     * It is typically used when the mesh topology and vertices will be built 
+     * manually or loaded later.
+     *
+     * @return A shared pointer to the newly created empty Mesh.
      */
     static std::shared_ptr<Mesh> create() {
         return std::make_shared<Mesh>(ConstructorToken{});
     }
 
     /**
-     * @brief Factory pour un maillage paramétré
+     * @brief Factory method to create an empty mesh with specified dimension and polynomial order.
+     * * Initializes a mesh shell ready to receive vertices and elements matching 
+     * the given geometric dimension and finite element space order.
+     *
+     * @param dim The geometric dimension of the mesh (e.g., 2 for 2D, 3 for 3D).
+     * @param order The polynomial order of the discretization (Linear or Quadratic).
+     * @return A shared pointer to the newly created parameterized Mesh.
      */
     static std::shared_ptr<Mesh> create(CfemInt dim, MeshOrder order) {
         auto mesh = std::make_shared<Mesh>(ConstructorToken{}, dim, order);
         return mesh;
     }
 
+    /**
+     * @brief Factory method to load and construct a mesh from a Gmsh (.msh) file.
+     * * This method invokes the internal GmshParser to read a physical mesh file.
+     * It automatically handles physical groups and creates corresponding MeshEntity 
+     * objects in the mesh.
+     *
+     * @param filename The path to the Gmsh file to be loaded.
+     * @param pReferenceNormal Optional reference normal vector, useful for orienting 
+     * 2D manifolds embedded in a 3D space.
+     * @return A shared pointer to the fully constructed Mesh populated with the file data.
+     * * @note In a multi-process (MPI) context, this method usually runs on a single 
+     * master process (Rank 0) before distributing the grid to other processes.
+     */
+    static std::shared_ptr<Mesh> loadFromGmsh(const std::string& filename, std::optional<Vector3D> pReferenceNormal = std::nullopt){
+        GmshParser parser;
+        return parser.load(filename, pReferenceNormal);
+    }
+    
     CfemInt addVertex(CfemReal x,
                       CfemReal y = 0.0,
                       CfemReal z = 0.0);
@@ -539,8 +568,6 @@ public:
     const std::vector<std::unique_ptr<MeshEntity>>&  getEntities()  const { return m_entities; }
     std::vector<std::unique_ptr<MeshEntity>>&  getEntities() { return m_entities; }
 
-    const std::vector<CellType>& getUniqueCellTypes() const{return m_uniqueTypes;}
-
     void setOrder(MeshOrder newOrder);
     void setDimension(int newDim);
     void setReferenceNormal(const cfem::Vector3D& norm);
@@ -555,6 +582,9 @@ public:
 
     MeshEntity* getEntity(const std::string& name);
     MeshEntity* getEntity(CfemInt id);
+
+    const MeshEntity& getEntityConst(const std::string& name) const;
+    const MeshEntity& getEntityConst(CfemInt id) const;
 
     std::string info() const;
     std::string getMeshFormat() const;
@@ -575,7 +605,8 @@ public:
     CfemInt getDimFromType(CellType type) const;
     MeshOrder getCellOrderFromType(CellType type) const;
     void getCellVerticesCoords(CfemInt cell_id, DynamicVector<Vector3D>& v_coords) const;
-    const std::vector<CellType>& getCellTypesPresent() const { return m_uniqueTypes; }
+    const std::vector<CellType>& getCellTypesPresent() const { return m_uniqueCellTypes; }
+    const std::vector<CellType>& getFacetTypesPresent() const { return m_uniqueFacetTypes; }
     CfemReal computeCellQuality(CfemInt cellId) const;
 
     void clear() {
@@ -603,13 +634,6 @@ public:
     bool nameAlreadyUsed(const std::string& name){
         return m_globalFieldRegistry.find(name) != m_globalFieldRegistry.end();
     }
-
-    static std::shared_ptr<Mesh> loadFromGmsh(const std::string& filename, std::optional<Vector3D> pReferenceNormal = std::nullopt){
-        GmshParser parser;
-        return parser.load(filename, pReferenceNormal);
-    }
-
-
 
     struct CellRange {
         const Mesh* mesh;
@@ -896,8 +920,10 @@ private:
 
     std::vector<std::weak_ptr<FESpace>> m_observers; ///> list of FESpace attached to the mesh
 
-    std::bitset<MAX_CELL_TYPES> m_typeFlags;
-    std::vector<CellType> m_uniqueTypes;
+    std::bitset<MAX_CELL_TYPES> m_cellTypeFlags;
+    std::bitset<MAX_CELL_TYPES> m_facetTypeFlags;
+    std::vector<CellType> m_uniqueCellTypes;
+    std::vector<CellType> m_uniqueFacetTypes;
 
     std::vector<CfemInt> m_globalConnectivity;
 

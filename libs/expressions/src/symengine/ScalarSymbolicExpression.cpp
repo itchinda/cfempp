@@ -35,6 +35,11 @@ namespace cfem::sym{
         return std::make_shared<VectorSymbolicExpression>(diff(sym::x_rcp), diff(sym::y_rcp), diff(sym::z_rcp));
     }
 
+    std::shared_ptr<const CfemExpression> ScalarSymbolicExpression::div() const{
+        CFEM_ERROR << "Divergence operator cannot be applied to a scalar field: " << toString();
+        return nullptr;
+    }
+
     std::shared_ptr<const CfemExpression> ScalarSymbolicExpression::timeDerivative() const {
         auto dExprDt = m_expression.diff(t_rcp);
         

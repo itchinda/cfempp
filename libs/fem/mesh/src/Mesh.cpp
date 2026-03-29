@@ -123,10 +123,25 @@ namespace cfem
 
         // 6. Manage unique element types
         int typeIdx = static_cast<int>(type);
-        if (!m_typeFlags.test(typeIdx))
+        if (!m_cellTypeFlags.test(typeIdx))
         {
-            m_typeFlags.set(typeIdx);
-            m_uniqueTypes.push_back(type);
+            m_cellTypeFlags.set(typeIdx);
+            m_uniqueCellTypes.push_back(type);
+        }
+
+
+        auto facetTypes = Cell::getFacetTypes(type); 
+        
+        for (CellType fType : facetTypes)
+        {
+            int fTypeIdx = static_cast<int>(fType);
+            
+            // Si ce type de facette n'a pas encore été rencontré dans tout le maillage
+            if (!m_facetTypeFlags.test(fTypeIdx))
+            {
+                m_facetTypeFlags.set(fTypeIdx);
+                m_uniqueFacetTypes.push_back(fType);
+            }
         }
 
         return id;
@@ -814,6 +829,17 @@ namespace cfem
         return nullptr;
     }
 
+    const MeshEntity& Mesh::getEntityConst(const std::string &name) const
+    {
+        for (auto &entity_ptr : m_entities)
+        {
+            if (entity_ptr->getName() == name)
+                return *entity_ptr;
+        }
+        CFEM_ERROR << "The mesh does not hold any entity with id " << name;
+        return *m_entities[0]; // Makes the compiler happy
+    }
+
     /** ************************************************************************************************************************************
      * @brief Retrieve an entity by its identifier.
      *
@@ -834,6 +860,17 @@ namespace cfem
                 return entity_ptr.get();
         }
         return nullptr;
+    }
+
+    const MeshEntity& Mesh::getEntityConst(CfemInt id) const
+    {
+        for (auto &entity_ptr : m_entities)
+        {
+            if (entity_ptr->getId() == id)
+                return *entity_ptr;
+        }
+        CFEM_ERROR << "The mesh does not hold any entity with id " << id;
+        return *m_entities[0]; // Makes the compiler happy
     }
 
     /** ************************************************************************************************************************************
@@ -1708,14 +1745,25 @@ namespace cfem
             newAllCellVertexIds.insert(newAllCellVertexIds.end(), quad_buffer.begin(), quad_buffer.end());
         }
 
-        m_typeFlags.reset();
-        for (auto &type : m_uniqueTypes)
+        m_cellTypeFlags.reset();
+        for (auto &type : m_uniqueCellTypes)
         {
             type = Cell::getQuadraticEquivalent(type);
             int typeIdx = static_cast<int>(type);
-            if (!m_typeFlags.test(typeIdx))
+            if (!m_cellTypeFlags.test(typeIdx))
             {
-                m_typeFlags.set(typeIdx);
+                m_cellTypeFlags.set(typeIdx);
+            }
+        }
+
+        m_facetTypeFlags.reset();
+        for (auto &type : m_uniqueFacetTypes)
+        {
+            type = Cell::getQuadraticEquivalent(type);
+            int typeIdx = static_cast<int>(type);
+            if (!m_facetTypeFlags.test(typeIdx))
+            {
+                m_facetTypeFlags.set(typeIdx);
             }
         }
 
@@ -1863,6 +1911,28 @@ namespace cfem
             // Copy only the corners into the new block
             for (int i = 0; i < linearCount; ++i) {
                 newLinearBlock.push_back(quad_nodes[i]);
+            }
+        }
+
+        m_cellTypeFlags.reset();
+        for (auto &type : m_uniqueCellTypes)
+        {
+            type = Cell::getLinearEquivalent(type);
+            int typeIdx = static_cast<int>(type);
+            if (!m_cellTypeFlags.test(typeIdx))
+            {
+                m_cellTypeFlags.set(typeIdx);
+            }
+        }
+
+        m_facetTypeFlags.reset();
+        for (auto &type : m_uniqueFacetTypes)
+        {
+            type = Cell::getLinearEquivalent(type);
+            int typeIdx = static_cast<int>(type);
+            if (!m_facetTypeFlags.test(typeIdx))
+            {
+                m_facetTypeFlags.set(typeIdx);
             }
         }
 
@@ -2520,7 +2590,21 @@ namespace cfem
     }
 
     /** ************************************************************************************************************************************
-     * @brief Same as block() but uses default boundary names.
+     * @brief Generate a 3D block mesh.
+     *
+     * Creates a structured three-dimensional mesh over a rectangular
+     * prism domain.
+     *
+     * @param order Polynomial order of the mesh.
+     * @param subDiv Number of subdivisions along each axis.
+     * @param bounds Axis-aligned bounding box of the domain.
+     * @param elemType Element type used for discretization.
+     *
+     * @return A newly created mesh.
+     *
+     * @note Boundary entities are automatically created for the
+     *       six faces of the block using the default boundary names (`xmin`, `xmax`, `ymin`,
+     *       `ymax`, `zmin`, `zmax`).
      ***************************************************************************************************************************************/
     std::shared_ptr<Mesh> Mesh::block(MeshOrder order,
                                        const BlockSubdivisions& subDiv, 
@@ -2530,11 +2614,23 @@ namespace cfem
         return block(order, subDiv, bounds, elemType, BlockBoundaryNames{});
     }
 
+
     /** ************************************************************************************************************************************
      * @brief Generate a block mesh using explicit corner coordinates.
      *
      * This version allows the block to be defined using the coordinates
      * of its eight vertices rather than axis-aligned bounds.
+     *
+     * @param order Polynomial order of the mesh.
+     * @param subDiv Number of subdivisions along each axis.
+     * @param corners The eight vertices coordinates.
+     * @param elemType Element type used for discretization.
+     * @param names Optional boundary entity names.
+     *
+     * @return A newly created mesh.
+     *
+     * @note Boundary entities are automatically created for the
+     *       six faces of the block using user-provided boundary names.
      ***************************************************************************************************************************************/
     std::shared_ptr<Mesh> Mesh::block(MeshOrder order,
                                        const BlockSubdivisions& subDiv, 
@@ -2547,7 +2643,21 @@ namespace cfem
     }
 
     /** ************************************************************************************************************************************
-     * @brief Same as block() using BlockCorners, but with default boundary names.
+     * @brief Generate a block mesh using explicit corner coordinates.
+     *
+     * This version allows the block to be defined using the coordinates
+     * of its eight vertices rather than axis-aligned bounds.
+     *
+     * @param order Polynomial order of the mesh.
+     * @param subDiv Number of subdivisions along each axis.
+     * @param corners The eight vertices coordinates.
+     * @param elemType Element type used for discretization.
+     *
+     * @return A newly created mesh.
+     *
+     * @note Boundary entities are automatically created for the
+     *       six faces of the block using the default boundary names (`xmin`, `xmax`, `ymin`,
+     *       `ymax`, `zmin`, `zmax`).
      ***************************************************************************************************************************************/
     std::shared_ptr<Mesh> Mesh::block(MeshOrder order,
                                        const BlockSubdivisions& subDiv, 

@@ -23,11 +23,23 @@ namespace cfem::sym
         std::shared_ptr<const CfemExpression> getInner() const { return m_expr; }
         bool isPointwise() const override { return m_expr->isPointwise(); }
 
+        bool dependsOnFEField() const override { return m_expr->dependsOnFEField(); }
+        bool dependsOnShape() const override { return m_expr->dependsOnShape(); }
+        
+        ShapeEvaluationFlags requiredShapeFlags() const override {
+            return m_expr->requiredShapeFlags();
+        }
+
+        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+            if (m_expr) m_expr->collectRequiredSpaces(spaces);
+        }
+
         void evaluate(CfemInt cellIdx, const Vector3D& point, 
                       std::span<CfemReal> out, EvalContext& ctx) const override;
 
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override;
         std::shared_ptr<const CfemExpression> grad() const override;
+        std::shared_ptr<const CfemExpression> div() const override;
         std::shared_ptr<const CfemExpression> timeDerivative() const override;
 
         std::string toString() const override;

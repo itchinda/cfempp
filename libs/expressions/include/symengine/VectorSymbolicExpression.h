@@ -22,12 +22,14 @@ namespace cfem::sym
         VectorSymbolicExpression(
             std::shared_ptr<const CfemExpression> dx,
             std::shared_ptr<const CfemExpression> dy,
-            std::shared_ptr<const CfemExpression> dz);
+            std::shared_ptr<const CfemExpression> dz
+        );
 
         CfemInt getDimension() const override { return 3; }
         bool isPointwise() const override { return true; }
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override;
         std::shared_ptr<const CfemExpression> grad() const override;
+        std::shared_ptr<const CfemExpression> div() const override;
 
         inline void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override
         {

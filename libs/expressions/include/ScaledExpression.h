@@ -26,16 +26,21 @@ namespace cfem::sym {
         }
 
         CfemInt getDimension() const override { return m_base->getDimension(); }
+        bool dependsOnFEField() const override { return m_base->dependsOnFEField(); }
+        bool dependsOnShape() const override { return m_base->dependsOnShape(); }
+        ShapeEvaluationFlags requiredShapeFlags() const override {
+            return m_base->requiredShapeFlags();
+        }
+
+        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+            if (m_base) m_base->collectRequiredSpaces(spaces);
+        }
+        
         
         // Helper accessors for the "Smart Builder"
         CfemReal getCoeff() const { return m_coeff; }
         const CfemExpression* getBasePtr() const { return m_base.get(); }
         std::shared_ptr<const CfemExpression> getBaseShared() const { return m_base; }
-
-        // std::shared_ptr<const CfemExpression> grad() const override {
-        //     // Gradient of k*u is k*grad(u)
-        //     return std::make_shared<ScaledExpression>(m_coeff, m_base->grad());
-        // }
 
         std::shared_ptr<const CfemExpression> grad() const override {
             CFEM_ASSERT(m_base, "ScaledExpression::grad: base expression must be valid");
@@ -45,6 +50,11 @@ namespace cfem::sym {
             if (!baseGrad) return nullptr; // Or return a ZeroExpression of correct dim
             
             return std::make_shared<ScaledExpression>(m_coeff, baseGrad);
+        }
+        
+        
+        std::shared_ptr<const CfemExpression> div() const override{
+            return std::make_shared<ScaledExpression>(m_coeff, m_base->div());
         }
         
         std::shared_ptr<const CfemExpression> timeDerivative() const override{

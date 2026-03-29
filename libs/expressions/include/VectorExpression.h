@@ -66,6 +66,30 @@ namespace cfem::sym
             return m_components[i];
         }
 
+        bool dependsOnFEField() const override { 
+            return m_components[0]->dependsOnFEField() || 
+                   m_components[1]->dependsOnFEField() ||
+                   m_components[2]->dependsOnFEField(); 
+        }
+
+        bool dependsOnShape() const override { 
+            return m_components[0]->dependsOnShape() || 
+                   m_components[1]->dependsOnShape() ||
+                   m_components[2]->dependsOnShape(); 
+        }
+
+        ShapeEvaluationFlags requiredShapeFlags() const override {
+            return m_components[0]->requiredShapeFlags() | 
+                   m_components[1]->requiredShapeFlags() | 
+                   m_components[2]->requiredShapeFlags();
+        }
+
+        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+            m_components[0]->collectRequiredSpaces(spaces); 
+            m_components[1]->collectRequiredSpaces(spaces); 
+            m_components[2]->collectRequiredSpaces(spaces);   
+        }
+
         ExpressionType getType() const override { return ExpressionType::VectorExpression; }
 
         std::string toString() const override {
@@ -79,14 +103,10 @@ namespace cfem::sym
         }
 
         std::shared_ptr<const CfemExpression> grad() const override;
+        std::shared_ptr<const CfemExpression> div() const override;
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const {
             return std::make_shared<const VectorExpression>(m_components[0]->diff(var_idx), m_components[1]->diff(var_idx), m_components[2]->diff(var_idx));
         }
-        //     CFEM_ERROR << "The gradient of a tensor expression is not yet implemented. Would required a 3rd order tensor expression.";
-        //     return nullptr;
-        // }
-
-        //std::shared_ptr<const CfemExpression> div() const override;
 
          
     };

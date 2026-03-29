@@ -4,6 +4,7 @@
 #include "EvalContext.h"
 #include "Vector3D.h"
 #include "TensorO2.h"
+#include "LagrangeSpace.h"
 #include <span>
 #include <memory>
 #include <ostream>
@@ -71,11 +72,21 @@ namespace cfem::sym
         virtual bool isBinary() const    { return false; }
         virtual bool isZero() const      { return false; }
         virtual bool isConstant() const  { return false; }
+        virtual bool dependsOnFEField() const { return false; }
+        virtual bool dependsOnShape() const { return true; }
+
+        virtual ShapeEvaluationFlags requiredShapeFlags() const {
+            return ShapeEvaluationFlags::None;
+        }
+
+        virtual void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const {
+            // Par défaut, pas de dépendance à un espace FE
+        }
 
         virtual std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const {return nullptr; } 
 
-        virtual std::shared_ptr<const CfemExpression> grad() const { return nullptr; };
-        // virtual std::shared_ptr<const CfemExpression> div()       const { return nullptr; } // to be implemented
+        virtual std::shared_ptr<const CfemExpression> grad() const { return nullptr; }
+        virtual std::shared_ptr<const CfemExpression> div() const { return nullptr; } 
         // virtual std::shared_ptr<const CfemExpression> cross()     const { return nullptr; } // to be implemented
         // virtual std::shared_ptr<const CfemExpression> trace()     const { return nullptr; } // to be implemented
         // virtual std::shared_ptr<const CfemExpression> transpose() const { return nullptr; }

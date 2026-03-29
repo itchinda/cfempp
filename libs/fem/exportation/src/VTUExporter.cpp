@@ -136,7 +136,7 @@ namespace cfem
             };
             std::map<CellType, TypeCache> geoCache;
 
-            for (CellType type : m_mesh.getUniqueCellTypes())
+            for (CellType type : m_mesh.getCellTypesPresent())
             {
                 const auto &refEl = ReferenceElementFactory::getReferenceElement(type);
                 auto &cache = geoCache[type];
@@ -316,7 +316,7 @@ namespace cfem
         };
         std::map<CellType, TypeCache> geoCache;
 
-        for (CellType type : m_mesh.getUniqueCellTypes())
+        for (CellType type : m_mesh.getCellTypesPresent())
         {
             const auto &refEl = ReferenceElementFactory::getReferenceElement(type);
             auto &cache = geoCache[type];

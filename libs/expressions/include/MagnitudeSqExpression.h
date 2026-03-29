@@ -18,15 +18,28 @@ namespace cfem::sym
      **************************************************************************** */
     class MagnitudeSqExpression : public CfemExpression
     {
+        CfemInt m_innerDim = 0;
         std::shared_ptr<const CfemExpression> m_expr;
+        
 
     public:
         explicit MagnitudeSqExpression(std::shared_ptr<const CfemExpression> expr)
-            : m_expr(std::move(expr)) 
+            : m_innerDim(expr->getDimension()), m_expr(std::move(expr))
         {
+            if (!m_expr) CFEM_ERROR << "MagnitudeSqExpression requires a valid inner expression.";
         }
 
         CfemInt getDimension() const override { return 1; }
+        bool dependsOnFEField() const override { return m_expr->dependsOnFEField(); }
+        bool dependsOnShape() const override { return m_expr->dependsOnShape(); }
+        ShapeEvaluationFlags requiredShapeFlags() const override {
+            return m_expr->requiredShapeFlags();
+        }
+
+        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+            if (m_expr) m_expr->collectRequiredSpaces(spaces);
+        }
+
 
         void prepare() const override { m_expr->prepare(); }
 

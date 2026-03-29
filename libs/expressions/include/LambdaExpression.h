@@ -1,116 +1,78 @@
-#pragma once 
+#pragma once
 
-#include "cfemutils.h"
-#include "Vector3D.h"
-#include "TensorO2.h"
-#include "CfemExpression.h"
-#include "EvalContext.h"
-#include <vector>
-#include <span>
-#include <functional>
-#include <memory>
+#include "LambdaExpressionBase.h"
+#include <type_traits>
 
 namespace cfem::sym
 {
-
-    /** *************************************************************************
-     * @brief Wrapper to use arbitrary C++ lambdas/functions as symbolic expressions.
-     * **************************************************************************** */
-    class LambdaExpression : public CfemExpression
+    /**
+     * @brief Final template implementation of Lambda expressions.
+     * @tparam F The specific type of the lambda/functor (deduced by the compiler).
+     */
+    template <typename F>
+    class LambdaExpression : public LambdaExpressionBase
     {
-        std::function<void(const Vector3D&, CfemReal, std::span<CfemReal>)> m_func;       //! Evaluation function
-        CfemInt                                                             m_dim;        //! Dimension of the output (1, 3, 9, etc.)
-        std::shared_ptr<const CfemExpression>                               m_gradExpr;   //! Spatial gradient expression
-        std::shared_ptr<const CfemExpression>                               m_timeDeriv;  //! Time derivative expression
+    private:
+        F m_f; // The callable is stored directly (potentially inlined)
 
     public:
-        // Constructor for purely spatial lambdas
-        LambdaExpression(
-                    std::function<void(const Vector3D&, std::span<CfemReal>)> f,
-                    CfemInt                                                   dim,
-                    std::shared_ptr<const CfemExpression>                     gradExpr = nullptr);
-
-        // Constructor for spatiotemporal lambdas
-        LambdaExpression(
-                    std::function<void(const Vector3D&, CfemReal, std::span<CfemReal>)> f,
-                    CfemInt                                                             dim,
-                    std::shared_ptr<const CfemExpression>                               gradExpr = nullptr,
-                    std::shared_ptr<const CfemExpression>                               timeDeriv = nullptr);
-
-        CfemInt getDimension() const override { return m_dim; }
-        bool isPointwise() const override { return true; }
-
-        void evaluate(CfemInt, const Vector3D&, std::span<CfemReal> out, EvalContext& ctx) const override {
-            CFEM_ASSERT(out.size() >= m_dim, "LambdaExpression: output span too small.");
-            m_func(ctx.physPos, ctx.currentTime, out);
-        }
-
-        void setTimeDerivative(std::shared_ptr<const CfemExpression> expr) {
-            if (expr && expr->getDimension() != m_dim) {
-                CFEM_ERROR << "LambdaExpression::setTimeDerivative: Dimension mismatch.";
-            }
-            m_timeDeriv = std::move(expr);
-        }
+        LambdaExpression(F&& f, 
+                         CfemInt dimension,
+                         std::shared_ptr<const CfemExpression> gradient = nullptr,
+                         std::shared_ptr<const CfemExpression> timeDeriv = nullptr)
+            : LambdaExpressionBase(dimension, std::move(gradient), std::move(timeDeriv)),
+              m_f(std::forward<F>(f))
+        {}
 
         /**
-         * @brief Defines or updates the expression used for the time derivative.
-         * Useful for assigning numerical schemes like (U - U_old) / dt.
+         * @brief Core evaluation logic. 
+         * Uses compile-time dispatch (if constexpr) to handle different lambda signatures.
          */
-        void setGradient(std::shared_ptr<const CfemExpression> expr) {
-            if (expr && expr->getDimension() != m_dim * 3) {
-                CFEM_ERROR << "LambdaExpression::setGradient: Dimension mismatch.";
+        void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override
+        {
+            CFEM_ASSERT(out.size() >= m_dimension);
+            
+            // 1. Invoke the lambda based on its signature
+            auto result = [&]() {
+                // Signature: f(Vector3D, CfemReal) -> Spatiotemporal
+                if constexpr (std::is_invocable_v<F, const Vector3D&, CfemReal>) {
+                    return m_f(ctx.physPos, ctx.currentTime);
+                } 
+                // Signature: f(Vector3D) -> Pure Spatial
+                else if constexpr (std::is_invocable_v<F, const Vector3D&>) {
+                    return m_f(ctx.physPos);
+                }
+                else {
+                    static_assert(sizeof(F) == 0, "Invalid Lambda signature. Use f(X) or f(X, t).");
+                }
+            }();
+
+            // 2. Map the result to the output span
+            using ResultType = decltype(result);
+            if constexpr (std::is_arithmetic_v<ResultType>) {
+                out[0] = static_cast<CfemReal>(result);
+            } 
+            else if constexpr (std::is_same_v<ResultType, Vector3D>) {
+                out[0] = result.x; out[1] = result.y; out[2] = result.z;
             }
-            m_gradExpr = std::move(expr);
+            else if constexpr (std::is_same_v<ResultType, TensorO2>) {
+                const CfemReal* data = result.data;
+                for(int i = 0; i < 9; ++i) out[i] = data[i];
+            }
         }
 
-        std::shared_ptr<const CfemExpression> grad() const override {
-            if (!m_gradExpr) {
-                CFEM_ERROR << "Analytical gradient was not provided for this LambdaExpression. Cannot compute spatial derivatives for lambda.";
-            }
-            return m_gradExpr; 
+        // --- Static Factories ---
+
+        static auto fromScalar(F&& f, std::shared_ptr<const CfemExpression> g = nullptr, std::shared_ptr<const CfemExpression> t = nullptr) {
+            return std::make_shared<const LambdaExpression<std::decay_t<F>>>(std::forward<F>(f), 1, std::move(g), std::move(t));
         }
-        
-        // MISSING OVERRIDE ADDED HERE:
-        std::shared_ptr<const CfemExpression> timeDerivative() const override { 
-            if (!m_timeDeriv){
-                CFEM_ERROR << "Analytical time derivative was not provided for this LambdaExpression. Cannot compute time derivatives for lambda.";
-            }
-            return m_timeDeriv; 
+
+        static auto fromVector(F&& f, std::shared_ptr<const CfemExpression> g = nullptr, std::shared_ptr<const CfemExpression> t = nullptr) {
+            return std::make_shared<const LambdaExpression<std::decay_t<F>>>(std::forward<F>(f), 3, std::move(g), std::move(t));
         }
-        
-        std::string toString() const override { return "LambdaExpression_dim_" + std::to_string(m_dim); }
-        ExpressionType getType() const override { return ExpressionType::Lambda; }
-        
-        // --- Static Factories for purely spatial lambdas ---
 
-        static std::shared_ptr<const LambdaExpression> fromScalar(
-                                                    const std::function<CfemReal(const Vector3D&)>& f,
-                                                    std::shared_ptr<const CfemExpression>           gradient = nullptr);
-
-        static std::shared_ptr<const LambdaExpression> fromVector(
-                                                    const std::function<Vector3D(const Vector3D&)>& f,
-                                                    std::shared_ptr<const CfemExpression>           gradient = nullptr);
-                
-        static std::shared_ptr<const LambdaExpression> fromTensor(
-                                                    const std::function<TensorO2(const Vector3D&)>& f,
-                                                    std::shared_ptr<const CfemExpression>           gradient = nullptr);
-        
-        // --- Static Factories for spatiotemporal lambdas ---
-
-        static std::shared_ptr<const LambdaExpression> fromScalar(
-                                                    const std::function<CfemReal(const Vector3D&, CfemReal)>& f,
-                                                    std::shared_ptr<const CfemExpression>                     gradient = nullptr,
-                                                    std::shared_ptr<const CfemExpression>                     timeDeriv = nullptr);
-
-        static std::shared_ptr<const LambdaExpression> fromVector(
-                                                    const std::function<Vector3D(const Vector3D&, CfemReal)>& f,
-                                                    std::shared_ptr<const CfemExpression>                     gradient = nullptr,
-                                                    std::shared_ptr<const CfemExpression>                     timeDeriv = nullptr);
-                
-        static std::shared_ptr<const LambdaExpression> fromTensor(
-                                                    const std::function<TensorO2(const Vector3D&, CfemReal)>& f,
-                                                    std::shared_ptr<const CfemExpression>                     gradient = nullptr,
-                                                    std::shared_ptr<const CfemExpression>                     timeDeriv = nullptr);
+        static auto fromTensor(F&& f, std::shared_ptr<const CfemExpression> g = nullptr, std::shared_ptr<const CfemExpression> t = nullptr) {
+            return std::make_shared<const LambdaExpression<std::decay_t<F>>>(std::forward<F>(f), 9, std::move(g), std::move(t));
+        }
     };
-
 }

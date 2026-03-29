@@ -86,13 +86,17 @@ struct MappingInfo {
     inline CfemReal d2Ndxdy(int nodeIdx) const { return physicalShapeHessians[nodeIdx].xy(); }
 
     void computePhysicalGradientsOnly(const ShapeInfo& fieldShape) {
-        physicalShapeGradients.resize(fieldShape.gradients.size());
+        // Le fait de charger dans des variables locales (registres) 
+        // empêche le CPU de faire des allers-retours mémoire.
+        const CfemReal i00 = invJacobian(0,0), i01 = invJacobian(0,1), i02 = invJacobian(0,2);
+        const CfemReal i10 = invJacobian(1,0), i11 = invJacobian(1,1), i12 = invJacobian(1,2);
+        const CfemReal i20 = invJacobian(2,0), i21 = invJacobian(2,1), i22 = invJacobian(2,2);
+
         for (size_t i = 0; i < fieldShape.gradients.size(); ++i) {
-            // physicalShapeGradients[i] = invJ_transposed * fieldShape.gradients[i];
-            
-            physicalShapeGradients[i].x = invJacobian(0,0)*fieldShape.gradients[i].x + invJacobian(1,0)*fieldShape.gradients[i].y + invJacobian(2,0)*fieldShape.gradients[i].z;
-            physicalShapeGradients[i].y = invJacobian(0,1)*fieldShape.gradients[i].x + invJacobian(1,1)*fieldShape.gradients[i].y + invJacobian(2,1)*fieldShape.gradients[i].z;
-            physicalShapeGradients[i].z = invJacobian(0,2)*fieldShape.gradients[i].x + invJacobian(1,2)*fieldShape.gradients[i].y + invJacobian(2,2)*fieldShape.gradients[i].z;
+            const auto& g = fieldShape.gradients[i];
+            physicalShapeGradients[i].x = i00 * g.x + i10 * g.y + i20 * g.z;
+            physicalShapeGradients[i].y = i01 * g.x + i11 * g.y + i21 * g.z;
+            physicalShapeGradients[i].z = i02 * g.x + i12 * g.y + i22 * g.z;
         }
     }
 };

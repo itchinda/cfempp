@@ -14,7 +14,7 @@ namespace cfem::sym
         m_dimL = m_lhs->getDimension();
         m_dimR = m_rhs->getDimension();
 
-        // --- Dimension Logic & Validation ---
+        // Dimension Logic & Validation
         switch (m_op)
         {
         case MathOp::Add:
@@ -183,12 +183,12 @@ namespace cfem::sym
         }
 
         switch (m_op) {
-            // --- Linéarité : (f ± g)' = f' ± g' ---
+            // Linéarité : (f ± g)' = f' ± g'
             case MathOp::Add:
             case MathOp::Sub:
                 return std::make_shared<BinaryExpression>(gL, gR, m_op);
 
-            // --- Règle du Produit (Leibniz) : (f*g)' = f'*g + f*g' ---
+            // Règle du Produit (Leibniz) : (f*g)' = f'*g + f*g'
             // S'applique à Mul, Dot (produit scalaire), Inner (contraction), Cross (produit vectoriel)
             case MathOp::Mul:
             case MathOp::Dot:
@@ -199,7 +199,7 @@ namespace cfem::sym
                 return std::make_shared<BinaryExpression>(term1, term2, MathOp::Add);
             }
 
-            // --- Règle du Quotient : (f/g)' = (f'*g - f*g') / g² ---
+            // Règle du Quotient : (f/g)' = (f'*g - f*g') / g²
             case MathOp::Div: {
                 auto t1 = std::make_shared<BinaryExpression>(gL, R, MathOp::Mul);
                 auto t2 = std::make_shared<BinaryExpression>(L, gR, MathOp::Mul);
@@ -208,7 +208,7 @@ namespace cfem::sym
                 return std::make_shared<BinaryExpression>(num, den, MathOp::Div);
             }
 
-            // --- Puissance Générale : (f^g)' = f^g * (g' * ln(f) + g * f' / f) ---
+            // Puissance Générale : (f^g)' = f^g * (g' * ln(f) + g * f' / f)
             case MathOp::Pow: {
                 // Cas n * f^(n-1) * f' (Terme de base)
                 auto un = std::make_shared<ConstantExpression>(1.0);
@@ -226,7 +226,7 @@ namespace cfem::sym
                 return std::make_shared<BinaryExpression>(term1, term2, MathOp::Add);
             }
 
-            // --- Atan2 : grad(atan2(y, x)) = (x*gy - y*gx) / (x² + y²) ---
+            // Atan2 : grad(atan2(y, x)) = (x*gy - y*gx) / (x^2 + y^2)
             case MathOp::Atan2: {
                 auto x_gy = std::make_shared<BinaryExpression>(R, gL, MathOp::Mul);
                 auto y_gx = std::make_shared<BinaryExpression>(L, gR, MathOp::Mul);
@@ -239,10 +239,10 @@ namespace cfem::sym
                 return std::make_shared<BinaryExpression>(num, den, MathOp::Div);
             }
 
-            // --- Opérateurs Logiques / Comparaison ---
+            // Opérateurs Logiques / Comparaison
             // La dérivée est nulle presque partout (on considère ces fonctions comme des constantes par morceaux)
 
-            // --- Max / Min : Non-lisse ---
+            // Max / Min : Non-lisse
             case MathOp::Max:
             case MathOp::Min:
                 // Mathématiquement : (f > g) ? f' : g'
@@ -254,6 +254,82 @@ namespace cfem::sym
                 CFEM_ERROR << "Binary operation not supported for differentiation.";
                 return nullptr;
         }
+    }
+
+    std::shared_ptr<const CfemExpression> BinaryExpression::div() const {
+        using namespace cfem::sym::utils;
+
+        if (m_dimOut == 1) {
+            CFEM_ERROR << "Impossible de calculer la divergence d'une expression binaire scalaire : " 
+                    << opToSym(m_op);
+            throw std::logic_error("La divergence d'un scalaire n'est pas définie.");
+        }
+
+        switch (m_op) {
+            // Distributivité Linéaire
+            case MathOp::Add: 
+                return m_lhs->div() + m_rhs->div();
+                
+            case MathOp::Sub: 
+                return m_lhs->div() - m_rhs->div();
+
+            // Règle du produit pour la multiplication
+            // div(a * V) = a * div(V) + grad(a) . V
+            case MathOp::Mul: {
+                if (m_dimL == 1 && m_dimR == 3) {
+                    auto term1 = m_lhs * m_rhs->div();
+                    auto term2 = std::make_shared<const BinaryExpression>(m_lhs->grad(), m_rhs, MathOp::Dot);
+                    return term1 + term2;
+                }
+                if (m_dimR == 1 && m_dimL == 3) {
+                    auto term1 = m_rhs * m_lhs->div();
+                    auto term2 = std::make_shared<const BinaryExpression>(m_rhs->grad(), m_lhs, MathOp::Dot);
+                    return term1 + term2;
+                }
+                // Si c'est une multiplication composante par composante (ex: vecteur * vecteur),
+                // on laisse le fallback universel ci-dessous s'en occuper !
+                break; 
+            }
+
+            // 3. Cas impossibles pour la divergence (toujours scalaires)
+            case MathOp::Dot:
+            case MathOp::Inner:
+                // Ces opérations retournent toujours une dimension de 1.
+                // On ne devrait jamais arriver ici grâce au `if (m_dimOut == 1)` au tout début.
+                break;
+
+            // 4. Fallback Universel via diff()
+            // Pour : Div, Cross, Pow, Max, Min, Atan2
+            // Ton moteur symbolique sait déjà dériver ces opérations via diff().
+            // On s'appuie dessus pour éviter de dupliquer de grosses formules mathématiques !
+            default:
+                break;
+        }
+
+        // LE MOTEUR DE DIVERGENCE GÉNÉRIQUE
+        // On demande les dérivées spatiales exactes de l'expression binaire complète.
+        auto dx = this->diff(0); 
+        auto dy = this->diff(1); 
+        auto dz = this->diff(2); 
+
+        if (m_dimOut == 3) {
+            // Le résultat est un Vecteur. div(V) = dVx/dx + dVy/dy + dVz/dz
+            return extractComponent(dx, 0) + 
+                extractComponent(dy, 1) + 
+                extractComponent(dz, 2);
+        }
+
+        if (m_dimOut == 9) {
+            // Le résultat est un Tenseur. La divergence donne un vecteur (somme par ligne).
+            auto row1 = extractComponent(dx, 0) + extractComponent(dy, 1) + extractComponent(dz, 2);
+            auto row2 = extractComponent(dx, 3) + extractComponent(dy, 4) + extractComponent(dz, 5);
+            auto row3 = extractComponent(dx, 6) + extractComponent(dy, 7) + extractComponent(dz, 8);
+
+            return std::make_shared<const VectorExpression>(row1, row2, row3);
+        }
+
+        CFEM_ERROR << "Erreur de dimension lors du calcul de la divergence.";
+        return nullptr;
     }
 
     std::shared_ptr<const CfemExpression> BinaryExpression::timeDerivative() const {
@@ -269,12 +345,12 @@ namespace cfem::sym
         }
 
         switch (m_op) {
-            // --- Linearity: d(f ± g)/dt = df/dt ± dg/dt ---
+            // Linearity: d(f ± g)/dt = df/dt ± dg/dt
             case MathOp::Add:
             case MathOp::Sub:
                 return std::make_shared<BinaryExpression>(dL, dR, m_op);
 
-            // --- Product Rule: d(f*g)/dt = (df/dt)*g + f*(dg/dt) ---
+            // Product Rule: d(f*g)/dt = (df/dt)*g + f*(dg/dt)
             // Applies to all bilinear multiplications
             case MathOp::Mul:
             case MathOp::Dot:
@@ -285,7 +361,7 @@ namespace cfem::sym
                 return std::make_shared<BinaryExpression>(term1, term2, MathOp::Add);
             }
 
-            // --- Quotient Rule: d(f/g)/dt = ((df/dt)*g - f*(dg/dt)) / g^2 ---
+            // Quotient Rule: d(f/g)/dt = ((df/dt)*g - f*(dg/dt)) / g^2
             case MathOp::Div: {
                 auto t1 = std::make_shared<BinaryExpression>(dL, R, MathOp::Mul);
                 auto t2 = std::make_shared<BinaryExpression>(L, dR, MathOp::Mul);
@@ -294,7 +370,7 @@ namespace cfem::sym
                 return std::make_shared<BinaryExpression>(num, den, MathOp::Div);
             }
 
-            // --- General Power Rule: d(f^g)/dt = f^g * ( (dg/dt)*ln(f) + g*(df/dt)/f ) ---
+            // General Power Rule: d(f^g)/dt = f^g * ( (dg/dt)*ln(f) + g*(df/dt)/f )
             case MathOp::Pow: {
                 auto f_pow_g = std::make_shared<BinaryExpression>(L, R, MathOp::Pow);
                 
@@ -315,7 +391,7 @@ namespace cfem::sym
                 return std::make_shared<BinaryExpression>(term1, term2, MathOp::Add);
             }
 
-            // --- Atan2: d(atan2(y, x))/dt = (x*(dy/dt) - y*(dx/dt)) / (x^2 + y^2) ---
+            // Atan2: d(atan2(y, x))/dt = (x*(dy/dt) - y*(dx/dt)) / (x^2 + y^2)
             case MathOp::Atan2: {
                 auto x_dy = std::make_shared<BinaryExpression>(R, dL, MathOp::Mul);
                 auto y_dx = std::make_shared<BinaryExpression>(L, dR, MathOp::Mul);
@@ -328,7 +404,7 @@ namespace cfem::sym
                 return std::make_shared<BinaryExpression>(num, den, MathOp::Div);
             }
 
-            // --- Non-Smooth Operations ---
+            // Non-Smooth Operations
             case MathOp::Max:
             case MathOp::Min:
                 CFEM_ERROR << "Time derivative of Max/Min requires conditional node support.";

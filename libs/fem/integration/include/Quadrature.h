@@ -232,6 +232,21 @@ struct IntegrationSchemeParams {
             default: return 1;
         }
     }
+
+    bool operator==(const IntegrationSchemeParams& other ) const {
+        return NumIntgPt1DElem    == other.NumIntgPt1DElem    &&
+               NumIntgPtTriElem   == other.NumIntgPtTriElem   &&
+               NumIntgPtQuadElem  == other.NumIntgPtQuadElem  &&
+               NumIntgPtTetElem   == other.NumIntgPtTetElem   &&
+               NumIntgPtPrismElem == other.NumIntgPtPrismElem &&
+               NumIntgPtHexElem   == other.NumIntgPtHexElem;
+
+    }
+
+    bool operator!=(const IntegrationSchemeParams& other ) const {
+        return !(*this == other);
+    }
+
 };
 
 }

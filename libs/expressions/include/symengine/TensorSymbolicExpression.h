@@ -42,6 +42,8 @@ namespace cfem::sym
 
         // TODO Implement grad()
 
+        std::shared_ptr<const CfemExpression> div() const override;
+
         std::shared_ptr<const ScalarSymbolicExpression> getComponent(CfemInt i) const
         {
             CFEM_ASSERT(i>=0 && i< 9, "TensorSymbolicExpression: Index out of bounds.");

@@ -26,30 +26,25 @@ namespace cfem::sym
     public:
         ConstantExpression(std::vector<CfemReal> val)
             : m_value(std::move(val)) 
-        {
-        }
+        {}
 
         ConstantExpression(CfemReal val)
             : m_value({val}) 
-        {
-        }
+        {}
         
         ConstantExpression(const Vector3D& val)
             : m_value({val.x, val.y, val.z}) 
-        {
-        }
+        {}
         
         ConstantExpression(const TensorO2& val)
             : m_value({val(0,0), val(0,1), val(0,2),
                        val(1,0), val(1,1), val(1,2),
                        val(2,0), val(1,2), val(2,2)}) 
-         {
-         }
+         {}
 
          ConstantExpression(CfemReal val, CfemInt dim)
             : m_value(dim, val)
-        {
-        }
+        {}
 
         int getDimension() const override { return m_value.size(); }
         bool isPointwise() const override { return true; }
@@ -71,13 +66,8 @@ namespace cfem::sym
             return std::make_shared<ZeroExpression>(this->getDimension());
         }
 
-        std::shared_ptr<const CfemExpression> grad() const override {
-            CfemInt dim = getDimension();
-            if (dim == 1) return zeros::Zero3D;
-            if (dim == 3) return zeros::ZeroTensor;
-            return std::make_shared<ZeroExpression>(dim * 3);
-        }
-
+        std::shared_ptr<const CfemExpression> grad() const override;
+        std::shared_ptr<const CfemExpression> div() const override;
         std::shared_ptr<const CfemExpression> timeDerivative() const override {
             return std::make_shared<ZeroExpression>(getDimension());
         }
@@ -85,20 +75,7 @@ namespace cfem::sym
         CfemInt precedence() const override{ return 10; }
 
         ExpressionType getType() const override { return ExpressionType::Constant; }
-        std::string toString() const override { 
-            CfemInt dim = getDimension();
-            if (dim==1) return formatCoefficient(m_value[0]);
-
-            std::ostringstream out;
-            CfemInt i = 0;
-            out << "[";
-            for (auto val : m_value){
-                if (i < dim-1) out << val << ", ";
-                ++i;
-            }
-            out << m_value[dim-1] << "]";
-            return out.str();
-         }
+        std::string toString() const override;
 
 
     };

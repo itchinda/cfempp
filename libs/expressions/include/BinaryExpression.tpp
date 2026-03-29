@@ -4,10 +4,25 @@ namespace cfem::sym
 {
     inline void BinaryExpression::evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
     {
-        auto bookmark = ctx.getBookmark();
+        // auto bookmark = ctx.getBookmark();
 
-        std::span<CfemReal> spanL = ctx.getBuffer(m_dimL);
-        std::span<CfemReal> spanR = ctx.getBuffer(m_dimR);
+        // std::span<CfemReal> spanL = ctx.getBuffer(m_dimL);
+        // std::span<CfemReal> spanR = ctx.getBuffer(m_dimR);
+
+        CfemReal stackL[9], stackR[9];
+        std::span<CfemReal> spanL, spanR;
+        
+        bool needsBookmark = (m_dimL > 9 || m_dimR > 9);
+        EvalContext::Bookmark bookmark;
+
+        if (needsBookmark) {
+            bookmark = ctx.getBookmark();
+            spanL = ctx.getBuffer(m_dimL);
+            spanR = ctx.getBuffer(m_dimR);
+        } else {
+            spanL = {stackL, static_cast<size_t>(m_dimL)};
+            spanR = {stackR, static_cast<size_t>(m_dimR)};
+        }
 
         m_lhs->evaluate(cellId, xi, spanL, ctx);
         m_rhs->evaluate(cellId, xi, spanR, ctx);
@@ -95,7 +110,9 @@ namespace cfem::sym
                 break;
         }
         // On libère la mémoire utilisée par spanL et spanR pour les prochains nœuds
-        ctx.releaseToBookmark(bookmark);
+        if (needsBookmark) {
+            ctx.releaseToBookmark(bookmark);
+        }
     }
 
     inline int getPrecedence(MathOp op)

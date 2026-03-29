@@ -2,11 +2,13 @@ add_library(cfem_expressions
     src/AlgebraicSimplifier.cpp
     src/CfemExpression.cpp
     src/BinaryExpression.cpp
+    src/ConstantExpression.cpp
     src/GradExpression.cpp
-    src/LambdaExpression.cpp
+    src/LambdaExpressionBase.cpp
     src/UnaryExpression.cpp
     src/VectorExpression.cpp
     src/TensorExpression.cpp
+    src/ZeroExpression.cpp
     src/symengine/ScalarSymbolicExpression.cpp
     src/symengine/SymEngineSymbols.cpp
     src/symengine/TensorSymbolicExpression.cpp

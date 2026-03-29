@@ -596,23 +596,38 @@ namespace cfem::sym
         return foldUnary(u, MathOp::Zeta, [](CfemReal x) { return std::riemann_zeta(x); });
     }
 
-
-
-
-
-
-
-    inline std::shared_ptr<const CfemExpression> scalar(const std::function<CfemReal(const Vector3D&)>& f, 
-                                                        std::shared_ptr<const CfemExpression> gradient){
-        return LambdaExpression::fromScalar(f, gradient);
+    inline std::shared_ptr<const CfemExpression> constant(CfemReal c)
+    {
+        return std::make_shared<const ConstantExpression>(c);
     }
 
-    inline std::shared_ptr<const CfemExpression> scalar(
-                                            const std::function<CfemReal(const Vector3D &, CfemReal)> &f,
-                                            std::shared_ptr<const CfemExpression> gradient,
-                                            std::shared_ptr<const CfemExpression> timeDeriv)
+    inline std::shared_ptr<const CfemExpression> constant(const Vector3D& v)
     {
-        return LambdaExpression::fromScalar(f, gradient, timeDeriv);
+        return std::make_shared<const ConstantExpression>(v);
+    }
+
+    inline std::shared_ptr<const CfemExpression> constant(const TensorO2& t)
+    {
+        return std::make_shared<const ConstantExpression>(t);
+    }
+
+    template <typename Func>
+    requires std::is_invocable_r_v<CfemReal, Func, const Vector3D&>
+    inline std::shared_ptr<const CfemExpression> scalar(
+                                                    Func&& f,
+                                                    std::shared_ptr<const CfemExpression> gradient)
+    {
+        return LambdaExpression<Func>::fromScalar(std::forward<Func>(f), std::move(gradient));
+    }
+
+    template <typename Func>
+    requires std::is_invocable_r_v<CfemReal, Func, const Vector3D&, CfemReal> 
+    inline std::shared_ptr<const CfemExpression> scalar(
+                                                    Func&& f,
+                                                    std::shared_ptr<const CfemExpression> gradient,
+                                                    std::shared_ptr<const CfemExpression> timeDeriv)
+    {
+        return LambdaExpression<Func>::fromScalar(std::forward<Func>(f), std::move(gradient), std::move(timeDeriv));
     }
 
     inline std::shared_ptr<const CfemExpression> scalar(std::shared_ptr<const CfemExpression> expr)
@@ -621,23 +636,23 @@ namespace cfem::sym
         return expr;
     }
 
-    inline std::shared_ptr<const CfemExpression> constant(CfemReal c)
-    {
-        return std::make_shared<const ConstantExpression>(c);
-    }
-
-    inline std::shared_ptr<const CfemExpression> vector(const std::function<Vector3D(const Vector3D &)> &f,
-                                                        std::shared_ptr<const CfemExpression> gradient)
-    {
-        return LambdaExpression::fromVector(f, gradient);
-    }
-
+    template <typename Func>
+    requires std::is_invocable_r_v<Vector3D, Func, const Vector3D&>
     inline std::shared_ptr<const CfemExpression> vector(
-                                            const std::function<Vector3D(const Vector3D &, CfemReal)> &f,
-                                            std::shared_ptr<const CfemExpression> gradient,
-                                            std::shared_ptr<const CfemExpression> timeDeriv)
+                                                    Func&& f,
+                                                    std::shared_ptr<const CfemExpression> gradient)
     {
-        return LambdaExpression::fromVector(f, gradient, timeDeriv);
+        return LambdaExpression<Func>::fromVector(std::forward<Func>(f), std::move(gradient));
+    }
+
+    template <typename Func>
+    requires std::is_invocable_r_v<Vector3D, Func, const Vector3D&, CfemReal>
+    inline std::shared_ptr<const CfemExpression> vector(
+                                                    Func&& f,
+                                                    std::shared_ptr<const CfemExpression> gradient,
+                                                    std::shared_ptr<const CfemExpression> timeDeriv)
+    {
+        return LambdaExpression<Func>::fromVector(std::forward<Func>(f), std::move(gradient), std::move(timeDeriv));
     }
 
     inline std::shared_ptr<const CfemExpression> vector(std::shared_ptr<const CfemExpression> expr)
@@ -656,19 +671,23 @@ namespace cfem::sym
         return std::make_shared<const VectorExpression>(expr_x, expr_y, expr_z);
     }
 
+    template <typename Func>
+    requires std::is_invocable_r_v<TensorO2, Func, const Vector3D&>
     inline std::shared_ptr<const CfemExpression> tensor(
-                                            const std::function<TensorO2(const Vector3D &)> &f,
-                                            std::shared_ptr<const CfemExpression> gradient )
+                                                    Func&& f,
+                                                    std::shared_ptr<const CfemExpression> gradient)
     {
-        return LambdaExpression::fromTensor(f, gradient);
+        return LambdaExpression<Func>::fromTensor(std::forward<Func>(f), std::move(gradient));
     }
 
+    template <typename Func>
+    requires std::is_invocable_r_v<TensorO2, Func, const Vector3D&, CfemReal>
     inline std::shared_ptr<const CfemExpression> tensor(
-                                            const std::function<TensorO2(const Vector3D &, CfemReal)> &f,
-                                            std::shared_ptr<const CfemExpression> gradient,
-                                            std::shared_ptr<const CfemExpression> timeDeriv)
+                                                    Func&& f,
+                                                    std::shared_ptr<const CfemExpression> gradient,
+                                                    std::shared_ptr<const CfemExpression> timeDeriv)
     {
-        return LambdaExpression::fromTensor(f, gradient, timeDeriv);
+        return LambdaExpression<Func>::fromTensor(std::forward<Func>(f), std::move(gradient), std::move(timeDeriv));
     }
 
     inline std::shared_ptr<const CfemExpression> tensor(std::shared_ptr<const CfemExpression> expr)
@@ -729,9 +748,6 @@ namespace cfem::sym
         );
     }
 
-    /**
-     * @brief Standard Identity matrix factory
-     */
     inline std::shared_ptr<const CfemExpression> identity()
     {
         auto one = std::make_shared<const ConstantExpression>(1.0);
@@ -741,7 +757,7 @@ namespace cfem::sym
     inline std::shared_ptr<const CfemExpression> grad(const std::shared_ptr<const CfemExpression>& e) {
         if (!e) return nullptr;
 
-        if (auto lamb = std::dynamic_pointer_cast<const LambdaExpression>(e)) {
+        if (auto lamb = std::dynamic_pointer_cast<const LambdaExpressionBase>(e)) {
             auto analyticalGrad = lamb->grad();
             if (analyticalGrad) {
                 return analyticalGrad;
@@ -821,176 +837,72 @@ namespace cfem::sym
         return std::make_shared<GradExpression>(e);
     }
 
-    // inline std::shared_ptr<const CfemExpression> div(const std::shared_ptr<const CfemExpression>& e) {
-    //     if (auto v = std::dynamic_pointer_cast<const VectorSymbolicExpression>(e)) {
-    //         auto scalar_comp = std::static_pointer_cast<const ScalarSymbolicExpression>(v->getComponent(0));
-    //         auto res = v->getComponent(0)->get_expression().diff(x_rcp) + 
-    //                    v->getComponent(1)->get_expression().diff(y_rcp) + 
-    //                    v->getComponent(2)->get_expression().diff(z_rcp);
-    //         return scalar(res);
-    //     }
-
-    //     if (auto t = std::dynamic_pointer_cast<const TensorSymbolicExpression>(e)) {
-    //         auto r0 = t->getComponent(0)->get_expression().diff(x_rcp) + 
-    //                   t->getComponent(1)->get_expression().diff(y_rcp) + 
-    //                   t->getComponent(2)->get_expression().diff(z_rcp);
-    //         auto r1 = t->getComponent(3)->get_expression().diff(x_rcp) + 
-    //                   t->getComponent(4)->get_expression().diff(y_rcp) + 
-    //                   t->getComponent(5)->get_expression().diff(z_rcp);
-    //         auto r2 = t->getComponent(6)->get_expression().diff(x_rcp) + 
-    //                   t->getComponent(7)->get_expression().diff(y_rcp) + 
-    //                   t->getComponent(8)->get_expression().diff(z_rcp);
-
-            
-    //         // TODO : Etendre aux lambda
-    //         return std::make_shared<VectorSymbolicExpression>(scalar(r0), scalar(r1), scalar(r2));
-    //     }
-
-    //     CFEM_ERROR << "div() only supports Symbolic Vector/Tensor types currently.";
-    //     return nullptr;
-    // }
-
+    /**
+     * @brief Computes the divergence of a vector or tensor expression.
+     * - For a Vector: returns a Scalar (trace of the gradient).
+     * - For a Tensor: returns a Vector (row-wise divergence).
+     */
     inline std::shared_ptr<const CfemExpression> div(const std::shared_ptr<const CfemExpression>& e) {
-        // 1. Handle Symbolic Vector
+        if (!e) return nullptr;
+
+        // Handle Symbolic Vector
         if (auto v = std::dynamic_pointer_cast<const VectorSymbolicExpression>(e)) {
             auto res = v->getComponent(0)->get_expression().diff(x_rcp) + 
-                    v->getComponent(1)->get_expression().diff(y_rcp) + 
-                    v->getComponent(2)->get_expression().diff(z_rcp);
+                       v->getComponent(1)->get_expression().diff(y_rcp) + 
+                       v->getComponent(2)->get_expression().diff(z_rcp);
+
             return scalar(res);
         }
 
-        // 2. Handle Symbolic Tensor
+        // Handle Symbolic Tensor
         if (auto t = std::dynamic_pointer_cast<const TensorSymbolicExpression>(e)) {
             auto r0 = t->getComponent(0)->get_expression().diff(x_rcp) + 
-                    t->getComponent(1)->get_expression().diff(y_rcp) + 
-                    t->getComponent(2)->get_expression().diff(z_rcp);
-            auto r1 = t->getComponent(3)->get_expression().diff(x_rcp) + 
-                    t->getComponent(4)->get_expression().diff(y_rcp) + 
-                    t->getComponent(5)->get_expression().diff(z_rcp);
-            auto r2 = t->getComponent(6)->get_expression().diff(x_rcp) + 
-                    t->getComponent(7)->get_expression().diff(y_rcp) + 
-                    t->getComponent(8)->get_expression().diff(z_rcp);
+                      t->getComponent(1)->get_expression().diff(y_rcp) + 
+                      t->getComponent(2)->get_expression().diff(z_rcp);
 
-            return std::make_shared<VectorSymbolicExpression>(scalar(r0), scalar(r1), scalar(r2));
+            auto r1 = t->getComponent(3)->get_expression().diff(x_rcp) + 
+                      t->getComponent(4)->get_expression().diff(y_rcp) + 
+                      t->getComponent(5)->get_expression().diff(z_rcp);
+
+            auto r2 = t->getComponent(6)->get_expression().diff(x_rcp) + 
+                      t->getComponent(7)->get_expression().diff(y_rcp) + 
+                      t->getComponent(8)->get_expression().diff(z_rcp);
+
+            return vector(scalar(r0), scalar(r1), scalar(r2));
         }
 
-        // 3. Handle General Expressions (Lambdas, Variables, or Custom Containers)
         CfemInt dim = e->getDimension();
-        
-        // 2. Recursive Lambda to extract the i-th scalar component safely from ANY vector expression
-        std::function<std::shared_ptr<const CfemExpression>(std::shared_ptr<const CfemExpression>, int)> extractComponent = 
-            [&extractComponent](std::shared_ptr<const CfemExpression> expr, int idx) -> std::shared_ptr<const CfemExpression> 
-        {
-            if (!expr) return nullptr;
 
-            // --- Transparent Container Types ---
-            if (auto v = std::dynamic_pointer_cast<const VectorSymbolicExpression>(expr)) {
-                return v->getComponent(idx);
-            }
-            else if (auto v = std::dynamic_pointer_cast<const VectorExpression>(expr)) {
-                return v->getComponent(idx);
-            }
-            
-            // --- Unary and Scaled Modifiers ---
-            else if (auto v = std::dynamic_pointer_cast<const ScaledExpression>(expr)) {
-                return std::make_shared<ScaledExpression>(v->getCoeff(), extractComponent(v->getBaseShared(), idx));
-            }
-            else if (auto v = std::dynamic_pointer_cast<const UnaryExpression>(expr)) {
-                return std::make_shared<UnaryExpression>(extractComponent(v->getInner(), idx), v->getOp());
-            }
-
-            // --- Binary Operations (The Missing Piece) ---
-            else if (auto b = std::dynamic_pointer_cast<const BinaryExpression>(expr)) {
-                MathOp op = b->getOp();
-                
-                // Vector +/- Vector
-                if (op == MathOp::Add || op == MathOp::Sub) {
-                    return std::make_shared<BinaryExpression>(
-                        extractComponent(b->getLHS(), idx), 
-                        extractComponent(b->getRHS(), idx), op);
-                }
-                // Scalar * Vector  OR  Vector * Scalar
-                else if (op == MathOp::Mul) {
-                    if (b->getLHS()->getDimension() == 1) {
-                        return std::make_shared<BinaryExpression>(b->getLHS(), extractComponent(b->getRHS(), idx), op);
-                    } else if (b->getRHS()->getDimension() == 1) {
-                        return std::make_shared<BinaryExpression>(extractComponent(b->getLHS(), idx), b->getRHS(), op);
-                    }
-                }
-                // Vector / Scalar
-                else if (op == MathOp::Div) {
-                    if (b->getRHS()->getDimension() == 1) {
-                        return std::make_shared<BinaryExpression>(extractComponent(b->getLHS(), idx), b->getRHS(), op);
-                    }
-                }
-                // Cross Product: A x B
-                else if (op == MathOp::Cross) {
-                    // C_idx = A_i1 * B_i2 - A_i2 * B_i1
-                    int i1 = (idx + 1) % 3;
-                    int i2 = (idx + 2) % 3;
-                    auto term1 = std::make_shared<BinaryExpression>(
-                        extractComponent(b->getLHS(), i1), extractComponent(b->getRHS(), i2), MathOp::Mul);
-                    auto term2 = std::make_shared<BinaryExpression>(
-                        extractComponent(b->getLHS(), i2), extractComponent(b->getRHS(), i1), MathOp::Mul);
-                    return std::make_shared<BinaryExpression>(term1, term2, MathOp::Sub);
-                }
-                // If it's a Pow, Max, Min, etc. applied to vectors, it will fall through to the lambda wrapper below.
-            }
-
-            // --- Opaque Black Box Fallback (Lambdas, Variables, Unhandled Ops) ---
-            // We use the static factory 'fromScalar' from your LambdaExpression class!
-            auto eval_func = [expr, idx](const Vector3D& pos, CfemReal t) -> CfemReal {
-                CfemReal temp[3] = {0.0, 0.0, 0.0};
-                EvalContext ctx;
-                ctx.physPos = pos;
-                ctx.currentTime = t;
-                expr->evaluate(-1, pos, temp, ctx); 
-                return temp[idx];
-            };
-
-            std::shared_ptr<const CfemExpression> comp_time_deriv = nullptr;
-            try {
-                if (auto td = expr->timeDerivative()) {
-                    comp_time_deriv = extractComponent(td, idx);
-                }
-            } catch (...) { /* Safe to ignore if no time derivative exists */ }
-
-            return LambdaExpression::fromScalar(eval_func, nullptr, comp_time_deriv);
-        };
-
-        // Divergence of a Vector (Dim 3) -> Returns a Scalar
+        // --- Divergence of a Vector (Dim 3) -> Returns a Scalar ---
         if (dim == 3) {
-            // div(v) = trace(grad(v))
-            auto g = e->grad(); // This returns a Tensor-like expression
-            // We use the same component extraction logic we built for grad()
-            auto dvx_dx = extractComponent(g, 0);
-            auto dvy_dy = extractComponent(g, 4);
-            auto dvz_dz = extractComponent(g, 8);
+            // div(v) = dvx/dx + dvy/dy + dvz/dz
+            auto g = e->grad(); 
+            auto dvx_dx = utils::extractComponent(g, 0); // Grad component (0,0)
+            auto dvy_dy = utils::extractComponent(g, 4); // Grad component (1,1)
+            auto dvz_dz = utils::extractComponent(g, 8); // Grad component (2,2)
             
-            // Return a Binary Add tree: (du/dx + dv/dy) + dw/dz
             return (dvx_dx + dvy_dy) + dvz_dz;
         }
 
-        // Divergence of a Tensor (Dim 9) -> Returns a Vector
-        // if (dim == 9) {
-        //     auto g = e->grad(); // Note: Gradient of a 2nd order tensor is a 3rd order tensor
-        //     // If your system doesn't support 3rd order tensors yet, we use the row-wise logic:
-        //     // We assume 'e' can be split into rows.
-            
-        //     auto row0_div = (extractComponent(e, 0)->grad()->getComponent(0) + 
-        //                     extractComponent(e, 1)->grad()->getComponent(1) + 
-        //                     extractComponent(e, 2)->grad()->getComponent(2));
+        // --- Divergence of a Tensor (Dim 9) -> Returns a Vector ---
+        if (dim == 9) {
+            // Row 0 divergence
+            auto row0_div = (utils::extractComponent(e->grad(), 0) + // dT00/dx
+                             utils::extractComponent(e->grad(), 4) + // dT01/dy
+                             utils::extractComponent(e->grad(), 8)); // dT02/dz
                             
-        //     auto row1_div = (extractComponent(e, 3)->grad()->getComponent(0) + 
-        //                     extractComponent(e, 4)->grad()->getComponent(1) + 
-        //                     extractComponent(e, 5)->grad()->getComponent(2));
-                            
-        //     auto row2_div = (extractComponent(e, 6)->grad()->getComponent(0) + 
-        //                     extractComponent(e, 7)->grad()->getComponent(1) + 
-        //                     extractComponent(e, 8)->grad()->getComponent(2));
+            // Row 1 divergence
+            auto row1_div = (utils::extractComponent(e->grad(), 9) +  // Wait: Indexing depends on Grad(Tensor) layout
+                             utils::extractComponent(e->grad(), 13) + 
+                             utils::extractComponent(e->grad(), 17)); 
 
-        //     return vector(row0_div, row1_div, row2_div);
-        // }
+            // Alternative safe implementation using row extraction:
+            auto row0 = vector(utils::extractComponent(e, 0), utils::extractComponent(e, 1), utils::extractComponent(e, 2));
+            auto row1 = vector(utils::extractComponent(e, 3), utils::extractComponent(e, 4), utils::extractComponent(e, 5));
+            auto row2 = vector(utils::extractComponent(e, 6), utils::extractComponent(e, 7), utils::extractComponent(e, 8));
+
+            return vector(div(row0), div(row1), div(row2));
+        }
 
         CFEM_ERROR << "div() is not defined for expressions with dimension " << dim;
         return nullptr;
@@ -1072,4 +984,86 @@ namespace cfem::sym
     inline SymEngine::Expression zeta(const SymEngine::Expression &e) { return SymEngine::zeta(e); }
     /** @} */
 
+}
+
+
+
+
+
+namespace cfem::sym::utils {
+
+    inline std::shared_ptr<const CfemExpression> extractComponent(std::shared_ptr<const CfemExpression> expr, int idx) {
+        if (!expr) return nullptr;
+
+        // Direct Access (The "Leaf" nodes or explicit containers)
+        if (auto v = std::dynamic_pointer_cast<const VectorExpression>(expr))         return v->getComponent(idx);
+        if (auto v = std::dynamic_pointer_cast<const TensorExpression>(expr))         return v->getComponent(idx);
+        if (auto v = std::dynamic_pointer_cast<const VectorSymbolicExpression>(expr)) return v->getComponent(idx);
+        if (auto v = std::dynamic_pointer_cast<const TensorSymbolicExpression>(expr)) return v->getComponent(idx);
+
+        // Scaled Expression (Linear)
+        if (auto v = std::dynamic_pointer_cast<const ScaledExpression>(expr)) {
+            return std::make_shared<const ScaledExpression>(v->getCoeff(), extractComponent(v->getBaseShared(), idx));
+        }
+
+        // Unary Expressions
+        if (auto v = std::dynamic_pointer_cast<const UnaryExpression>(expr)) {
+            MathOp op = v->getOp();
+            // Handle Transpose: Swap index based on 3x3 flattening
+            if (op == MathOp::Transpose) {
+                static const int t_map[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
+                return extractComponent(v->getInner(), t_map[idx]);
+            }
+            // Pointwise (Sin, Cos, Exp, etc.): Apply op to the extracted component
+            if (v->getDimension() > 1) {
+                return std::make_shared<const UnaryExpression>(extractComponent(v->getInner(), idx), op);
+            }
+            return v; // Already a scalar
+        }
+
+        // Binary Expressions
+        if (auto b = std::dynamic_pointer_cast<const BinaryExpression>(expr)) {
+            MathOp op = b->getOp();
+            auto lhs = b->getLHS();
+            auto rhs = b->getRHS();
+
+            if (op == MathOp::Add || op == MathOp::Sub) {
+                return std::make_shared<const BinaryExpression>(extractComponent(lhs, idx), extractComponent(rhs, idx), op);
+            }
+            
+            if (op == MathOp::Mul) {
+                if (lhs->getDimension() == 1) return lhs * extractComponent(rhs, idx);
+                if (rhs->getDimension() == 1) return extractComponent(lhs, idx) * rhs;
+            }
+
+            if (op == MathOp::Div && rhs->getDimension() == 1) {
+                return extractComponent(lhs, idx) / rhs;
+            }
+
+            // Cross Product Expansion: u x v
+            if (op == MathOp::Cross) {
+                if (idx == 0) return extractComponent(lhs, 1)*extractComponent(rhs, 2) - extractComponent(lhs, 2)*extractComponent(rhs, 1);
+                if (idx == 1) return extractComponent(lhs, 2)*extractComponent(rhs, 0) - extractComponent(lhs, 0)*extractComponent(rhs, 2);
+                if (idx == 2) return extractComponent(lhs, 0)*extractComponent(rhs, 1) - extractComponent(lhs, 1)*extractComponent(rhs, 0);
+            }
+            
+            if (op == MathOp::Dot || op == MathOp::Inner) return b; // Result is already scalar
+        }
+
+        // Fallback: Lambda Evaluation (The Safety Net)
+        auto eval_func = [expr, idx](const Vector3D& pos, CfemReal t) -> CfemReal {
+            CfemReal temp[9] = {0.0};
+            EvalContext ctx;
+            ctx.physPos = pos;
+            ctx.currentTime = t;
+            expr->evaluate(-1, pos, temp, ctx); 
+            return temp[idx];
+        };
+
+        std::shared_ptr<const CfemExpression> comp_time_deriv = nullptr;
+        auto td = expr->timeDerivative();
+        if (td && !td->isZero()) comp_time_deriv = extractComponent(td, idx);
+
+        return LambdaExpression<decltype(eval_func)>::fromScalar(std::move(eval_func), nullptr, comp_time_deriv);
+    }
 }

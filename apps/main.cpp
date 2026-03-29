@@ -44,8 +44,8 @@ int main(int argc, char **argv)
             PROFILE_SCOPE("MeshBuilding");
 
             mesh = Mesh::block(
-                MeshOrder::Linear,
-                Mesh::BlockSubdivisions{50, 50, 50}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+                MeshOrder::Quadratic,
+                Mesh::BlockSubdivisions{10, 10, 10}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
                 Mesh::BlockBounds(
                     Vector3D{0., 0., 0.},
                     Vector3D{1., 1., 1.}
@@ -54,7 +54,7 @@ int main(int argc, char **argv)
 
         }
 
-        auto Q = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);
+        auto Q = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);
         auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
 
         auto p = Trial(Q, "p");
@@ -62,23 +62,22 @@ int main(int argc, char **argv)
         auto q = Test (Q, "q");
         auto v = Test (V, "v");
 
-        auto analytical_p = scalar(x * x + y * y + z * z + x * y + x * z + z * y + x + y + z + 1); // SymEngine expressions
-        auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * y ) * sin(2 * pi * z ),
-                                   cos(2 * pi * x ) * cos(2 * pi * y ) * cos(2 * pi * z ),
-                                   cos(2 * pi * x ) * sin(2 * pi * y ) * cos(2 * pi * z ));
-        CFEM_INFO << -grad(analytical_u);
-    {
-        PROFILE_SCOPE("FieldProjection");
-        u->project(analytical_u);
-        p->project(analytical_p);
-    }
+        // auto analytical_p = scalar(x * x + y * y + z * z + x * y + x * z + z * y + x + y + z + 1); // SymEngine expressions
+        // auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * y ) * sin(2 * pi * z ),
+        //                            cos(2 * pi * x ) * cos(2 * pi * y ) * cos(2 * pi * z ),
+        //                            cos(2 * pi * x ) * sin(2 * pi * y ) * cos(2 * pi * z ));
 
+        auto analytical_p = scalar(x * x + y * y + z * z + y + x + y + z + 1); // SymEngine expressions
+        auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * z ),
+                                   cos(2 * pi * y ) * cos(2 * pi * x ),
+                                   cos(2 * pi * y ) * cos(2 * pi * z ));
 
-        // 1. Create something truly expensive
-        // auto heavy = cache( scalar( cfem::sym::pow(sin(pi*x), 4.0) * exp(-x*x) * log(1.0 + x*x) *sqrt(1.0 + y*y) ) );
-        // auto f_u = heavy + sin(heavy) + cos(heavy) + exp(heavy) + sqrt(abs(heavy));
-        // auto raw = scalar( cfem::sym::pow(sin(pi*x), 4) * exp(-x*x) * log(1.0 + x*x) / sqrt(1.0 + y*y) );
-        // auto g_u = raw + sin(raw) + cos(raw) + exp(raw) + sqrt(abs(raw));
+        // auto analytical_u = vector(x * x + y * y + z,
+        //                            -2*x*y + z*z,
+        //                            x + y);
+
+        CFEM_INFO << "grad(p) = " << analytical_p->grad();
+        CFEM_INFO << "div(u) = " << analytical_u->div();
 
         // auto grad_p_analyt = cfem::sym::vector([](const Vector3D& X) {
         //     return Vector3D{2.0 * X.x, 2.0 * X.y, 2.0 * X.z};
@@ -95,19 +94,65 @@ int main(int argc, char **argv)
         //     return Vector3D{X.x * X.x + X.y, X.y*X.y + X.x*X.z, X.z + X.x*X.x};
         // }, analytical_grad_u);
 
-        
+        CFEM_INFO << -grad(analytical_u);
         {
-            PROFILE_SCOPE("L2Norm");
+            PROFILE_SCOPE("FieldProjection");
+            u->project(analytical_u);
+            p->project(analytical_p);
+        }
+
+
+        // 1. Create something truly expensive
+        // auto heavy = cache( scalar( cfem::sym::pow(sin(pi*x), 4.0) * exp(-x*x) * log(1.0 + x*x) *sqrt(1.0 + y*y) ) );
+        // auto f_u = heavy + sin(heavy) + cos(heavy) + exp(heavy) + sqrt(abs(heavy));
+        // auto raw = scalar( cfem::sym::pow(sin(pi*x), 4) * exp(-x*x) * log(1.0 + x*x) / sqrt(1.0 + y*y) );
+        // auto g_u = raw + sin(raw) + cos(raw) + exp(raw) + sqrt(abs(raw));
+
+        
+
+        
+        // {
+        //     PROFILE_SCOPE("L2Norm1");
+        //     IntegrationSchemeParams schemes_params{};
+        //     // schemes_params.NumIntgPtHexElem = 1;
+        //     CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
+        //     DomainIntegrator::L2Norm(mesh, p - analytical_p, &l2Norm_P, nullptr, schemes_params);
+        //     DomainIntegrator::L2Norm(mesh, u - analytical_u, &l2Norm_U, nullptr, schemes_params);
+        //     CFEM_INFO << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P;
+        //     CFEM_INFO << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U;
+
+        // }
+
+        // {
+        //     PROFILE_SCOPE("L2Norm2");
+        //     IntegrationSchemeParams schemes_params{};
+        //     // schemes_params.NumIntgPtHexElem = 1;
+        //     CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
+        //     DomainIntegrator::L2Norm(mesh, p - analytical_p, nullptr, &h1SemiNorm_P, schemes_params);
+        //     DomainIntegrator::L2Norm(mesh, u - analytical_u, nullptr, &h1SemiNorm_U, schemes_params);
+        //     CFEM_INFO << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P;
+        //     CFEM_INFO << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U;
+
+        // }
+
+        {
+            PROFILE_SCOPE("L2Norm3");
             IntegrationSchemeParams schemes_params{};
+            DomainIntegrator integrator(mesh, schemes_params);
             // schemes_params.NumIntgPtHexElem = 1;
             CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
-            DomainIntegrator::L2Norm(Q, p - analytical_p, &l2Norm_P, &h1SemiNorm_P, schemes_params);
-            DomainIntegrator::L2Norm(V, u - analytical_u, &l2Norm_U, &h1SemiNorm_U, schemes_params);
-            std::cout << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P << std::endl;
-            std::cout << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U << std::endl;
+            integrator.L2Norm(p - analytical_p, &l2Norm_P, &h1SemiNorm_P);
+            integrator.L2Norm(u - analytical_u, &l2Norm_U, &h1SemiNorm_U);
+            CFEM_INFO << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P;
+            CFEM_INFO << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U;
 
         }
 
+        {
+            PROFILE_SCOPE("FieldProjectionAfter");
+            u->project(analytical_u);
+            p->project(analytical_p);
+        }
 
         // {
         //     PROFILE_SCOPE("UnCachedExport");
@@ -134,7 +179,55 @@ int main(int argc, char **argv)
     return 0;
 }
 
+// #include "cfemutils.h"
+// #include "Mesh.h"
+// #include "FEField.h"
+// #include "MathOperators.h"
+// #include "DomainIntegrator.h"
+// #include "VTUExporter.h"
 
+// using namespace cfem;
+// using namespace cfem::sym;
+// using namespace cfem::sym::symengine;
+
+// int main(int argc, char **argv) {
+//     // 1. One call to rule them all: Handles MPI, PETSc, and CFEM internal state
+//     cfem::Environment::initialize(argc, argv);
+
+//     // 2. Generate Mesh
+//     auto mesh = Mesh::block(MeshOrder::Linear, 
+//                             {10, 10, 10}, 
+//                             Mesh::BlockBounds({0,0,0}, {1,1,1}), 
+//                             Mesh::BlockElementType::Tetrahedron);
+
+//     // 3. Setup P2 Vector Space and Field
+//     auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
+//     auto u = FEField::create("U", V);
+        
+//     // 4. JIT-compiled Symbolic Definition
+//     auto analytical_p = scalar(x * x + y * y + z * z + x * y + x * z + z * y + x + y + z + 1); // SymEngine expressions
+//     auto analytical_u = vector(sin(2 * pi * x), cos(2 * pi * y), sin(pi * x * y * z));
+
+//     // 5. High-level Projection
+//     u->project(analytical_u);
+//     DomainIntegrator integrator(mesh, IntegrationSchemeParams{});
+//     CfemReal l2Norm_U, h1SemiNorm_U;
+//     integrator.L2Norm(analytical_u-u, &l2Norm_U, &h1SemiNorm_U);
+//     auto expr = abs( inner(grad(u), grad(u)) - inner(grad(analytical_u), grad(analytical_u)) );
+//     CFEM_INFO << "Domain volume: " << integrator.computeIntegral( expr );
+        
+//     // CFEM_INFO << "L2-norm error on U: " << l2Norm_U;
+//     // CFEM_INFO << "H1-semi norm error on U: " << h1SemiNorm_U;
+//     // 6. Error Analysis (Clean syntax, no explicit scheme params needed)
+//     // 7. High-performance Binary Export
+//     VTUExporter vtu_exporter(*mesh);
+//     vtu_exporter.addExpression("U", u);
+//     vtu_exporter.setFormat(VTUExporter::Format::BINARY);
+//     vtu_exporter.write("simulation_results");
+
+//     return 0; 
+//     // cfem::Environment handles finalization automatically on scope exit or via atexit
+// }
 
 // #include "cfemutils.h"
 // #include "Vector3D.h"

@@ -91,6 +91,11 @@ namespace cfem::sym
             return m_timeDerivExpr;
         }
 
+        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+            m_gradExpr->collectRequiredSpaces(spaces); 
+            m_timeDerivExpr->collectRequiredSpaces(spaces);       
+        }
+
         CfemInt getDimension() const override { return m_dim; }
         CfemInt precedence() const override{ return 10; }
         std::string toString() const override { return m_name; }

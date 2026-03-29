@@ -25,12 +25,19 @@ namespace cfem::sym
     inline void UnaryExpression::evaluate(CfemInt cellIdx, const Vector3D& point, 
                   std::span<CfemReal> out, EvalContext& ctx) const 
     {
-        // Get pre-allocated thread-local scratchpad to prevent heap allocations
-        auto bookmark = ctx.getBookmark(); 
 
-        int dim = m_expr->getDimension();
-        auto in_buf = ctx.getBuffer(dim);
+        CfemReal stack[9];
+        std::span<CfemReal> in_buf;
+        
+        bool needsBookmark = (m_dimIn > 9);
+        EvalContext::Bookmark bookmark;
 
+        if (needsBookmark) {
+            bookmark = ctx.getBookmark();
+            in_buf = ctx.getBuffer(m_dimIn);
+        } else {
+            in_buf = {stack, static_cast<size_t>(m_dimIn)};
+        }
         
         // Evaluate the child node
         m_expr->evaluate(cellIdx, point, in_buf, ctx);
@@ -120,8 +127,9 @@ namespace cfem::sym
             default:
                 CFEM_ERROR << "Unsupported math operation.";
                 break;
-
-        ctx.releaseToBookmark(bookmark); 
+        if (needsBookmark) {
+            ctx.releaseToBookmark(bookmark); 
+        }
         }
     }
 

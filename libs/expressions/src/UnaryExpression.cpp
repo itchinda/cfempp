@@ -128,5 +128,92 @@ namespace cfem::sym
         return du * m_expr->timeDerivative();
     }
 
+    inline std::shared_ptr<const CfemExpression> UnaryExpression::div() const {
+        using namespace utils;
+
+        if (m_dimOut == 1) {
+            CFEM_ERROR << "Divergence undefined for scalar result of: " << opToSym(m_op);
+        }
+
+        // Case A: Negation (Linear)
+        if (m_op == MathOp::Negate) return -m_expr->div();
+
+        // Case B: Transpose (Indices: Row sum becomes Column sum)
+        if (m_op == MathOp::Transpose && m_dimIn == 9) {
+            auto dx = m_expr->diff(0); 
+            auto dy = m_expr->diff(1); 
+            auto dz = m_expr->diff(2); 
+
+            return std::make_shared<const VectorExpression>(
+                extractComponent(dx, 0) + extractComponent(dy, 3) + extractComponent(dz, 6), // Div Row 1
+                extractComponent(dx, 1) + extractComponent(dy, 4) + extractComponent(dz, 7), // Div Row 2
+                extractComponent(dx, 2) + extractComponent(dy, 5) + extractComponent(dz, 8)  // Div Row 3
+            );
+        }
+
+        // Case C: General Pointwise Chain Rule (Sin, Exp, etc.)
+        auto f_prime = getDerivativeWrtInner();
+        auto dx = m_expr->diff(0);
+        auto dy = m_expr->diff(1);
+        auto dz = m_expr->diff(2);
+
+        // Lambda helper to safely multiply and drop zeros
+        auto smart_mul = [](const auto& a, const auto& b) -> std::shared_ptr<const CfemExpression> {
+            if (a->isZero() || b->isZero()) {
+                return std::make_shared<const ConstantExpression>(0.0, 1); // Returns scalar 0
+            }
+            if (a->isConstant()) {
+                auto v = std::static_pointer_cast<const ConstantExpression>(a)->getValues();
+                bool isOnes = std::all_of(v.begin(), v.end(), [](CfemReal x) { return NumericPolicy::areEqual(x, 1.0); });
+                if (isOnes)
+                    return b; // 1 * b = b
+            }
+            if (b->isConstant()) {
+                auto v = std::static_pointer_cast<const ConstantExpression>(b)->getValues();
+                bool isOnes = std::all_of(v.begin(), v.end(), [](CfemReal x) { return NumericPolicy::areEqual(x, 1.0); });
+                if (isOnes)
+                    return a; // 1 * b = b
+            }
+            return a * b; // Fallback to normal multiplication tree node
+        };
+
+        // Lambda helper to safely add and drop zeros
+        auto smart_add = [](const auto& a, const auto& b) -> std::shared_ptr<const CfemExpression> {
+            if (a->isZero()) return b;
+            if (b->isZero()) return a;
+            return a + b;
+        };
+
+        if (m_dimIn == 3) {
+            // Result is a Scalar
+            auto term_x = smart_mul(extractComponent(f_prime, 0), extractComponent(dx, 0));
+            auto term_y = smart_mul(extractComponent(f_prime, 1), extractComponent(dy, 1));
+            auto term_z = smart_mul(extractComponent(f_prime, 2), extractComponent(dz, 2));
+
+            auto sum_xy = smart_add(term_x, term_y);
+            return smart_add(sum_xy, term_z);
+        } 
+        
+        if (m_dimIn == 9) {
+            // Result is a Vector (Row-wise Divergence)
+            auto row_sum = [&](int i, int j, int k) {
+                auto tx = smart_mul(extractComponent(f_prime, i), extractComponent(dx, i));
+                auto ty = smart_mul(extractComponent(f_prime, j), extractComponent(dy, j));
+                auto tz = smart_mul(extractComponent(f_prime, k), extractComponent(dz, k));
+                
+                return smart_add(smart_add(tx, ty), tz);
+            };
+
+            auto row1 = row_sum(0, 1, 2);
+            auto row2 = row_sum(3, 4, 5);
+            auto row3 = row_sum(6, 7, 8);
+
+            return std::make_shared<const VectorExpression>(row1, row2, row3);
+        }
+
+        CFEM_ERROR << "Divergence not implemented for operator: " << opToSym(m_op);
+        return nullptr;
+    }
+
     
 }

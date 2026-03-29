@@ -36,7 +36,8 @@ namespace cfem::sym
     public:
 
         ScalarSymbolicExpression(const SymEngine::Expression                               &ex, 
-                                const std::vector<SymEngine::RCP<const SymEngine::Symbol>> &vars);
+                                 const std::vector<SymEngine::RCP<const SymEngine::Symbol>> &vars);
+                                 
         CfemInt getDimension() const override { return 1; }
         bool isPointwise() const override { return true; }
 
@@ -57,6 +58,8 @@ namespace cfem::sym
         std::shared_ptr<const CfemExpression> timeDerivative() const override;
 
         std::shared_ptr<const CfemExpression> grad() const override;
+        std::shared_ptr<const CfemExpression> div() const override;
+
         std::string toString() const override { return finalizeString( m_expression.get_basic()->__str__() ); } // e.g., "x"
         ExpressionType getType() const override { return ExpressionType::ScalarSymbolic; }
 

@@ -32,6 +32,10 @@ public:
         return (m_argType == ArgumentType::Trial) ? ExpressionType::Trial : ExpressionType::Test;
     }
 
+    void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        spaces.insert(m_space);
+    }
+
     std::string toString() const override { return m_name; }
 
     std::shared_ptr<const CfemExpression> timeDerivative() const override {
@@ -79,11 +83,16 @@ public:
     }
 };
 
-// Explicit subclasses so FEField can inherit cleanly
 class TrialFunction : public Argument {
 public:
     TrialFunction(std::shared_ptr<LagrangeSpace> space, const std::string& name = "u")
         : Argument(std::move(space), ArgumentType::Trial, name) {}
+    bool dependsOnFEField() const override { return false; }
+    bool dependsOnShape() const override { return true; }
+    ShapeEvaluationFlags requiredShapeFlags() const override {
+        return ShapeEvaluationFlags::Value;
+    }
+
     virtual ExpressionType getType() const override { return ExpressionType::Trial; }
 };
 
@@ -91,6 +100,12 @@ class TestFunction : public Argument {
 public:
     TestFunction(std::shared_ptr<LagrangeSpace> space, std::string name = "v")
         : Argument(std::move(space), ArgumentType::Test, std::move(name)) {}
+
+    bool dependsOnFEField() const override { return false; }
+    bool dependsOnShape() const override { return true; }
+    ShapeEvaluationFlags requiredShapeFlags() const override {
+        return ShapeEvaluationFlags::Value;
+    }
 
     virtual ExpressionType getType() const override { return ExpressionType::Test; }
 };

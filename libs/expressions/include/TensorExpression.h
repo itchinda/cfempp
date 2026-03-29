@@ -43,7 +43,7 @@ namespace cfem::sym
 
         }
 
-        CfemInt getDimension() const override { return 3; }
+        CfemInt getDimension() const override { return 9; }
 
         bool isPointwise() const override{
             return m_components[0]->isPointwise() && m_components[1]->isPointwise() && m_components[2]->isPointwise() &&
@@ -78,6 +78,55 @@ namespace cfem::sym
             return m_components[i];
         }
 
+        bool dependsOnFEField() const override { 
+            return m_components[0]->dependsOnFEField() || 
+                   m_components[1]->dependsOnFEField() ||
+                   m_components[2]->dependsOnFEField() ||
+                   m_components[3]->dependsOnFEField() || 
+                   m_components[4]->dependsOnFEField() ||
+                   m_components[5]->dependsOnFEField() ||
+                   m_components[6]->dependsOnFEField() || 
+                   m_components[7]->dependsOnFEField() ||
+                   m_components[8]->dependsOnFEField(); 
+        }
+
+        bool dependsOnShape() const override {
+            return m_components[0]->dependsOnShape() || 
+                   m_components[1]->dependsOnShape() ||
+                   m_components[2]->dependsOnShape() ||
+                   m_components[3]->dependsOnShape() || 
+                   m_components[4]->dependsOnShape() ||
+                   m_components[5]->dependsOnShape() ||
+                   m_components[6]->dependsOnShape() || 
+                   m_components[7]->dependsOnShape() ||
+                   m_components[8]->dependsOnShape(); 
+        
+        }
+
+        ShapeEvaluationFlags requiredShapeFlags() const override {
+            return m_components[0]->requiredShapeFlags() | 
+                   m_components[1]->requiredShapeFlags() | 
+                   m_components[2]->requiredShapeFlags() | 
+                   m_components[3]->requiredShapeFlags() | 
+                   m_components[4]->requiredShapeFlags() | 
+                   m_components[5]->requiredShapeFlags() | 
+                   m_components[6]->requiredShapeFlags() | 
+                   m_components[7]->requiredShapeFlags() | 
+                   m_components[8]->requiredShapeFlags();
+        }
+
+        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+            m_components[0]->collectRequiredSpaces(spaces); 
+            m_components[1]->collectRequiredSpaces(spaces); 
+            m_components[2]->collectRequiredSpaces(spaces); 
+            m_components[3]->collectRequiredSpaces(spaces); 
+            m_components[4]->collectRequiredSpaces(spaces); 
+            m_components[5]->collectRequiredSpaces(spaces); 
+            m_components[6]->collectRequiredSpaces(spaces); 
+            m_components[7]->collectRequiredSpaces(spaces); 
+            m_components[8]->collectRequiredSpaces(spaces);        
+        }
+
         ExpressionType getType() const override { return ExpressionType::TensorExpression; }
 
         std::string toString() const override {
@@ -88,24 +137,14 @@ namespace cfem::sym
             return os.str();
         }
 
-        std::shared_ptr<const CfemExpression> timeDerivative() const override{
-           return std::make_shared<const TensorExpression>( m_components[0]->timeDerivative(), m_components[1]->timeDerivative(), m_components[2]->timeDerivative(),
-                                                            m_components[3]->timeDerivative(), m_components[4]->timeDerivative(), m_components[5]->timeDerivative(),
-                                                            m_components[6]->timeDerivative(), m_components[7]->timeDerivative(), m_components[8]->timeDerivative() );
-        };
-
+        std::shared_ptr<const CfemExpression> timeDerivative() const override;
         std::shared_ptr<const CfemExpression> grad() const{ 
             CFEM_ERROR << "The gradient of a tensor expression is not yet implemented. Would required a 3rd order tensor expression.";
             return nullptr;
         };
 
-        /**
-         * @brief Computes the divergence of the tensor expression.
-         * @return A VectorExpression representing the row-wise divergence.
-         */
-        // std::shared_ptr<const CfemExpression> div() const override;
+        std::shared_ptr<const CfemExpression> div() const override;
 
-         
     };
 
 }

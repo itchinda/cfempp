@@ -21,13 +21,10 @@ namespace cfem
     private:
         struct ConstructorToken {};
         std::string m_name;
+        CfemInt m_dimension;
         std::shared_ptr<LagrangeSpace> m_space;
         PetscVector m_data;
         mutable std::vector<CfemReal> m_localValues;
-
-        template <typename T>
-        static Vector3D fetchValue(const T &obj, CfemInt cellId, const Vector3D &xi,
-                                   const Vector3D &physPos, std::span<CfemReal> buffer);
 
         struct CacheEntry {
             const QuadratureRule *quad = nullptr;
@@ -48,7 +45,18 @@ namespace cfem
         const std::shared_ptr<LagrangeSpace> &getSpace() const { return m_space; }
         PetscVector &getData() { return m_data; }
         const PetscVector &getData() const { return m_data; }
-        CfemInt getDimension() const override { return m_space->getDimension(); }
+        CfemInt getDimension() const override { return m_dimension; }
+        bool dependsOnFEField() const override { return true; }
+        bool dependsOnShape() const override { return true; }
+
+        ShapeEvaluationFlags requiredShapeFlags() const override {
+            return ShapeEvaluationFlags::Value;
+        }
+
+        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+            spaces.insert(m_space);
+        }
+        
 
         void prepare() const override { updateLocalBuffer(); }
         void evaluate(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext& ctx ) const override;
@@ -70,24 +78,15 @@ namespace cfem
         std::shared_ptr<const sym::CfemExpression> grad () const override{
             return std::make_shared<sym::GradExpression>(shared_from_this());
         }
-        // --- Nodal projections ---
-        // void project(const sym::CfemExpression& recipe);
-        // template <typename Func>
-        // requires (!std::is_same_v<std::decay_t<Func>, sym::CfemExpression> &&
-        //         !std::is_same_v<std::decay_t<Func>, std::shared_ptr<sym::CfemExpression>>)
-        // void project(const Func& func);
 
         void project(const sym::CfemExpression& recipe);
-
-        // 2. Pointer version (for u->project(analytical_u))
-        // This is the one you are missing that makes life easy!
         void project(std::shared_ptr<const sym::CfemExpression> recipe) {
             if (recipe) project(*recipe);
             else
                 CFEM_ERROR << "project requires a valid CfemExpression object.";
         }
 
-        // 3. The Template version (for Lambdas)
+        // The Template version (for Lambdas)
         template <typename Func>
         requires (!std::is_base_of_v<sym::CfemExpression, std::decay_t<Func>> && 
                 !std::is_convertible_v<std::decay_t<Func>, std::shared_ptr<const sym::CfemExpression>>)

@@ -1,6 +1,7 @@
 #include "symengine/VectorSymbolicExpression.h"
 #include "symengine/TensorSymbolicExpression.h"
 #include "symengine/SymEngineSymbols.h"
+#include "BinaryExpression.h"
 
 namespace cfem::sym
 {
@@ -44,6 +45,14 @@ namespace cfem::sym
         return std::make_shared<TensorSymbolicExpression>(comps[0], comps[1], comps[2], 
                                                           comps[3], comps[4], comps[5], 
                                                           comps[6], comps[7], comps[8]);
+    }
+
+    std::shared_ptr<const CfemExpression> VectorSymbolicExpression::div() const {
+        auto dux_dx = m_components[0]->get_expression().diff(x_rcp); 
+        auto duy_dy = m_components[1]->get_expression().diff(y_rcp);
+        auto duz_dz = m_components[2]->get_expression().diff(z_rcp);
+
+        return std::make_shared<ScalarSymbolicExpression>(dux_dx + duy_dy + duz_dz, m_components[0]->get_vars());
     }
 
     std::shared_ptr<const CfemExpression> VectorSymbolicExpression::timeDerivative() const {
