@@ -4,9 +4,10 @@
 #include "EvalContext.h"
 #include "Vector3D.h"
 #include "TensorO2.h"
+#include "LagrangeSpace.h"
 #include <span>
 #include <memory>
-
+#include <ostream>
 
 
 namespace cfem::sym
@@ -20,7 +21,8 @@ namespace cfem::sym
         // Binary
         Add, Sub, Mul, Div, Dot, Inner, Cross, Pow, Max, Min, Atan2,
         // Unary
-        Negate, Transpose, Abs, Sqrt, Cbrt, 
+        Negate, Transpose, Trace, Det, Inv,
+        Abs, Sqrt, Cbrt, 
         Sign, Heaviside,
         Sin, Cos, Tan, Cot, Sec, Csc, 
         Asin, Acos, Atan, Acot, Asec, Acsc, 
@@ -29,20 +31,25 @@ namespace cfem::sym
     };
 
     enum class ExpressionType {
-        Constant,           // A literal value or vector of values
-        ScalarSymbolic,     // A SymEngine/Symbolic variable (x, y, t)
-        Variable,           // A FEM field (u, v, p)
-        Zero,               // Specialized zero node for optimization
-        Unary,              // sin, cos, exp, log, sqrt, abs
-        Binary,             // +, -, *, /, power
-        Scaled,             // k * expression (the "optimization" node)
-        VectorSymbolic,     // Container for 3 scalars
-        TensorSymbolic,     // Container for 9 scalars (or Voigt)
-        Gradient,           // Grad(u)
-        MagnitudeSq,        // |u|^2
-        Divergence,         // div(u)
-        Lambda,             // Custom user-defined functions
-        FEField
+        Constant,           /// A literal value or vector of values
+        ScalarSymbolic,     /// A SymEngine/Symbolic variable (x, y, t)
+        Variable,           /// A FEM field (u, v, p)
+        Zero,               /// Specialized zero node for optimization
+        Unary,              /// sin, cos, exp, log, sqrt, abs
+        Binary,             /// +, -, *, /, power
+        Scaled,             /// k * expression (the "optimization" node)
+        VectorExpression,
+        VectorSymbolic,     /// Container for 3 scalars
+        TensorExpression,   /// Container for 9 scalars (or Voigt)
+        TensorSymbolic,
+        Gradient,           /// Grad(u)
+        MagnitudeSq,        /// |u|^2
+        Divergence,         /// div(u)
+        Lambda,             /// Custom user-defined functions
+        LinearEvaluator,
+        FEField,
+        Trial,
+        Test
     };
 
     /** *************************************************************************
@@ -62,82 +69,68 @@ namespace cfem::sym
         virtual void prepare() const {};
 
         virtual bool isPointwise() const { return false; }
-        virtual bool isBinary() const { return false; }
-        virtual bool isZero() const {return false; }
-        virtual bool isConstant() const {return false; }
+        virtual bool isBinary() const    { return false; }
+        virtual bool isZero() const      { return false; }
+        virtual bool isConstant() const  { return false; }
+        virtual bool dependsOnFEField() const { return false; }
+        virtual bool dependsOnShape() const { return true; }
+
+        virtual ShapeEvaluationFlags requiredShapeFlags() const {
+            return ShapeEvaluationFlags::None;
+        }
+
+        virtual void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const {
+            // Par défaut, pas de dépendance à un espace FE
+        }
+
+        virtual std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const {return nullptr; } 
 
         virtual std::shared_ptr<const CfemExpression> grad() const { return nullptr; }
+        virtual std::shared_ptr<const CfemExpression> div() const { return nullptr; } 
+        // virtual std::shared_ptr<const CfemExpression> cross()     const { return nullptr; } // to be implemented
+        // virtual std::shared_ptr<const CfemExpression> trace()     const { return nullptr; } // to be implemented
+        // virtual std::shared_ptr<const CfemExpression> transpose() const { return nullptr; }
 
         virtual std::string toString() const { return "???"; }
-        virtual int precedence() const {  return 10; }
+
+        virtual CfemInt precedence() const {  return 10; }
+        virtual std::shared_ptr<const CfemExpression> timeDerivative() const = 0;
 
     };
 
-    inline void hash_combine(size_t& seed, size_t v) {
-        // Standard hash_combine from Boost/C++ standards proposals
-        seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    inline std::ostream& operator<< (std::ostream& os, const std::shared_ptr<const CfemExpression>& expr){
+        return os << expr->toString();
     }
     
+    std::string opToSym(MathOp op);
 
-    inline std::string opToSym(MathOp op) {
-        switch (op) {
-            case MathOp::Add: return "+"; break;
-            case MathOp::Sub: return "-"; break;
-            case MathOp::Mul: return "*"; break;
-            case MathOp::Div: return "/"; break;
-            case MathOp::Dot: return "dot"; break;
-            case MathOp::Inner: return "Inner"; break;
-            case MathOp::Cross: return "cross"; break;
-            case MathOp::Pow: return "pow"; break;
-            case MathOp::Max: return "max"; break; 
-            case MathOp::Min: return "min"; break;
-            case MathOp::Atan2: return "atan2"; break;
-            // Matrix Operations
-            case MathOp::Transpose: return "transpose"; break;
-            // Basic Math
-            case MathOp::Negate: return "-"; break;
-            case MathOp::Abs:    return "abs"; break;
-            case MathOp::Sqrt:   return "sqrt"; break;
-            case MathOp::Cbrt:   return "cbrt"; break;
-            // Logical / Step Functions
-            case MathOp::Sign:   return "sign"; break;
-            case MathOp::Heaviside: "Heaviside"; break;
-            // Trigonometry
-            case MathOp::Sin: return "sin"; break;
-            case MathOp::Cos: return "cos"; break;
-            case MathOp::Tan: return "tan"; break;
-            case MathOp::Cot: return "cot"; break; // Relies on IEEE 754 infinity for div by 0
-            case MathOp::Sec: return "sec"; break;
-            case MathOp::Csc: return "csc"; break;
-            // Inverse Trigonometry
-            case MathOp::Asin: return "asin"; break;
-            case MathOp::Acos: return "acos"; break;
-            case MathOp::Atan: return "atan"; break;
-            case MathOp::Acot: return "acot"; break;
-            case MathOp::Asec: return "asec"; break;
-            case MathOp::Acsc: return "acsc"; break;
-            // Hyperbolic
-            case MathOp::Sinh:  return "sinh" ; break;
-            case MathOp::Cosh:  return "cosh" ; break;
-            case MathOp::Tanh:  return "tanh" ; break;
-            case MathOp::Asinh: return "asinh" ; break;
-            case MathOp::Acosh: return "acosh" ; break;
-            case MathOp::Atanh: return "atanh" ; break;
-            // Exponential & Special Functions
-            case MathOp::Exp:   return "exp"; break;
-            case MathOp::Log:   return "log"; break;
-            case MathOp::Gamma: return "Gamma"; break;
-            case MathOp::Erf:   return "Erf"; break;
-            case MathOp::Erfc:  return "Erfc"; break;
-            case MathOp::Zeta:  return "Zeta"; break;
 
-            default:
-                CFEM_ERROR("Unsupported math operation.");
-                break;
+}
+
+#include <set>
+#include <string>
+#include <stdexcept>
+
+namespace cfem::sym {
+    class VariableRegistry {
+        inline static std::set<std::string> reserved_names = {"x", "y", "z", "t"};
+        inline static std::set<std::string> active_variables;
+
+    public:
+        static bool isReserved(const std::string& name) {
+            return reserved_names.contains(name);
         }
-        return "???";
-    }
 
+        static void registerVariable(const std::string& name) {
+            // If it's a reserved coordinate name, we allow it (it's "pre-validated")
+            if (isReserved(name)) return;
 
+            // Otherwise, check if it's already used by someone else to avoid collisions
+            if (active_variables.contains(name)) {
+                CFEM_ERROR << "Variable name '" << name << "' is already in use.";
+            }
+            active_variables.insert(name);
+        }
+    };
 }
 

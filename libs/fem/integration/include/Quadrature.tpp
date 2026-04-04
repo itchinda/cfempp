@@ -19,7 +19,7 @@ namespace cfem
             case GaussLegendre1DRule::GAUSS_5Pt:
                 return create1DRuleGaussLegendre5();
             default:
-                CFEM_ERROR("Requested 1D quadrature not implemented. Supported: 1, 2, 3, 4, 5.");
+                CFEM_ERROR << "Requested 1D quadrature not implemented. Supported: 1, 2, 3, 4, 5.";
         }
         return {};
     }
@@ -47,7 +47,7 @@ namespace cfem
         case TriangleRule::GAUSS_25Pt:
             return createTriangleRuleGauss25();
         default:
-            CFEM_ERROR("Requested triangle quadrature not implemented. Supported: 1, 3, 4, 6, 7, 12, 16, 19.");
+            CFEM_ERROR << "Requested triangle quadrature not implemented. Supported: 1, 3, 4, 6, 7, 12, 16, 19.";
         }
         return {};
     }
@@ -70,7 +70,7 @@ namespace cfem
             base = create1DRuleGaussLegendre5(); break;
         
         default:
-            CFEM_ERROR("Requested Quad quadrature not implemented. Supported: 1, 4, 9, 16, 25");
+            CFEM_ERROR << "Requested Quad quadrature not implemented. Supported: 1, 4, 9, 16, 25";
         }
         // Create the Hex rule
         for (const auto& px : base.getPoints()) {
@@ -103,7 +103,7 @@ namespace cfem
         case TetRule::GAUSS_33Pt:
             return createTetRuleGauss33_deg7();
         default:
-            CFEM_ERROR("Requested tetra quadrature not implemented. Supported: 1, 4, 5, 11, 15, 29, 33.");
+            CFEM_ERROR << "Requested tetra quadrature not implemented. Supported: 1, 4, 5, 11, 15, 29, 33.";
         }
         return {};
     }
@@ -143,7 +143,7 @@ namespace cfem
             base = create1DRuleGaussLegendre5(); break;
         
         default:
-            CFEM_ERROR("Requested Hex quadrature not implemented. Supported: 1, 8, 27, 64, 125");
+            CFEM_ERROR << "Requested Hex quadrature not implemented. Supported: 1, 8, 27, 64, 125";
         }
 
         for (const auto& px : base.getPoints()) {
@@ -622,10 +622,9 @@ namespace cfem
                     case 4: return QuadratureFactory::getGaussLengendre1DRule(QuadratureFactory::GaussLegendre1DRule::GAUSS_4Pt);
                     case 5: return QuadratureFactory::getGaussLengendre1DRule(QuadratureFactory::GaussLegendre1DRule::GAUSS_5Pt);
                     default:
-                        CFEM_ERROR((
-                            "Invalid 1D element quadrature: requested " + std::to_string(count) +
-                            " points. Supported options: 1, 2, 3, 4, 5."
-                        ).c_str());
+                        CFEM_ERROR << "Invalid 1D element quadrature: requested " 
+                                   << std::to_string(count) 
+                                   << " points. Supported options: 1, 2, 3, 4, 5.";
                 }
             case CellType::TRI3: 
             case CellType::TRI6: 
@@ -640,10 +639,9 @@ namespace cfem
                     case 19: return QuadratureFactory::getTriangleRule(QuadratureFactory::TriangleRule::GAUSS_19Pt);
                     case 25: return QuadratureFactory::getTriangleRule(QuadratureFactory::TriangleRule::GAUSS_25Pt);
                     default:
-                        CFEM_ERROR((
-                            "Invalid triangle quadrature: requested " + std::to_string(count) +
-                            " points. Supported options: 1, 3, 4, 6, 7, 12, 16, 19, 25."
-                        ).c_str());
+                        CFEM_ERROR << "Invalid triangle quadrature: requested " 
+                                    << std::to_string(count) 
+                                    << " points. Supported options: 1, 3, 4, 6, 7, 12, 16, 19, 25.";
                 }
             
             case CellType::QUAD4: 
@@ -660,10 +658,9 @@ namespace cfem
                     case 29: return QuadratureFactory::getTetRule(QuadratureFactory::TetRule::GAUSS_29Pt);
                     case 33: return QuadratureFactory::getTetRule(QuadratureFactory::TetRule::GAUSS_33Pt);
                     default:
-                        CFEM_ERROR((
-                            "Invalid tetrahedron quadrature: requested " + std::to_string(count) +
-                            " points. Supported options: 1, 4, 5, 11, 15, 29."
-                        ).c_str());
+                        CFEM_ERROR <<  "Invalid tetrahedron quadrature: requested "
+                                   << std::to_string(count) 
+                                   << " points. Supported options: 1, 4, 5, 11, 15, 29.";
                 }
                 
             case CellType::PRISM6:
@@ -699,7 +696,7 @@ namespace cfem
                     // Logique par défaut ou calcul de secours
                     // On peut essayer de diviser par les règles de triangle connues
                     // if (count % 3 == 0) { nTri = 3; n1D = count / 3; }
-                    CFEM_ERROR("Requested number unsupported. . Supported options: 1, 6, 8, 18, 21, 48, 80.");
+                    CFEM_ERROR << "Requested number unsupported. . Supported options: 1, 6, 8, 18, 21, 48, 80.";
                 }
                 
                 return QuadratureFactory::getPrismRule(triRule, rule1D);
@@ -709,7 +706,8 @@ namespace cfem
             case CellType::HEX27: 
                 return QuadratureFactory::getHexRule(count);
             default:
-                CFEM_ERROR("Unsupported cell type for quadrature rule. Only LIN2/3, TRI3/6 and TET4/10, PRISM6/18, HEX8/27 are implemented.");
+                CFEM_ERROR << "Unsupported cell type for quadrature rule. Only LIN2/3, TRI3/6 and TET4/10, PRISM6/18, HEX8/27 are implemented.";
+                return QuadratureFactory::getHexRule(count); // Only to make the compiler happy. Must never reach here...
         }
     }
 }

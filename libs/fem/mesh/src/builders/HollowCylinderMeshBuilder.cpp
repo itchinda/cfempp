@@ -22,7 +22,7 @@ namespace cfem
         const HollowCylinderBoundaryNames &names)
     {
         if (r_in < ZERO_TOLERANCE)
-            CFEM_ERROR("HollowCylinderMeshBuilder requires r_in > 0.");
+            CFEM_ERROR << "HollowCylinderMeshBuilder requires r_in > 0.";
         mesh.clear();
         mesh.setOrder(MeshOrder::Linear);
         mesh.setDimension(3);
@@ -30,7 +30,7 @@ namespace cfem
         // Normalize axis
         CfemReal axis_len = std::sqrt(axis.x * axis.x + axis.y * axis.y + axis.z * axis.z);
         if (axis_len < ZERO_TOLERANCE)
-            CFEM_ERROR("Cylinder axis has zero length.");
+            CFEM_ERROR << "Cylinder axis has zero length.";
         CfemReal ux = axis.x / axis_len;
         CfemReal uy = axis.y / axis_len;
         CfemReal uz = axis.z / axis_len;

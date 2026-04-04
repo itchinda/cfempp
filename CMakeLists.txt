@@ -38,10 +38,11 @@ project(cfem LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-# set(CMAKE_CXX_FLAGS_ASAN "-O1 -g -fsanitize=address -fno-omit-frame-pointer" CACHE STRING "") # For intense debug/segmentation fault/ illegal memory acces
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -DNDEBUG -DTEUCHOS_DEBUG_OFF" CACHE STRING "")   # For pure performance (HPC)
-
+#set(CMAKE_CXX_FLAGS_ASAN "-O1 -g -fsanitize=address -fno-omit-frame-pointer" CACHE STRING "") # For intense debug/segmentation fault/ illegal memory acces
+# set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -DNDEBUG -DTEUCHOS_DEBUG_OFF" CACHE STRING "")   # For pure performance (HPC)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -ffp-contract=fast -fno-math-errno -DNDEBUG -DTEUCHOS_DEBUG_OFF" CACHE STRING "Flags for pure performance (HPC)" FORCE)
 # Define the App name here so it's available in the subdirectories
 if(TARGET_PETSC_ARCH STREQUAL "arch-linux-c-debug")
     set(APP_PROJECT_NAME cfem_app_dev)

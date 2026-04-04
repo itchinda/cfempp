@@ -170,7 +170,7 @@ namespace cfem
         // ------------------------
         cfem::Vector3D target_axis = axis;
         CfemReal axis_len = std::sqrt(target_axis.x*target_axis.x + target_axis.y*target_axis.y + target_axis.z*target_axis.z);
-        if (axis_len < ZERO_TOLERANCE) CFEM_ERROR("Cylinder axis has zero length.");
+        if (axis_len < ZERO_TOLERANCE) CFEM_ERROR << "Cylinder axis has zero length.";
         target_axis.x/=axis_len; target_axis.y/=axis_len; target_axis.z/=axis_len;
 
         CfemReal cos_theta = target_axis.z;

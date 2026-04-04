@@ -16,7 +16,9 @@ inline static CellType mapGmshType(int t) {
         case 4: return CellType::TET4;  case 11: return CellType::TET10;
         case 5: return CellType::HEX8;  case 12: return CellType::HEX27;
         case 13: return CellType::PRISM6; case 32: return CellType::PRISM18;
-        default: CFEM_ERROR("Unsupported cell type.");
+        default: 
+            CFEM_ERROR << "Unsupported cell type.";
+            return CellType::COUNT;
     }
 }
 
@@ -35,7 +37,9 @@ inline static int getNodesPerType(int t) {
         case 5: return 8; case 12: return 27;
         case 13: return 6; case 32: return 18;
         case 15: return 1;
-        default: CFEM_ERROR("Unsupported Cell type. You are asking for " + std::to_string(t));
+        default: 
+            CFEM_ERROR << "Unsupported Cell type. You are asking for " << std::to_string(t);
+            return 0;
     }
 }
 
@@ -85,8 +89,8 @@ inline static int getNumMainCorners(CellType type) {
             return 8;
 
         default:
-            CFEM_ERROR(("Non implemented Cell/Facet type. Provided type: " \
-                                + std::to_string(static_cast<int>(type))).c_str());
+            CFEM_ERROR << "Non implemented Cell/Facet type. Provided type: " 
+                       << std::to_string(static_cast<int>(type));
             return 0;
     }
 }
@@ -231,7 +235,7 @@ std::shared_ptr<Mesh> GmshParser::load(const std::string &filename, std::optiona
     }
     std::ifstream file(filename);
     if (!file.is_open()) {
-        CFEM_ERROR(("Failed to open " + filename).c_str());
+        CFEM_ERROR << "Failed to open " << filename;
         return nullptr;
     }
 
@@ -265,7 +269,7 @@ std::shared_ptr<Mesh> GmshParser::load(const std::string &filename, std::optiona
             gmshToInternal[key] = mesh->createEntity(name, key.first);
         }
     }
-    if (!universeFound) CFEM_ERROR("Physical entity 'Universe' not found in .msh file.");
+    if (!universeFound) CFEM_ERROR << "Physical entity 'Universe' not found in .msh file.";
 
     // Helper to find Physical Groups associated with a Gmsh Entity
     auto getPhysicalTags = [&](int entityTag, int dim) -> std::vector<int> {

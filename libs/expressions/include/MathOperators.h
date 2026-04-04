@@ -7,9 +7,30 @@
 #include "symengine/SymEngineSymbols.h"
 
 
+namespace cfem
+{
+    class LagrangeSpace;
+    class FEField; 
+}
+
 namespace cfem::sym
 {
+
+    class TestFunction;
+    
+    /**
+     * @name Fundamental Linear Algebra Operations
+     * @{
+     */
+    inline std::shared_ptr<const CfemExpression> identityO2TensorExpr();
     inline std::shared_ptr<const CfemExpression> transpose(std::shared_ptr<const CfemExpression> u);
+    inline std::shared_ptr<const CfemExpression> trace(std::shared_ptr<const CfemExpression> u);
+    /** @} */
+
+    /**
+     * @name Products and Multilinear Operations
+     * @{
+     */
     inline std::shared_ptr<const CfemExpression> dot(std::shared_ptr<const CfemExpression> lhs, 
                                                  std::shared_ptr<const CfemExpression> rhs);
     inline std::shared_ptr<const CfemExpression> inner(std::shared_ptr<const CfemExpression> lhs, 
@@ -17,6 +38,12 @@ namespace cfem::sym
 
     inline std::shared_ptr<const CfemExpression> cross(std::shared_ptr<const CfemExpression> lhs, 
                                                    std::shared_ptr<const CfemExpression> rhs);
+    /** @} */
+
+    /**
+     * @name Pointwise Mathematical Functions
+     * @{
+     */
     inline std::shared_ptr<const CfemExpression> atan2(std::shared_ptr<const CfemExpression> x, 
                                                        std::shared_ptr<const CfemExpression> y);
     inline std::shared_ptr<const CfemExpression> pow(std::shared_ptr<const CfemExpression> base, 
@@ -57,14 +84,13 @@ namespace cfem::sym
     inline std::shared_ptr<const CfemExpression> erf(std::shared_ptr<const CfemExpression> u);
     inline std::shared_ptr<const CfemExpression> erfc(std::shared_ptr<const CfemExpression> u);
     std::shared_ptr<const CfemExpression>        tgamma(std::shared_ptr<const CfemExpression> u);
-
-    #if __cplusplus >= 201703L
     inline std::shared_ptr<const CfemExpression> zeta(std::shared_ptr<const CfemExpression> u);
-    #endif
+    /** @} */
 
-    // ==========================================
-    // Opérateurs de Base
-    // ==========================================
+    /**
+     * @name Basic Arithmetic Operators
+     * @{
+     */
     inline std::shared_ptr<const CfemExpression> operator-(std::shared_ptr<const CfemExpression> u);
     inline std::shared_ptr<const CfemExpression> operator-(std::shared_ptr<const CfemExpression> lhs, 
                                                            std::shared_ptr<const CfemExpression> rhs);
@@ -76,13 +102,14 @@ namespace cfem::sym
                                                         std::shared_ptr<const CfemExpression> rhs);
     inline std::shared_ptr<const CfemExpression> operator/(std::shared_ptr<const CfemExpression> lhs, 
                                                            std::shared_ptr<const CfemExpression> rhs);
+    /** @} */
+
     namespace converter{
         template<typename T>
         inline std::shared_ptr<const CfemExpression> to_expr(const T& val) {
             return std::make_shared<const ConstantExpression>(val);
         }
     }
-    
 
     #define CFEM_BINARY_OP_OVERLOADS(op) \
     inline std::shared_ptr<const CfemExpression> operator op (std::shared_ptr<const CfemExpression> lhs, CfemReal rhs) { return lhs op converter::to_expr(rhs); } \
@@ -114,77 +141,106 @@ namespace cfem::sym
 
 
     /**
-     * @brief Wrap a scalar lambda as a CfemExpression.
-     * @param f Lambda function returning a CfemReal value from a 3D point (Vector3D).
-     * @param gradient (Optional) An expression representing the analytical gradient of f. 
-     *                  Must have a dimension of 3 (Vector).
-     * @return A shared pointer to a CfemExpression of dimension 1.
-     * @note If 'gradient' is not provided, any attempt to call grad() on this expression 
-     *       (e.g., during H1-seminorm computation) will raise a runtime exception.
-     * @throw CFEM_ASSERT if gradient is provided and its dimension is not 3.
+     * @name Scalar Expression Factories (Dim 1)
+     * @brief Helpers to wrap native C++ lambdas or symbolic variables into 1D CFEM expressions.
+     * @{
      */
-    std::shared_ptr<const CfemExpression> scalar(
-                                            const std::function<CfemReal(const Vector3D &)> &f, 
-                                            std::shared_ptr<const CfemExpression> gradient = nullptr);
 
     /**
-     * @brief Wrap a vector lambda as a CfemExpression.
-     * @param f Lambda function returning a Vector3D from a 3D point.
-     * @param gradient (Optional) An expression representing the analytical Jacobian of f. 
-     *                  Must have a dimension of 9 (3x3 Tensor).
-     * @return A shared pointer to a CfemExpression of dimension 3.
-     * @note If 'gradient' is not provided, operations requiring the derivative 
-     *       (H1 semi-norm, divergence, etc.) will raise a runtime exception.
-     * @throw CFEM_ASSERT if gradient is provided and its dimension is not 9.
+     * @brief Wrap a pure spatial scalar lambda f(X) as a CfemExpression.
+     * @tparam Func Deduced type of the lambda/functor.
+     * @param f Lambda function returning a CfemReal from a Vector3D point.
+     * @param gradient (Optional) Expression representing the analytical gradient of f (dimension 3).
      */
-    std::shared_ptr<const CfemExpression> vector(
-                                            const std::function<Vector3D(const Vector3D &)> &f,
-                                            std::shared_ptr<const CfemExpression> gradient = nullptr);
-    
-    /**
-     * @brief Wrap a 2nd-order tensor lambda as a CfemExpression.
-     * @param f Lambda returning a 9-component array (3x3 tensor) from a 3D point.
-     * @param gradient (Optional) Expression representing the 3rd-order gradient tensor.
-     *         Must have a dimension of 27.
-     * @return A shared pointer to a CfemExpression of dimension 9.
-     * @note If 'gradient' is not provided, operations requiring the derivative 
-     *       (H1 semi-norm, divergence, etc.) will raise a runtime exception.
-     * @throw CFEM_ASSERT if gradient is provided and its dimension is not 27.
-     */
-    std::shared_ptr<const CfemExpression> tensor(
-                                            const std::function<TensorO2(const Vector3D &)> &f,
-                                            std::shared_ptr<const CfemExpression> gradient = nullptr);
+    template <typename Func>
+    requires std::is_invocable_r_v<CfemReal, Func, const Vector3D&>
+    inline std::shared_ptr<const CfemExpression> scalar(
+                                                    Func&& f,
+                                                    std::shared_ptr<const CfemExpression> gradient = nullptr
+                                                );
 
     /**
-     * @brief Compute the gradient of a CFEM expression.
-     * @param e Shared pointer to the input expression (scalar or vector)
-     * @return Shared pointer to the gradient (vector or tensor)
+     * @brief Wrap a spatio-temporal scalar lambda f(X, t) as a CfemExpression.
+     * @tparam Func Deduced type of the lambda/functor.
+     * @param f Lambda function returning a CfemReal from a Vector3D and a CfemReal (time).
+     * @param gradient (Optional) Expression representing the analytical gradient of f (dimension 3).
+     * @param timeDeriv (Optional) Expression representing the time derivative of f (dimension 1).
      */
-    std::shared_ptr<const CfemExpression> grad(const std::shared_ptr<const CfemExpression> &e);
-
-    /**
-     * @brief Compute the divergence of a CFEM expression.
-     * @param e Shared pointer to the input vector/tensor expression
-     * @return Shared pointer to the scalar divergence
+    template <typename Func>
+    requires std::is_invocable_r_v<CfemReal, Func, const Vector3D&, CfemReal>
+    inline std::shared_ptr<const CfemExpression> scalar(
+                                                    Func&& f,
+                                                    std::shared_ptr<const CfemExpression> gradient,
+                                                    std::shared_ptr<const CfemExpression> timeDeriv
+                                                );
+ 
+    /** 
+     * @brief Casts or promotes an existing generic expression into a strictly scalar one. 
      */
-    std::shared_ptr<const CfemExpression> div(const std::shared_ptr<const CfemExpression> &e);
+    std::shared_ptr<const CfemExpression> scalar(std::shared_ptr<const CfemExpression> expr);
 
-    /**
-     * @brief Compute the magnitude squared of a CFEM expression.
-     * @param a Shared pointer to a scalar or vector expression
-     * @return Shared pointer to the squared magnitude expression
+    /** 
+     * @brief Generates a constant scalar expression.
      */
-    std::shared_ptr<const CfemExpression> mag_sqr(const std::shared_ptr<const CfemExpression> a);
+    std::shared_ptr<const CfemExpression> constant(CfemReal c);
 
-    // ---------------------------------------------------
-    // SymEngine Expression Helpers
-    // ---------------------------------------------------
     /**
      * @brief Convert a SymEngine scalar expression into a CFEM expression.
      * @param ex The scalar symbolic expression
-     * @return Shared pointer to a CfemExpression (ScalarSymbolicExpression)
+     * @return Shared pointer to a ScalarSymbolicExpression
      */
-    std::shared_ptr<const CfemExpression> scalar(const Expression &ex);
+    std::shared_ptr<const CfemExpression> scalar(const SymEngine::Expression &ex);
+    /** @} */
+
+    
+    /**
+     * @name Vector Expression Factories (Dim 3)
+     * @brief Helpers to wrap lambdas or components into 3D CFEM expressions.
+     * @{
+     */
+
+    /**
+     * @brief Wrap a pure spatial vector lambda f(X) as a CfemExpression.
+     * @param f Lambda function returning a Vector3D from a Vector3D.
+     * @param gradient (Optional) Expression representing the analytical Jacobian of f (dimension 9).
+     */
+    template <typename Func>
+    requires std::is_invocable_r_v<Vector3D, Func, const Vector3D&>
+    inline std::shared_ptr<const CfemExpression> vector(
+                                                    Func&& f,
+                                                    std::shared_ptr<const CfemExpression> gradient = nullptr
+                                                );
+                            
+    /**
+     * @brief Wrap a spatio-temporal vector lambda f(X, t) as a CfemExpression.
+     * @param f Lambda function returning a Vector3D from a Vector3D and a CfemReal (time).
+     * @param gradient (Optional) Expression representing the analytical Jacobian of f (dimension 9).
+     * @param timeDeriv (Optional) Expression representing the time derivative of f (dimension 3).
+     */
+    template <typename Func>
+    requires std::is_invocable_r_v<Vector3D, Func, const Vector3D&, CfemReal>
+    inline std::shared_ptr<const CfemExpression> vector(
+                                                    Func&& f,
+                                                    std::shared_ptr<const CfemExpression> gradient,
+                                                    std::shared_ptr<const CfemExpression> timeDeriv
+                                                );
+
+    /**
+     * @brief Casts or promotes an existing expression into a vector expression.
+     */
+    std::shared_ptr<const CfemExpression> vector(std::shared_ptr<const CfemExpression> expr);
+    
+    /** 
+     * @brief Assemble three independent scalar expressions to form a 3D vector.
+     */
+    std::shared_ptr<const CfemExpression> vector(std::shared_ptr<const CfemExpression> expr_x,
+                                                 std::shared_ptr<const CfemExpression> expr_y,
+                                                 std::shared_ptr<const CfemExpression> expr_z);                                      
+
+    /** 
+     * @brief Generates a constant vector expression.
+     */
+    std::shared_ptr<const CfemExpression> constant(const Vector3D& constantVector);
 
     /**
      * @brief Convert three SymEngine expressions into a vector CFEM expression.
@@ -193,10 +249,163 @@ namespace cfem::sym
      * @param ez Expression for z-component
      * @return Shared pointer to a CfemExpression (VectorSymbolicExpression)
      */
-    std::shared_ptr<const CfemExpression> vector(const Expression &ex,
-                                                 const Expression &ey,
-                                                 const Expression &ez);
+    std::shared_ptr<const CfemExpression> vector(const SymEngine::Expression &ex,
+                                                 const SymEngine::Expression &ey,
+                                                 const SymEngine::Expression &ez);
 
+    /** @} */
+
+    /**
+     * @name Tensor Expression Factories (Dim 9)
+     * @brief Helpers to wrap lambdas or components into 2nd-order tensor CFEM expressions.
+     * @{
+     */
+
+    /**
+     * @brief Wrap a pure spatial matrix lambda f(X) as a CfemExpression.
+     * @param f Lambda returning a 2nd-order tensor (TensorO2) from a Vector3D.
+     * @param gradient (Optional) Expression of the 3rd-order gradient tensor (dimension 27).
+     */
+    template <typename Func>
+    requires std::is_invocable_r_v<TensorO2, Func, const Vector3D&>
+    inline std::shared_ptr<const CfemExpression> tensor(
+                                                    Func&& f,
+                                                    std::shared_ptr<const CfemExpression> gradient = nullptr
+                                                );
+
+    /**
+     * @brief Wrap a spatio-temporal matrix lambda f(X, t) as a CfemExpression.
+     * @param f Lambda returning a TensorO2 from a Vector3D and a timestamp.
+     * @param gradient (Optional) Expression of the 3rd-order gradient tensor (dimension 27).
+     * @param timeDeriv (Optional) Expression of the matrix time derivative (dimension 9).
+     */
+    template <typename Func>
+    requires std::is_invocable_r_v<TensorO2, Func, const Vector3D&, CfemReal>
+    inline std::shared_ptr<const CfemExpression> tensor(
+                                                    Func&& f,
+                                                    std::shared_ptr<const CfemExpression> gradient,
+                                                    std::shared_ptr<const CfemExpression> timeDeriv
+                                                );
+                                        
+    /** 
+     * @brief Casts or promotes an existing expression into a tensor expression. 
+     */
+    std::shared_ptr<const CfemExpression> tensor(std::shared_ptr<const CfemExpression> expr);
+    
+    /** 
+     * @brief Assemble 9 independent scalar expressions into a full 2nd-order tensor. 
+     */
+    std::shared_ptr<const CfemExpression> tensor(std::shared_ptr<const CfemExpression> expr_xx,
+                                                 std::shared_ptr<const CfemExpression> expr_xy,
+                                                 std::shared_ptr<const CfemExpression> expr_xz,
+                                                 std::shared_ptr<const CfemExpression> expr_yx,
+                                                 std::shared_ptr<const CfemExpression> expr_yy,
+                                                 std::shared_ptr<const CfemExpression> expr_yz,
+                                                 std::shared_ptr<const CfemExpression> expr_zx,
+                                                 std::shared_ptr<const CfemExpression> expr_zy,
+                                                 std::shared_ptr<const CfemExpression> expr_zz);
+
+    /** 
+     * @brief Build a symmetric tensor using 6 independent components (implicit Voigt notation). 
+     */
+    std::shared_ptr<const CfemExpression> symmetricTensor(std::shared_ptr<const CfemExpression> xx, 
+                                                          std::shared_ptr<const CfemExpression> yy, 
+                                                          std::shared_ptr<const CfemExpression> zz,
+                                                          std::shared_ptr<const CfemExpression> yz, 
+                                                          std::shared_ptr<const CfemExpression> xz, 
+                                                          std::shared_ptr<const CfemExpression> xy);
+
+    /** 
+     * @brief Create a diagonal tensor using scalar expressions for the main diagonal. 
+     */
+    std::shared_ptr<const CfemExpression> diag(std::shared_ptr<const CfemExpression> a,
+                                               std::shared_ptr<const CfemExpression> b,
+                                               std::shared_ptr<const CfemExpression> c);
+    
+    /** 
+     * @brief Create a constant diagonal tensor. 
+     */
+    std::shared_ptr<const CfemExpression> diag(CfemReal a, CfemReal b, CfemReal c);
+
+    /** 
+     * @brief Returns the Identity tensor expression. 
+     */
+    std::shared_ptr<const CfemExpression> identity();
+
+    /** 
+     * @brief Generates a constant vector expression.
+     */
+    std::shared_ptr<const CfemExpression> constant(const TensorO2& constantTensor);
+    /** @} */
+
+    /**
+     * @name Differential Calculus and Operators
+     * @{
+     */
+    
+    /**
+     * @brief Compute the gradient of a CFEM expression.
+     * @param e Input expression. Scalar (dim 1) -> Gradient (dim 3). Vector (dim 3) -> Jacobian (dim 9).
+     * @return Pointer to the differentiated expression.
+     */
+    std::shared_ptr<const CfemExpression> grad(const std::shared_ptr<const CfemExpression> &e);
+
+    /**
+     * @brief Compute the divergence of a vector or tensor field.
+     * @param e Vector expression (dim 3) or tensor expression (dim 9).
+     * @return Divergence (dim 1 for a vector, dim 3 for a tensor).
+     */
+    std::shared_ptr<const CfemExpression> div(const std::shared_ptr<const CfemExpression> &e);
+
+    /**
+     * @brief Compute the magnitude squared of a CFEM expression.
+     * @param a Scalar or vector expression.
+     * @return Pointer to the squared magnitude expression (scalar).
+     */
+    std::shared_ptr<const CfemExpression> mag_sqr(const std::shared_ptr<const CfemExpression> a);
+    /** @} */
+
+    /**
+     * @name Variables and FE Trial/Test Functions
+     * @{
+     */
+    
+    /**
+     * @brief Defines a physical or state variable (like space or time).
+     * @param name Name of the variable for the symbolic engine.
+     * @param dimIndex Associated spatial dimension index.
+     */
+    std::shared_ptr<const CfemExpression> variable(const std::string name, CfemInt dimIndex);
+
+    /**
+     * @brief Generate a Trial Function for variational formulations.
+     * @param V The Lagrange space the field belongs to.
+     * @param name Symbolic variable representation (defaults to "u").
+     */
+    std::shared_ptr<FEField> Trial(std::shared_ptr<LagrangeSpace> V, const std::string& name = "u");
+    
+    /**
+     * @brief Generate a Test Function for variational formulations.
+     * @param V The associated Lagrange space.
+     * @param name Symbolic variable representation (defaults to "v").
+     */
+    std::shared_ptr<const TestFunction>  Test (std::shared_ptr<LagrangeSpace> V, const std::string& name = "v");
+    /** @} */
+}
+
+namespace cfem::sym::utils {
+    std::shared_ptr<const CfemExpression> extractComponent(std::shared_ptr<const CfemExpression> expr, int idx);
 }
 
 #include "MathOperators.tpp"
+
+/**
+ * @namespace cfem::sym::cfemvars
+ * @brief Global pre-instantiated spacetime variables for a natural mathematical DSL.
+ */
+namespace cfem::sym::cfemvars{
+    inline auto x = variable("x", 0);
+    inline auto y = variable("y", 1);
+    inline auto z = variable("z", 2);
+    inline auto t = variable("t", 3);
+}

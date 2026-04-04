@@ -5,6 +5,7 @@
 #include <vector>
 #include <type_traits>
 #include "ContractException.h"
+#include "CfemLogger.h"
 #include "ChronoManager.h"
 #include <sstream>
 #include <iomanip>

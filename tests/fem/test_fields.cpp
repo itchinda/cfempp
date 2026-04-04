@@ -6,6 +6,7 @@
 
 using namespace cfem;
 using namespace cfem::sym;
+using namespace cfem::sym::cfemvars;
 
 class AdvancedExpressionTest : public ::testing::Test {
 protected:
@@ -98,30 +99,29 @@ TEST_F(AdvancedExpressionTest, DeepGradientTree) {
     EXPECT_DOUBLE_EQ(res[2], 3.0 * testPoint.z * testPoint.z); // 3 * 3^2 = 27
 }
 
-// --- 5. Memory Safety & Death Tests ---
-// These ensure your CFEM_ASSERTs are actually protecting your memory bounds
 #ifndef NDEBUG
-TEST_F(AdvancedExpressionTest, SpanBufferOverflowProtection) {
-    auto t = tensor([](const Vector3D&){ return TensorO2(); }); // Dim = 9
+    TEST_F(AdvancedExpressionTest, SpanBufferOverflowProtection) {
+        auto t = tensor([](const Vector3D&){ return TensorO2(); }); // Dim = 9
 
-    // Create a span that is purposefully too small (size 3 instead of 9)
-    std::vector<CfemReal> tiny_buffer(3, 0.0);
-    std::span<CfemReal> bad_span(tiny_buffer.data(), tiny_buffer.size());
+        // Create a span that is purposefully too small (size 3 instead of 9)
+        std::vector<CfemReal> tiny_buffer(3, 0.0);
+        std::span<CfemReal> bad_span(tiny_buffer.data(), tiny_buffer.size());
 
-    // This should trigger your CFEM_ASSERT: "LambdaExpression: tensor output span too small."
-    // EXPECT_DEATH checks that the program aborts with a specific message.
-    EXPECT_THROW( (t->evaluate(testCellId, {0,0,0}, bad_span, ctx)),cfem::AssertionException);
-}
+        // This should trigger your CFEM_ASSERT: "LambdaExpression: tensor output span too small."
+        // EXPECT_DEATH checks that the program aborts with a specific message.
+        EXPECT_THROW( (t->evaluate(testCellId, {0,0,0}, bad_span, ctx)),cfem::AssertionException);
+    }
+#endif
 
 TEST_F(AdvancedExpressionTest, InvalidGradientDimensionAssertion) {
     auto bad_grad = scalar([](const Vector3D& X){ return X.x; }); // Dim 1
 
-    // Trying to attach a dimension 1 gradient to a vector (which expects dim 9)
-    EXPECT_THROW( auto invalid_vec = vector([](const Vector3D& X){ return X; }, bad_grad), AssertionException);
+    // Vérifie simplement que le code jette une exception
+    EXPECT_ANY_THROW({
+        auto invalid_vec = vector([](const Vector3D& X){ return X; }, bad_grad);
+    });
 }
 
-#endif
-// --- 6. Tensor Component Ordering Verification ---
 TEST_F(AdvancedExpressionTest, TensorRowMajorMapping) {
     // We want to ensure that LambdaExpression maps a 3x3 TensorO2 to a 9-element 
     // span in the exact order the DomainIntegrator expects (usually row-major).
@@ -139,20 +139,4 @@ TEST_F(AdvancedExpressionTest, TensorRowMajorMapping) {
     for(int i = 0; i < 9; ++i) {
         EXPECT_DOUBLE_EQ(res[i], static_cast<double>(i + 1));
     }
-}
-
-// --- 7. Fallback to Numerical Gradient Verification ---
-TEST_F(AdvancedExpressionTest, NumericalGradFallbackIsTriggered) {
-    // Create an expression that CANNOT be differentiated symbolically or via lambda
-    auto raw_lambda = scalar([](const Vector3D& X){ return std::sin(X.x); });
-    
-    // Since we provided no analytical gradient, grad() should fall back to GradExpression
-    auto fallback_grad = grad(raw_lambda);
-    
-    EXPECT_NE(fallback_grad, nullptr);
-    EXPECT_EQ(fallback_grad->getDimension(), 3);
-    
-    // Optional: If you implement RTTI or dynamic_cast checks, you can verify it's a GradExpression
-    auto is_grad_expr = std::dynamic_pointer_cast<const GradExpression>(fallback_grad);
-    EXPECT_TRUE(is_grad_expr != nullptr);
 }

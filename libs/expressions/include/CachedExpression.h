@@ -42,9 +42,22 @@ namespace cfem::sym {
         }
 
         bool isConstant() const override { return m_inner->isConstant(); }
-        
+        bool dependsOnFEField() const override { return m_inner->dependsOnFEField(); }
+        bool dependsOnShape() const override { return m_inner->dependsOnShape(); }
+        ShapeEvaluationFlags requiredShapeFlags() const override {
+            return m_inner->requiredShapeFlags();
+        }
+
+        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+            if (m_inner) m_inner->collectRequiredSpaces(spaces);
+        }
+
         std::shared_ptr<const CfemExpression> grad() const override {
             return std::make_shared<const CachedExpression>(m_inner->grad());
+        }
+
+        std::shared_ptr<const CfemExpression> timeDerivative() const override {
+            return std::make_shared<const CachedExpression>(m_inner->timeDerivative());
         }
 
         std::string toString() const override { return m_inner->toString(); }

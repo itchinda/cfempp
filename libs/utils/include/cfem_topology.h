@@ -35,6 +35,22 @@ enum class CellType
     COUNT
 };
 
+// On utilise un tableau indexé par l'entier de l'enum CellType
+static const std::vector<CellType> cellFacetMapping[static_cast<int>(CellType::COUNT)] = {
+    /* [CellType::LINE2]        */ { CellType::NODE},
+    /* [CellType::TRI3]         */ { CellType::LINE2 },
+    /* [CellType::QUAD4]        */ { CellType::LINE2 },
+    /* [CellType::TET4]         */ { CellType::TRI3 },
+    /* [CellType::PRISM6]       */ { CellType::TRI3, CellType::QUAD4 },
+    /* [CellType::HEX8]         */ { CellType::QUAD4 },
+    /* [CellType::LINE3]        */ { CellType::NODE },
+    /* [CellType::TRI6]         */ { CellType::LINE3 },
+    /* [CellType::QUAD9]        */ { CellType::LINE3 },
+    /* [CellType::TET10]        */ { CellType::TRI6 },
+    /* [CellType::PRISM18]      */ { CellType::TRI6, CellType::QUAD9 },
+    /* [CellType::HEX27]        */ { CellType::QUAD9 },
+    /* [CellType::NODE]         */ { }
+};
 
 struct Cell {
     CfemInt id{-1};
@@ -91,6 +107,14 @@ struct Cell {
             default: return type;
         }
     }
+
+    inline static std::span<const CellType> getFacetTypes(CellType type) {
+        int idx = static_cast<int>(type);
+        if (idx < 0 || idx >= static_cast<int>(CellType::COUNT)) {
+            return {};
+        }
+        return cellFacetMapping[idx];
+    }
 };
 
 struct Facet {
@@ -105,6 +129,7 @@ struct Facet {
 
     bool isBoundary() const { return right_cell == -1; }
 };
+
 
 } // namespace
 #endif

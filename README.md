@@ -101,14 +101,14 @@ int main(int argc, char **argv) {
     auto analytical_u = vector(sin(2 * pi * x), cos(2 * pi * y), sin(pi * x * y * z));
 
     // 5. High-level Projection
-    velocity->project(*analytical_u);
+    velocity->project(analytical_u);
 
     // 6. Error Analysis (Clean syntax, no explicit scheme params needed)
     CfemReal l2Norm_U, h1SemiNorm_U;
-    DomainIntegrator::L2Norm(velocitySpace, analytical_u - velocity, &l2Norm_U, &h1SemiNorm_U);
+    DomainIntegrator::L2Norm(mesh, analytical_u - velocity, &l2Norm_U, &h1SemiNorm_U);
     
-    std::cout << "L2-norm error on U: " << l2Norm_U << std::endl;
-    std::cout << "H1-semi norm error on U: " << h1SemiNorm_U << std::endl;
+    CFEM_INFO << "L2-norm error on U: " << l2Norm_U;
+    CFEM_INFO << "H1-semi norm error on U: " << h1SemiNorm_U;
         
     // 7. High-performance Binary Export
     VTUExporter vtu_exporter(*mesh);

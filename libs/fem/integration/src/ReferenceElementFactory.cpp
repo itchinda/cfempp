@@ -27,7 +27,7 @@ namespace cfem {
 //             case CellType::HEX8: m_instances[type] = std::make_unique<Q1ReferenceHexahedron>(); break;
 //             case CellType::HEX27: m_instances[type] = std::make_unique<Q2ReferenceHexahedron>(); break;
 //             default:
-//                 CFEM_ERROR("CellType not supported in ReferenceElementFactory");
+//                 CFEM_ERROR << "CellType not supported in ReferenceElementFactory";
 //         }
 //         return *m_instances[type];
 //     }
@@ -87,7 +87,7 @@ const ReferenceElement& ReferenceElementFactory::getReferenceElement(CellType ty
             return instance;
         }
         default:
-            CFEM_ERROR("CellType not supported in ReferenceElementFactory");
+            CFEM_ERROR << "CellType not supported in ReferenceElementFactory";
             // Juste pour le compilateur, il n'atteindra jamais ce point
             throw std::runtime_error("Unsupported CellType");
     }

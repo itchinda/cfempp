@@ -39,7 +39,7 @@ namespace cfem
     {
         std::ofstream out(filename);
         if (!out.is_open())
-            CFEM_ERROR("Cannot open VTU file for writing: " + filename);
+            CFEM_ERROR << "Cannot open VTU file for writing: " << filename;
 
         const size_t nVerts = m_mesh.getNumVertices();
         const size_t nCells = m_mesh.getNumCells();
@@ -136,7 +136,7 @@ namespace cfem
             };
             std::map<CellType, TypeCache> geoCache;
 
-            for (CellType type : m_mesh.getUniqueCellTypes())
+            for (CellType type : m_mesh.getCellTypesPresent())
             {
                 const auto &refEl = ReferenceElementFactory::getReferenceElement(type);
                 auto &cache = geoCache[type];
@@ -258,7 +258,7 @@ namespace cfem
     {
         std::ofstream out(filename, std::ios::binary);
         if (!out.is_open())
-            CFEM_ERROR("Cannot open VTU file for writing: " + filename);
+            CFEM_ERROR << "Cannot open VTU file for writing: " << filename;
 
         const size_t nVerts = m_mesh.getNumVertices();
         const size_t nCells = m_mesh.getNumCells();
@@ -316,7 +316,7 @@ namespace cfem
         };
         std::map<CellType, TypeCache> geoCache;
 
-        for (CellType type : m_mesh.getUniqueCellTypes())
+        for (CellType type : m_mesh.getCellTypesPresent())
         {
             const auto &refEl = ReferenceElementFactory::getReferenceElement(type);
             auto &cache = geoCache[type];

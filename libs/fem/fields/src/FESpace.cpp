@@ -10,7 +10,7 @@ namespace cfem
 
         if (m_mesh->nameAlreadyUsed(field->getName()))
         {
-            CFEM_ERROR(" Global naming collision: Field with name '" + field->getName() + "' already exists.");
+            CFEM_ERROR << " Global naming collision: Field with name '" << field->getName() << "' already exists.";
         }
         
         m_fields.push_back(field);

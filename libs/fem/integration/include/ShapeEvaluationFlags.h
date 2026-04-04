@@ -26,9 +26,9 @@ namespace cfem
         Hessian = 1 << 2,
 
         /// Compute all available fields (Values, Gradients, and Hessians).
-         All = Value | Gradient | Hessian
-    };
+        All = Value | Gradient | Hessian
 
+    };
     
     /// Enable bitwise OR for ShapeEvaluationFlags
     inline ShapeEvaluationFlags operator|( ShapeEvaluationFlags a, ShapeEvaluationFlags b)
@@ -42,12 +42,28 @@ namespace cfem
         return static_cast<ShapeEvaluationFlags>( static_cast<CfemIntFlag>(a) & static_cast<CfemIntFlag>(b) );
     }
 
-    /// Test if a flag is set
-    inline bool hasFlag(ShapeEvaluationFlags flags, ShapeEvaluationFlags test)
+    inline ShapeEvaluationFlags& operator|=(ShapeEvaluationFlags& a, ShapeEvaluationFlags b)
     {
-        return (flags & test) != ShapeEvaluationFlags::None;
+        a = a | b;
+        return a;
     }
 
+    inline ShapeEvaluationFlags& operator&=(ShapeEvaluationFlags& a, ShapeEvaluationFlags b)
+    {
+        a = a & b;
+        return a;
+    }
+
+    /// Test if a flag is set
+    // inline bool hasFlag(ShapeEvaluationFlags flags, ShapeEvaluationFlags test)
+    // {
+    //     return (flags & test) != ShapeEvaluationFlags::None;
+    // }
+
+    inline bool hasFlag(ShapeEvaluationFlags flags, ShapeEvaluationFlags test)
+    {
+        return static_cast<CfemIntFlag>(flags & test) != 0;
+    }
 
 } //namespace
 #endif

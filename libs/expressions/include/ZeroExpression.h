@@ -31,25 +31,23 @@ namespace cfem::sym
             std::ranges::fill(out, 0.0);
         }
 
-        std::shared_ptr<const CfemExpression> grad() const {
+        std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override {
+            return std::make_shared<ZeroExpression>(this->getDimension());
+        }
+
+        std::shared_ptr<const CfemExpression> grad() const override {
             return std::make_shared<ZeroExpression>(m_dim * 3);
         }
+        std::shared_ptr<const CfemExpression> div() const override;
+
         ExpressionType getType() const override { return ExpressionType::Zero; }
 
-        std::string toString() const override { 
-            CfemInt dim = getDimension();
-            if (dim==1) return "0";
+        std::string toString() const override;
 
-            std::ostringstream out;
-            CfemInt i = 0;
-            out << "[";
-            for (CfemInt i = 0; i< m_dim-1; ++i){
-                out << "0" << ", ";
-                ++i;
-            }
-            out << "0" << "]";
-            return out.str();
+         std::shared_ptr<const CfemExpression> timeDerivative() const override{
+            return std::make_shared<ZeroExpression>(m_dim);
          }
+         
     };
 
     namespace zeros{

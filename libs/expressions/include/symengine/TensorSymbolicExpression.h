@@ -38,7 +38,11 @@ namespace cfem::sym
             for (int i = 0; i < 9; ++i) m_components[i]->evaluate(cellId, xi, out.subspan(i, 1), ctx);
         }
 
+        std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override;
+
         // TODO Implement grad()
+
+        std::shared_ptr<const CfemExpression> div() const override;
 
         std::shared_ptr<const ScalarSymbolicExpression> getComponent(CfemInt i) const
         {
@@ -47,8 +51,16 @@ namespace cfem::sym
         }
 
         ExpressionType getType() const override { return ExpressionType::TensorSymbolic; }
+        std::shared_ptr<const CfemExpression> timeDerivative() const override;
 
 
+        std::string toString() const override {
+            std::ostringstream os;
+            os << "[[" << m_components[0]->toString() << ", " << m_components[1]->toString() << ", " << m_components[2]->toString() << "], "
+               <<  "[" << m_components[3]->toString() << ", " << m_components[4]->toString() << ", " << m_components[5]->toString() << "], "
+               <<  "[" << m_components[6]->toString() << ", " << m_components[7]->toString() << ", " << m_components[8]->toString() << "]]";
+            return os.str();
+        }
     private:
         std::shared_ptr<const ScalarSymbolicExpression> m_components[9];
     };

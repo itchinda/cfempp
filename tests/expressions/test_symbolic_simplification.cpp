@@ -2,6 +2,7 @@
 #include "MathOperators.h" // Your symbolic headers
 
 using namespace cfem::sym;
+using namespace cfem::sym::symengine;
 
 class SymbolicSimplificationTest : public ::testing::Test {
 protected:
@@ -16,7 +17,7 @@ TEST_F(SymbolicSimplificationTest, BasicIdentities) {
     auto u = scalar(x);
     
     // u + u -> 2 * u
-    ExpectExpr(u + u, "2 * x");
+    ExpectExpr(u + u, "2*x");
     
     // 2*u + u -> 3 * u
     ExpectExpr((2.0 * u) + u, "3 * x");

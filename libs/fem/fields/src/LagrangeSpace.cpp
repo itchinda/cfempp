@@ -188,7 +188,7 @@ const ReferenceElement& LagrangeSpace::getRefElement(CellType type) const {
     CFEM_ASSERT(!m_refElements.empty());
     auto it = m_refElements.find(type);
     if (it == m_refElements.end()) {
-        CFEM_ERROR("LagrangeSpace: Element type not supported or not initialized.");
+        CFEM_ERROR << "LagrangeSpace: Element type not supported or not initialized.";
     }
     return *it->second;
 }
@@ -224,35 +224,26 @@ void LagrangeSpace::evaluateBasis(CfemInt cellId, const Vector3D& xi, std::vecto
 // Évaluation des Gradients Physiques (Physical Gradients)
 // -----------------------------------------------------------------------------
 void LagrangeSpace::evaluateGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const {
-    // 1. Récupération de la cellule et de l'élément de référence
     const Cell& cell = m_mesh->getCell(cellId);
     const ReferenceElement& refEl = getRefElement(cell.type);
+    const auto& nodeIndices = m_mesh->getCellConnectivity(cellId);
+    
+    // Chaque thread a sa propre version persistante. 
+    // Pas d'allocation après le premier passage, et TOTALEMENT safe en OpenMP.
+    static thread_local DynamicVector<Vector3D> t_physicalNodes;
 
-    // 2. Extraction des coordonnées PHYSIQUES des nœuds
-    // Comme ton maillage stocke tous les nœuds (P1 ou P2), on prend tout.
-    const auto& nodeIndices = m_mesh->getCellConnectivity( cellId);
     size_t numNodes = nodeIndices.size();
-
-    // On utilise DynamicVector car ReferenceElement l'attend
-    DynamicVector<Vector3D> physicalNodes(numNodes);
-
-    for (size_t i = 0; i < numNodes; ++i) {
-        // On récupère la coordonnée réelle (Vertex -> Vector3D)
-        physicalNodes[i] = m_mesh->getVertex(nodeIndices[i]).coords;
+    if (t_physicalNodes.size() != numNodes) {
+        t_physicalNodes.resize(numNodes);
     }
 
-    // 3. Préparation des structures de calcul
+    // Remplissage...
+    m_mesh->getCellVerticesCoords(cellId, t_physicalNodes);
+
+    // Votre computeMapping actuel accepte t_physicalNodes sans broncher
     ShapeInfo shape;
     MappingInfo map;
-
-    // 4. Calcul du Mapping Isoparamétrique complet
-    // computeMapping fait tout : evaluate(Grad), Jacobian, invJacobian, push-forward
-    refEl.computeMapping(xi, 
-                         physicalNodes, 
-                         ShapeEvaluationFlags::Gradient, // On veut dN/dx
-                         shape, 
-                         map);
-
+    refEl.computeMapping(xi, t_physicalNodes, ShapeEvaluationFlags::Gradient, shape, map);
     // 5. Transfert des résultats
     if (grads.size() != map.physicalShapeGradients.size()) {
         grads.resize(map.physicalShapeGradients.size());

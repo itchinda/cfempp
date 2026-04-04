@@ -32,7 +32,7 @@ protected:
         } else if (dim == 3) {
             test_points.push_back(Vector3D{0.25, 0.25, 0.25}); // Barycentre Tétraèdre
         } else{
-            CFEM_ERROR("Dim must be within 1 and 3 inclusively");
+            CFEM_ERROR << "Dim must be within 1 and 3 inclusively";
         }
         return test_points;
     }

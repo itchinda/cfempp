@@ -66,7 +66,7 @@ namespace cfem
             }
             file.close();
 #ifndef NDEBUG
-            CFEM_INFO("Profiler Exported to " + filename + ".\n");
+            CFEM_INFO << "Profiler Exported to " << filename << ".\n";
 #endif
         }
     };

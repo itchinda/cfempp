@@ -1,156 +1,371 @@
 #include "DomainIntegrator.h"
 #include "ReferenceElementFactory.h"
+#include "LagrangeSpace.h"
+#include "MathOperators.h"
+#include "Mesh.h"
+#include "MeshEntity.h"
+
+#include <set>
 
 namespace cfem
 {
 
+    DomainIntegrator::DomainIntegrator(std::shared_ptr<const Mesh> mesh,
+                                       const IntegrationSchemeParams &schemes_params) : m_mesh(std::move(mesh)), m_schemes_params(schemes_params)
+    {
+        if (!m_mesh)
+            CFEM_ERROR << "DomainIntegrator requires a valid mesh.";
+    }
+
+    void DomainIntegrator::L2Norm(const MeshEntity &mesh_entity,
+                                  const std::shared_ptr<const sym::CfemExpression> &expr,
+                                  CfemReal *l2Out,
+                                  CfemReal *h1SemiOut)
+    {
+        CfemReal l2_sqr = 0.0, h1semi_sqr = 0.0;
+        std::vector<EvaluationTarget> targets;
+
+        if (l2Out)
+            targets.push_back({cfem::sym::mag_sqr(expr), &l2_sqr});
+        if (h1SemiOut)
+            targets.push_back({cfem::sym::mag_sqr(cfem::sym::grad(expr)), &h1semi_sqr});
+
+        if (targets.empty())
+            return;
+
+        dispatchIntegration(mesh_entity, targets);
+
+        if (l2Out)
+            *l2Out = std::sqrt(std::max<CfemReal>(0.0, l2_sqr));
+        if (h1SemiOut)
+            *h1SemiOut = std::sqrt(std::max<CfemReal>(0.0, h1semi_sqr));
+    }
+
+    void DomainIntegrator::L2Norm(const std::string &entity_name,
+                                  const std::shared_ptr<const sym::CfemExpression> &expr,
+                                  CfemReal *l2Out,
+                                  CfemReal *h1SemiOut)
+    {
+        L2Norm(m_mesh->getEntityConst(entity_name), expr, l2Out, h1SemiOut);
+    }
+
+    void DomainIntegrator::L2Norm(CfemInt entity_id,
+                                  const std::shared_ptr<const sym::CfemExpression> &expr,
+                                  CfemReal *l2Out,
+                                  CfemReal *h1SemiOut)
+    {
+        L2Norm(m_mesh->getEntityConst(entity_id), expr, l2Out, h1SemiOut);
+    }
+
+    void DomainIntegrator::L2Norm(const std::shared_ptr<const sym::CfemExpression> &expr,
+                                  CfemReal *l2Out,
+                                  CfemReal *h1SemiOut)
+    {
+        L2Norm(m_mesh->getEntityConst("Universe"), expr, l2Out, h1SemiOut);
+    }
+
+    CfemReal DomainIntegrator::computeIntegral(
+        const MeshEntity &entity,
+        const std::shared_ptr<const sym::CfemExpression> &expr)
+    {
+        CfemReal result = 0.0;
+        dispatchIntegration(entity, {{expr, &result}});
+        return result;
+    }
+
+    CfemReal DomainIntegrator::computeIntegral(
+        const std::shared_ptr<const sym::CfemExpression> &expr)
+    {
+        return computeIntegral(m_mesh->getEntityConst("Universe"), expr);
+    }
+
+    CfemReal DomainIntegrator::computeIntegral(
+        const std::string &entity_name,
+        const std::shared_ptr<const sym::CfemExpression> &expr)
+    {
+        return computeIntegral(m_mesh->getEntityConst(entity_name), expr);
+    }
+
+    CfemReal DomainIntegrator::computeIntegral(
+        CfemInt entity_id,
+        const std::shared_ptr<const sym::CfemExpression> &expr)
+    {
+        return computeIntegral(m_mesh->getEntityConst(entity_id), expr);
+    }
+
+    void DomainIntegrator::dispatchIntegration(const MeshEntity &entity,
+                                               const std::vector<EvaluationTarget> &targets)
+    {
+        // 1. If the entity is completely empty, the integral is exactly 0.
+        if (entity.getCellIds().empty() && entity.getFacetIds().empty())
+        {
+            for (const auto &target : targets)
+            {
+                if (target.second)
+                {
+                    *(target.second) = 0.0;
+                }
+            }
+            return;
+        }
+
+        const CfemInt meshDim = m_mesh->getDimension();
+        const CfemInt entityDim = entity.getDimension();
+
+        // 2. Handle Volume Integration (3D cells in a 3D mesh, or 2D in 2D)
+        if (entityDim == meshDim)
+        {
+            integrate(entity, targets);
+        }
+        // 3. Handle Boundary Integration (2D facets in a 3D mesh, or 1D in 2D)
+        else if (entityDim == meshDim - 1)
+        {
+            integrateBoundary(entity, targets);
+        }
+        // 4. Fallback for lower dimensions (Vertices, edges in 3D, etc.)
+        else
+        {
+            // These entities have a geometric measure (volume/area/length) of zero.
+            // Therefore, any continuous integral over them yields zero.
+            for (const auto &target : targets)
+            {
+                if (target.second)
+                {
+                    *(target.second) = 0.0;
+                }
+            }
+        }
+    }
+
+    /**
+     * @brief Performs numerical integration of multiple expressions over the domain.
+     *
+     * This function handles the core volume integration engine. It loops over all cells
+     * in the mesh, dynamically detects the required functional spaces (P1, P2, etc.) from
+     * the target expressions, caches quadrature rules, and evaluates the integrals in parallel.
+     *
+     * @param mesh The computational mesh representing the domain.
+     * @param targets A list of pairs containing the target symbolic expressions to evaluate
+     * and the memory addresses where the results will be accumulated.
+     * @param params Parameters controlling the integration scheme (e.g., number of integration points).
+     *
+     * @note This function :
+     * - processes multiple targets simultaneously to reduce mesh traversal overhead.
+     * - utilizes OpenMP for multithreaded domain parallelization.
+     */
     void DomainIntegrator::integrate(
-        const std::shared_ptr<LagrangeSpace> &space,
-        const std::vector<EvaluationTarget> &targets,
-        const IntegrationSchemeParams &params)
+        const MeshEntity &entity,
+        const std::vector<EvaluationTarget> &targets)
     {
         if (targets.empty())
             return;
 
-        // 1. Préparation des targets
-        std::vector<size_t> pointwiseIdx;
-        std::vector<size_t> fieldIdx;
+        // ============================================================
+        // EXPRESSION AND SPACE NEEDS ANALYSIS
+        // ============================================================
+        std::vector<size_t> activeIdx;
+        ShapeEvaluationFlags fieldFlags = ShapeEvaluationFlags::None;
+        std::set<std::shared_ptr<const LagrangeSpace>> requiredSpaces;
 
         for (size_t i = 0; i < targets.size(); ++i)
         {
             if (!targets[i].first)
                 continue;
+
             targets[i].first->prepare();
             if (targets[i].second)
                 *(targets[i].second) = 0.0;
 
-            if (targets[i].first->isPointwise())
-                pointwiseIdx.push_back(i);
-            else
-                fieldIdx.push_back(i);
+            activeIdx.push_back(i);
+            fieldFlags |= targets[i].first->requiredShapeFlags();
+
+            targets[i].first->collectRequiredSpaces(requiredSpaces);
         }
 
-        auto mesh = space->getMesh();
+        if (activeIdx.empty())
+            return;
+
+        // Analyze detected element orders
+        bool needsP1 = false;
+        bool needsP2 = false;
+        for (const auto &space : requiredSpaces)
+        {
+            if (space->getOrder() == Order::P1)
+                needsP1 = true;
+            if (space->getOrder() == Order::P2)
+                needsP2 = true;
+        }
+
+        // Do the fields need physical gradients (e.g., H1-semi norm)?
+        const bool needsFieldGradients = hasFlag(fieldFlags, ShapeEvaluationFlags::Gradient);
+
+        // Reference values and gradients are always required to compute the Jacobian determinant.
+        const ShapeEvaluationFlags geoFlags = ShapeEvaluationFlags::Value | ShapeEvaluationFlags::Gradient;
+
         IntegrationScheme scheme;
-        const size_t numTargets = targets.size();
-        auto space_order_equivalence = space->getOrder() == Order::P1 ? MeshOrder::Linear : MeshOrder::Quadratic;
 
-        // 2. Pré-caching des quadratures et ShapeInfo
+        // ============================================================
+        // QUADRATURE AND REFERENCE VALUE CACHING
+        // ============================================================
         DynamicVector<CacheEntry> fastCache(static_cast<int>(CellType::COUNT));
-        ShapeEvaluationFlags internalFields = ShapeEvaluationFlags::Value | ShapeEvaluationFlags::Gradient;
 
-        for (CellType type : mesh->getCellTypesPresent())
+        for (CellType type : m_mesh->getCellTypesPresent())
         {
             int idx = static_cast<int>(type);
-            const auto &quad = scheme.getRule(type, params.getNumIntgPt(type));
-            const auto &refElP2 = space->getRefElement(type);
-            const auto &refElP1 = space->getRefElement(Cell::getLinearEquivalent(type));
+            const auto &quad = scheme.getRule(type, m_schemes_params.getNumIntgPt(type));
             const auto &lQuadPts = quad.getPoints();
 
             fastCache[idx].quad = &quad;
-            fastCache[idx].v_shapesP2.resize(lQuadPts.size());
-            fastCache[idx].v_shapesP1.resize(lQuadPts.size());
 
-            for (size_t q = 0; q < lQuadPts.size(); ++q)
+            // P2 Pre-computations (Default geometry and/or P2 fields)
+            // Note: If the mesh is linear, we force the use of linear geometry.
+            const CellType geoType = (m_mesh->getOrder() == MeshOrder::Quadratic) ? type : Cell::getLinearEquivalent(type);
+            const auto &refElGeo = ReferenceElementFactory::getReferenceElement(geoType);
+
+            fastCache[idx].v_shapesP2.resize(lQuadPts.size());
+
+            // If P1 is required by expressions (or if the mesh is purely linear)
+            if (needsP1 || geoType != type)
             {
-                refElP2.evaluate(lQuadPts[q].xi, internalFields, fastCache[idx].v_shapesP2[q]);
-                refElP1.evaluate(lQuadPts[q].xi, internalFields, fastCache[idx].v_shapesP1[q]);
+                fastCache[idx].v_shapesP1.resize(lQuadPts.size());
+            }
+
+            for (size_t q = 0; q < lQuadPts.size(); ++q){
+                // "Geometry" and P2 are often merged if using isoparametric elements,
+                // but here we ensure we evaluate on the correct reference element.
+                refElGeo.evaluate(lQuadPts[q].xi, geoFlags | fieldFlags, fastCache[idx].v_shapesP2[q]);
                 fastCache[idx].v_shapesP2[q].shapeMustBeUpdated = false;
-                fastCache[idx].v_shapesP1[q].shapeMustBeUpdated = false;
+
+                // If a P1 field has been detected, we evaluate it on the P1 reference element
+                if (needsP1 || geoType != type)
+                {
+                    const auto &refElP1 = ReferenceElementFactory::getReferenceElement(Cell::getLinearEquivalent(type));
+                    refElP1.evaluate(lQuadPts[q].xi, geoFlags | fieldFlags, fastCache[idx].v_shapesP1[q]);
+                    fastCache[idx].v_shapesP1[q].shapeMustBeUpdated = false;
+                }
             }
         }
 
-        // 3. Boucle parallèle
+        // CFEM_INFO << fastCache.size()  << " HHHH";
+
+        // get a const reference to the cells' ids list
+        const std::vector<CfemInt> &cells_vIds = entity.getCellIds();
+
+        // ============================================================
+        // PARALLEL INTEGRATION LOOP
+        // ============================================================
 #pragma omp parallel
         {
-            std::vector<CfemReal> threadTotals(numTargets, 0.0);
+            std::vector<CfemReal> threadTotals(targets.size(), 0.0);
             EvalContext ctx;
-            CfemReal outVal[1] = {0.0};
+
+            CfemReal outVal[9] = {0.0};
             std::span<CfemReal> spanOut(outVal, 1);
 
-            MappingInfo threadMapP2; // Le mapping maître (Géométrie)
-            MappingInfo threadMapP1; // Le mapping esclave (Champ P1)
-            DynamicVector<Vector3D> threadPhysCoords;
+            MappingInfo mapP2; // Master Mapping (Geometry)
+            MappingInfo mapP1; // Slave Mapping (P1 field)
+            DynamicVector<Vector3D> physCoords;
 
 #pragma omp for schedule(static)
-            for (CfemInt i = 0; i < mesh->getNumCells(); ++i)
+            for (CfemInt i = 0; i < entity.getNumCells(); ++i)
             {
-                // ctx.resetBuffers();
-                const auto &cell = mesh->getCell(i);
-                const auto &refElGeo = ReferenceElementFactory::getReferenceElement(cell.type);
+                CfemInt cellid = cells_vIds[i];
+                const auto &cell = m_mesh->getCell(cellid);
+
+                const CellType geoType = (m_mesh->getOrder() == MeshOrder::Quadratic) ? cell.type : Cell::getLinearEquivalent(cell.type);
+                const auto &refElGeo = ReferenceElementFactory::getReferenceElement(geoType);
+
+                const bool cellIsLinear = (geoType == Cell::getLinearEquivalent(cell.type));
+
                 auto &cache = fastCache[static_cast<int>(cell.type)];
                 const auto &lQuadPts = cache.quad->getPoints();
 
-                mesh->getCellVerticesCoords(i, threadPhysCoords);
+                m_mesh->getCellVerticesCoords(cellid, physCoords);
+
+                // Pre-allocation
+                mapP2.setup(static_cast<int>(physCoords.size()));
+
+                if (needsP1 && geoType != Cell::getLinearEquivalent(cell.type))
+                {
+                    mapP1.setup(static_cast<int>(cache.v_shapesP1[0].values.size()));
+                }
 
                 for (size_t q = 0; q < lQuadPts.size(); ++q)
                 {
-
-                    // auto qpBookmark = ctx.getBookmark();
-                    // std::span<CfemReal> spanOut = ctx.getBuffer(9);
-
                     const auto &qp = lQuadPts[q];
 
-                    // 1. CALCUL MAÎTRE (Coûteux : Position, detJ, invJ et gradients P2)
-                    threadMapP2.setup(static_cast<int>(threadPhysCoords.size()));
-                    refElGeo.computeMapping(qp.xi, threadPhysCoords,
-                                            ShapeEvaluationFlags::Gradient,
-                                            cache.v_shapesP2[q], threadMapP2);
+                    refElGeo.computeMapping(
+                        qp.xi,
+                        physCoords,
+                        needsFieldGradients ? ShapeEvaluationFlags::Gradient : ShapeEvaluationFlags::None,
+                        static_cast<const ShapeInfo &>(cache.v_shapesP2[q]),
+                        mapP2);
 
-                    // 2. Préparation du contexte commun
-                    ctx.physPos = threadMapP2.physicalPosition;
+                    const CfemReal wDetJ = std::abs(mapP2.detJ) * qp.weight;
+
+                    // CONTEXT CONFIGURATION
                     ctx.currentCellId = i;
                     ctx.currentXi = qp.xi;
+                    ctx.physPos = mapP2.physicalPosition;
+
                     ctx.shapeP2 = &cache.v_shapesP2[q];
-                    ctx.mappingP2 = &threadMapP2;
+                    ctx.mappingP2 = &mapP2;
 
-                    const CfemReal wDetJ = std::abs(threadMapP2.detJ) * qp.weight;
-
-                    // 3. OPTIMISATION : Transformation rapide pour le P1
-                    if (space_order_equivalence != mesh->getOrder())
+                    // SLAVE MAPPING: ONLY IF NECESSARY
+                    if (needsP1)
                     {
-                        // Copier les propriétés géométriques (detJ, invJ, position) depuis P2
-                        threadMapP1 = threadMapP2;
+                        if (cellIsLinear)
+                        {
+                            // If the geometry is already P1, no transformation is needed
+                            ctx.shapeP1 = ctx.shapeP2;
+                            ctx.mappingP1 = ctx.mappingP2;
+                        }
+                        else
+                        {
+                            // Light copy without vector reallocation
+                            mapP1.detJ = mapP2.detJ;
+                            mapP1.invJacobian = mapP2.invJacobian;
+                            mapP1.physicalPosition = mapP2.physicalPosition;
 
-                        // Mettre à jour UNIQUEMENT les gradients physiques avec J^{-T}
-                        threadMapP1.computePhysicalGradientsOnly(cache.v_shapesP1[q]);
+                            if (needsFieldGradients)
+                            {
+                                // Only perform matrix transformation (J^-T * dN) if required
+                                mapP1.computePhysicalGradientsOnly(cache.v_shapesP1[q]);
+                            }
 
-                        ctx.shapeP1 = &cache.v_shapesP1[q];
-                        ctx.mappingP1 = &threadMapP1;
+                            ctx.shapeP1 = &cache.v_shapesP1[q];
+                            ctx.mappingP1 = &mapP1;
+                        }
                     }
                     else
                     {
-                        // Si le maillage et le champ sont du même ordre, P1 = P2
+                        // Fallback: point to P2 to avoid nullptrs
                         ctx.shapeP1 = ctx.shapeP2;
                         ctx.mappingP1 = ctx.mappingP2;
                     }
 
-                    // --- Évaluation (Pointwise & Fields) ---
-                    for (size_t idx : pointwiseIdx)
+                    // EVALUATION AND SUMMATION
+                    for (size_t idx : activeIdx)
                     {
                         targets[idx].first->evaluate(i, qp.xi, spanOut, ctx);
                         threadTotals[idx] += spanOut[0] * wDetJ;
                     }
-
-                    for (size_t idx : fieldIdx)
-                    {
-                        targets[idx].first->evaluate(i, qp.xi, spanOut, ctx);
-                        threadTotals[idx] += spanOut[0] * wDetJ;
-                    }
-
-                    // ctx.releaseToBookmark(qpBookmark);
                 }
             }
 
+            // CRITICAL REDUCTION OF LOCAL THREAD TOTALS
 #pragma omp critical
             {
-                for (size_t t = 0; t < numTargets; ++t)
-                    if (targets[t].second)
-                        *(targets[t].second) += threadTotals[t];
+                for (size_t idx : activeIdx)
+                {
+                    if (targets[idx].second)
+                    {
+                        *(targets[idx].second) += threadTotals[idx];
+                    }
+                }
             }
         }
-
-        fastCache.clear();
+        // fastCache.clear();
     }
 
 } // namespace cfem

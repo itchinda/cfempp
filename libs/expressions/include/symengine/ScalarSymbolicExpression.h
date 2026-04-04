@@ -36,7 +36,8 @@ namespace cfem::sym
     public:
 
         ScalarSymbolicExpression(const SymEngine::Expression                               &ex, 
-                                const std::vector<SymEngine::RCP<const SymEngine::Symbol>> &vars);
+                                 const std::vector<SymEngine::RCP<const SymEngine::Symbol>> &vars);
+                                 
         CfemInt getDimension() const override { return 1; }
         bool isPointwise() const override { return true; }
 
@@ -44,18 +45,24 @@ namespace cfem::sym
         const std::vector<SymEngine::RCP<const SymEngine::Symbol>> &get_vars() const { return m_vars; }
 
         void evaluate(CfemInt, const Vector3D &, std::span<CfemReal> out, EvalContext &ctx) const{
-            const CfemReal input[3] = { ctx.physPos.x, ctx.physPos.y, ctx.physPos.z };
+            const CfemReal input[4] = { ctx.physPos.x, ctx.physPos.y, ctx.physPos.z, ctx.currentTime};
             out[0] = static_cast<CfemReal>(m_evaluator->evaluate(input));
         }
 
-        std::shared_ptr<const ScalarSymbolicExpression> diff(
-            const SymEngine::RCP<const SymEngine::Symbol> &var) const {
-            return std::make_shared<ScalarSymbolicExpression>(m_expression.diff(var), m_vars);
+        std::shared_ptr<const ScalarSymbolicExpression> diff( const SymEngine::RCP<const SymEngine::Symbol> &var) const {
+            return std::make_shared<const ScalarSymbolicExpression>(m_expression.diff(var), m_vars);
         }
 
+        std::shared_ptr<const CfemExpression> diff(CfemInt var_idx ) const override;
+
+        std::shared_ptr<const CfemExpression> timeDerivative() const override;
+
         std::shared_ptr<const CfemExpression> grad() const override;
+        std::shared_ptr<const CfemExpression> div() const override;
+
         std::string toString() const override { return finalizeString( m_expression.get_basic()->__str__() ); } // e.g., "x"
         ExpressionType getType() const override { return ExpressionType::ScalarSymbolic; }
+
 
     private:
         SymEngine::Expression                                m_expression;

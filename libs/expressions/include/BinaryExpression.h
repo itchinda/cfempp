@@ -8,15 +8,13 @@
 #include <span>
 #include <memory>
 
-
 namespace cfem::sym
+
 {
 
-
-
     /** *************************************************************************
-     * @brief 
-     * 
+     * @brief
+     *
      **************************************************************************** */
     class BinaryExpression : public CfemExpression
     {
@@ -30,30 +28,53 @@ namespace cfem::sym
     public:
         BinaryExpression(std::shared_ptr<const CfemExpression> lhs,
                          std::shared_ptr<const CfemExpression> rhs,
-                         MathOp                                op);
+                         MathOp op);
 
         CfemInt getDimension() const override { return m_dimOut; }
-        void prepare() const override{
+
+        void prepare() const override
+        {
             m_lhs->prepare();
             m_rhs->prepare();
         }
 
         bool isPointwise() const override { return m_lhs->isPointwise() && m_rhs->isPointwise(); }
         bool isBinary() const override { return true; }
+        bool dependsOnFEField() const override {
+            return m_lhs->dependsOnFEField() || m_rhs->dependsOnFEField();
+        }
+
+        bool dependsOnShape() const override {
+            return m_lhs->dependsOnShape() || m_rhs->dependsOnShape();
+        }
+
+        ShapeEvaluationFlags requiredShapeFlags() const override {
+            return m_lhs->requiredShapeFlags() | m_rhs->requiredShapeFlags();
+        }
+
+        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+            if (m_lhs) m_lhs->collectRequiredSpaces(spaces);
+            if (m_rhs) m_rhs->collectRequiredSpaces(spaces);
+        }
 
         void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
-
+        
         std::shared_ptr<const CfemExpression> getLHS() const { return m_lhs; }
         std::shared_ptr<const CfemExpression> getRHS() const { return m_rhs; }
+
         MathOp getOp() const { return m_op; }
 
+        std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override;
         std::shared_ptr<const CfemExpression> grad() const override;
+        std::shared_ptr<const CfemExpression> div() const override;
+        std::shared_ptr<const CfemExpression> timeDerivative() const override;
 
         CfemInt precedence() const override;
-        inline std::string toString() const  override;
+        std::string toString() const override;
         ExpressionType getType() const override { return ExpressionType::Binary; }
 
     };
 
 }
+
 #include "BinaryExpression.tpp"

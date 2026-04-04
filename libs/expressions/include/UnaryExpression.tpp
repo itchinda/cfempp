@@ -11,9 +11,9 @@ namespace cfem::sym
         m_dimIn = m_expr->getDimension();
 
         // --- Dimension Logic & Validation ---
-        if (m_op == MathOp::Transpose) {
+        if (m_op == MathOp::Transpose || m_op == MathOp::Trace ) {
             if (m_dimIn != 9) {
-                CFEM_ERROR("Transpose is only defined for dim 9 tensors.");
+                CFEM_ERROR << "Transpose/Trace are only defined for dim 9 tensors.";
             }
         }
 
@@ -25,12 +25,19 @@ namespace cfem::sym
     inline void UnaryExpression::evaluate(CfemInt cellIdx, const Vector3D& point, 
                   std::span<CfemReal> out, EvalContext& ctx) const 
     {
-        // Get pre-allocated thread-local scratchpad to prevent heap allocations
-        auto bookmark = ctx.getBookmark(); 
 
-        int dim = m_expr->getDimension();
-        auto in_buf = ctx.getBuffer(dim);
+        CfemReal stack[9];
+        std::span<CfemReal> in_buf;
+        
+        bool needsBookmark = (m_dimIn > 9);
+        EvalContext::Bookmark bookmark;
 
+        if (needsBookmark) {
+            bookmark = ctx.getBookmark();
+            in_buf = ctx.getBuffer(m_dimIn);
+        } else {
+            in_buf = {stack, static_cast<size_t>(m_dimIn)};
+        }
         
         // Evaluate the child node
         m_expr->evaluate(cellIdx, point, in_buf, ctx);
@@ -42,6 +49,43 @@ namespace cfem::sym
                 out[3] = in_buf[1]; out[4] = in_buf[4]; out[5] = in_buf[7];
                 out[6] = in_buf[2]; out[7] = in_buf[5]; out[8] = in_buf[8];
                 break;
+            case MathOp::Trace:
+                out[0] = in_buf[0] + in_buf[4] + in_buf[8];
+                break;
+            case MathOp::Det: {
+                // Determinant using Laplace expansion (Sarrus Rule)
+                out[0] = in_buf[0] * (in_buf[4] * in_buf[8] - in_buf[5] * in_buf[7]) -
+                         in_buf[1] * (in_buf[3] * in_buf[8] - in_buf[5] * in_buf[6]) +
+                         in_buf[2] * (in_buf[3] * in_buf[7] - in_buf[4] * in_buf[6]);
+                break;
+            }
+
+            case MathOp::Inv: {
+                CfemReal det = in_buf[0] * (in_buf[4] * in_buf[8] - in_buf[5] * in_buf[7]) -
+                               in_buf[1] * (in_buf[3] * in_buf[8] - in_buf[5] * in_buf[6]) +
+                               in_buf[2] * (in_buf[3] * in_buf[7] - in_buf[4] * in_buf[6]);
+
+                if (NumericPolicy::isZero(std::abs(det))) {
+                    for(int i=0; i<9; ++i) out[i] = 0.0; 
+                    break;
+                }
+
+                CfemReal invDet = 1.0 / det;
+
+                // 3. Compute Adjugate matrix (Cofactors transposed)
+                out[0] = (in_buf[4] * in_buf[8] - in_buf[5] * in_buf[7]) * invDet;
+                out[1] = (in_buf[2] * in_buf[7] - in_buf[1] * in_buf[8]) * invDet;
+                out[2] = (in_buf[1] * in_buf[5] - in_buf[2] * in_buf[4]) * invDet;
+
+                out[3] = (in_buf[5] * in_buf[6] - in_buf[3] * in_buf[8]) * invDet;
+                out[4] = (in_buf[0] * in_buf[8] - in_buf[2] * in_buf[6]) * invDet;
+                out[5] = (in_buf[2] * in_buf[3] - in_buf[0] * in_buf[5]) * invDet;
+
+                out[6] = (in_buf[3] * in_buf[7] - in_buf[4] * in_buf[6]) * invDet;
+                out[7] = (in_buf[1] * in_buf[6] - in_buf[0] * in_buf[7]) * invDet;
+                out[8] = (in_buf[0] * in_buf[4] - in_buf[1] * in_buf[3]) * invDet;
+                break;
+            }
             // Basic Math
             case MathOp::Negate: for(int i=0; i<m_dimOut; ++i) out[i] = -in_buf[i]; break;
             case MathOp::Abs:    for(int i=0; i<m_dimOut; ++i) out[i] = std::abs(in_buf[i]); break;
@@ -78,18 +122,14 @@ namespace cfem::sym
             case MathOp::Erf:   for(int i=0; i<m_dimOut; ++i) out[i] = std::erf(in_buf[i]); break;
             case MathOp::Erfc:  for(int i=0; i<m_dimOut; ++i) out[i] = std::erfc(in_buf[i]); break;
             case MathOp::Zeta:  
-                #if __cplusplus >= 201703L
-                    for(int i=0; i<m_dimOut; ++i) out[i] = std::riemann_zeta(in_buf[i]);
-                #else
-                    CFEM_ERROR("Zeta function requires C++17 or higher.");
-                #endif
+                for(int i=0; i<m_dimOut; ++i) out[i] = std::riemann_zeta(in_buf[i]);
                 break;
-
             default:
-                CFEM_ERROR("Unsupported math operation.");
+                CFEM_ERROR << "Unsupported math operation.";
                 break;
-
-        ctx.releaseToBookmark(bookmark); 
+        if (needsBookmark) {
+            ctx.releaseToBookmark(bookmark); 
+        }
         }
     }
 

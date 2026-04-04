@@ -51,7 +51,7 @@ struct Vector3D {
     /** @brief Scalar division with zero-tolerance check. */
     Vector3D operator/(CfemReal scalar) const {
         if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
-            CFEM_ERROR("Division by zero in Vector3D operator/");
+            CFEM_ERROR << "Division by zero in Vector3D operator/";
         return {x / scalar, y / scalar, z / scalar};
     }
 
@@ -84,7 +84,7 @@ struct Vector3D {
 
     Vector3D& operator/=(CfemReal scalar) {
         if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
-            CFEM_ERROR("Division by zero in Vector3D operator/=");
+            CFEM_ERROR << "Division by zero in Vector3D operator/=";
         x /= scalar; y /= scalar; z /= scalar;
         return *this;
     }
@@ -96,7 +96,7 @@ struct Vector3D {
         if (i == 0) return x;
         if (i == 1) return y;
         if (i == 2) return z;
-        CFEM_ERROR("Index out of bound in Vector3D::operator[] const.");
+        CFEM_ERROR << "Index out of bound in Vector3D::operator[] const.";
         return 0.0; 
     }
 
@@ -105,7 +105,7 @@ struct Vector3D {
         if (i == 0) return x;
         if (i == 1) return y;
         if (i == 2) return z;
-        CFEM_ERROR("Index out of bound in Vector3D::operator[].");
+        CFEM_ERROR << "Index out of bound in Vector3D::operator[].";
         return x; 
     }
     
