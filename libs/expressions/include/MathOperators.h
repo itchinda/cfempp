@@ -3,105 +3,145 @@
 #include <memory>
 #include "CfemExpression.h"
 #include "ConstantExpression.h"
+#include "Argument.h"
+#include "FEField.h"
 
 #include "symengine/SymEngineSymbols.h"
 
 
-namespace cfem
-{
-    class LagrangeSpace;
-    class FEField; 
-}
-
 namespace cfem::sym
 {
-
-    class TestFunction;
     
     /**
      * @name Fundamental Linear Algebra Operations
      * @{
      */
-    inline std::shared_ptr<const CfemExpression> identityO2TensorExpr();
-    inline std::shared_ptr<const CfemExpression> transpose(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> trace(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> identityO2TensorExpr();
+    std::shared_ptr<const CfemExpression> transpose(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> trace(std::shared_ptr<const CfemExpression> u);
     /** @} */
 
     /**
      * @name Products and Multilinear Operations
      * @{
      */
-    inline std::shared_ptr<const CfemExpression> dot(std::shared_ptr<const CfemExpression> lhs, 
-                                                 std::shared_ptr<const CfemExpression> rhs);
-    inline std::shared_ptr<const CfemExpression> inner(std::shared_ptr<const CfemExpression> lhs, 
-                                                   std::shared_ptr<const CfemExpression> rhs);
+    std::shared_ptr<const CfemExpression> dot(std::shared_ptr<const CfemExpression> lhs, 
+                                              std::shared_ptr<const CfemExpression> rhs);
+    std::shared_ptr<const CfemExpression> inner(std::shared_ptr<const CfemExpression> lhs, 
+                                                std::shared_ptr<const CfemExpression> rhs);
 
-    inline std::shared_ptr<const CfemExpression> cross(std::shared_ptr<const CfemExpression> lhs, 
-                                                   std::shared_ptr<const CfemExpression> rhs);
+    std::shared_ptr<const CfemExpression> cross(std::shared_ptr<const CfemExpression> lhs, 
+                                                std::shared_ptr<const CfemExpression> rhs);
     /** @} */
 
     /**
      * @name Pointwise Mathematical Functions
      * @{
      */
-    inline std::shared_ptr<const CfemExpression> atan2(std::shared_ptr<const CfemExpression> x, 
-                                                       std::shared_ptr<const CfemExpression> y);
-    inline std::shared_ptr<const CfemExpression> pow(std::shared_ptr<const CfemExpression> base, 
-                                                       std::shared_ptr<const CfemExpression> expr);
+    std::shared_ptr<const CfemExpression> atan2(std::shared_ptr<const CfemExpression> x, 
+                                                std::shared_ptr<const CfemExpression> y);
+    std::shared_ptr<const CfemExpression> pow(std::shared_ptr<const CfemExpression> base, 
+                                              std::shared_ptr<const CfemExpression> expr);
 
-    inline std::shared_ptr<const CfemExpression> abs(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> sqrt(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> cbrt(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> abs(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> sqrt(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> cbrt(std::shared_ptr<const CfemExpression> u);
 
-    inline std::shared_ptr<const CfemExpression> sign(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> heaviside(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> sin(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> cos(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> tan(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> sign(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> heaviside(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> sin(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> cos(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> tan(std::shared_ptr<const CfemExpression> u);
 
-    inline std::shared_ptr<const CfemExpression> cot(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> sec(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> csc(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> cot(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> sec(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> csc(std::shared_ptr<const CfemExpression> u);
 
-    inline std::shared_ptr<const CfemExpression> asin(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> acos(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> asin(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> acos(std::shared_ptr<const CfemExpression> u);
 
-    inline std::shared_ptr<const CfemExpression> atan(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> atan(std::shared_ptr<const CfemExpression> u);
 
-    inline std::shared_ptr<const CfemExpression> acot(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> asec(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> acsc(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> sinh(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> cosh(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> acot(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> asec(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> acsc(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> sinh(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> cosh(std::shared_ptr<const CfemExpression> u);
 
-    inline std::shared_ptr<const CfemExpression> tanh(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> asinh(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> acosh(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> atanh(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> tanh(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> asinh(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> acosh(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> atanh(std::shared_ptr<const CfemExpression> u);
 
-    inline std::shared_ptr<const CfemExpression> exp(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> log(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> erf(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> erfc(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> exp(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> log(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> erf(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> erfc(std::shared_ptr<const CfemExpression> u);
     std::shared_ptr<const CfemExpression>        tgamma(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> zeta(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> zeta(std::shared_ptr<const CfemExpression> u);
+    /** @} */
+
+    // SymEngine:
+    /**
+     * @name Common math functions
+     *  @{
+     */
+    SymEngine::Expression sin(const SymEngine::Expression &e);
+    SymEngine::Expression cos(const SymEngine::Expression &e);
+    SymEngine::Expression tan(const SymEngine::Expression &e);
+    SymEngine::Expression cot(const SymEngine::Expression &e);
+    SymEngine::Expression sec(const SymEngine::Expression &e);
+    SymEngine::Expression csc(const SymEngine::Expression &e);
+
+    SymEngine::Expression asin(const SymEngine::Expression &e);
+    SymEngine::Expression acos(const SymEngine::Expression &e);
+    SymEngine::Expression atan(const SymEngine::Expression &e);
+    SymEngine::Expression acot(const SymEngine::Expression &e);
+    SymEngine::Expression asec(const SymEngine::Expression &e);
+    SymEngine::Expression acsc(const SymEngine::Expression &e);
+
+    SymEngine::Expression sinh(const SymEngine::Expression &e);
+    SymEngine::Expression cosh(const SymEngine::Expression &e);
+    SymEngine::Expression tanh(const SymEngine::Expression &e);
+    SymEngine::Expression coth(const SymEngine::Expression &e);
+    SymEngine::Expression asinh(const SymEngine::Expression &e);
+    SymEngine::Expression acosh(const SymEngine::Expression &e);
+    SymEngine::Expression atanh(const SymEngine::Expression &e);
+
+    SymEngine::Expression exp(const SymEngine::Expression &e);
+    SymEngine::Expression log(const SymEngine::Expression &e);
+    SymEngine::Expression ln (const SymEngine::Expression &e);
+
+    SymEngine::Expression sqrt(const SymEngine::Expression &e);
+    SymEngine::Expression cbrt(const SymEngine::Expression &e);
+    SymEngine::Expression pow(const SymEngine::Expression &b, const SymEngine::Expression &e);
+
+    SymEngine::Expression abs(const SymEngine::Expression &e);
+
+    SymEngine::Expression max(const SymEngine::Expression &a, const SymEngine::Expression &b);
+    SymEngine::Expression min(const SymEngine::Expression &a, const SymEngine::Expression &b);
+
+    SymEngine::Expression gamma(const SymEngine::Expression &e);
+    SymEngine::Expression erf(const SymEngine::Expression &e);
+    SymEngine::Expression erfc(const SymEngine::Expression &e);
+    SymEngine::Expression zeta(const SymEngine::Expression &e);
     /** @} */
 
     /**
      * @name Basic Arithmetic Operators
      * @{
      */
-    inline std::shared_ptr<const CfemExpression> operator-(std::shared_ptr<const CfemExpression> u);
-    inline std::shared_ptr<const CfemExpression> operator-(std::shared_ptr<const CfemExpression> lhs, 
-                                                           std::shared_ptr<const CfemExpression> rhs);
+    std::shared_ptr<const CfemExpression> operator-(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> operator-(std::shared_ptr<const CfemExpression> lhs, 
+                                                    std::shared_ptr<const CfemExpression> rhs);
 
-    inline std::shared_ptr<const CfemExpression> operator+(std::shared_ptr<const CfemExpression> lhs, 
-                                                           std::shared_ptr<const CfemExpression> rhs);
+    std::shared_ptr<const CfemExpression> operator+(std::shared_ptr<const CfemExpression> lhs, 
+                                                    std::shared_ptr<const CfemExpression> rhs);
 
-    inline std::shared_ptr<const CfemExpression> operator*(std::shared_ptr<const CfemExpression> lhs, 
-                                                        std::shared_ptr<const CfemExpression> rhs);
-    inline std::shared_ptr<const CfemExpression> operator/(std::shared_ptr<const CfemExpression> lhs, 
-                                                           std::shared_ptr<const CfemExpression> rhs);
+    std::shared_ptr<const CfemExpression> operator*(std::shared_ptr<const CfemExpression> lhs, 
+                                                    std::shared_ptr<const CfemExpression> rhs);
+    std::shared_ptr<const CfemExpression> operator/(std::shared_ptr<const CfemExpression> lhs, 
+                                                    std::shared_ptr<const CfemExpression> rhs);
     /** @} */
 
     namespace converter{
@@ -395,6 +435,17 @@ namespace cfem::sym
 
 namespace cfem::sym::utils {
     std::shared_ptr<const CfemExpression> extractComponent(std::shared_ptr<const CfemExpression> expr, int idx);
+
+    template <typename Func>
+    std::shared_ptr<const CfemExpression> foldUnary(std::shared_ptr<const CfemExpression>   u, 
+                                                    MathOp                                  op, 
+                                                    Func                                    func); 
+    template <typename Func>
+    std::shared_ptr<const CfemExpression> foldBinary(std::shared_ptr<const CfemExpression> lhs, 
+                                                     std::shared_ptr<const CfemExpression> rhs, 
+                                                     MathOp                                op, 
+                                                     CfemInt                               outDim,
+                                                     Func                                  func);
 }
 
 #include "MathOperators.tpp"

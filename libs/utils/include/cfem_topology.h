@@ -109,11 +109,56 @@ struct Cell {
     }
 
     inline static std::span<const CellType> getFacetTypes(CellType type) {
-        int idx = static_cast<int>(type);
-        if (idx < 0 || idx >= static_cast<int>(CellType::COUNT)) {
+        CfemInt idx = static_cast<CfemInt>(type);
+        if (idx < 0 || idx >= static_cast<CfemInt>(CellType::COUNT)) {
             return {};
         }
         return cellFacetMapping[idx];
+    }
+
+    inline static CellType getFacetType(CellType type, int localFacetId) {
+        auto facetTypes = getFacetTypes(type);
+        
+        if (facetTypes.empty()) return CellType::NODE; 
+
+        if (type == CellType::PRISM6 || type == CellType::PRISM18) {
+            // Les deux premières faces (0 et 1) sont des Triangles (index 0 dans cellFacetMapping)
+            // Les trois faces suivantes (2, 3 et 4) sont des Quads (index 1 dans cellFacetMapping)
+            return (localFacetId < 2) ? facetTypes[0] : facetTypes[1];
+        }
+
+        // Pour tous les autres types d'éléments (Tetra, Hexa, Tri, Quad), 
+        // toutes les faces partagent le même type.
+        return facetTypes[0];
+    }
+
+    inline static CfemInt getLocalFacesCount(CellType type)
+    {
+        switch (type)
+        {
+            case CellType::LINE2:
+            case CellType::LINE3:
+                return 2;
+            case CellType::TRI3:
+            case CellType::TRI6:
+                return 3;
+            case CellType::QUAD4:
+            case CellType::QUAD9:
+                return 4;
+            case CellType::TET4:
+            case CellType::TET10:
+                return 4;
+            case CellType::PRISM6:
+            case CellType::PRISM18:
+                return 5;
+            case CellType::HEX8:
+            case CellType::HEX27:
+                return 6;
+
+            default:
+                CFEM_ERROR << "Unsupported cell type."; 
+                return -1;
+        }
     }
 };
 
@@ -122,6 +167,9 @@ struct Facet {
     CellType type;
     CfemInt left_cell{-1};
     CfemInt right_cell{-1};
+
+    CfemInt left_cell_facet_id{-1};
+    CfemInt right_cell_facet_id{-1};
     
     // Index-based storage
     size_t offset{0};

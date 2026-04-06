@@ -4,6 +4,25 @@
 #include "ReferenceElement.h"
 #include "Vector3D.h"
 
+namespace cfem::reference_elem::utils{
+
+    inline Vector3D projectFacetRefCoordToTriRefCoord(CfemInt localFacetId, 
+                                                      const Vector3D& xiFacet) 
+    {
+        const CfemReal u = xiFacet.x; // [-1, 1] pour une ligne
+        CfemReal n1 = 0.5 * (1.0 - u);
+        CfemReal n2 = 0.5 * (1.0 + u);
+
+            switch (localFacetId) {
+                case 0: return Vector3D(n2, 0.0, 0.0); // Face {0,1}
+                case 1: return Vector3D(n1, n2, 0.0); // Face {1,2}
+                case 2: return Vector3D(0.0, n1, 0.0); // Face {2,0}
+                default: CFEM_ERROR << "Invalid facet ID for Triangle";
+            }
+        return Vector3D{}; // Make the compiler happy
+    }
+}
+
 namespace cfem {
     class P1ReferenceTriangle : public ReferenceElement {
 
@@ -46,6 +65,10 @@ namespace cfem {
             }
 
             out.validFlags = requested;
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+            return cfem::reference_elem::utils::projectFacetRefCoordToTriRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
 
     };
@@ -113,6 +136,10 @@ namespace cfem {
             }
 
             out.validFlags = requested;
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+            return cfem::reference_elem::utils::projectFacetRefCoordToTriRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
     };
 

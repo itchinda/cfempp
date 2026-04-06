@@ -3,6 +3,24 @@
 
 #include "ReferenceElement.h"
 
+namespace cfem::reference_elem::utils{
+
+    inline Vector3D projectFacetRefCoordToQuadRefCoord(CfemInt localFacetId, 
+                                                       const Vector3D& xiFacet) 
+    {
+        const CfemReal u = xiFacet.x;
+
+        switch (localFacetId) {
+            case 0: return Vector3D(u, -1.0, 0.0);             // Face {0,1} : y=-1
+            case 1: return Vector3D(1.0, u, 0.0);              // Face {1,2} : x=1
+            case 2: return Vector3D(-u, 1.0, 0.0);             // Face {2,3} : y=1
+            case 3: return Vector3D(-1.0, -u, 0.0);            // Face {3,0} : x=-1
+            default: CFEM_ERROR << "Invalid facet ID for Quad cell";
+        }
+        return Vector3D{}; // Make the compiler happy
+    }
+}
+
 namespace cfem {
 
     class Q1ReferenceQuad : public ReferenceElement {
@@ -52,6 +70,10 @@ namespace cfem {
                 }
             }
             out.validFlags = requested;
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+            return cfem::reference_elem::utils::projectFacetRefCoordToQuadRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
     };
 
@@ -134,6 +156,10 @@ class Q2ReferenceQuad : public ReferenceElement {
                 }
             }
             out.validFlags = requested;
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+            return cfem::reference_elem::utils::projectFacetRefCoordToQuadRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
     };
 }

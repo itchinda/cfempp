@@ -126,7 +126,8 @@ public:
     virtual void evaluate(const Vector3D& xi, 
                           ShapeEvaluationFlags requested, 
                           ShapeInfo& out) const = 0;
-
+                          
+    virtual Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const = 0;
     /**
      * @brief Returns the coordinates of the nodes in the reference space. 
      */

@@ -3,6 +3,29 @@
 
 #include "ReferenceElement.h"
 
+namespace cfem::reference_elem::utils{
+
+    inline Vector3D projectFacetRefCoordToPrismRefCoord(CfemInt localFacetId, 
+                                                      const Vector3D& xiFacet) 
+    {
+        const CfemReal u = xiFacet.x;
+        const CfemReal v = xiFacet.y;
+
+        switch (localFacetId) {
+            // Bases Triangles (u,v) dans [0,1]^2
+            case 0: return Vector3D(v, u, -1.0);               // Face {0,2,1} : z=-1
+            case 1: return Vector3D(u, v, 1.0);                // Face {3,4,5} : z=1
+            
+            // Faces Quads verticales (u,v) dans [-1,1]^2. Coordonnée z du prisme = v du quad.
+            case 2: return Vector3D(0.5*(1.0+u), 0.0, v);      // Face {0,1,4,3} : y=0, x in [0,1]
+            case 3: return Vector3D(0.5*(1.0-u), 0.5*(1.0+u), v); // Face {1,2,5,4} : oblique x+y=1
+            case 4: return Vector3D(0.0, 0.5*(1.0-u), v);      // Face {2,0,3,5} : x=0, y in [0,1]
+            default: CFEM_ERROR << "Invalid facet ID for Edge (Prism)";
+        }
+        return Vector3D{}; // Make the compiler happy
+    }
+}
+
 namespace cfem{
 
 class P1ReferencePrism : public ReferenceElement {
@@ -56,6 +79,10 @@ public:
             }
         }
         out.validFlags = requested;
+    }
+
+    Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+        return cfem::reference_elem::utils::projectFacetRefCoordToPrismRefCoord(localFacetId, xiFacet); // Make the compiler happy
     }
 };
 
@@ -142,6 +169,10 @@ public:
                 }
             }
             out.validFlags = requested;
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+            return cfem::reference_elem::utils::projectFacetRefCoordToPrismRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
     };
 

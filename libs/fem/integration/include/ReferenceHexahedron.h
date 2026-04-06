@@ -3,6 +3,27 @@
 
 #include "ReferenceElement.h"
 
+namespace cfem::reference_elem::utils{
+
+    inline Vector3D projectFacetRefCoordToHexaRefCoord(CfemInt localFacetId, 
+                                                      const Vector3D& xiFacet) 
+    {
+        const CfemReal u = xiFacet.x;
+        const CfemReal v = xiFacet.y;
+
+        switch (localFacetId) {
+            case 0: return Vector3D(v, u, -1.0);               // Face {0,3,2,1} : z=-1
+            case 1: return Vector3D(u, v, 1.0);                // Face {4,5,6,7} : z=1
+            case 2: return Vector3D(u, -1.0, v);               // Face {0,1,5,4} : y=-1
+            case 3: return Vector3D(1.0, u, v);                // Face {1,2,6,5} : x=1
+            case 4: return Vector3D(-u, 1.0, v);               // Face {2,3,7,6} : y=1
+            case 5: return Vector3D(-1.0, -u, v);              // Face {3,0,4,7} : x=-1
+            default: CFEM_ERROR << "Invalid facet ID for Hexa";
+        }
+        return Vector3D{}; // Make the compiler happy
+    }
+}
+
 namespace cfem{
 
 class Q1ReferenceHexahedron : public ReferenceElement {
@@ -50,6 +71,10 @@ public:
             }
         }
         out.validFlags = requested;
+    }
+
+    Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+        return cfem::reference_elem::utils::projectFacetRefCoordToHexaRefCoord(localFacetId, xiFacet); // Make the compiler happy
     }
 };
 
@@ -149,6 +174,10 @@ public:
             }
         }
         out.validFlags = requested;
+    }
+
+    Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+        return cfem::reference_elem::utils::projectFacetRefCoordToHexaRefCoord(localFacetId, xiFacet); // Make the compiler happy
     }
 };
 
