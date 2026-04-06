@@ -390,23 +390,111 @@ namespace cfem
 //         this->updateLocalBuffer();
 //     }
 
+// void FEField::project(const sym::CfemExpression &recipe)
+// {
+//     CFEM_INFO << "[FEField] Projecting into '" << m_name << "' (RAM-optimized)...";
+//     recipe.prepare();
+
+//     auto mesh = m_space->getMesh();
+//     const CfemInt numNodes = m_space->getNumActiveNodes();
+//     const int dim = m_dimension;
+
+//     // 1. ON UTILISE DIRECTEMENT m_localValues (On supprime cpuBuffer)
+//     // On s'assure que m_localValues a la bonne taille
+//     m_localValues.assign(numNodes * dim, 0.0); 
+    
+//     // On garde 'visited' car c'est un bitset/bool, c'est léger (30 Mo pour 30M de noeuds)
+//     std::vector<uint8_t> visited(numNodes, 0);
+
+//     // 2. Calcul parallèle
+//     #pragma omp parallel
+//     {
+//         EvalContext evctx;
+//         MappingInfo map;
+//         DynamicVector<Vector3D> physCoords;
+//         CfemReal valStorage[9]; 
+//         std::span<CfemReal> valSpan(valStorage, dim);
+
+//         #pragma omp for schedule(guided)
+//         for (CfemInt cellId = 0; cellId < mesh->getNumCells(); ++cellId) {
+//             const auto &cell = mesh->getCell(cellId);
+//             const auto &refEl = m_space->getRefElement(cell.type);
+//             const auto &cellNodes = mesh->getCellConnectivity(cellId);
+//             mesh->getCellVerticesCoords(cellId, physCoords);
+
+//             for (size_t i = 0; i < refEl.getNumNodes(); ++i) {
+//                 CfemInt localIdx = m_space->getLocalNodeIdx(cellNodes[i]);
+                
+//                 if (localIdx == -1 || visited[localIdx]) continue;
+                
+//                 // Spin-lock léger pour les noeuds partagés
+//                 if (__atomic_test_and_set(&visited[localIdx], __ATOMIC_RELAXED)) continue;
+
+//                 evctx.resetBuffers();
+//                 Vector3D xi = refEl.getNodeCoords(i);
+                
+//                 // (Calcul shape/mapping...)
+//                 ShapeInfo nodeShape;
+//                 refEl.evaluate(xi, ShapeEvaluationFlags::Value, nodeShape);
+//                 refEl.computeMapping(xi, physCoords, ShapeEvaluationFlags::None, nodeShape, map);
+
+//                 evctx.physPos = map.physicalPosition;
+//                 evctx.currentCellId = cellId;
+//                 evctx.currentXi = xi;
+
+//                 recipe.evaluate(cellId, xi, valSpan, evctx);
+
+//                 // ÉCRITURE DIRECTE DANS LE BUFFER FINAL
+//                 for (int d = 0; d < dim; ++d) {
+//                     m_localValues[localIdx + (d * numNodes)] = valSpan[d];
+//                 }
+//             }
+//         }
+//     } // Sortie OMP : TOUS les EvalContext sont détruits ici.
+
+//     // 3. LIBÉRATION DU TABLEAU VISITED
+//     visited.clear();
+//     visited.shrink_to_fit();
+
+//     // 4. SYNCHRONISATION PETSc (Depuis m_localValues)
+//     // Au lieu de copier cpuBuffer -> PETSc -> localBuffer,
+//     // on fait localBuffer -> PETSc directement.
+//     PetscScalar *array;
+//     VecGetArray(m_data.getRaw(), &array);
+//     std::copy(m_localValues.begin(), m_localValues.end(), array);
+//     VecRestoreArray(m_data.getRaw(), &array);
+//     m_data.assemble();
+
+//     // 5. PLUS BESOIN DE updateLocalBuffer() ! 
+//     // Il est déjà à jour, on économise une grosse copie et une allocation PETSc interne.
+
+// #ifdef __linux__
+//     malloc_trim(0); 
+// #endif
+
+//     CFEM_INFO << "[FEField] Projection completed. Memory flushed.";
+// }
+
 void FEField::project(const sym::CfemExpression &recipe)
 {
-    CFEM_INFO << "[FEField] Projecting into '" << m_name << "' (RAM-optimized)...";
+    CFEM_INFO << "[FEField] Projecting into '" << m_name;
     recipe.prepare();
 
     auto mesh = m_space->getMesh();
-    const CfemInt numNodes = m_space->getNumActiveNodes();
-    const int dim = m_dimension;
+    auto petscVec = m_data.getRaw();
 
-    // 1. ON UTILISE DIRECTEMENT m_localValues (On supprime cpuBuffer)
-    // On s'assure que m_localValues a la bonne taille
-    m_localValues.assign(numNodes * dim, 0.0); 
+    PetscInt low, high;
+    VecGetOwnershipRange(petscVec, &low, &high);
+
+    const int dim = m_dimension;
+    const CfemInt numNodes = m_space->getNumActiveNodes();
+
+    // SÉCURITÉ : On alloue TOUT le buffer local PETSc
+    m_localValues.assign(high - low, 0.0); 
     
-    // On garde 'visited' car c'est un bitset/bool, c'est léger (30 Mo pour 30M de noeuds)
+    // Pour visited, on a besoin d'un état par nœud
     std::vector<uint8_t> visited(numNodes, 0);
 
-    // 2. Calcul parallèle
     #pragma omp parallel
     {
         EvalContext evctx;
@@ -423,17 +511,16 @@ void FEField::project(const sym::CfemExpression &recipe)
             mesh->getCellVerticesCoords(cellId, physCoords);
 
             for (size_t i = 0; i < refEl.getNumNodes(); ++i) {
-                CfemInt localIdx = m_space->getLocalNodeIdx(cellNodes[i]);
+                CfemInt nodeIdx = m_space->getLocalNodeIdx(cellNodes[i]);
                 
-                if (localIdx == -1 || visited[localIdx]) continue;
+                if (nodeIdx == -1) continue;
                 
-                // Spin-lock léger pour les noeuds partagés
-                if (__atomic_test_and_set(&visited[localIdx], __ATOMIC_RELAXED)) continue;
+                // Spin-lock par nœud
+                if (visited[nodeIdx]) continue;
+                if (__atomic_test_and_set(&visited[nodeIdx], __ATOMIC_RELAXED)) continue;
 
-                evctx.resetBuffers();
                 Vector3D xi = refEl.getNodeCoords(i);
                 
-                // (Calcul shape/mapping...)
                 ShapeInfo nodeShape;
                 refEl.evaluate(xi, ShapeEvaluationFlags::Value, nodeShape);
                 refEl.computeMapping(xi, physCoords, ShapeEvaluationFlags::None, nodeShape, map);
@@ -444,35 +531,29 @@ void FEField::project(const sym::CfemExpression &recipe)
 
                 recipe.evaluate(cellId, xi, valSpan, evctx);
 
-                // ÉCRITURE DIRECTE DANS LE BUFFER FINAL
+                // Écriture selon ta règle : Block-wise ordering
                 for (int d = 0; d < dim; ++d) {
-                    m_localValues[localIdx + (d * numNodes)] = valSpan[d];
+                    // L'index global pour PETSc avec ta règle de blocs
+                    CfemInt globalDofIdx = nodeIdx + (d * numNodes);
+
+                    // Est-ce que cet index précis appartient à ce processus MPI ?
+                    if (globalDofIdx >= low && globalDofIdx < high) {
+                        m_localValues[globalDofIdx - low] = valSpan[d];
+                    }
                 }
             }
         }
-    } // Sortie OMP : TOUS les EvalContext sont détruits ici.
+    }
 
-    // 3. LIBÉRATION DU TABLEAU VISITED
-    visited.clear();
-    visited.shrink_to_fit();
-
-    // 4. SYNCHRONISATION PETSc (Depuis m_localValues)
-    // Au lieu de copier cpuBuffer -> PETSc -> localBuffer,
-    // on fait localBuffer -> PETSc directement.
+    // Copie vers PETSc
     PetscScalar *array;
-    VecGetArray(m_data.getRaw(), &array);
+    VecGetArray(petscVec, &array);
     std::copy(m_localValues.begin(), m_localValues.end(), array);
-    VecRestoreArray(m_data.getRaw(), &array);
+    VecRestoreArray(petscVec, &array);
+    
     m_data.assemble();
 
-    // 5. PLUS BESOIN DE updateLocalBuffer() ! 
-    // Il est déjà à jour, on économise une grosse copie et une allocation PETSc interne.
-
-#ifdef __linux__
-    malloc_trim(0); 
-#endif
-
-    CFEM_INFO << "[FEField] Projection completed. Memory flushed.";
+    CFEM_INFO << "[FEField] Projection completed ";
 }
 
 } // namespace cfem

@@ -162,6 +162,7 @@ namespace cfem
         if (targets.empty())
             return;
 
+        CFEM_INFO << "Integrating over entity " << entity.getName();
         // ============================================================
         // EXPRESSION AND SPACE NEEDS ANALYSIS
         // ============================================================

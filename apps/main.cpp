@@ -55,7 +55,7 @@ int main(int argc, char **argv)
 
             mesh = Mesh::block(
                 MeshOrder::Linear,
-                Mesh::BlockSubdivisions{10, 10, 10}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+                Mesh::BlockSubdivisions{150, 150, 150}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
                 Mesh::BlockBounds(
                     Vector3D{-1., -1., -1.},
                     Vector3D{1., 1., 1.}
@@ -64,7 +64,7 @@ int main(int argc, char **argv)
 
         }
 
-        auto Q = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);
+        auto Q = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);
         auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
 
         auto p = Trial(Q, "p");
@@ -72,15 +72,15 @@ int main(int argc, char **argv)
         auto q = Test (Q, "q");
         auto v = Test (V, "v");
 
-        auto analytical_p = scalar(x * x + y * y +  x + y); 
-        auto analytical_u = vector( x*x+y*y+z*z,
-                                   -2*x*y,
-                                    x*z);
+        // auto analytical_p = scalar(x * x + y * y +  x + y); 
+        // auto analytical_u = vector( x*x+y*y+z*z,
+        //                            -2*x*y,
+        //                             x*z);
 
-        // auto analytical_p = scalar(x * x + y * y + z * z + y + x + y + z + 1); // SymEngine expressions
-        // auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * z ),
-        //                            cos(2 * pi * y ) * cos(2 * pi * x ),
-        //                            cos(2 * pi * y ) * cos(2 * pi * z ));
+        auto analytical_p = scalar(x * x + y * y + z * z + y + x + y + z + 1); // SymEngine expressions
+        auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * z ),
+                                   cos(2 * pi * y ) * cos(2 * pi * x ),
+                                   cos(2 * pi * y ) * cos(2 * pi * z ));
 
         {
             PROFILE_SCOPE("FieldProjection");
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
 
 
 
-            CFEM_INFO << "sqrt (int_{Omega} |grad(u-analytical_u)|^2 ds ) = " << sqrt(integrator.computeIntegral(mag_sqr(grad(u-analytical_u)), "ymin"));
+            //CFEM_INFO << "sqrt (int_{Omega} |grad(u-analytical_u)|^2 ds ) = " << sqrt(integrator.computeIntegral(mag_sqr(grad(u-analytical_u)), "ymin"));
             // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr(scalar(y)), "xmin") );
             // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr(grad(u - analytical_u)), "xmin") );
 

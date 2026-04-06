@@ -130,7 +130,7 @@ public:
     CfemInt getMeshNodeIdFromLocal(CfemInt localIdx) const { 
         return m_localToMeshNodeIdx[localIdx]; 
     }
-    
+
     const ReferenceElement& getRefElement(CellType type) const;
 
     /** @brief Computes the number of non-zeros (nnz) per row for efficient PETSc matrix allocation. */
