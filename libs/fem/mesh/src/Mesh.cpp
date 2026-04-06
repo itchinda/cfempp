@@ -644,6 +644,8 @@ namespace cfem
             CellType type;
             size_t offset;
             size_t count;
+            CfemInt left_facet_id;
+            CfemInt right_facet_id;
         };
         std::vector<FacetMeta> temp_meta;
         temp_meta.reserve(est_facets);
@@ -698,7 +700,9 @@ namespace cfem
                     neighbor_id, 
                     current_face.type, 
                     start_offset, 
-                    (size_t)current_face.size
+                    (size_t)current_face.size,
+                    f_idx,
+                    neighbor_f_idx
                 });
 
                 // Update mapping
@@ -728,6 +732,9 @@ namespace cfem
             f.type = meta.type;
             f.left_cell = meta.left;
             f.right_cell = meta.right;
+
+            f.left_cell_facet_id = meta.left_facet_id;
+            f.right_cell_facet_id = meta.right_facet_id;
             
             // No pointers! Just integers. 
             // This is now 100% safe from reallocations.
@@ -836,7 +843,7 @@ namespace cfem
             if (entity_ptr->getName() == name)
                 return *entity_ptr;
         }
-        CFEM_ERROR << "The mesh does not hold any entity with id " << name;
+        CFEM_ERROR << "The mesh does not hold any entity with name " << name;
         return *m_entities[0]; // Makes the compiler happy
     }
 

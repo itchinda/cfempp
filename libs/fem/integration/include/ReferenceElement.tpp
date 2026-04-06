@@ -8,45 +8,6 @@
 namespace cfem
 {
 
-    // inline void ReferenceElement::computeMapping(const Vector3D &xi,
-    //                                              const DynamicVector<Vector3D> &physicalNodesCoords,
-    //                                              ShapeEvaluationFlags requestedFields,
-    //                                              ShapeInfo &shape,
-    //                                              MappingInfo &out) const
-    // {
-    //     const int n = getNumNodes();
-    //     const bool wantHessians = hasFlag(requestedFields, ShapeEvaluationFlags::Hessian);
-
-    //     shape.setup(n, wantHessians);
-    //     out.setup(n, wantHessians);
-
-    //     if (shape.shapeMustBeUpdated){
-    //         // Reference gradients are strictly required to build the Jacobian
-    //         ShapeEvaluationFlags internalFields = requestedFields | ShapeEvaluationFlags::Gradient;
-    //         evaluate(xi, internalFields, shape);
-    //     }
-
-    //     out.physicalPosition = {0, 0, 0};
-    //     for (int i = 0; i < n; ++i)
-    //     {
-    //         out.physicalPosition += physicalNodesCoords[i] * shape.values[i];
-    //     }
-
-    //     // Compute Metrics (Jacobian, Determinant, Inverse)
-        
-    //     computeJacobian(shape, physicalNodesCoords, out);
-
-    //     if (hasFlag(requestedFields,  ShapeEvaluationFlags::Gradient))
-    //     {
-    //         computePhysicalGradients(shape, out);
-    //     }
-
-    //     if (wantHessians)
-    //     {
-    //         computePhysicalHessians(physicalNodesCoords, shape, out);
-    //     }
-    // }
-
     inline void ReferenceElement::computeMapping(const Vector3D &xi,
                                                  const DynamicVector<Vector3D> &physicalNodesCoords,
                                                  ShapeEvaluationFlags requestedFields,
@@ -165,6 +126,7 @@ namespace cfem
                 out.invJacobian(i, 2) = 0.0;
             }
         }
+
     }
 
     inline void ReferenceElement::computePhysicalGradients(const ShapeInfo &shape,

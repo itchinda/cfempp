@@ -41,6 +41,39 @@ namespace cfem
         }
     }
 
+    /** ************************************************************************************************************************************
+     * @brief Retrieves the 3D coordinates of all vertices of a given facet.
+     *
+     * This function populates a user-provided dynamic vector with the coordinates
+     * of each vertex that forms the specified facet. The order of coordinates
+     * corresponds to the facet's connectivity.
+     *
+     * This is useful for geometric computations such as:
+     * - Calculating facet lenght areas
+     * - Visualization and mesh export
+     *
+     * @param facet_id The ID of the facet whose vertices are to be retrieved. Must satisfy 0 <= facet_id < getNumFacets().
+     * @param v_coords Reference to a DynamicVector<Vector3D> that will be resized to the number of vertices in the facet and filled with their
+     *                  coordinates.
+     * @pre facet_id must be a valid index in the mesh.
+     * @post v_coords.size() == number of vertices in the facet.
+     *
+     * @note The function works for any facet type (linear or quadratic) since it relies
+     *       on the facet's connectivity array.
+     ***************************************************************************************************************************************/
+    inline void Mesh::getFacetVerticesCoords(CfemInt cell_id, DynamicVector<Vector3D> &v_coords) const
+    {
+        CFEM_ASSERT(cell_id >= 0 && cell_id < getNumFacets());
+        auto node_ids = getFacetConnectivity(cell_id);
+        const size_t numVertices = node_ids.size();
+        v_coords.resize(numVertices);
+
+        for (size_t i = 0; i < numVertices; ++i)
+        {
+            v_coords[i] = m_vertices[node_ids[i]].coords;
+        }
+    }
+
     inline CfemInt getNodeCountPerCell(CellType type)
     {
         switch (type)

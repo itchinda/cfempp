@@ -1,8 +1,9 @@
+#include "BinaryExpression.h"
+#include "ConstantExpression.h"
 #include "MathOperators.h"
 #include "ZeroExpression.h"
 #include "UnaryExpression.h"
-#include "BinaryExpression.h"
-#include "ConstantExpression.h"
+#include "VectorExpression.h"
 
 namespace cfem::sym
 {
@@ -103,7 +104,7 @@ namespace cfem::sym
     }
 
     // --- grad() Implementation ---
-    inline std::shared_ptr<const CfemExpression> UnaryExpression::grad() const {
+    std::shared_ptr<const CfemExpression> UnaryExpression::grad() const {
 
         // Standard Chain Rule: f'(u) * grad(u)
         auto du = getDerivativeWrtInner();
@@ -118,7 +119,7 @@ namespace cfem::sym
     }
 
     // --- timeDerivative() Implementation ---
-    inline std::shared_ptr<const CfemExpression> UnaryExpression::timeDerivative() const {
+    std::shared_ptr<const CfemExpression> UnaryExpression::timeDerivative() const {
         if (m_op == MathOp::Transpose) {
             return std::make_shared<UnaryExpression>(m_expr->timeDerivative(), MathOp::Transpose);
         }
@@ -128,7 +129,7 @@ namespace cfem::sym
         return du * m_expr->timeDerivative();
     }
 
-    inline std::shared_ptr<const CfemExpression> UnaryExpression::div() const {
+    std::shared_ptr<const CfemExpression> UnaryExpression::div() const {
         using namespace utils;
 
         if (m_dimOut == 1) {

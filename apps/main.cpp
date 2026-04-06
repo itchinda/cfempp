@@ -43,18 +43,28 @@ int main(int argc, char **argv)
         {
             PROFILE_SCOPE("MeshBuilding");
 
+            // mesh = Mesh::quad(
+            //     MeshOrder::Linear,
+            //     Mesh::QuadSubdivisions{1, 1}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+            //     Mesh::QuadBounds(
+            //         Vector3D{0., 0., 0.},
+            //         Vector3D{1., 1., 0.}
+            //     ),
+            //     Mesh::QuadElementType::TriangleCrissCross
+            // );
+
             mesh = Mesh::block(
-                MeshOrder::Quadratic,
+                MeshOrder::Linear,
                 Mesh::BlockSubdivisions{10, 10, 10}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
                 Mesh::BlockBounds(
-                    Vector3D{0., 0., 0.},
+                    Vector3D{-1., -1., -1.},
                     Vector3D{1., 1., 1.}
                 ),
-                Mesh::BlockElementType::Tetrahedron);
+                Mesh::BlockElementType::Tetrahedron );
 
         }
 
-        auto Q = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);
+        auto Q = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);
         auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
 
         auto p = Trial(Q, "p");
@@ -62,78 +72,21 @@ int main(int argc, char **argv)
         auto q = Test (Q, "q");
         auto v = Test (V, "v");
 
-        // auto analytical_p = scalar(x * x + y * y + z * z + x * y + x * z + z * y + x + y + z + 1); // SymEngine expressions
-        // auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * y ) * sin(2 * pi * z ),
-        //                            cos(2 * pi * x ) * cos(2 * pi * y ) * cos(2 * pi * z ),
-        //                            cos(2 * pi * x ) * sin(2 * pi * y ) * cos(2 * pi * z ));
+        auto analytical_p = scalar(x * x + y * y +  x + y); 
+        auto analytical_u = vector( x*x+y*y+z*z,
+                                   -2*x*y,
+                                    x*z);
 
-        auto analytical_p = scalar(x * x + y * y + z * z + y + x + y + z + 1); // SymEngine expressions
-        auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * z ),
-                                   cos(2 * pi * y ) * cos(2 * pi * x ),
-                                   cos(2 * pi * y ) * cos(2 * pi * z ));
+        // auto analytical_p = scalar(x * x + y * y + z * z + y + x + y + z + 1); // SymEngine expressions
+        // auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * z ),
+        //                            cos(2 * pi * y ) * cos(2 * pi * x ),
+        //                            cos(2 * pi * y ) * cos(2 * pi * z ));
 
-        // auto analytical_u = vector(x * x + y * y + z,
-        //                            -2*x*y + z*z,
-        //                            x + y);
-
-        CFEM_INFO << "grad(p) = " << analytical_p->grad();
-        CFEM_INFO << "div(u) = " << analytical_u->div();
-
-        // auto grad_p_analyt = cfem::sym::vector([](const Vector3D& X) {
-        //     return Vector3D{2.0 * X.x, 2.0 * X.y, 2.0 * X.z};
-        // });
-
-        // auto analytical_p = scalar([](const Vector3D& X) {
-        //     return X.x * X.x + X.y * X.y + X.z * X.z;
-        // }, grad_p_analyt);
-
-        // auto analytical_grad_u = tensor([](const Vector3D& X) -> TensorO2 {
-        //     return TensorO2({2*X.x, 1., 0.,   X.z, 2*X.y, X.x, 2*X.x, 0., 1.});
-        // } );
-        // auto analytical_u = vector([](const Vector3D& X) {
-        //     return Vector3D{X.x * X.x + X.y, X.y*X.y + X.x*X.z, X.z + X.x*X.x};
-        // }, analytical_grad_u);
-
-        CFEM_INFO << -grad(analytical_u);
         {
             PROFILE_SCOPE("FieldProjection");
             u->project(analytical_u);
             p->project(analytical_p);
         }
-
-
-        // 1. Create something truly expensive
-        // auto heavy = cache( scalar( cfem::sym::pow(sin(pi*x), 4.0) * exp(-x*x) * log(1.0 + x*x) *sqrt(1.0 + y*y) ) );
-        // auto f_u = heavy + sin(heavy) + cos(heavy) + exp(heavy) + sqrt(abs(heavy));
-        // auto raw = scalar( cfem::sym::pow(sin(pi*x), 4) * exp(-x*x) * log(1.0 + x*x) / sqrt(1.0 + y*y) );
-        // auto g_u = raw + sin(raw) + cos(raw) + exp(raw) + sqrt(abs(raw));
-
-        
-
-        
-        // {
-        //     PROFILE_SCOPE("L2Norm1");
-        //     IntegrationSchemeParams schemes_params{};
-        //     // schemes_params.NumIntgPtHexElem = 1;
-        //     CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
-        //     DomainIntegrator::L2Norm(mesh, p - analytical_p, &l2Norm_P, nullptr, schemes_params);
-        //     DomainIntegrator::L2Norm(mesh, u - analytical_u, &l2Norm_U, nullptr, schemes_params);
-        //     CFEM_INFO << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P;
-        //     CFEM_INFO << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U;
-
-        // }
-
-        // {
-        //     PROFILE_SCOPE("L2Norm2");
-        //     IntegrationSchemeParams schemes_params{};
-        //     // schemes_params.NumIntgPtHexElem = 1;
-        //     CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
-        //     DomainIntegrator::L2Norm(mesh, p - analytical_p, nullptr, &h1SemiNorm_P, schemes_params);
-        //     DomainIntegrator::L2Norm(mesh, u - analytical_u, nullptr, &h1SemiNorm_U, schemes_params);
-        //     CFEM_INFO << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P;
-        //     CFEM_INFO << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U;
-
-        // }
 
         {
             PROFILE_SCOPE("L2Norm3");
@@ -146,31 +99,13 @@ int main(int argc, char **argv)
             CFEM_INFO << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P;
             CFEM_INFO << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U;
 
+
+
+            CFEM_INFO << "sqrt (int_{Omega} |grad(u-analytical_u)|^2 ds ) = " << sqrt(integrator.computeIntegral(mag_sqr(grad(u-analytical_u)), "ymin"));
+            // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr(scalar(y)), "xmin") );
+            // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr(grad(u - analytical_u)), "xmin") );
+
         }
-
-        {
-            PROFILE_SCOPE("FieldProjectionAfter");
-            u->project(analytical_u);
-            p->project(analytical_p);
-        }
-
-        // {
-        //     PROFILE_SCOPE("UnCachedExport");
-        //     VTUExporter vtk_exporter(*mesh);
-        //     //vtk_exporter.setExportedEntities( {"xmin", "xmax", "ymin", "ymax", "zmin", "zmax"});
-        //     //vtk_exporter.exportCellQuality(true);
-
-        //     vtk_exporter.addExpression("p", p);
-        //     vtk_exporter.addExpression("u", u);
-        //     vtk_exporter.addExpression("U_exact", analytical_u);
-        //     vtk_exporter.addExpression("P_exact", analytical_p);
-        //     // vtk_exporter.addExpression("U", u);
-        //     // vtk_exporter.addExpression("U_exact", analytical_u);
-        //     // vtk_exporter.addExpression("GradP", fe_gradp);
-        //     // vtk_exporter.addExpression("sin_u", sin_u);
-        //     vtk_exporter.setFormat(VTUExporter::Format::BINARY);
-        //     vtk_exporter.write("cube ");
-        // }
 
     }
 

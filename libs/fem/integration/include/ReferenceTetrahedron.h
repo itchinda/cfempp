@@ -3,6 +3,26 @@
 
 #include "ReferenceElement.h"
 
+namespace cfem::reference_elem::utils{
+
+    inline Vector3D projectFacetRefCoordToTetraRefCoord(CfemInt localFacetId, 
+                                                      const Vector3D& xiFacet) 
+    {
+        const CfemReal u = xiFacet.x;
+        const CfemReal v = xiFacet.y;
+
+        CfemReal n0 = 1.0 - u - v;
+        switch (localFacetId) {
+            case 0: return Vector3D(u, v, 0.0);                // Face {0,1,2} : z=0
+            case 1: return Vector3D(u, 0.0, v);                // Face {0,1,3} : y=0
+            case 2: return Vector3D(n0, u, v);                 // Face {1,2,3} : x+y+z=1
+            case 3: return Vector3D(0.0, n0, v);               // Face {2,0,3} : x=0
+            default: CFEM_ERROR << "Invalid facet ID for Tetra";
+        }
+        return Vector3D{}; // Make the compiler happy
+    }
+}
+
 namespace cfem {
 
     /**
@@ -45,6 +65,10 @@ namespace cfem {
                 for (auto& H : out.hessians) H.setZero();
             }
             out.validFlags = requested;
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+            return cfem::reference_elem::utils::projectFacetRefCoordToTetraRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
     };
 
@@ -138,6 +162,10 @@ namespace cfem {
                 out.hessians[9].yz() =  4.0;
             }
             out.validFlags = requested;
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+            return cfem::reference_elem::utils::projectFacetRefCoordToTetraRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
     };
 }

@@ -605,6 +605,7 @@ public:
     CfemInt getDimFromType(CellType type) const;
     MeshOrder getCellOrderFromType(CellType type) const;
     void getCellVerticesCoords(CfemInt cell_id, DynamicVector<Vector3D>& v_coords) const;
+    void getFacetVerticesCoords(CfemInt cell_id, DynamicVector<Vector3D>& v_coords) const;
     const std::vector<CellType>& getCellTypesPresent() const { return m_uniqueCellTypes; }
     const std::vector<CellType>& getFacetTypesPresent() const { return m_uniqueFacetTypes; }
     CfemReal computeCellQuality(CfemInt cellId) const;

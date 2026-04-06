@@ -138,10 +138,12 @@ public:
      * @brief Access element (read-only). 
      */
     inline const T& operator[](int i) const {
-        if (!(i >= 0 && i < size())){
-            std::cout << "TAILLE = " << size() << std::endl;
-        }
-        CFEM_ASSERT(i >= 0 && i < size());
+        CFEM_ASSERT(
+            i >= 0 && i < size(),
+            (("DynamicVector::operator[]: Index out of bounds. The vector size is "
+            + std::to_string(size()) + ", but you are trying to access an element at index "
+            + std::to_string(i)).c_str())
+        );
         return m_data[static_cast<size_t>(i)];
     }
 

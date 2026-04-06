@@ -31,17 +31,19 @@ namespace cfem
 
         using EvaluationTarget = std::pair<std::shared_ptr<const sym::CfemExpression>, CfemReal*>;
         
-        void integrate(const MeshEntity                    &domain,
-                       const std::vector<EvaluationTarget> &targets);
+        void integrate(const std::vector<EvaluationTarget> &targets,
+                       const MeshEntity                    &domain);
         /**
          * @brief Integrates over facets (Boundary Integration).
          * Used when domain consists of facets (dim < mesh_dim).
          */
-        void integrateBoundary(const MeshEntity                    &domain,
-                               const std::vector<EvaluationTarget>& targets) {};
+        void integrateBoundary(const std::vector<EvaluationTarget> &targets,
+                               const MeshEntity                    &boundary,
+                               const MeshEntity                    &volume);
 
-        void dispatchIntegration(const MeshEntity &entity,
-                                 const std::vector<EvaluationTarget> &targets);
+        void dispatchIntegration(const std::vector<EvaluationTarget> &targets,
+                                 const MeshEntity &entity,
+                                 const MeshEntity &);
 
         inline bool needsMapping(ShapeEvaluationFlags flags)
         {
@@ -65,34 +67,34 @@ namespace cfem
                     CfemReal* l2Out,
                     CfemReal* h1SemiOut);
 
-        void L2Norm(const std::string& entity_name,
-                    const std::shared_ptr<const sym::CfemExpression> &expr,
+        void L2Norm(const std::shared_ptr<const sym::CfemExpression> &expr,
                     CfemReal* l2Out,
-                    CfemReal* h1SemiOut);
+                    CfemReal* h1SemiOut,
+                    const std::string& entity_name);
 
-        void L2Norm(CfemInt entity_id,
-                    const std::shared_ptr<const sym::CfemExpression> &expr,
+        void L2Norm(const std::shared_ptr<const sym::CfemExpression> &expr,
                     CfemReal* l2Out,
-                    CfemReal* h1SemiOut);
+                    CfemReal* h1SemiOut,
+                    CfemInt entity_id);
 
-        void L2Norm(const MeshEntity& entity,
-                    const std::shared_ptr<const sym::CfemExpression> &expr,
+        void L2Norm(const std::shared_ptr<const sym::CfemExpression> &expr,
                     CfemReal* l2Out,
-                    CfemReal* h1SemiOut);
+                    CfemReal* h1SemiOut,
+                    const MeshEntity& entity);
         /**
          * @brief Exemple d'une autre fonction simplifiée rendue possible
          * Calcule l'intégrale d'une fonction (ex: le volume si expr = 1.0)
          */
         CfemReal computeIntegral(const std::shared_ptr<const sym::CfemExpression> &expr);
 
-        CfemReal computeIntegral(const std::string& entity_name,
-                                 const std::shared_ptr<const sym::CfemExpression> &expr);
+        CfemReal computeIntegral(const std::shared_ptr<const sym::CfemExpression> &expr,
+                                 const std::string& entity_name);
 
-        CfemReal computeIntegral(CfemInt entity_id,
-                                 const std::shared_ptr<const sym::CfemExpression> &expr);
+        CfemReal computeIntegral(const std::shared_ptr<const sym::CfemExpression> &expr,
+                                CfemInt entity_id);
 
-        CfemReal computeIntegral(const MeshEntity& entity,
-                                 const std::shared_ptr<const sym::CfemExpression> &expr);
+        CfemReal computeIntegral(const std::shared_ptr<const sym::CfemExpression> &expr,
+                                 const MeshEntity& entity);
     };
 }
 #endif

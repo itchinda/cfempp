@@ -5,6 +5,7 @@ add_library(cfem_expressions
     src/ConstantExpression.cpp
     src/GradExpression.cpp
     src/LambdaExpressionBase.cpp
+    src/MathOperators.cpp
     src/UnaryExpression.cpp
     src/VectorExpression.cpp
     src/TensorExpression.cpp

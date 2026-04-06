@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "VariableExpression.h"
 #include "MathOperators.h" // Your symbolic headers
 
 using namespace cfem::sym;
