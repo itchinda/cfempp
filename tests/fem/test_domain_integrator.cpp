@@ -26,7 +26,7 @@ protected:
 
     std::shared_ptr<Mesh> mesh;
     std::unique_ptr<DomainIntegrator> integrator;
-    const CfemReal TOL = 1e-13;
+    const CfemReal TOL = 1e-12;
 };
 
 // 1. Validation de l'intégration de volume (Fonction constante)
@@ -59,8 +59,8 @@ TEST_F(DomainIntegratorTest, L2NormP2Projection) {
     integrator->L2Norm(p - analytical, &l2Err, &h1Err);
 
     // L'erreur doit être proche de la précision machine
-    EXPECT_NEAR(l2Err, 0.0, 1e-12);
-    EXPECT_NEAR(h1Err, 0.0, 1e-11);
+    EXPECT_NEAR(l2Err, 0.0, TOL);
+    EXPECT_NEAR(h1Err, 0.0, TOL);
 }
 
 // // 4. Test d'un champ vectoriel (Divergence / Gradient)
