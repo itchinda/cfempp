@@ -1,15 +1,16 @@
 #include "FEField.h"
-#include "ReferenceElementFactory.h"
 #include "DynamicVector.h"
-
 #include <stdexcept>
 #include <iostream>
-#include <malloc.h>
 
 namespace cfem
 {
-
-    FEField::FEField(ConstructorToken, const std::string &name, std::shared_ptr<LagrangeSpace> space)
+    /**
+     * @brief Constructor for FEField.
+     * @param name Unique name of the field (e.g., "velocity", "temperature").
+     * @param space Shared pointer to the FESpace (Lagrange, DG, etc.) providing the basis.
+     */
+    FEField::FEField(ConstructorToken, const std::string &name, std::shared_ptr<FESpace> space)
         : m_name(name),
           m_dimension(space->getDimension()),
           m_space(std::move(space)),
@@ -18,542 +19,287 @@ namespace cfem
         m_data.setAll(0.0);
     }
 
+    /**
+     * @brief Resizes the underlying PETSc vector and clears local buffers.
+     * Triggered by FESpace when the mesh or numbering changes.
+     */
     void FEField::reallocate()
     {
         CfemInt newSize = m_space->getGlobalNumDofs();
         m_data = PetscVector(PETSC_DECIDE, newSize);
         m_data.setAll(0.0);
         m_localValues.clear();
-        std::cout << "[FEField] Field '" << m_name << "' reallocated to size " << newSize << std::endl;
+        
+        CFEM_INFO << "Field '" << m_name << "' reallocated to global size: " << newSize;
     }
 
+    /**
+     * @brief Synchronizes the global PETSc vector to a local buffer for fast access.
+     * Uses a PETSc Scatter-to-All strategy to ensure every MPI process has a full copy 
+     * of the field values for evaluations.
+     */
     void FEField::updateLocalBuffer() const
     {
         CfemInt totalDofs = m_space->getGlobalNumDofs();
+        
+        // Ensure the local cache is sized correctly
         if (m_localValues.size() != static_cast<size_t>(totalDofs))
         {
             m_localValues.assign(totalDofs, 0.0);
         }
 
+        Vec petscVec = m_data.getRaw();
         VecScatter ctx;
         Vec localVec;
+
+        // Create a sequential vector on the local process to receive the full global data
         VecCreateSeq(PETSC_COMM_SELF, totalDofs, &localVec);
-        VecScatterCreateToAll(m_data.getRaw(), &ctx, nullptr);
+        VecScatterCreateToAll(petscVec, &ctx, &localVec);
 
-        VecScatterBegin(ctx, m_data.getRaw(), localVec, INSERT_VALUES, SCATTER_FORWARD);
-        VecScatterEnd(ctx, m_data.getRaw(), localVec, INSERT_VALUES, SCATTER_FORWARD);
+        // Perform the communication
+        VecScatterBegin(ctx, petscVec, localVec, INSERT_VALUES, SCATTER_FORWARD);
+        VecScatterEnd(ctx, petscVec, localVec, INSERT_VALUES, SCATTER_FORWARD);
 
+        // Extract values from the local PETSc vector to our std::vector buffer
         PetscScalar *array;
         VecGetArray(localVec, &array);
-        for (CfemInt i = 0; i < totalDofs; ++i)
-        {
-            m_localValues[i] = static_cast<CfemReal>(array[i]);
-        }
+        std::copy(array, array + totalDofs, m_localValues.begin());
         VecRestoreArray(localVec, &array);
 
-        VecScatterDestroy(&ctx);
+        // Clean up PETSc temporary objects
         VecDestroy(&localVec);
+        VecScatterDestroy(&ctx);
     }
 
-    // void FEField::updateLocalBuffer() const {
-    //     CfemInt totalDofs = m_space->getGlobalNumDofs();
-        
-    //     // 1. NE RIEN FAIRE si déjà à jour
-    //     if (!m_isDirty && m_localValues.size() == (size_t)totalDofs) return;
-
-    //     if (m_localValues.size() != (size_t)totalDofs) {
-    //         m_localValues.assign(totalDofs, 0.0);
-    //     }
-
-    //     // 2. RÉUTILISER le contexte de communication (Indispensable pour la vitesse)
-    //     if (!m_scatterCtx) {
-    //         // Option A: Si tu es sur 1 seul process, utilise VecGetArray (Instant)
-    //         // Option B: Si multi-process, garde le CreateToAll MAIS garde-le en membre de classe
-    //         VecScatterCreateToAll(m_data.getRaw(), &m_scatterCtx, nullptr);
-    //     }
-
-    //     Vec tempLocalVec;
-    //     VecCreateSeqWithArray(PETSC_COMM_SELF, 1, totalDofs, m_localValues.data(), &tempLocalVec);
-
-    //     // 3. LE TRANSFERT (Maintenant ultra-rapide car le mapping est déjà prêt)
-    //     VecScatterBegin(m_scatterCtx, m_data.getRaw(), tempLocalVec, INSERT_VALUES, SCATTER_FORWARD);
-    //     VecScatterEnd(m_scatterCtx, m_data.getRaw(), tempLocalVec, INSERT_VALUES, SCATTER_FORWARD);
-
-    //     VecDestroy(&tempLocalVec);
-    //     m_isDirty = false;
-    // }
-
+    /**
+     * @brief Retrieves the value at a specific mesh node for a given component.
+     * Agnostic to how DOFs are stored (CG vs DG).
+     */
     CfemReal FEField::getAtNode(CfemInt meshNodeId, int component) const
     {
-        CfemInt nodeIdx = m_space->getLocalNodeIdx(meshNodeId);
-        if (nodeIdx == -1)
+        CfemInt globalIdx = m_space->getGlobalDofFromMeshNode(meshNodeId, component);
+        
+        if (globalIdx == -1 || globalIdx >= static_cast<CfemInt>(m_localValues.size()))
             return 0.0;
-
-        CfemInt numNodes = m_space->getNumActiveNodes();
-        CfemInt globalIdx = nodeIdx + (component * numNodes);
-
-        if (globalIdx >= static_cast<CfemInt>(m_localValues.size()))
-            return 0.0;
+        
         return m_localValues[globalIdx];
     }
 
-    CfemReal FEField::getAt(CfemInt globalDofIdx, int component) const
+    /**
+     * @brief Standard value evaluation at a local coordinate xi within a cell.
+     */
+    void FEField::evaluateWithoutShape(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
     {
-        if (globalDofIdx < 0)
-            return 0.0;
-        int numComponents = this->getDimension();
-        return m_localValues[globalDofIdx * numComponents + component];
-    }
-
-    void FEField::evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
-    {
-        const ShapeInfo *shapeToUse = nullptr;
-        if (m_space->getOrder() == Order::P1 && ctx.shapeP1)
-        {
-            shapeToUse = ctx.shapeP1;
-        }
-        else if (ctx.shapeP2)
-        {
-            shapeToUse = ctx.shapeP2;
-        }
-
-        ShapeInfo localShape;
-        if (!shapeToUse)
-        {
-            CellType evalType = m_space->getMesh()->getCell(cellId).type;
-            if (m_space->getOrder() == Order::P1)
-            {
-                evalType = Cell::getLinearEquivalent(evalType);
-            }
-            m_space->getRefElement(evalType).evaluate(xi, ShapeEvaluationFlags::Value, localShape);
-            shapeToUse = &localShape;
-        }
-
-        if (shapeToUse)
-        {
-            this->evaluateWithShape(cellId, *shapeToUse, out);
-        }
-        else
-        {
-            this->evaluateAt(cellId, xi, out);
-        }
-    }
-
-    void FEField::evaluateWithShape(CfemInt cellId, const ShapeInfo &shape, std::span<CfemReal> out) const
-    {
-        int nComp = this->getDimension();
-        std::fill_n(out.data(), nComp, 0.0);
-
-        const auto &cell_ids = m_space->getMesh()->getCellConnectivity(cellId);
-        const auto &shapeValues = shape.values;
-        CfemInt numNodes = m_space->getNumActiveNodes();
-
-        for (size_t i = 0; i < shapeValues.size(); ++i)
-        {
-            CfemInt dofIdx = m_space->getLocalNodeIdx(cell_ids[i]);
-            if (dofIdx != -1)
-            {
-                CfemReal s = shapeValues[i];
-                for (int c = 0; c < nComp; ++c)
-                {
-                    out[c] += s * m_localValues[dofIdx + (c * numNodes)];
-                }
-            }
-        }
-    }
-
-    void FEField::evaluateAt(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out) const
-    {
-        int nComp = this->getDimension();
-        std::fill_n(out.data(), nComp, 0.0);
-
         const Cell &cell = m_space->getMesh()->getCell(cellId);
         CellType baseType = cell.type;
 
-        // Logic for P1 enforcement (Fully Restored)
-        if (m_space->getOrder() == Order::P1)
-        {
+        if (m_space->getOrder() == Order::P1){
             baseType = Cell::getLinearEquivalent(baseType);
         }
 
         const auto &refEl = m_space->getRefElement(baseType);
-        ShapeInfo shape;
-        refEl.evaluate(xi, ShapeEvaluationFlags::Value, shape);
 
+        refEl.evaluate(xi, ShapeEvaluationFlags::Value, ctx.scratchShape);
+        this->evaluateWithShape(cellId, ctx.scratchShape, out);
+    }
+
+    /**
+     * @brief Optimized evaluation using pre-computed shape functions.
+     * Uses the FESpace abstraction to find global DOF indices.
+     */
+    void FEField::evaluateWithShape(CfemInt cellId, const ShapeInfo &shape, std::span<CfemReal> out) const
+    {
+        int nComp = this->getDimension();
+        std::fill_n(out.data(), nComp, 0.0);
+        
         const auto &shapeValues = shape.values;
-        const auto &cell_ids = m_space->getMesh()->getCellConnectivity(cell.id);
+        int nNodes = static_cast<int>(shapeValues.size());
 
-        CfemInt numNodes = m_space->getNumActiveNodes();
-        for (size_t i = 0; i < shapeValues.size(); ++i)
+        for (int i = 0; i < nNodes; ++i)
         {
-            CfemInt dofIdx = m_space->getLocalNodeIdx(cell_ids[i]);
-            if (dofIdx != -1)
+            CfemReal s = shapeValues[i];
+            for (int c = 0; c < nComp; ++c)
             {
-                for (int c = 0; c < nComp; ++c)
-                {
-                    out[c] += shapeValues[i] * m_localValues[dofIdx + (c * numNodes)];
+                // Request the global index from the space abstraction
+                CfemInt globalDofIdx = m_space->getGlobalDofIdx(cellId, i, c);
+                
+                if (globalDofIdx != -1) {
+                    out[c] += s * m_localValues[globalDofIdx];
                 }
             }
         }
     }
 
-    void FEField::evaluateGradientAt(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
+    void FEField::evaluateGradient(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
     {
-        int nComp = this->getDimension(); 
-        int outDim = nComp * 3;
-        std::fill_n(out.data(), outDim, 0.0);
+        // ÉTAPE A : Est-ce qu'on est dans un intégrateur avec un mapping déjà prêt ?
+        if (m_boundIndex != -1) {
+            const MappingInfo* cachedMap = ctx.getMapping(m_boundIndex);
+            if (cachedMap) {
+                this->evaluateGradientWithCachedMapping(cellId, *cachedMap, out);
+                return;
+            }
+        }
 
+        // On appelle la version lourde qui recalcule la Jacobienne
+        this->evaluateGradientWithoutCachedMapping(cellId, xi, out, ctx);
+    }
+
+    void FEField::evaluateGradientWithoutCachedMapping(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
+    {
+        // 1. Déterminer le type de cellule correct pour l'espace (P1 ou P2)
         const Cell &cell = m_space->getMesh()->getCell(cellId);
-        CellType baseType = (m_space->getOrder() == Order::P1) ? 
-                            Cell::getLinearEquivalent(cell.type) : cell.type;
+        CellType baseType = cell.type;
+        
+        // Si l'espace est P1 mais le maillage est P2, on force le type linéaire (ex: TET10 -> TET4)
+        if (m_space->getOrder() == Order::P1) {
+            baseType = Cell::getLinearEquivalent(cell.type);
+        }
 
         const auto &refEl = m_space->getRefElement(baseType);
-        const auto &cell_ids = m_space->getMesh()->getCellConnectivity(cell.id);
-
-        // Use Context scratchpads - NO HEAP ALLOC HERE
+        
         m_space->getMesh()->getCellVerticesCoords(cellId, ctx.scratchCoords);
-
-        // Compute mapping using the thread-local scratchpads
-        refEl.computeMapping(xi, ctx.scratchCoords, ShapeEvaluationFlags::Gradient, 
-                            ctx.scratchShape, ctx.scratchMapping);
-
-        CfemInt numNodes = m_space->getNumActiveNodes();
-
-        for (size_t i = 0; i < ctx.scratchMapping.physicalShapeGradients.size(); ++i)
-        {
-            CfemInt dofIdx = m_space->getLocalNodeIdx(cell_ids[i]);
-            if (dofIdx != -1)
-            {
-                const Vector3D &grad_phys = ctx.scratchMapping.physicalShapeGradients[i];
-                for (int c = 0; c < nComp; ++c)
-                {
-                    CfemReal nodalVal = m_localValues[dofIdx + (c * numNodes)];
-                    // Layout: [du/dx, du/dy, du/dz, dv/dx, dv/dy, dv/dz, ...]
-                    out[c * 3 + 0] += grad_phys.x * nodalVal;
-                    out[c * 3 + 1] += grad_phys.y * nodalVal;
-                    out[c * 3 + 2] += grad_phys.z * nodalVal;
-                }
-            }
+        
+        int expectedNodes = refEl.getNumNodes();
+        if (ctx.scratchCoords.size() > (size_t)expectedNodes) {
+            ctx.scratchCoords.resize(expectedNodes);
         }
-
-        // For debugging
-        // for (int i=0; i < out.size()/int(3); ++i){
-        //     std::cout << "Column "  <<i << ": " <<out[3*i + 0] << ", " << out[3*i + 1] << ", " << out[3*i + 2] << std::endl;
-        // }
+        
+        refEl.computeMapping(xi, ctx.scratchCoords, ShapeEvaluationFlags::Gradient, 
+                                ctx.scratchShape, ctx.scratchMapping);
+        // 4. Évaluer le gradient physique
+        this->evaluateGradientWithCachedMapping(cellId, ctx.scratchMapping, out);
     }
 
+    /**
+     * @brief Optimized gradient evaluation using pre-computed physical mapping.
+     */
     void FEField::evaluateGradientWithCachedMapping(CfemInt cellId, const MappingInfo &mapping, std::span<CfemReal> out) const
     {
         int nComp = this->getDimension();
-        const auto &cell_ids = m_space->getMesh()->getCellConnectivity(cellId);
-        CfemInt numNodes = m_space->getNumActiveNodes();
-
-        //std::cout << out.size() << std::endl;
-
+        
         std::fill_n(out.data(), nComp * 3, 0.0);
 
-        for (size_t i = 0; i < mapping.physicalShapeGradients.size(); ++i)
+        const auto &grads = mapping.physicalShapeGradients;
+        int nNodes = static_cast<int>(grads.size());
+
+        for (int i = 0; i < nNodes; ++i)
         {
-            CfemInt dofIdx = m_space->getLocalNodeIdx(cell_ids[i]);
-            if (dofIdx != -1)
+            const Vector3D &g = grads[i];
+            for (int c = 0; c < nComp; ++c)
             {
-                const Vector3D &grad_phys = mapping.physicalShapeGradients[i];
-                //std::cout << grad_phys << std::endl;
-                for (int c = 0; c < nComp; ++c)
+                CfemInt globalDofIdx = m_space->getGlobalDofIdx(cellId, i, c);
+                if (globalDofIdx != -1)
                 {
-                    CfemReal val = m_localValues[dofIdx + (c * numNodes)];
-                    out[c * 3 + 0] += grad_phys.x * val;
-                    out[c * 3 + 1] += grad_phys.y * val;
-                    out[c * 3 + 2] += grad_phys.z * val;
+                    CfemReal val = m_localValues[globalDofIdx];
+                    out[c * 3 + 0] += val * g.x;
+                    out[c * 3 + 1] += val * g.y;
+                    out[c * 3 + 2] += val * g.z; 
                 }
             }
         }
-
-        // For debugging
-        // for (int i=0; i < out.size()/int(3); ++i){
-        //     std::cout << "Column "  <<i << ": " <<out[3*i + 0] << ", " << out[3*i + 1] << ", " << out[3*i + 2] << std::endl;
-        // }
     }
 
-//     void FEField::project(const sym::CfemExpression &recipe)
-//     {
-//         recipe.prepare();
-
-//         auto mesh = m_space->getMesh();
-//         const int dim = getDimension();
-//         const CfemInt numNodes = m_space->getNumActiveNodes();
-//         auto lagrange = std::static_pointer_cast<LagrangeSpace>(m_space);
-
-//         // Standard component-major buffer
-//         std::vector<CfemReal> cpuBuffer(numNodes * dim, 0.0);
-
-//         // --- PATH A: SUPER-FAST POINTWISE PROJECTION ---
-//         // Used for analytical lambdas. Bypasses cells, mappings, and ref-elements.
-//         if (recipe.isPointwise())
-//         {
-// #pragma omp parallel
-//             {
-//                 EvalContext evctx;
-
-                
-//                 CfemReal valStorage[3] = {0};
-//                 std::span<CfemReal> valSpan(valStorage, dim);
-
-// #pragma omp for
-//                 for (CfemInt i = 0; i < numNodes; ++i)
-//                 {
-//                     evctx.resetBuffers();
-//                     // We use the cached map to find the correct Mesh ID for DOF 'i'
-//                     CfemInt vId = lagrange->getMeshNodeIdFromLocal(i);
-
-//                     // Get coordinates directly from the Mesh
-//                     evctx.physPos = mesh->getVertex(vId).coords;
-
-//                     // Pointwise evaluation (Analytical)
-//                     recipe.evaluate(-1, Vector3D{0, 0, 0}, valSpan, evctx);
-
-//                     for (int d = 0; d < dim; ++d)
-//                     {
-//                         cpuBuffer[i + (d * numNodes)] = valSpan[d];
-//                     }
-//                 }
-//             }
-//         }
-//         // --- PATH B: ROBUST CELL-BASED PROJECTION ---
-//         // Used when the recipe contains other Fields. Uses 'visited' to skip shared nodes.
-//         else
-//         {
-
-//             // Atomic-ready visited array (uint8_t is faster than vector<bool>)
-//             std::vector<uint8_t> visited(numNodes, 0);
-
-// #pragma omp parallel
-//             {
-//                 EvalContext evctx;
-//                 MappingInfo map;
-//                 DynamicVector<Vector3D> physCoords;
-//                 // CfemReal valStorage[3] = {0};
-//                 // std::span<CfemReal> valSpan(valStorage, dim);
-
-// #pragma omp for
-//                 for (CfemInt cellId = 0; cellId < mesh->getNumCells(); ++cellId)
-//                 {
-//                     evctx.resetBuffers();
-//                     const auto &cell = mesh->getCell(cellId);
-//                     const auto &refEl = m_space->getRefElement(cell.type);
-//                     const auto &cellNodes = mesh->getCellConnectivity(cellId);
-//                     mesh->getCellVerticesCoords(cellId, physCoords);
-
-//                     for (size_t i = 0; i < refEl.getNumNodes(); ++i)
-//                     {
-//                         auto qpBookmark = evctx.getBookmark();
-//                         std::span<CfemReal> spanOut = evctx.getBuffer(9);
-
-//                         CfemInt localIdx = m_space->getLocalNodeIdx(cellNodes[i]);
-//                         if (localIdx == -1)
-//                             continue;
-
-//                         // Atomic test-and-set: Only the first thread to reach this node processes it
-//                         if (__atomic_test_and_set(&visited[localIdx], __ATOMIC_RELAXED))
-//                         {
-//                             continue;
-//                         }
-
-//                         Vector3D xi = refEl.getNodeCoords(i);
-//                         ShapeInfo nodeShape;
-//                         refEl.evaluate(xi, ShapeEvaluationFlags::Value, nodeShape);
-//                         refEl.computeMapping(xi, physCoords, ShapeEvaluationFlags::None, nodeShape, map);
-
-//                         evctx.physPos = map.physicalPosition;
-//                         recipe.evaluate(cellId, xi, spanOut, evctx);
-
-//                         for (int d = 0; d < dim; ++d)
-//                         {
-//                             cpuBuffer[localIdx + d * numNodes] = spanOut[d];
-//                         }
-//                         evctx.releaseToBookmark(qpBookmark);
-//                     }
-//                 }
-//             }
-//         }
-
-//         // --- UPLOAD TO PETSC ---
-//         // Instead of copying, use a pointer-based upload if your wrapper supports it
-
-//         std::vector<CfemInt> indices(cpuBuffer.size());
-//         for (CfemInt i = 0; i < indices.size(); ++i)
-//             indices[i] = i;
-
-//         VecSetValues(m_data.getRaw(), cpuBuffer.size(), indices.data(), cpuBuffer.data(), INSERT_VALUES);
-//         m_data.assemble();
-
-//         this->updateLocalBuffer();
-//     }
-
-// void FEField::project(const sym::CfemExpression &recipe)
-// {
-//     CFEM_INFO << "[FEField] Projecting into '" << m_name << "' (RAM-optimized)...";
-//     recipe.prepare();
-
-//     auto mesh = m_space->getMesh();
-//     const CfemInt numNodes = m_space->getNumActiveNodes();
-//     const int dim = m_dimension;
-
-//     // 1. ON UTILISE DIRECTEMENT m_localValues (On supprime cpuBuffer)
-//     // On s'assure que m_localValues a la bonne taille
-//     m_localValues.assign(numNodes * dim, 0.0); 
-    
-//     // On garde 'visited' car c'est un bitset/bool, c'est léger (30 Mo pour 30M de noeuds)
-//     std::vector<uint8_t> visited(numNodes, 0);
-
-//     // 2. Calcul parallèle
-//     #pragma omp parallel
-//     {
-//         EvalContext evctx;
-//         MappingInfo map;
-//         DynamicVector<Vector3D> physCoords;
-//         CfemReal valStorage[9]; 
-//         std::span<CfemReal> valSpan(valStorage, dim);
-
-//         #pragma omp for schedule(guided)
-//         for (CfemInt cellId = 0; cellId < mesh->getNumCells(); ++cellId) {
-//             const auto &cell = mesh->getCell(cellId);
-//             const auto &refEl = m_space->getRefElement(cell.type);
-//             const auto &cellNodes = mesh->getCellConnectivity(cellId);
-//             mesh->getCellVerticesCoords(cellId, physCoords);
-
-//             for (size_t i = 0; i < refEl.getNumNodes(); ++i) {
-//                 CfemInt localIdx = m_space->getLocalNodeIdx(cellNodes[i]);
-                
-//                 if (localIdx == -1 || visited[localIdx]) continue;
-                
-//                 // Spin-lock léger pour les noeuds partagés
-//                 if (__atomic_test_and_set(&visited[localIdx], __ATOMIC_RELAXED)) continue;
-
-//                 evctx.resetBuffers();
-//                 Vector3D xi = refEl.getNodeCoords(i);
-                
-//                 // (Calcul shape/mapping...)
-//                 ShapeInfo nodeShape;
-//                 refEl.evaluate(xi, ShapeEvaluationFlags::Value, nodeShape);
-//                 refEl.computeMapping(xi, physCoords, ShapeEvaluationFlags::None, nodeShape, map);
-
-//                 evctx.physPos = map.physicalPosition;
-//                 evctx.currentCellId = cellId;
-//                 evctx.currentXi = xi;
-
-//                 recipe.evaluate(cellId, xi, valSpan, evctx);
-
-//                 // ÉCRITURE DIRECTE DANS LE BUFFER FINAL
-//                 for (int d = 0; d < dim; ++d) {
-//                     m_localValues[localIdx + (d * numNodes)] = valSpan[d];
-//                 }
-//             }
-//         }
-//     } // Sortie OMP : TOUS les EvalContext sont détruits ici.
-
-//     // 3. LIBÉRATION DU TABLEAU VISITED
-//     visited.clear();
-//     visited.shrink_to_fit();
-
-//     // 4. SYNCHRONISATION PETSc (Depuis m_localValues)
-//     // Au lieu de copier cpuBuffer -> PETSc -> localBuffer,
-//     // on fait localBuffer -> PETSc directement.
-//     PetscScalar *array;
-//     VecGetArray(m_data.getRaw(), &array);
-//     std::copy(m_localValues.begin(), m_localValues.end(), array);
-//     VecRestoreArray(m_data.getRaw(), &array);
-//     m_data.assemble();
-
-//     // 5. PLUS BESOIN DE updateLocalBuffer() ! 
-//     // Il est déjà à jour, on économise une grosse copie et une allocation PETSc interne.
-
-// #ifdef __linux__
-//     malloc_trim(0); 
-// #endif
-
-//     CFEM_INFO << "[FEField] Projection completed. Memory flushed.";
-// }
-
-void FEField::project(const sym::CfemExpression &recipe)
-{
-    CFEM_INFO << "[FEField] Projecting into '" << m_name;
-    recipe.prepare();
-
-    auto mesh = m_space->getMesh();
-    auto petscVec = m_data.getRaw();
-
-    PetscInt low, high;
-    VecGetOwnershipRange(petscVec, &low, &high);
-
-    const int dim = m_dimension;
-    const CfemInt numNodes = m_space->getNumActiveNodes();
-
-    // SÉCURITÉ : On alloue TOUT le buffer local PETSc
-    m_localValues.assign(high - low, 0.0); 
-    
-    // Pour visited, on a besoin d'un état par nœud
-    std::vector<uint8_t> visited(numNodes, 0);
-
-    #pragma omp parallel
+    /**
+     * @brief Implementation of the CfemExpression evaluation interface.
+     */
+    void FEField::evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
     {
-        EvalContext evctx;
-        MappingInfo map;
-        DynamicVector<Vector3D> physCoords;
-        CfemReal valStorage[9]; 
-        std::span<CfemReal> valSpan(valStorage, dim);
+        if (m_boundIndex >= 0) {
+            const auto& data = ctx.getSpaceData(m_boundIndex);
+            
+            if (data.shape != nullptr) {
+                this->evaluateWithShape(cellId, *(data.shape), out);
+                return;
+            }
+        }
 
-        #pragma omp for schedule(guided)
-        for (CfemInt cellId = 0; cellId < mesh->getNumCells(); ++cellId) {
-            const auto &cell = mesh->getCell(cellId);
-            const auto &refEl = m_space->getRefElement(cell.type);
-            const auto &cellNodes = mesh->getCellConnectivity(cellId);
-            mesh->getCellVerticesCoords(cellId, physCoords);
+        this->evaluateWithoutShape(cellId, xi, out, ctx);
+    }
 
-            for (size_t i = 0; i < refEl.getNumNodes(); ++i) {
-                CfemInt nodeIdx = m_space->getLocalNodeIdx(cellNodes[i]);
-                
-                if (nodeIdx == -1) continue;
-                
-                // Spin-lock par nœud
-                if (visited[nodeIdx]) continue;
-                if (__atomic_test_and_set(&visited[nodeIdx], __ATOMIC_RELAXED)) continue;
+    /**
+     * @brief Projects a symbolic expression onto the FE Space (L2 Projection / Interpolation).
+     * This handles the parallel MPI assembly and OpenMP node-visiting logic.
+     */
+    void FEField::project(const sym::CfemExpression &recipe)
+    {
+        auto mesh = m_space->getMesh();
+        Vec petscVec = m_data.getRaw();
+        int dim = this->getDimension();
 
-                Vector3D xi = refEl.getNodeCoords(i);
-                
-                ShapeInfo nodeShape;
-                refEl.evaluate(xi, ShapeEvaluationFlags::Value, nodeShape);
-                refEl.computeMapping(xi, physCoords, ShapeEvaluationFlags::None, nodeShape, map);
+        // 1. Determine the local ownership range for MPI
+        CfemInt low, high;
+        VecGetOwnershipRange(petscVec, &low, &high);
+        CfemInt localSize = high - low;
 
-                evctx.physPos = map.physicalPosition;
-                evctx.currentCellId = cellId;
-                evctx.currentXi = xi;
+        m_localValues.assign(localSize, 0.0);
 
-                recipe.evaluate(cellId, xi, valSpan, evctx);
+        // 2. Prepare for node visiting (CG: vertex-based, DG: cell-based)
+        CfemInt numPositions = m_space->getNumUniquePositions();
+        std::vector<uint8_t> visited(numPositions, 0);
 
-                // Écriture selon ta règle : Block-wise ordering
-                for (int d = 0; d < dim; ++d) {
-                    // L'index global pour PETSc avec ta règle de blocs
-                    CfemInt globalDofIdx = nodeIdx + (d * numNodes);
+        #pragma omp parallel
+        {
+            EvalContext evctx;
+            std::vector<CfemReal> valBuffer(dim);
+            std::span<CfemReal> valSpan(valBuffer);
+            
+            DynamicVector<Vector3D> physCoords;
+            MappingInfo map;
 
-                    // Est-ce que cet index précis appartient à ce processus MPI ?
-                    if (globalDofIdx >= low && globalDofIdx < high) {
-                        m_localValues[globalDofIdx - low] = valSpan[d];
+            #pragma omp for schedule(guided)
+            for (CfemInt cellId = 0; cellId < mesh->getNumCells(); ++cellId)
+            {
+                const auto &cell = mesh->getCell(cellId);
+                const auto &refEl = m_space->getRefElement(cell.type);
+                mesh->getCellVerticesCoords(cellId, physCoords);
+
+                for (int i = 0; i < (int)refEl.getNumNodes(); ++i)
+                {
+                    // Get the position ID for locking/visiting logic
+                    CfemInt posId = m_space->getPositionId(cellId, i);
+                    if (posId == -1) continue;
+
+                    // Atomic check: Ensure each unique node is computed only once
+                    if (visited[posId]) continue;
+                    if (__atomic_test_and_set(&visited[posId], __ATOMIC_RELAXED)) continue;
+
+                    // Evaluate the recipe at the physical location of the node
+                    Vector3D xi = refEl.getNodeCoords(i);
+                    ShapeInfo nodeShape;
+                    refEl.evaluate(xi, ShapeEvaluationFlags::Value, nodeShape);
+                    refEl.computeMapping(xi, physCoords, ShapeEvaluationFlags::None, nodeShape, map);
+
+                    evctx.physPos = map.physicalPosition;
+                    evctx.currentCellId = cellId;
+                    evctx.currentXi = xi;
+
+                    recipe.evaluate(cellId, xi, valSpan, evctx);
+
+                    // Map calculated values to the global algebraic vector
+                    for (int d = 0; d < dim; ++d)
+                    {
+                        CfemInt globalDofIdx = m_space->getGlobalDofIdx(cellId, i, d);
+
+                        // MPI Check: Does this process own this specific DOF?
+                        if (globalDofIdx >= low && globalDofIdx < high)
+                        {
+                            m_localValues[globalDofIdx - low] = valSpan[d];
+                        }
                     }
                 }
             }
         }
+
+        // 3. Final PETSc Assembly
+        PetscScalar *array;
+        VecGetArray(petscVec, &array);
+        std::copy(m_localValues.begin(), m_localValues.end(), array);
+        VecRestoreArray(petscVec, &array);
+        
+        m_data.assemble();
+        
+        CFEM_INFO << "Projection of recipe onto field '" << m_name << "' completed.";
     }
-
-    // Copie vers PETSc
-    PetscScalar *array;
-    VecGetArray(petscVec, &array);
-    std::copy(m_localValues.begin(), m_localValues.end(), array);
-    VecRestoreArray(petscVec, &array);
-    
-    m_data.assemble();
-
-    CFEM_INFO << "[FEField] Projection completed ";
-}
 
 } // namespace cfem

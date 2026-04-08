@@ -13,6 +13,16 @@ namespace cfem::reference_elem::utils{
         // Face 0 = Noeud 0 (-1.0), Face 1 = Noeud 1 (1.0)
         return Vector3D( (localFacetId == 0) ? -1.0 : 1.0, 0.0, 0.0 );
     }
+
+    static const std::vector<std::vector<int>> line_face_nodes = {
+        {0}, // Face 0
+        {1}  // Face 1
+    };
+
+    static const std::vector<std::vector<int>> line1_face_nodes = {
+        {0}, // Face 0 (x = -1) -> Noeud 0
+        {0}  // Face 1 (x =  1) -> Noeud 0
+    };
 }
 
 
@@ -58,6 +68,10 @@ namespace cfem {
 
         Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
             return cfem::reference_elem::utils::projectFacetRefCoordToSegmentRefCoord(localFacetId, xiFacet); // Make the compiler happy
+        }
+
+        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+            return cfem::reference_elem::utils::line_face_nodes[iFace];
         }
     };
 
@@ -107,7 +121,55 @@ namespace cfem {
         Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
             return cfem::reference_elem::utils::projectFacetRefCoordToSegmentRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
+
+        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+            return cfem::reference_elem::utils::line_face_nodes[iFace];
+        }
+    };
+
+
+    class P0ReferenceSegment : public ReferenceElement {
+    public:
+        P0ReferenceSegment() {
+            // Un seul nœud au centre du segment de référence [-1, 1]
+            m_nodes = { {0.0, 0.0, 0.0} };
+        }
+
+        int dimension() const override { return 1; }
+        int getNumNodes() const override { return 1; }
+
+        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
+            const int n = 1;
+            if (out.values.size() != n) out.setup(n);
+
+            // Valeur constante N0 = 1
+            if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
+                out.values[0] = 1.0;
+            }
+
+            // Gradient nul
+            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
+                out.gradients[0] = Vector3D{0.0, 0.0, 0.0};
+            }
+
+            // Hessien nul
+            if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
+                if (out.hessians.size() != n) out.hessians.assign(n, SymTensorO2());
+                out.hessians[0].setZero();
+            }
+
+            out.validFlags = requested;
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override {
+            return cfem::reference_elem::utils::projectFacetRefCoordToSegmentRefCoord(localFacetId, xiFacet);
+        }
+
+        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+            return cfem::reference_elem::utils::line1_face_nodes[iFace];
+        }
     };
 }
+
 
 #endif

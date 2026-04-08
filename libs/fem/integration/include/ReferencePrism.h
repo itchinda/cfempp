@@ -24,6 +24,26 @@ namespace cfem::reference_elem::utils{
         }
         return Vector3D{}; // Make the compiler happy
     }
+
+    static const std::vector<std::vector<int>> prism6_face_nodes = {
+        {0, 2, 1},       // Face 0 (Tri)
+        {3, 4, 5},       // Face 1 (Tri)
+        {0, 1, 4, 3},    // Face 2 (Quad)
+        {1, 2, 5, 4},    // Face 3 (Quad)
+        {2, 0, 3, 5}     // Face 4 (Quad)
+    };
+
+    static const std::vector<std::vector<int>> prism18_face_nodes = {
+        {0, 2, 1, 8, 7, 6},                         // Face 0 (Tri6)
+        {3, 4, 5, 9, 10, 11},                       // Face 1 (Tri6)
+        {0, 1, 4, 3, 6, 13, 9, 12, 15},             // Face 2 (Quad9)
+        {1, 2, 5, 4, 7, 14, 10, 13, 16},            // Face 3 (Quad9)
+        {2, 0, 3, 5, 8, 12, 11, 14, 17}             // Face 4 (Quad9)
+    };
+
+    static const std::vector<std::vector<int>> prism1_face_nodes = {
+        {0}, {0}, {0}, {0}, {0}
+    };
 }
 
 namespace cfem{
@@ -83,6 +103,10 @@ public:
 
     Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
         return cfem::reference_elem::utils::projectFacetRefCoordToPrismRefCoord(localFacetId, xiFacet); // Make the compiler happy
+    }
+
+    std::span<const CfemInt> getFaceNodes(int iFace) const override {
+        return cfem::reference_elem::utils::prism6_face_nodes[iFace];
     }
 };
 
@@ -173,6 +197,51 @@ public:
 
         Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
             return cfem::reference_elem::utils::projectFacetRefCoordToPrismRefCoord(localFacetId, xiFacet); // Make the compiler happy
+        }
+
+        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+            return cfem::reference_elem::utils::prism18_face_nodes[iFace];
+        }
+    };
+
+    class P0ReferencePrism : public ReferenceElement {
+    public:
+        P0ReferencePrism() {
+            // Un seul nœud au centre de gravité du prisme de référence
+            // Triangle base (0,0), (1,0), (0,1) -> (1/3, 1/3)
+            // Segment Z de -1 à 1 -> 0
+            m_nodes = { {1.0/3.0, 1.0/3.0, 0.0} };
+        }
+
+        int dimension() const override { return 3; }
+        int getNumNodes() const override { return 1; }
+
+        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
+            const int n = 1;
+            if (out.values.size() != n) out.setup(n);
+
+            if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
+                out.values[0] = 1.0;
+            }
+
+            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
+                out.gradients[0] = Vector3D{0.0, 0.0, 0.0};
+            }
+
+            if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
+                if (out.hessians.size() != n) out.hessians.assign(n, SymTensorO2());
+                out.hessians[0].setZero();
+            }
+
+            out.validFlags = requested;
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override {
+            return cfem::reference_elem::utils::projectFacetRefCoordToPrismRefCoord(localFacetId, xiFacet);
+        }
+
+        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+            return cfem::reference_elem::utils::prism1_face_nodes[iFace];
         }
     };
 

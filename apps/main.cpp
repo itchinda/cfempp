@@ -14,8 +14,9 @@
 #include "Mesh.h"
 #include "MeshConformityChecker.h"
 #include "LagrangeSpace.h"
+#include "DGSpace.h"
 #include "FEField.h"
-#include "DomainIntegrator.h"
+#include "Integrator.h"
 #include "VTKExporter.h"
 #include "VTUExporter.h"
 #include "MathOperators.h"
@@ -45,7 +46,7 @@ int main(int argc, char **argv)
 
             // mesh = Mesh::quad(
             //     MeshOrder::Linear,
-            //     Mesh::QuadSubdivisions{1, 1}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+            //     Mesh::QuadSubdivisions{200, 200}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
             //     Mesh::QuadBounds(
             //         Vector3D{0., 0., 0.},
             //         Vector3D{1., 1., 0.}
@@ -55,32 +56,39 @@ int main(int argc, char **argv)
 
             mesh = Mesh::block(
                 MeshOrder::Linear,
-                Mesh::BlockSubdivisions{150, 150, 150}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+                Mesh::BlockSubdivisions{40, 40, 40}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
                 Mesh::BlockBounds(
                     Vector3D{-1., -1., -1.},
                     Vector3D{1., 1., 1.}
                 ),
-                Mesh::BlockElementType::Tetrahedron );
+                Mesh::BlockElementType::Tetrahedron 
+            );
 
         }
 
-        auto Q = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);
-        auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
+        auto Q = DGSpace::create(mesh, Order::P0, FieldType::Scalar);
+        auto V = LagrangeSpace::create(mesh, Order::P1, FieldType::Vector3D);
 
         auto p = Trial(Q, "p");
         auto u = Trial(V, "u");
         auto q = Test (Q, "q");
         auto v = Test (V, "v");
 
-        // auto analytical_p = scalar(x * x + y * y +  x + y); 
-        // auto analytical_u = vector( x*x+y*y+z*z,
-        //                            -2*x*y,
-        //                             x*z);
+        auto analytical_p = scalar(x + y + 1.0); 
+        auto analytical_u = vector( x + y +  x + y,
+                                    y  + x +  y + 1,              
+                                    0.0);
 
-        auto analytical_p = scalar(x * x + y * y + z * z + y + x + y + z + 1); // SymEngine expressions
-        auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * z ),
-                                   cos(2 * pi * y ) * cos(2 * pi * x ),
-                                   cos(2 * pi * y ) * cos(2 * pi * z ));
+        
+        // auto analytical_p = scalar(x + y + 1.0); 
+        // auto analytical_u = vector( x * x + y * y +  x + y,
+        //                             y * y + z * z +  y + z,                    
+        //                             x * x + z * z +  x + z);
+
+        // auto analytical_p = scalar(x * x + y * y + z * z + y + x + y + z + 1); // SymEngine expressions
+        // auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * z ),
+        //                            cos(2 * pi * y ) * cos(2 * pi * x ),
+        //                            cos(2 * pi * y ) * cos(2 * pi * z ));
 
         {
             PROFILE_SCOPE("FieldProjection");
@@ -91,7 +99,7 @@ int main(int argc, char **argv)
         {
             PROFILE_SCOPE("L2Norm3");
             IntegrationSchemeParams schemes_params{};
-            DomainIntegrator integrator(mesh, schemes_params);
+            Integrator integrator(mesh, schemes_params);
             // schemes_params.NumIntgPtHexElem = 1;
             CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
             integrator.L2Norm(p - analytical_p, &l2Norm_P, &h1SemiNorm_P);
@@ -101,7 +109,7 @@ int main(int argc, char **argv)
 
 
 
-            //CFEM_INFO << "sqrt (int_{Omega} |grad(u-analytical_u)|^2 ds ) = " << sqrt(integrator.computeIntegral(mag_sqr(grad(u-analytical_u)), "ymin"));
+           CFEM_INFO << "sqrt (int_{Omega} |grad(u-analytical_u)|^2 ds ) = " << sqrt(integrator.computeIntegral(mag_sqr(grad(u-analytical_u)), "ymin"));
             // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr(scalar(y)), "xmin") );
             // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr(grad(u - analytical_u)), "xmin") );
 

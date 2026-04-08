@@ -3,6 +3,7 @@
 #include <memory>
 #include "CfemExpression.h"
 #include "ConstantExpression.h"
+#include "FESpace.h"
 #include "Argument.h"
 #include "FEField.h"
 
@@ -419,17 +420,17 @@ namespace cfem::sym
 
     /**
      * @brief Generate a Trial Function for variational formulations.
-     * @param V The Lagrange space the field belongs to.
+     * @param V The FE space the field belongs to.
      * @param name Symbolic variable representation (defaults to "u").
      */
-    std::shared_ptr<FEField> Trial(std::shared_ptr<LagrangeSpace> V, const std::string& name = "u");
+    std::shared_ptr<FEField> Trial(std::shared_ptr<FESpace> V, const std::string& name = "u");
     
     /**
      * @brief Generate a Test Function for variational formulations.
-     * @param V The associated Lagrange space.
+     * @param V The associated FE space.
      * @param name Symbolic variable representation (defaults to "v").
      */
-    std::shared_ptr<const TestFunction>  Test (std::shared_ptr<LagrangeSpace> V, const std::string& name = "v");
+    std::shared_ptr<const TestFunction>  Test (std::shared_ptr<FESpace> V, const std::string& name = "v");
     /** @} */
 }
 

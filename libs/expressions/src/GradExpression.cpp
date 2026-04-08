@@ -102,7 +102,7 @@ namespace cfem::sym
 
         // 4. Cas FEField (Le plus fréquent en calcul de résidus)
         if (type == ExpressionType::FEField) {
-            static_cast<const FEField *>(m_expr.get())->evaluateGradientAt(cellId, xi, out, ctx);
+            static_cast<const FEField *>(m_expr.get())->evaluateGradient(cellId, xi, out, ctx);
             return;
         }
 

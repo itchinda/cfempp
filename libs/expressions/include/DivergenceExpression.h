@@ -59,8 +59,12 @@ namespace cfem::sym
             return m_expr->requiredShapeFlags() | ShapeEvaluationFlags::Gradient; 
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
             if (m_expr) m_expr->collectRequiredSpaces(spaces);
+        }
+
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            if (m_expr) m_expr->bind(spaceToId);
         }
 
         ExpressionType getType() const override { return ExpressionType::Divergence; }

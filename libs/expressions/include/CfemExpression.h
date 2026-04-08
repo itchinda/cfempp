@@ -4,7 +4,7 @@
 #include "EvalContext.h"
 #include "Vector3D.h"
 #include "TensorO2.h"
-#include "LagrangeSpace.h"
+#include "FESpace.h"
 #include <span>
 #include <memory>
 #include <ostream>
@@ -75,11 +75,13 @@ namespace cfem::sym
         virtual bool dependsOnFEField() const { return false; }
         virtual bool dependsOnShape() const { return true; }
 
+        virtual void bind(const std::map<const FESpace*, int>& spaceToId) const {}
+
         virtual ShapeEvaluationFlags requiredShapeFlags() const {
             return ShapeEvaluationFlags::None;
         }
 
-        virtual void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const {
+        virtual void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const {
             // Par défaut, pas de dépendance à un espace FE
         }
 

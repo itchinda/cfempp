@@ -84,10 +84,16 @@ namespace cfem::sym
                    m_components[2]->requiredShapeFlags();
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
             m_components[0]->collectRequiredSpaces(spaces); 
             m_components[1]->collectRequiredSpaces(spaces); 
             m_components[2]->collectRequiredSpaces(spaces);   
+        }
+
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            m_components[0]->bind(spaceToId);
+            m_components[1]->bind(spaceToId);
+            m_components[2]->bind(spaceToId);
         }
 
         ExpressionType getType() const override { return ExpressionType::VectorExpression; }

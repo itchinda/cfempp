@@ -4,44 +4,56 @@
 
 namespace cfem
 {
-    // template <typename Func>
-    //     requires(!std::is_base_of_v<sym::CfemExpression, std::decay_t<Func>> &&
-    //              !std::is_convertible_v<Func, std::shared_ptr<sym::CfemExpression>>)
-    // template <typename Func>
-    // requires (!std::is_same_v<std::decay_t<Func>, sym::CfemExpression> &&
-    //         !std::is_same_v<std::decay_t<Func>, std::shared_ptr<sym::CfemExpression>>)
-    // void FEField::project(const Func& func)
     template <typename Func>
     requires (!std::is_base_of_v<sym::CfemExpression, std::decay_t<Func>> && 
-            !std::is_convertible_v<std::decay_t<Func>, std::shared_ptr<const sym::CfemExpression>>)
+              !std::is_convertible_v<std::decay_t<Func>, std::shared_ptr<const sym::CfemExpression>>)
     void FEField::project(const Func& func)
     {
         auto mesh = m_space->getMesh();
-        auto &vec = getData();
-        CfemInt N = m_space->getNumActiveNodes();
         int dim = getDimension();
-        CfemInt totalVertices = mesh->getNumVertices();
+        
+        // Use a "visited" array only if the space is Continuous (CG)
+        // In DG, we want to write every local DOF regardless of others.
+        bool isContinuous = (m_space->getContinuity() == FESpace::Continuity::CG);
+        std::vector<uint8_t> visited;
+        if (isContinuous) {
+            visited.assign(m_space->getNumUniquePositions(), 0);
+        }
 
-        for (CfemInt i = 0; i < totalVertices; ++i)
+        // Cell-centric loop: Works for both CG and DG
+        for (CfemInt cellId = 0; cellId < mesh->getNumCells(); ++cellId)
         {
-            CfemInt nodeIdx = m_space->getLocalNodeIdx(i);
-            if (nodeIdx == -1)
-                continue;
-            const auto &vertex = mesh->getVertex(i);
-            auto result = func(vertex.coords);
+            const auto& cell = mesh->getCell(cellId);
+            const auto& refEl = m_space->getRefElement(cell.type);
+            int nNodes = refEl.getNumNodes();
 
-            if constexpr (std::is_same_v<decltype(result), Vector3D>)
+            for (int i = 0; i < nNodes; ++i)
             {
+                // In CG, posId is the Vertex ID. In DG, posId is unique per cell/node pair.
+                CfemInt posId = m_space->getPositionId(cellId, i);
+                
+                if (isContinuous) {
+                    if (visited[posId]) continue;
+                    visited[posId] = 1;
+                }
+
+                // Get physical coordinates of this local node
+                // Note: We evaluate the node position in the physical world
+                Vector3D physPtr = mesh->getVertex( mesh->getCellConnectivity(cellId)[i] ).coords;
+
+                auto result = func(physPtr);
+
                 for (int d = 0; d < dim; ++d)
-                    // vec.setValue(nodeIdx + d * N, result[d], INSERT_VALUES);
-                    m_data.setValue(nodeIdx + d * N, result[d], INSERT_VALUES);
-            }
-            else
-            {
-                vec.setValue(nodeIdx, static_cast<CfemReal>(result), INSERT_VALUES);
+                {
+                    CfemInt globalIdx = m_space->getGlobalDofIdx(cellId, i, d);
+                    if (globalIdx != -1) {
+                        m_data.setValue(globalIdx, (dim > 1) ? result[d] : static_cast<CfemReal>(result), INSERT_VALUES);
+                    }
+                }
             }
         }
-        vec.assemble();
-    }
 
+        m_data.assemble();
+        CFEM_INFO << "Universal projection onto '" << m_name << "' completed.";
+    }
 }

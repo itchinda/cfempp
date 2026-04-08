@@ -48,8 +48,12 @@ namespace cfem::sym {
             return m_inner->requiredShapeFlags();
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
             if (m_inner) m_inner->collectRequiredSpaces(spaces);
+        }
+
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            if (m_inner) m_inner->bind(spaceToId);
         }
 
         std::shared_ptr<const CfemExpression> grad() const override {

@@ -493,6 +493,7 @@ public:
 
     CfemInt getDimension() const { return m_meshDim; }
     MeshOrder getOrder() const { return m_meshOrder; }
+    CfemInt getOrderInt() const { return static_cast<CfemInt>(m_meshOrder); }
     bool isQuadratic() const { return (m_meshOrder == MeshOrder::Quadratic); }
     bool isLinear() const { return (m_meshOrder == MeshOrder::Linear); }
     size_t getNumVertices() const { return m_vertices.size(); }

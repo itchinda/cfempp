@@ -21,6 +21,24 @@ namespace cfem::reference_elem::utils{
         }
         return Vector3D{}; // Make the compiler happy
     }
+
+    static const std::vector<std::vector<int>> tet4_face_nodes = {
+        {0, 1, 2}, 
+        {0, 1, 3}, 
+        {1, 2, 3}, 
+        {2, 0, 3}
+    };
+
+    static const std::vector<std::vector<int>> tet10_face_nodes = {
+        {0, 1, 2, 4, 5, 6}, 
+        {0, 1, 3, 4, 8, 7}, 
+        {1, 2, 3, 5, 9, 8}, 
+        {2, 0, 3, 6, 7, 9}
+    };
+
+    static const std::vector<std::vector<int>> tet1_face_nodes = {
+        {0}, {0}, {0}, {0}
+    };
 }
 
 namespace cfem {
@@ -69,6 +87,10 @@ namespace cfem {
 
         Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
             return cfem::reference_elem::utils::projectFacetRefCoordToTetraRefCoord(localFacetId, xiFacet); // Make the compiler happy
+        }
+
+        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+            return cfem::reference_elem::utils::tet4_face_nodes[iFace];
         }
     };
 
@@ -166,6 +188,53 @@ namespace cfem {
 
         Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
             return cfem::reference_elem::utils::projectFacetRefCoordToTetraRefCoord(localFacetId, xiFacet); // Make the compiler happy
+        }
+
+        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+            return cfem::reference_elem::utils::tet10_face_nodes[iFace];
+        }
+    };
+
+class P0ReferenceTetrahedron : public ReferenceElement {
+    public:
+        P0ReferenceTetrahedron() {
+            // Un seul nœud au centre de gravité du tétraèdre de référence
+            // Sommets: (0,0,0), (1,0,0), (0,1,0), (0,0,1) -> Barycentre: (1/4, 1/4, 1/4)
+            m_nodes = { {0.25, 0.25, 0.25} };
+        }
+
+        int dimension() const override { return 3; }
+        int getNumNodes() const override { return 1; }
+
+        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
+            const int n = 1;
+            if (out.values.size() != n) out.setup(n);
+
+            // Valeur constante N0 = 1.0
+            if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
+                out.values[0] = 1.0;
+            }
+
+            // Gradient nul dans les 3 directions
+            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
+                out.gradients[0] = Vector3D{0.0, 0.0, 0.0};
+            }
+
+            // Hessien nul
+            if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
+                if (out.hessians.size() != n) out.hessians.assign(n, SymTensorO2());
+                out.hessians[0].setZero();
+            }
+
+            out.validFlags = requested;
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override {
+            return cfem::reference_elem::utils::projectFacetRefCoordToTetraRefCoord(localFacetId, xiFacet);
+        }
+
+        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+            return cfem::reference_elem::utils::tet1_face_nodes[iFace];
         }
     };
 }
