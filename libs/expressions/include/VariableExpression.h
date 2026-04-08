@@ -91,9 +91,14 @@ namespace cfem::sym
             return m_timeDerivExpr;
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
-            m_gradExpr->collectRequiredSpaces(spaces); 
-            m_timeDerivExpr->collectRequiredSpaces(spaces);       
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
+            if (m_gradExpr) m_gradExpr->collectRequiredSpaces(spaces); 
+            if (m_timeDerivExpr) m_timeDerivExpr->collectRequiredSpaces(spaces);       
+        }
+
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            if (m_gradExpr) m_gradExpr->bind(spaceToId);
+            if (m_timeDerivExpr) m_timeDerivExpr->bind(spaceToId);
         }
 
         CfemInt getDimension() const override { return m_dim; }

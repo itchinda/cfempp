@@ -21,6 +21,19 @@ namespace cfem::reference_elem::utils{
             }
         return Vector3D{}; // Make the compiler happy
     }
+   
+    static const std::vector<std::vector<int>> tri1_face_nodes = {
+        {0}, {0}, {0}
+    };
+
+    static const std::vector<std::vector<int>> tri3_face_nodes = {
+        {0, 1}, {1, 2}, {2, 0}
+    };
+    
+    static const std::vector<std::vector<int>> tri6_face_nodes = {
+        {0, 1, 3}, {1, 2, 4}, {2, 0, 5}
+    };
+
 }
 
 namespace cfem {
@@ -70,6 +83,12 @@ namespace cfem {
         Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
             return cfem::reference_elem::utils::projectFacetRefCoordToTriRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
+
+        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+            return cfem::reference_elem::utils::tri3_face_nodes[iFace];
+        }
+
+
 
     };
 
@@ -140,6 +159,53 @@ namespace cfem {
 
         Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
             return cfem::reference_elem::utils::projectFacetRefCoordToTriRefCoord(localFacetId, xiFacet); // Make the compiler happy
+        }
+
+        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+            return cfem::reference_elem::utils::tri6_face_nodes[iFace];
+        }
+    };
+
+
+    class P0ReferenceTriangle : public ReferenceElement {
+    public:
+        P0ReferenceTriangle() {
+            m_nodes = { {1.0/3.0, 1.0/3.0, 0.0} };
+        }
+
+        int dimension() const override { return 2; }
+        int getNumNodes() const override { return 1; }
+
+        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
+            const int n = 1;
+            if (out.values.size() != n) {
+                out.setup(n); 
+            }
+
+            // Valeur constante : N0 = 1
+            if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
+                out.values[0] = 1.0;
+            }
+
+            // Gradient nul : dN0/dxi = 0, dN0/deta = 0
+            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
+                out.gradients[0] = Vector3D{0.0, 0.0, 0.0};
+            }
+
+            if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
+                if (out.hessians.size() != n) out.hessians.assign(n, SymTensorO2());
+                out.hessians[0].setZero();
+            }
+
+            out.validFlags = requested;
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override {
+            return cfem::reference_elem::utils::projectFacetRefCoordToTriRefCoord(localFacetId, xiFacet);
+        }
+
+        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+            return cfem::reference_elem::utils::tri1_face_nodes[iFace];
         }
     };
 

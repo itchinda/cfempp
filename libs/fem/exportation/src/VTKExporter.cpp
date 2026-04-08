@@ -114,10 +114,11 @@ namespace cfem
                 const ReferenceElement *refEl;
             };
             std::map<CellType, TypeCache> geoCache;
+            CfemInt geoOrder = m_mesh.getOrderInt();
 
             for (CellType type : m_mesh.getCellTypesPresent())
             {
-                const auto &refEl = ReferenceElementFactory::getReferenceElement(type);
+                const auto &refEl = ReferenceElementFactory::getReferenceElement(type, geoOrder);
                 auto &cache = geoCache[type];
                 cache.refEl = &refEl;
 
@@ -138,7 +139,7 @@ namespace cfem
 
                 m_mesh.getCellVerticesCoords(c, physCoords);
 
-                const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type);
+                const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type, geoOrder);
                 const auto &xiNodes = refEl.referenceNodes();
 
                 for (size_t n = 0; n < connectivity.size(); ++n)
@@ -367,10 +368,11 @@ namespace cfem
                 const ReferenceElement *refEl;
             };
             std::map<CellType, TypeCache> geoCache;
+            CfemInt geoOrder = m_mesh.getOrderInt();
 
             for (CellType type : m_mesh.getCellTypesPresent())
             {
-                const auto &refEl = ReferenceElementFactory::getReferenceElement(type);
+                const auto &refEl = ReferenceElementFactory::getReferenceElement(type, geoOrder);
                 auto &cache = geoCache[type];
                 cache.refEl = &refEl;
 
@@ -390,7 +392,7 @@ namespace cfem
             {
                 const auto &cell = m_mesh.getCell(c);
                 const auto &connectivity = m_mesh.getCellConnectivity(c);
-                const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type);
+                const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type, geoOrder);
                 const auto &xiNodes = refEl.referenceNodes();
                 auto &cache = geoCache[cell.type];
 

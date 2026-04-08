@@ -8,6 +8,14 @@
 #include "TensorO2.h"
 #include "ShapeEvaluationFlags.h"
 
+namespace cfem::reference_elem
+{
+    static const std::vector<std::vector<int>> line_face_nodes = {
+        {0}, // Face 0 (Nœud gauche)
+        {1}  // Face 1 (Nœud droit)
+    };
+}
+
 namespace cfem {
 
 /**
@@ -116,7 +124,7 @@ public:
 
     virtual int dimension() const = 0;
     virtual int getNumNodes() const = 0;
-
+    virtual std::span<const CfemInt> getFaceNodes(int iFace) const = 0;
     /**
      * @brief Evaluates shape functions and their local derivatives at point xi.
      * @param xi Target point in reference space.
@@ -133,6 +141,8 @@ public:
      */
     const DynamicVector<Vector3D>& referenceNodes() const { return m_nodes; }
     const Vector3D& getNodeCoords( CfemInt i) const { CFEM_ASSERT( i < m_nodes.size() && i >= 0 ); return m_nodes[i]; }
+
+    
 
     /**
      * @brief Computes the full geometric mapping at a given point xi.

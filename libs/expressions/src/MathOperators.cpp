@@ -21,7 +21,6 @@
 #include "Argument.h"
 #include "FEField.h"
 #include "FESpace.h"
-#include "LagrangeSpace.h"
 
 using namespace cfem::sym::utils;
 
@@ -831,13 +830,13 @@ namespace cfem::sym
     }
 
 
-    std::shared_ptr<FEField> Trial(std::shared_ptr<LagrangeSpace> V, const std::string& name)
+    std::shared_ptr<FEField> Trial(std::shared_ptr<FESpace> V, const std::string& name)
     {
         sym::VariableRegistry::registerVariable(name);
         return FEField::create(name, V);
     }
 
-    std::shared_ptr<const TestFunction> Test(std::shared_ptr<LagrangeSpace> V, const std::string& name) 
+    std::shared_ptr<const TestFunction> Test(std::shared_ptr<FESpace> V, const std::string& name) 
     {
         sym::VariableRegistry::registerVariable(name);
         

@@ -52,9 +52,15 @@ namespace cfem::sym
             return m_lhs->requiredShapeFlags() | m_rhs->requiredShapeFlags();
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
             if (m_lhs) m_lhs->collectRequiredSpaces(spaces);
             if (m_rhs) m_rhs->collectRequiredSpaces(spaces);
+            
+        }
+
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            if (m_lhs) m_lhs->bind(spaceToId);
+            if (m_rhs) m_rhs->bind(spaceToId);
         }
 
         void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;

@@ -182,18 +182,15 @@ namespace cfem
             lf.size = 2;
             if (face_idx == 0)
             {
-                lf.v[0] = v[0];
-                lf.v[1] = v[1];
+                lf.v[0] = v[0]; lf.v[1] = v[1];
             }
             else if (face_idx == 1)
             {
-                lf.v[0] = v[1];
-                lf.v[1] = v[2];
+                lf.v[0] = v[1]; lf.v[1] = v[2];
             }
             else
             {
-                lf.v[0] = v[2];
-                lf.v[1] = v[0];
+                lf.v[0] = v[2]; lf.v[1] = v[0];
             }
             break;
 
@@ -552,7 +549,7 @@ namespace cfem
                 lf.v[7] = v[18];
                 lf.v[8] = v[23];
             }
-            else
+            else if (face_idx == 5)
             {
                 lf.v[0] = v[3];
                 lf.v[1] = v[0];
@@ -562,7 +559,11 @@ namespace cfem
                 lf.v[5] = v[16];
                 lf.v[6] = v[15];
                 lf.v[7] = v[19];
-                lf.v[8] = v[25];
+                lf.v[8] = v[20];
+            }
+            else
+            {
+                CFEM_ERROR << "Index out of bounds. HEX Cell has exactely 6 faces. valid indices: 0,...,5.";
             }
             break;
 

@@ -1,15 +1,16 @@
 #include <gtest/gtest.h>
 #include "cfemutils.h"
 #include "Mesh.h"
-#include "DomainIntegrator.h"
+#include "Integrator.h"
 #include "MathOperators.h"
+#include "LagrangeSpace.h"
 
 using namespace cfem;
 using namespace cfem::sym;
 using namespace cfem::sym::symengine;
 
 // Fixture pour initialiser l'environnement et créer un maillage commun
-class DomainIntegratorTest : public ::testing::Test {
+class IntegratorTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // On crée un cube [-1, 1]^3 (Volume = 8.0, Surface d'une face = 4.0)
@@ -21,16 +22,16 @@ protected:
         );
         
         IntegrationSchemeParams params{};
-        integrator = std::make_unique<DomainIntegrator>(mesh, params);
+        integrator = std::make_unique<Integrator>(mesh, params);
     }
 
     std::shared_ptr<Mesh> mesh;
-    std::unique_ptr<DomainIntegrator> integrator;
+    std::unique_ptr<Integrator> integrator;
     const CfemReal TOL = 1e-12;
 };
 
 // 1. Validation de l'intégration de volume (Fonction constante)
-TEST_F(DomainIntegratorTest, VolumeIntegralConstant) {
+TEST_F(IntegratorTest, VolumeIntegralConstant) {
     auto one = scalar(1.0);
     CfemReal volume = integrator->computeIntegral(one);
     // Cube de côté 2 -> Volume = 2^3 = 8
@@ -38,7 +39,7 @@ TEST_F(DomainIntegratorTest, VolumeIntegralConstant) {
 }
 
 // 2. Validation de l'intégration de surface (Fonction constante sur frontière)
-TEST_F(DomainIntegratorTest, SurfaceIntegralConstant) {
+TEST_F(IntegratorTest, SurfaceIntegralConstant) {
     auto one = scalar(1.0);
     // Face "xmin" est à x = -1, de y=-1..1 et z=-1..1 -> Aire = 4.0
     CfemReal area = integrator->computeIntegral(one, "xmin");
@@ -46,7 +47,7 @@ TEST_F(DomainIntegratorTest, SurfaceIntegralConstant) {
 }
 
 // 3. Validation de la projection et de la norme L2 (Cas Polynomial P2)
-TEST_F(DomainIntegratorTest, L2NormP2Projection) {
+TEST_F(IntegratorTest, L2NormP2Projection) {
     auto Q = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);
     auto p = Trial(Q, "p");
 
@@ -64,7 +65,7 @@ TEST_F(DomainIntegratorTest, L2NormP2Projection) {
 }
 
 // // 4. Test d'un champ vectoriel (Divergence / Gradient)
-// TEST_F(DomainIntegratorTest, VectorFieldDivergence) {
+// TEST_F(IntegratorTest, VectorFieldDivergence) {
 //     auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
 //     auto u = Trial(V, "u");
 
@@ -82,7 +83,7 @@ TEST_F(DomainIntegratorTest, L2NormP2Projection) {
 // }
 
 // 5. Test de symétrie / Coordonnées
-TEST_F(DomainIntegratorTest, IntegralLinearFunction) {
+TEST_F(IntegratorTest, IntegralLinearFunction) {
     // L'intégrale de 'x' sur [-1, 1] est 0 par symétrie
     auto expr_x = scalar(x);
     CfemReal val = integrator->computeIntegral(expr_x);
@@ -94,7 +95,7 @@ TEST_F(DomainIntegratorTest, IntegralLinearFunction) {
 }
 
 // 6. Test de l'erreur sur une face spécifique (Gradient normal)
-TEST_F(DomainIntegratorTest, SurfaceGradientError) {
+TEST_F(IntegratorTest, SurfaceGradientError) {
     auto Q = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);
     auto p = Trial(Q, "p2");
     

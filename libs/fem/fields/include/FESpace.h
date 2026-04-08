@@ -1,12 +1,12 @@
-#ifndef CFEM_FESPACE_H
-#define CFEM_FESPACE_H
+#ifndef CFEM_FESPACE_H_2
+#define CFEM_FESPACE_H_2
 
 #include "Mesh.h"
+#include "ReferenceElement.h"
 #include <vector>
 #include <memory>
 
 namespace cfem {
-
 
 enum class FieldType : CfemInt { Scalar = 1, Vector2D = 2, Vector3D = 3 };
 enum class Order { P0 = 0, P1 = 1, P2 = 2 };
@@ -26,7 +26,13 @@ public:
     // --- Basic Accessors ---
     int getDimension() const { return m_dimension; }
     Order getOrder() const { return m_order; }
+    CfemInt getOrderInt() const { return static_cast<CfemInt>(m_order); }
     const std::shared_ptr<Mesh>& getMesh() const { return m_mesh; }
+
+    Continuity getContinuity() const { return m_continuity; }
+
+    // --- Geometry & Reference Elements ---
+    const ReferenceElement& getRefElement(CellType type) const;
 
     // --- DOF (Degrees of Freedom) Management ---
     
@@ -41,6 +47,22 @@ public:
 
     /** @brief Assigns global indices to all DOFs in the space. */
     virtual void enumerateDofs() = 0;
+
+    // --- NEW: Abstraction of DOF Mapping (Agnostic to CG/DG and memory layout) ---
+
+    /** @brief Number of unique locations where DOFs are evaluated (e.g., active nodes in CG). */
+    virtual CfemInt getNumUniquePositions() const = 0;
+
+    /** @brief Maps a cell's local node to a unique position ID (useful for locks/visited arrays). */
+    virtual CfemInt getPositionId(CfemInt cellId, int localNodeIdx) const = 0;
+
+    /** @brief Provides the exact global PETSc index for a given cell, local node, and component. */
+    virtual CfemInt getGlobalDofIdx(CfemInt cellId, int localNodeIdx, int component) const = 0;
+
+    /** @brief Retrieves a global DOF index from a physical Mesh Vertex ID (Optional/Legacy for CG). */
+    virtual CfemInt getGlobalDofFromMeshNode(CfemInt meshNodeId, int component) const = 0;
+
+    // --- Updates and Callbacks ---
 
     /**
      * @brief Called by the Mesh during a topology update.
@@ -60,30 +82,29 @@ public:
     virtual void computeSparsityPattern(std::vector<CfemInt>& nnz) const = 0;
 
     /** @brief Identifies DOFs located on a specific boundary (using Gmsh tags). */
-    virtual void getBoundaryDofs(CfemInt tag, std::vector<CfemInt>& boundaryDofs) const = 0;
+    virtual void getEntityDofs(int internalEntityId, std::vector<CfemInt>& boundaryDofs) const = 0;
 
-    /** 
-     * @brief Registers a field to be notified when the mesh or space changes.
+    /** * @brief Registers a field to be notified when the mesh or space changes.
      */
     void registerField(std::shared_ptr<FEField> field);
 
 protected:
-    /**
-     * @param mesh Shared pointer to the geometry.
-     * @param order Polynomial order (P0, P1, P2).
-     * @param cont Continuity (CG or DG).
-     * @param dim Dimension of the physics (1 for scalar, 2/3 for vectors).
-     */
     FESpace(std::shared_ptr<Mesh> mesh, Order order, Continuity cont, int dim)
-        : m_mesh(std::move(mesh)), m_order(order), m_continuity(cont), m_dimension(dim) {}
+        : m_mesh(std::move(mesh)), m_order(order), m_continuity(cont), m_dimension(dim) 
+    {
+        initReferenceElements();
+    }
 
     std::shared_ptr<Mesh> m_mesh;
     Order m_order;
     Continuity m_continuity;
-    int m_dimension; // e.g., 1 for scalar, 3 for vector mechanics
+    int m_dimension; 
 
     /// Fields associated with this space
     std::vector<std::weak_ptr<FEField>> m_fields;
+
+    std::map<CellType, std::unique_ptr<ReferenceElement>> m_refElements;
+    void initReferenceElements();
 
     virtual void validate() const {
         if (m_mesh->getNumCells() == 0) {

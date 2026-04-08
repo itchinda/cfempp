@@ -51,11 +51,15 @@ namespace cfem::sym
             return ShapeEvaluationFlags::None;
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
             if (m_gradient) m_gradient->collectRequiredSpaces(spaces);
             if (m_timeDeriv) m_timeDeriv->collectRequiredSpaces(spaces);
         }
 
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            if (m_gradient) m_gradient->bind(spaceToId);
+            if (m_timeDeriv) m_timeDeriv->bind(spaceToId);
+        }
         /**
          * @brief Retourne le gradient analytique fourni par l'utilisateur (ou nullptr).
          */

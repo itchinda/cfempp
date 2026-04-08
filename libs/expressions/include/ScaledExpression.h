@@ -32,8 +32,12 @@ namespace cfem::sym {
             return m_base->requiredShapeFlags();
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
             if (m_base) m_base->collectRequiredSpaces(spaces);
+        }
+
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            m_base->bind(spaceToId);
         }
         
         

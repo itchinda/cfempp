@@ -135,10 +135,11 @@ namespace cfem
                 const ReferenceElement *refEl;
             };
             std::map<CellType, TypeCache> geoCache;
+            CfemInt geoOrder = m_mesh.getOrderInt();
 
             for (CellType type : m_mesh.getCellTypesPresent())
             {
-                const auto &refEl = ReferenceElementFactory::getReferenceElement(type);
+                const auto &refEl = ReferenceElementFactory::getReferenceElement(type, geoOrder);
                 auto &cache = geoCache[type];
                 cache.refEl = &refEl;
                 for (const auto &xi : refEl.referenceNodes())
@@ -315,10 +316,11 @@ namespace cfem
             const ReferenceElement *refEl;
         };
         std::map<CellType, TypeCache> geoCache;
+        CfemInt geoOrder = m_mesh.getOrderInt();
 
         for (CellType type : m_mesh.getCellTypesPresent())
         {
-            const auto &refEl = ReferenceElementFactory::getReferenceElement(type);
+            const auto &refEl = ReferenceElementFactory::getReferenceElement(type, geoOrder);
             auto &cache = geoCache[type];
             cache.refEl = &refEl;
 

@@ -5,7 +5,6 @@
 #include "ReferenceTetrahedron.h"
 #include "ReferencePrism.h"
 #include "ReferenceHexahedron.h"
-
 #include "FEField.h"
 
 #include <set>
@@ -13,37 +12,59 @@
 
 namespace cfem {
 
-LagrangeSpace::LagrangeSpace(ConstructorToken, std::shared_ptr<Mesh> mesh, Order order, int dimension)
-    : FESpace(mesh, order, Continuity::CG, dimension) 
-{
-}
-
-void LagrangeSpace::initReferenceElements() {
-    m_refElements.clear();
-
-    if (m_mesh->getDimension() == 1){
-        m_refElements[CellType::LINE2] = std::make_unique<P1ReferenceSegment>();
-        m_refElements[CellType::LINE3] = std::make_unique<P2ReferenceSegment>();
-    }
-    else if (m_mesh->getDimension() == 2) {
-        m_refElements[CellType::TRI3]  = std::make_unique<P1ReferenceTriangle>();
-        m_refElements[CellType::QUAD4] = std::make_unique<Q1ReferenceQuad>();
-        m_refElements[CellType::TRI6]  = std::make_unique<P2ReferenceTriangle>();
-        m_refElements[CellType::QUAD9] = std::make_unique<Q2ReferenceQuad>();
-    }
-    else if (m_mesh->getDimension() == 3) {
-        m_refElements[CellType::TET4]    = std::make_unique<P1ReferenceTetrahedron>();
-        m_refElements[CellType::PRISM6]  = std::make_unique<P1ReferencePrism>();
-        m_refElements[CellType::HEX8]    = std::make_unique<Q1ReferenceHexahedron>();
-        m_refElements[CellType::TET10]   = std::make_unique<P2ReferenceTetrahedron>();
-        m_refElements[CellType::PRISM18] = std::make_unique<P2ReferencePrism>();
-        m_refElements[CellType::HEX27]   = std::make_unique<Q2ReferenceHexahedron>();
+    /**
+     * @brief Constructor for the Continuous Lagrange Finite Element Space.
+     * @param mesh Shared pointer to the underlying mesh.
+     * @param order Polynomial order (P1 or P2).
+     * @param dimension Number of components per node (1 for scalars, 2 or 3 for vectors).
+     */
+    LagrangeSpace::LagrangeSpace(ConstructorToken, std::shared_ptr<Mesh> mesh, Order order, int dimension)
+        : FESpace(mesh, order, Continuity::CG, dimension) 
+    {
     }
 
-}
+    /**
+     * @brief Factory method: The recommended way to instantiate a LagrangeSpace.
+     * @param mesh Shared pointer to the geometry.
+     * @param order Polynomial order (P1 or P2). P0 is not supported here.
+     * @param field_type Scalar or Vectorial nature of the physics.
+     * @return A shared pointer to the initialized and enumerated LagrangeSpace.
+     * @throw CFEM_ERROR if order is P0 or if mesh cannot support requested order.
+     */
+    std::shared_ptr<LagrangeSpace> LagrangeSpace::create(std::shared_ptr<Mesh> mesh, 
+                                                 Order order, 
+                                                 FieldType field_type) {
+        int dim = 1;
+        if (field_type == FieldType::Vector3D) dim = 3;
+        else if (field_type == FieldType::Vector2D) dim = 2;
+
+        if (order == Order::P0) {
+            CFEM_ERROR << "LagrangeSpace Error: P0 is a discontinuous space and is not supported by LagrangeSpace. "
+                       "Please use DGSpace or upgrade the order to P1.";
+        }
+
+        if (order == Order::P2 && mesh->getOrder() == MeshOrder::Linear) {
+            CFEM_INFO << "LagrangeSpace: Auto-upgrading mesh to quadratic to support P2 space.";
+            mesh->upgradeToQuadratic(); 
+        }
+
+        // Instantiation & Initialization
+        auto space = std::make_shared<LagrangeSpace>(ConstructorToken{}, mesh, order, dim);
+        // space->initReferenceElements();
+        
+        // Connect mesh updates to this space
+        mesh->addObserver(space);
+        
+        space->validate();
+        space->enumerateDofs();
+
+        return space;
+    }
+
 
 /**
- * @brief Implémentation de la logique de filtrage P1/P2.
+ * @brief Determines the number of active nodes per cell based on the space order.
+ * This filters higher-order nodes if the space is only P1.
  */
 int LagrangeSpace::getNodesPerCell(CellType type) const {
     if (m_order == Order::P1) {
@@ -71,17 +92,21 @@ int LagrangeSpace::getNodesPerCell(CellType type) const {
     return 0;
 }
 
+/**
+ * @brief Assigns local and global IDs to active mesh vertices.
+ * Filters nodes based on polynomial order and builds bi-directional mapping tables.
+ */
 void LagrangeSpace::enumerateDofs() {
     const CfemInt numMeshNodes = static_cast<CfemInt>(m_mesh->getNumVertices());
     m_nodeToLocalIdx.assign(numMeshNodes, -1);
     
     CfemInt counter = 0;
 
-    // On boucle sur les cellules pour identifier les nœuds actifs selon l'ordre
+    // 1. Iterate over cells to identify active nodes based on m_order
     for (CfemInt c = 0; c < (CfemInt)m_mesh->getNumCells(); ++c) {
         const auto& cell = m_mesh->getCell(c);
         int nodesToUse = getNodesPerCell(cell.type);
-        auto cell_ids = m_mesh->getCellConnectivity(cell.id);
+        const auto& cell_ids = m_mesh->getCellConnectivity(c);
         
         for (int n = 0; n < nodesToUse; ++n) {
             CfemInt vId = cell_ids[n];
@@ -94,6 +119,7 @@ void LagrangeSpace::enumerateDofs() {
     m_numActiveNodes = counter;
     m_totalDofs = m_numActiveNodes * m_dimension;
 
+    // 2. Build the reverse mapping (Local index -> Mesh Vertex index)
     m_localToMeshNodeIdx.assign(m_numActiveNodes, -1);
     for (CfemInt meshId = 0; meshId < (CfemInt)m_nodeToLocalIdx.size(); ++meshId) {
         CfemInt local = m_nodeToLocalIdx[meshId];
@@ -103,33 +129,81 @@ void LagrangeSpace::enumerateDofs() {
     }
 }
 
+// --- ABSTRACTION LAYER IMPLEMENTATION ---
+
+CfemInt LagrangeSpace::getPositionId(CfemInt cellId, int localNodeIdx) const {
+    const auto& connectivity = m_mesh->getCellConnectivity(cellId);
+    if (localNodeIdx >= (int)connectivity.size()) return -1;
+    return m_nodeToLocalIdx[connectivity[localNodeIdx]];
+}
+
+CfemInt LagrangeSpace::getGlobalDofIdx(CfemInt cellId, int localNodeIdx, int component) const {
+    CfemInt posId = getPositionId(cellId, localNodeIdx);
+    if (posId == -1) return -1;
+    // BLOCK-WISE ORDERING: [Comp 0 Nodes][Comp 1 Nodes]...[Comp N Nodes]
+    return posId + (component * m_numActiveNodes);
+}
+
+CfemInt LagrangeSpace::getGlobalDofFromMeshNode(CfemInt meshNodeId, int component) const {
+    CfemInt posId = m_nodeToLocalIdx[meshNodeId];
+    if (posId == -1) return -1;
+    return posId + (component * m_numActiveNodes);
+}
+
+// --- ELEMENT INTERFACE ---
+
 int LagrangeSpace::getDofsPerCell(CfemInt cellId) const {
     return getNodesPerCell(m_mesh->getCell(cellId).type) * m_dimension;
 }
 
-/**
- * @brief Remplit les DOFs avec la numérotation par bloc :
- * GlobalID = localNodeIdx + (compIdx * m_numActiveNodes)
- */
 void LagrangeSpace::getElementDofs(CfemInt cellId, std::vector<CfemInt>& globalIndices) const {
     const auto& cell = m_mesh->getCell(cellId);
     int nodesInCell = getNodesPerCell(cell.type);
-    auto cell_ids = m_mesh->getCellConnectivity(cell.id);
+    const auto& cell_ids = m_mesh->getCellConnectivity(cellId);
     
     globalIndices.resize(nodesInCell * m_dimension);
 
     for (int n = 0; n < nodesInCell; ++n) {
         CfemInt nodeIdx = m_nodeToLocalIdx[cell_ids[n]];
-        
         for (int d = 0; d < m_dimension; ++d) {
-            // Bloc 0 : Composante 0, Bloc 1 : Composante 1...
+            // Fill with block-wise indices: node first, then component blocks
             globalIndices[n + d * nodesInCell] = nodeIdx + (d * m_numActiveNodes);
         }
     }
 }
 
+// --- MATH & EVALUATION ---
+
+void LagrangeSpace::evaluateBasis(CfemInt cellId, const Vector3D& xi, std::vector<CfemReal>& values) const {
+    const Cell& cell = m_mesh->getCell(cellId);
+    const ReferenceElement& refEl = getRefElement(cell.type);
+
+    ShapeInfo shape;
+    refEl.evaluate(xi, ShapeEvaluationFlags::Value, shape);
+
+    values.assign(shape.values.begin(), shape.values.end());
+}
+
+void LagrangeSpace::evaluateGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const {
+    const Cell& cell = m_mesh->getCell(cellId);
+    const ReferenceElement& refEl = getRefElement(cell.type);
+    
+    // Thread-local scratchpad to ensure OpenMP safety and avoid allocations
+    static thread_local DynamicVector<Vector3D> t_physicalCoords;
+    m_mesh->getCellVerticesCoords(cellId, t_physicalCoords);
+
+    ShapeInfo shape;
+    MappingInfo map;
+    refEl.computeMapping(xi, t_physicalCoords, ShapeEvaluationFlags::Gradient, shape, map);
+
+    grads.assign(map.physicalShapeGradients.begin(), map.physicalShapeGradients.end());
+}
+
+// --- PETSc & SYSTEM SUPPORT ---
+
 /**
- * @brief Calcul du NNZ (Sparsity Pattern) par blocs.
+ * @brief Computes the number of non-zeros (nnz) per row for PETSc matrix pre-allocation.
+ * Respects the block-wise numbering by replicating connectivity counts across components.
  */
 void LagrangeSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
     nnz.assign(m_totalDofs, 0);
@@ -141,10 +215,10 @@ void LagrangeSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
         const auto& vertex = m_mesh->getVertex(i);
         std::set<CfemInt> neighborNodes;
 
-        // On cherche les nœuds connectés
+        // Traverse connected cells to find all adjacent active nodes
         for (CfemInt cellId : vertex.getConnectedCells()){
             const auto& cell = m_mesh->getCell(cellId);
-            auto cell_ids = m_mesh->getCellConnectivity(cell.id);
+            const auto& cell_ids = m_mesh->getCellConnectivity(cellId);
 
             int nInCell = getNodesPerCell(cell.type);
             for (int n = 0; n < nInCell; ++n) {
@@ -152,105 +226,26 @@ void LagrangeSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
             }
         }
 
-        // Nombre de connexions : Nb de nœuds voisins * Nb de composantes
+        // Each component in the block has the same number of neighbors * dimensions
         CfemInt rowNNZ = static_cast<CfemInt>(neighborNodes.size()) * m_dimension;
 
-        // On reporte cette valeur pour chaque bloc (chaque composante du nœud)
         for (int d = 0; d < m_dimension; ++d) {
             nnz[nodeIdx + (d * m_numActiveNodes)] = rowNNZ;
         }
     }
 }
 
-void LagrangeSpace::getBoundaryDofs(int internalEntityId, std::vector<CfemInt>& boundaryDofs) const {
+void LagrangeSpace::getEntityDofs(int internalEntityId, std::vector<CfemInt>& boundaryDofs) const {
     boundaryDofs.clear();
-    const auto& entities = m_mesh->getEntities();
-    
-    for (const auto& ent : entities) {
-        if (ent->getId() == internalEntityId) {
-            for (CfemInt vId : ent->getVertexIds()) {
-                CfemInt nodeIdx = m_nodeToLocalIdx[vId];
-                if (nodeIdx != -1) {
-                    for (int d = 0; d < m_dimension; ++d) {
-                        boundaryDofs.push_back(nodeIdx + (d * m_numActiveNodes));
-                    }
-                }
+    const auto& boundaryNodes = m_mesh->getEntityConst(internalEntityId).getVertexIds();
+
+    for (CfemInt vId : boundaryNodes) {
+        CfemInt nodeIdx = m_nodeToLocalIdx[vId];
+        if (nodeIdx != -1) {
+            for (int d = 0; d < m_dimension; ++d) {
+                boundaryDofs.push_back(nodeIdx + (d * m_numActiveNodes));
             }
-            break;
         }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Helper pour récupérer l'élément de référence (cache)
-// -----------------------------------------------------------------------------
-const ReferenceElement& LagrangeSpace::getRefElement(CellType type) const {
-    CFEM_ASSERT(!m_refElements.empty());
-    auto it = m_refElements.find(type);
-    if (it == m_refElements.end()) {
-        CFEM_ERROR << "LagrangeSpace: Element type not supported or not initialized.";
-    }
-    return *it->second;
-}
-
-// -----------------------------------------------------------------------------
-// Évaluation des Fonctions de Forme (Basis Functions)
-// -----------------------------------------------------------------------------
-void LagrangeSpace::evaluateBasis(CfemInt cellId, const Vector3D& xi, std::vector<CfemReal>& values) const {
-    // 1. Récupération de la cellule et de son élément de référence
-    const Cell& cell = m_mesh->getCell(cellId);
-    const ReferenceElement& refEl = getRefElement(cell.type);
-
-    // 2. Préparation du buffer léger (ShapeInfo)
-    // On le déclare en local pour garantir la thread-safety
-    ShapeInfo shape;
-    
-    // 3. Calcul des fonctions de forme N(xi)
-    // On demande uniquement les VALEURS pour l'instant
-    refEl.evaluate(xi, ShapeEvaluationFlags::Value, shape);
-
-    // 4. Copie vers le vecteur de sortie std::vector
-    // On redimensionne si nécessaire (optimisation possible: réserver avant)
-    if (values.size() != shape.values.size()) {
-        values.resize(shape.values.size());
-    }
-    
-    for (size_t i = 0; i < shape.values.size(); ++i) {
-        values[i] = shape.values[i];
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Évaluation des Gradients Physiques (Physical Gradients)
-// -----------------------------------------------------------------------------
-void LagrangeSpace::evaluateGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const {
-    const Cell& cell = m_mesh->getCell(cellId);
-    const ReferenceElement& refEl = getRefElement(cell.type);
-    const auto& nodeIndices = m_mesh->getCellConnectivity(cellId);
-    
-    // Chaque thread a sa propre version persistante. 
-    // Pas d'allocation après le premier passage, et TOTALEMENT safe en OpenMP.
-    static thread_local DynamicVector<Vector3D> t_physicalNodes;
-
-    size_t numNodes = nodeIndices.size();
-    if (t_physicalNodes.size() != numNodes) {
-        t_physicalNodes.resize(numNodes);
-    }
-
-    // Remplissage...
-    m_mesh->getCellVerticesCoords(cellId, t_physicalNodes);
-
-    // Votre computeMapping actuel accepte t_physicalNodes sans broncher
-    ShapeInfo shape;
-    MappingInfo map;
-    refEl.computeMapping(xi, t_physicalNodes, ShapeEvaluationFlags::Gradient, shape, map);
-    // 5. Transfert des résultats
-    if (grads.size() != map.physicalShapeGradients.size()) {
-        grads.resize(map.physicalShapeGradients.size());
-    }
-
-    for (size_t i = 0; i < map.physicalShapeGradients.size(); ++i) {
-        grads[i] = map.physicalShapeGradients[i];
     }
 }
 
