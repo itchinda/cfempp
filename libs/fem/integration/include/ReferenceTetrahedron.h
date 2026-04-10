@@ -49,11 +49,11 @@ namespace cfem {
     class P1ReferenceTetrahedron : public ReferenceElement {
     public:
         P1ReferenceTetrahedron() {
+            m_numNodes = 4;
+            m_dimension = 3;
+            m_nodes.resize(m_numNodes);
             m_nodes = { {0,0,0}, {1,0,0}, {0,1,0}, {0,0,1} };
         }
-
-        int dimension() const override { return 3; }
-        int getNumNodes() const override { return 4; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 4;
@@ -100,16 +100,15 @@ namespace cfem {
     class P2ReferenceTetrahedron : public ReferenceElement {
     public:
         P2ReferenceTetrahedron() {
-            m_nodes.resize(10);
+            m_numNodes = 10;
+            m_dimension = 3;
+            m_nodes.resize(m_numNodes);
             // Sommets
             m_nodes[0]={0,0,0}; m_nodes[1]={1,0,0}; m_nodes[2]={0,1,0}; m_nodes[3]={0,0,1};
             // Milieux d'arêtes (Standard convention: 01, 12, 20, 03, 13, 23)
             m_nodes[4]={0.5, 0.0, 0.0}; m_nodes[5]={0.5, 0.5, 0.0}; m_nodes[6]={0.0, 0.5, 0.0};
             m_nodes[7]={0.0, 0.0, 0.5}; m_nodes[8]={0.5, 0.0, 0.5}; m_nodes[9]={0.0, 0.5, 0.5};
         }
-
-        int dimension() const override { return 3; }
-        int getNumNodes() const override { return 10; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 10;
@@ -198,13 +197,13 @@ namespace cfem {
 class P0ReferenceTetrahedron : public ReferenceElement {
     public:
         P0ReferenceTetrahedron() {
+            m_numNodes = 1;
+            m_dimension = 3;
+            m_nodes.resize(m_numNodes);
             // Un seul nœud au centre de gravité du tétraèdre de référence
             // Sommets: (0,0,0), (1,0,0), (0,1,0), (0,0,1) -> Barycentre: (1/4, 1/4, 1/4)
             m_nodes = { {0.25, 0.25, 0.25} };
         }
-
-        int dimension() const override { return 3; }
-        int getNumNodes() const override { return 1; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 1;

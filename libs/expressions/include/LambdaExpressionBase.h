@@ -60,6 +60,7 @@ namespace cfem::sym
             if (m_gradient) m_gradient->bind(spaceToId);
             if (m_timeDeriv) m_timeDeriv->bind(spaceToId);
         }
+        
         /**
          * @brief Retourne le gradient analytique fourni par l'utilisateur (ou nullptr).
          */

@@ -224,7 +224,7 @@ TEST_F(MappingTest, Hex8ShearMapping) {
     MappingInfo map;
     ShapeInfo shape;
     Vector3D xi{0, 0, 0};
-    ShapeEvaluationFlags lRequestedFields = ShapeEvaluationFlags::Gradient;
+    ShapeEvaluationFlags lRequestedFields = ShapeEvaluationFlags::Jacobian;
 
     hex.computeMapping(xi, coords, lRequestedFields, shape, map);
 
@@ -260,7 +260,7 @@ TEST_F(MappingTest, P2TriangleCurvedHessians) {
     Vector3D xi{1.0/3.0, 1.0/3.0, 0};
     
     // On demande explicitement les Hessiennes et gradients
-    ShapeEvaluationFlags lRequestedFields = ShapeEvaluationFlags::Gradient | ShapeEvaluationFlags::Hessian;
+    ShapeEvaluationFlags lRequestedFields = ShapeEvaluationFlags::Hessian;
 
     tri.computeMapping(xi, coords, lRequestedFields, shape, map);
     EXPECT_GT(map.detJ, 0.0) << "Jacobian determinant should be positive";
@@ -346,7 +346,7 @@ TEST_F(MappingTest, JacobianInverseCheck) {
     ShapeInfo shape;
     Vector3D xi{0.0, 0.0, 0.0};
 
-    ShapeEvaluationFlags req = ShapeEvaluationFlags::Gradient;
+    ShapeEvaluationFlags req = ShapeEvaluationFlags::Jacobian;
     hex.computeMapping(xi, coords, req, shape, map);
 
     TensorO2 identity;
@@ -419,9 +419,8 @@ TEST_F(MappingTest, P2TetraCurvedHessians) {
     ShapeInfo shape;
     Vector3D xi{0.25, 0.25, 0.25}; // Evaluation point (inside the tet)
     
-    ShapeEvaluationFlags req = ShapeEvaluationFlags::Value | 
-                      ShapeEvaluationFlags::Gradient | 
-                      ShapeEvaluationFlags::Hessian;
+    ShapeEvaluationFlags req = ShapeEvaluationFlags::Gradient | 
+                               ShapeEvaluationFlags::Hessian;
 
     ASSERT_NO_THROW(tet.computeMapping(xi, coords, req, shape, map));
 
@@ -541,7 +540,7 @@ TEST_F(MappingTest, P2TetraInterpolationSuite) {
     ShapeInfo shape;
     MappingInfo map;
     // We need Gradients for the gradient tests later
-    tet.computeMapping(xi, coords, ShapeEvaluationFlags::Gradient, shape, map);
+    tet.computeMapping(xi, coords, ShapeEvaluationFlags::PhysicalPosition | ShapeEvaluationFlags::Gradient, shape, map);
 
     // --- TEST A: Scalar Value Interpolation ---
     CfemReal expectedScalar = map.physicalPosition.x + map.physicalPosition.y;

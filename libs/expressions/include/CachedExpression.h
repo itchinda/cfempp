@@ -42,6 +42,9 @@ namespace cfem::sym {
         }
 
         bool isConstant() const override { return m_inner->isConstant(); }
+        bool isContinuous() const override {
+            return  m_inner->isContinuous();
+        }
         bool dependsOnFEField() const override { return m_inner->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_inner->dependsOnShape(); }
         ShapeEvaluationFlags requiredShapeFlags() const override {

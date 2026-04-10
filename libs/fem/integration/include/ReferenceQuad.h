@@ -36,15 +36,15 @@ namespace cfem {
     class Q1ReferenceQuad : public ReferenceElement {
     public:
         Q1ReferenceQuad() {
-            m_nodes.resize(4);
+            m_numNodes = 4;
+            m_dimension = 2;
+            m_nodes.resize(m_numNodes);
+
             m_nodes[0] = Vector3D{-1.0, -1.0, 0.0};
             m_nodes[1] = Vector3D{ 1.0, -1.0, 0.0};
             m_nodes[2] = Vector3D{ 1.0,  1.0, 0.0};
             m_nodes[3] = Vector3D{-1.0,  1.0, 0.0};
         }
-
-        int dimension() const override { return 2; }
-        int getNumNodes() const override { return 4; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 4;
@@ -95,7 +95,9 @@ namespace cfem {
 class Q2ReferenceQuad : public ReferenceElement {
     public:
         Q2ReferenceQuad() {
-            m_nodes.resize(9);
+            m_numNodes = 9;
+            m_dimension = 2;
+            m_nodes.resize(m_numNodes);
             // Coordonnées de référence sur [-1, 1]
             // Sommets
             m_nodes[0] = Vector3D{-1.0, -1.0, 0.0}; // i=0, j=0
@@ -112,9 +114,6 @@ class Q2ReferenceQuad : public ReferenceElement {
             // Centre
             m_nodes[8] = Vector3D{ 0.0,  0.0, 0.0}; // i=1, j=1
         }
-
-        int dimension() const override { return 2; }
-        int getNumNodes() const override { return 9; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 9;
@@ -184,12 +183,12 @@ class Q2ReferenceQuad : public ReferenceElement {
 class Q0ReferenceQuad : public ReferenceElement {
     public:
         Q0ReferenceQuad() {
+            m_numNodes = 1;
+            m_dimension = 2;
+            m_nodes.resize(m_numNodes);
             // Un seul nœud au centre du carré de référence [-1, 1]x[-1, 1]
             m_nodes = { {0.0, 0.0, 0.0} };
         }
-
-        int dimension() const override { return 2; }
-        int getNumNodes() const override { return 1; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 1;

@@ -2,6 +2,7 @@
 #define CFEM_FEFIELD_H_2
 
 #include "CfemExpression.h"
+#include "Argument.h"
 #include "GradExpression.h"
 #include "EvalContext.h"
 #include "FESpace.h"         // Dependency inverted from LagrangeSpace to FESpace
@@ -15,13 +16,10 @@
 
 namespace cfem
 {
-    class FEField : public sym::CfemExpression
+    class FEField : public sym::TrialFunction
     {
     private:
         struct ConstructorToken {};
-        std::string m_name;
-        CfemInt m_dimension;
-        std::shared_ptr<FESpace> m_space; // <-- MAGIE: L'interface prend le relais
         PetscVector m_data;
         mutable std::vector<CfemReal> m_localValues;
 
@@ -33,21 +31,17 @@ namespace cfem
         };
 
     public:
-        // Constructor now accepts FESpace
-        FEField(ConstructorToken, const std::string &name, std::shared_ptr<FESpace> space);
+        FEField(ConstructorToken, std::shared_ptr<FESpace> space, const std::string &name);
         virtual ~FEField() = default;
 
         static std::shared_ptr<FEField> create(const std::string &name, std::shared_ptr<FESpace> space) {
-            auto field = std::make_shared<FEField>(ConstructorToken{}, name, space);
+            auto field = std::make_shared<FEField>(ConstructorToken{}, space, name);
             space->registerField(field);
             return field;
         }
 
-        const std::string &getName() const { return m_name; }
-        const std::shared_ptr<FESpace> &getSpace() const { return m_space; }
         PetscVector &getData() { return m_data; }
         const PetscVector &getData() const { return m_data; }
-        CfemInt getDimension() const override { return m_dimension; }
         bool dependsOnFEField() const override { return true; }
         bool dependsOnShape() const override { return true; }
 

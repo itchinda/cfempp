@@ -51,17 +51,16 @@ namespace cfem{
 class Q1ReferenceHexahedron : public ReferenceElement {
 public:
     Q1ReferenceHexahedron() {
-        m_nodes.resize(8);
+        m_numNodes = 8;
+        m_dimension = 3;
+        m_nodes.resize(m_numNodes);
         // Ordre VTK : Face Z=-1 (0,1,2,3), puis Face Z=1 (4,5,6,7)
         m_nodes[0] = {-1,-1,-1}; m_nodes[1] = { 1,-1,-1}; m_nodes[2] = { 1, 1,-1}; m_nodes[3] = {-1, 1,-1};
         m_nodes[4] = {-1,-1, 1}; m_nodes[5] = { 1,-1, 1}; m_nodes[6] = { 1, 1, 1}; m_nodes[7] = {-1, 1, 1};
     }
 
-    int dimension() const override { return 3; }
-    int getNumNodes() const override { return 8; }
-
     void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-        const int n = 8;
+        const int n = m_numNodes;
         if (out.values.size() != n) out.setup(n);
         if ((hasFlag(requested, ShapeEvaluationFlags::Hessian)) && out.hessians.size() != n)
             out.hessians.assign(n, SymTensorO2());
@@ -108,7 +107,9 @@ public:
     class Q2ReferenceHexahedron : public ReferenceElement {
     public:
         Q2ReferenceHexahedron() {
-            m_nodes.resize(27);
+            m_numNodes = 27;
+            m_dimension = 3;
+            m_nodes.resize(m_numNodes);
             // On définit les positions 1D pour r, s, t : -1.0, 0.0, 1.0
             CfemReal pos[3] = {-1.0, 0.0, 1.0};
 
@@ -134,11 +135,8 @@ public:
                         m_nodes[vtk_map[i][j][k]] = {pos[i], pos[j], pos[k]};
         }
 
-        int dimension() const override { return 3; }
-        int getNumNodes() const override { return 27; }
-
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const int n = 27;
+            const int n = m_numNodes;
             if (out.values.size() != n) out.setup(n);
             if ((hasFlag(requested, ShapeEvaluationFlags::Hessian)) && out.hessians.size() != n)
                 out.hessians.assign(n, SymTensorO2());
@@ -214,15 +212,15 @@ public:
     class Q0ReferenceHexahedron : public ReferenceElement {
     public:
         Q0ReferenceHexahedron() {
+            m_numNodes = 1;
+            m_dimension = 3;
+            m_nodes.resize(m_numNodes);
             // Un seul nœud au centre du cube de référence [-1, 1]^3
             m_nodes = { {0.0, 0.0, 0.0} };
         }
 
-        int dimension() const override { return 3; }
-        int getNumNodes() const override { return 1; }
-
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const int n = 1;
+            const int n = m_numNodes;
             if (out.values.size() != n) out.setup(n);
 
             if (hasFlag(requested, ShapeEvaluationFlags::Value)) {

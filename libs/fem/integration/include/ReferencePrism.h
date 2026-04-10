@@ -51,14 +51,13 @@ namespace cfem{
 class P1ReferencePrism : public ReferenceElement {
 public:
     P1ReferencePrism() {
-        m_nodes.resize(6);
+        m_numNodes = 6;
+        m_dimension = 3;
+        m_nodes.resize(m_numNodes);
         // Ordre VTK : Triangle inférieur Z=-1 (0,1,2), puis supérieur Z=1 (3,4,5)
         m_nodes[0] = {0,0,-1}; m_nodes[1] = {1,0,-1}; m_nodes[2] = {0,1,-1};
         m_nodes[3] = {0,0, 1}; m_nodes[4] = {1,0, 1}; m_nodes[5] = {0,1, 1};
     }
-
-    int dimension() const override { return 3; }
-    int getNumNodes() const override { return 6; }
 
     void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
         const int n = 6;
@@ -114,7 +113,9 @@ public:
     class P2ReferencePrism : public ReferenceElement {
     public:
         P2ReferencePrism() {
-            m_nodes.resize(18);
+            m_numNodes = 18;
+            m_dimension = 3;
+            m_nodes.resize(m_numNodes);
             
             // 1. Sommets (0-5)
             m_nodes[0] = {0.0, 0.0, -1.0}; m_nodes[1] = {1.0, 0.0, -1.0}; m_nodes[2] = {0.0, 1.0, -1.0};
@@ -130,9 +131,6 @@ public:
             // 4. Centres des faces quadrilatérales (15-17)
             m_nodes[15]= {0.5, 0.0,  0.0}; m_nodes[16]= {0.5, 0.5,  0.0}; m_nodes[17]= {0.0, 0.5,  0.0};
         }
-
-        int dimension() const override { return 3; }
-        int getNumNodes() const override { return 18; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 18;
@@ -207,14 +205,14 @@ public:
     class P0ReferencePrism : public ReferenceElement {
     public:
         P0ReferencePrism() {
+            m_numNodes = 1;
+            m_dimension = 3;
+            m_nodes.resize(m_numNodes);
             // Un seul nœud au centre de gravité du prisme de référence
             // Triangle base (0,0), (1,0), (0,1) -> (1/3, 1/3)
             // Segment Z de -1 à 1 -> 0
             m_nodes = { {1.0/3.0, 1.0/3.0, 0.0} };
         }
-
-        int dimension() const override { return 3; }
-        int getNumNodes() const override { return 1; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 1;

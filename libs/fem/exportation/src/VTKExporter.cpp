@@ -152,7 +152,7 @@ namespace cfem
 
                     refEl.computeMapping(xiNodes[n],
                                         physCoords,
-                                        ShapeEvaluationFlags::None,
+                                        ShapeEvaluationFlags::PhysicalPosition,
                                         cache.nodeShapes[n], ctx.scratchMapping);
 
                     ctx.physPos = ctx.scratchMapping.physicalPosition;
@@ -408,7 +408,7 @@ namespace cfem
 
                     refEl.computeMapping(xiNodes[n],
                                         physCoords,
-                                        ShapeEvaluationFlags::None,
+                                        ShapeEvaluationFlags::PhysicalPosition,
                                         cache.nodeShapes[n], ctx.scratchMapping);
 
                     ctx.physPos = ctx.scratchMapping.physicalPosition;

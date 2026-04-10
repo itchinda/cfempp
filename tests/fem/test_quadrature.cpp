@@ -116,7 +116,8 @@ protected:
         for (const auto& pt : quad.getPoints()) {
             // L'appel à computeMapping déclenche toute ta chaîne : 
             // evaluate() -> computeJacobian() -> detJ
-            ref.computeMapping(pt.xi, nodes, ShapeEvaluationFlags::Value, shape, map);
+
+            ref.computeMapping(pt.xi, nodes,  ShapeEvaluationFlags::Jacobian, shape, map);
             
             // Intégrale = Somme( |detJ| * w )
             volume += std::abs(map.detJ) * pt.weight;
@@ -288,7 +289,7 @@ TEST_F(MappingAccuracyTest, PolynomialIntegrationOnRealElement) {
     CfemReal numeric = 0.0;
     for (const auto& pt : q.getPoints()) {
         // Mapping complet au point de quadrature
-        ref.computeMapping(pt.xi, nodes, ShapeEvaluationFlags::Value, shape, map);
+        ref.computeMapping(pt.xi, nodes, ShapeEvaluationFlags::PhysicalPosition | ShapeEvaluationFlags::Jacobian, shape, map);
         
         // On récupère la position physique x(xi) et le poids detJ * w
         numeric += f(map.physicalPosition) * std::abs(map.detJ) * pt.weight;

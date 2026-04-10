@@ -221,11 +221,12 @@ namespace cfem
                 for (size_t q = 0; q < lQuadPts.size(); ++q)
                 {
                     const auto &qp = lQuadPts[q];
+                    
+                    ShapeEvaluationFlags requiredMappingInfoFlaqs = ShapeEvaluationFlags::PhysicalPosition 
+                                                                  | ShapeEvaluationFlags::Jacobian
+                                                                  | (needsFieldGradients ? ShapeEvaluationFlags::Gradient : ShapeEvaluationFlags::None);
 
-                    refElGeo.computeMapping(
-                        qp.xi, physCoords,
-                        needsFieldGradients ? ShapeEvaluationFlags::Gradient : ShapeEvaluationFlags::None,
-                        cache.geoShapes[q], mapGeo);
+                    refElGeo.computeMapping( qp.xi, physCoords, requiredMappingInfoFlaqs, cache.geoShapes[q], mapGeo );
 
                     const CfemReal wDetJ = std::abs(mapGeo.detJ) * qp.weight;
 
@@ -416,13 +417,17 @@ namespace cfem
                     const auto &qp = lQuadPts[q];
 
                     refElFacet.evaluate(qp.xi, ShapeEvaluationFlags::Value | ShapeEvaluationFlags::Gradient, facetShape);
-                    refElFacet.computeMapping(qp.xi, facetNodes, ShapeEvaluationFlags::Gradient, facetShape, mapSurf);
+                    refElFacet.computeMapping(qp.xi, facetNodes, 
+                        ShapeEvaluationFlags::PhysicalPosition | ShapeEvaluationFlags::Gradient, 
+                        facetShape, mapSurf
+                    );
+
                     const CfemReal dS = mapSurf.detJ * qp.weight;
 
                     Vector3D xi_parent = refElParentGeo.projectFacetRefCoordToCellRefCoord(localFacetId, qp.xi);
                     refElParentGeo.computeMapping(
                         xi_parent, parentNodes, 
-                        needsFieldGradients ? ShapeEvaluationFlags::Gradient : ShapeEvaluationFlags::None,
+                        ShapeEvaluationFlags::Jacobian | (needsFieldGradients ? ShapeEvaluationFlags::Gradient : ShapeEvaluationFlags::None),
                         cache.geoShapesParent[q], mapParentGeo
                     );
                     
@@ -435,11 +440,10 @@ namespace cfem
                         const auto& spCache = cache.spaceCaches[sIdx];
                         MappingInfo& mapSpace = spaceMappings[sIdx];
 
-                        mapSpace.detJ = mapParentGeo.detJ;
-                        mapSpace.invJacobian = mapParentGeo.invJacobian;
-                        mapSpace.physicalPosition = mapSurf.physicalPosition; 
-
                         if (needsFieldGradients) {
+                            mapSpace.detJ = mapParentGeo.detJ;
+                            mapSpace.invJacobian = mapParentGeo.invJacobian;
+                            mapSpace.physicalPosition = mapSurf.physicalPosition; 
                             mapSpace.computePhysicalGradientsOnly(spCache.shapes[q]);
                         }
                         
