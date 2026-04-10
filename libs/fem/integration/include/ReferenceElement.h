@@ -107,6 +107,7 @@ struct MappingInfo {
             physicalShapeGradients[i].z = i02 * g.x + i12 * g.y + i22 * g.z;
         }
     }
+
 };
 
 /**
@@ -119,11 +120,14 @@ class ReferenceElement {
 protected:
     DynamicVector<Vector3D> m_nodes; ///< Node coordinates in reference space (xi)
 
+    CfemInt m_numNodes;
+    CfemInt m_dimension;
+
 public:
     virtual ~ReferenceElement() = default;
 
-    virtual int dimension() const = 0;
-    virtual int getNumNodes() const = 0;
+    CfemInt dimension() const { return m_dimension; };
+    CfemInt getNumNodes() const { return m_numNodes; };
     virtual std::span<const CfemInt> getFaceNodes(int iFace) const = 0;
     /**
      * @brief Evaluates shape functions and their local derivatives at point xi.

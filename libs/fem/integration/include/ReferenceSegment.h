@@ -31,14 +31,13 @@ namespace cfem {
     class P1ReferenceSegment : public ReferenceElement {
     public:
         P1ReferenceSegment() {
-            m_nodes.resize(2);
+            m_numNodes = 2;
+            m_dimension = 1;
+            m_nodes.resize(m_numNodes);
             // Domaine de référence [-1, 1]
             m_nodes[0] = Vector3D{-1.0, 0.0, 0.0};
             m_nodes[1] = Vector3D{ 1.0, 0.0, 0.0};
         }
-
-        int dimension() const override { return 1; }
-        int getNumNodes() const override { return 2; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 2;
@@ -78,15 +77,14 @@ namespace cfem {
     class P2ReferenceSegment : public ReferenceElement {
     public:
         P2ReferenceSegment() {
-            m_nodes.resize(3);
+            m_numNodes = 3;
+            m_dimension = 1;
+            m_nodes.resize(m_numNodes);
             // Domaine de référence [-1, 1], ordre VTK : extrémités puis milieu
             m_nodes[0] = Vector3D{-1.0, 0.0, 0.0};
             m_nodes[1] = Vector3D{ 1.0, 0.0, 0.0};
             m_nodes[2] = Vector3D{ 0.0, 0.0, 0.0}; // Nœud central en x=0
         }
-
-        int dimension() const override { return 1; }
-        int getNumNodes() const override { return 3; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 3;
@@ -131,12 +129,12 @@ namespace cfem {
     class P0ReferenceSegment : public ReferenceElement {
     public:
         P0ReferenceSegment() {
+            m_numNodes = 1;
+            m_dimension = 1;
+            m_nodes.resize(m_numNodes);
             // Un seul nœud au centre du segment de référence [-1, 1]
             m_nodes = { {0.0, 0.0, 0.0} };
         }
-
-        int dimension() const override { return 1; }
-        int getNumNodes() const override { return 1; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 1;

@@ -56,7 +56,7 @@ int main(int argc, char **argv)
 
             mesh = Mesh::block(
                 MeshOrder::Linear,
-                Mesh::BlockSubdivisions{40, 40, 40}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+                Mesh::BlockSubdivisions{150, 150, 150}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
                 Mesh::BlockBounds(
                     Vector3D{-1., -1., -1.},
                     Vector3D{1., 1., 1.}
@@ -66,18 +66,19 @@ int main(int argc, char **argv)
 
         }
 
-        auto Q = DGSpace::create(mesh, Order::P0, FieldType::Scalar);
-        auto V = LagrangeSpace::create(mesh, Order::P1, FieldType::Vector3D);
+        auto Q = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);
+        auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
 
         auto p = Trial(Q, "p");
         auto u = Trial(V, "u");
         auto q = Test (Q, "q");
         auto v = Test (V, "v");
 
-        auto analytical_p = scalar(x + y + 1.0); 
-        auto analytical_u = vector( x + y +  x + y,
-                                    y  + x +  y + 1,              
-                                    0.0);
+        CFEM_INFO << "Field p is " << ((p->isContinuous()) ? "continuous" : "discontinuous");
+        // auto analytical_p = scalar(x + y + 1.0); 
+        // auto analytical_u = vector( x + y +  x + y,
+        //                             y  + x +  y + 1,              
+        //                             0.0);
 
         
         // auto analytical_p = scalar(x + y + 1.0); 
@@ -85,10 +86,10 @@ int main(int argc, char **argv)
         //                             y * y + z * z +  y + z,                    
         //                             x * x + z * z +  x + z);
 
-        // auto analytical_p = scalar(x * x + y * y + z * z + y + x + y + z + 1); // SymEngine expressions
-        // auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * z ),
-        //                            cos(2 * pi * y ) * cos(2 * pi * x ),
-        //                            cos(2 * pi * y ) * cos(2 * pi * z ));
+        auto analytical_p = scalar(x * x + y * y + z * z + y + x + y + z + 1); // SymEngine expressions
+        auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * z ),
+                                   cos(2 * pi * y ) * cos(2 * pi * x ),
+                                   cos(2 * pi * y ) * cos(2 * pi * z ));
 
         {
             PROFILE_SCOPE("FieldProjection");
@@ -97,7 +98,7 @@ int main(int argc, char **argv)
         }
 
         {
-            PROFILE_SCOPE("L2Norm3");
+            PROFILE_SCOPE("L2Norm");
             IntegrationSchemeParams schemes_params{};
             Integrator integrator(mesh, schemes_params);
             // schemes_params.NumIntgPtHexElem = 1;
@@ -107,14 +108,22 @@ int main(int argc, char **argv)
             CFEM_INFO << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P;
             CFEM_INFO << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U;
 
-
-
-           CFEM_INFO << "sqrt (int_{Omega} |grad(u-analytical_u)|^2 ds ) = " << sqrt(integrator.computeIntegral(mag_sqr(grad(u-analytical_u)), "ymin"));
+            // CFEM_INFO << "sqrt (int_{Omega} |grad(u-analytical_u)|^2 ds ) = " << sqrt(integrator.computeIntegral(mag_sqr(grad(u-analytical_u)), "ymin"));
+            // CFEM_INFO << "sqrt (int_{Omega} |grad(u-analytical_u)|^2 dx ) = " << sqrt(integrator.computeIntegral(scalar(x+1)));
             // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr(scalar(y)), "xmin") );
             // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr(grad(u - analytical_u)), "xmin") );
 
         }
 
+        // {
+        //     PROFILE_SCOPE("Exportation");
+        //     VTUExporter vtu_exporter(*mesh);
+        //     vtu_exporter.addExpression("U", u);
+        //     vtu_exporter.addExpression("P", p);
+        //     vtu_exporter.setFormat(VTUExporter::Format::BINARY);
+        //     vtu_exporter.write("simulation_results");
+
+        // }
     }
 
     Profiler::instance().saveProfiler();

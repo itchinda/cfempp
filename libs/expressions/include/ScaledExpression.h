@@ -26,6 +26,10 @@ namespace cfem::sym {
         }
 
         CfemInt getDimension() const override { return m_base->getDimension(); }
+
+        bool isContinuous() const override {
+            return  m_base->isContinuous();
+        }
         bool dependsOnFEField() const override { return m_base->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_base->dependsOnShape(); }
         ShapeEvaluationFlags requiredShapeFlags() const override {

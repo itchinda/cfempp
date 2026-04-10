@@ -1,118 +1,3 @@
-// #pragma once
-
-// #include "CfemExpression.h"
-// #include "FESpace.h" // Ensure this is included or forward declared
-// #include "EvalContext.h"
-// #include <memory>
-// #include <string>
-
-// namespace cfem::sym {
-
-// enum class ArgumentType { Trial, Test };
-
-// class Argument : public CfemExpression {
-// protected:
-//     std::shared_ptr<FESpace> m_space;
-//     ArgumentType m_argType;
-//     std::string m_name;
-
-// public:
-//     Argument(std::shared_ptr<LagrangeSpace> space, ArgumentType type, const std::string& name)
-//         : m_space(std::move(space)), m_argType(type), m_name(name) {}
-
-//     virtual ~Argument() = default;
-
-//     const std::string &getName() const { return m_name; }
-//     const std::shared_ptr<FESpace>& getSpace() const { return m_space; }
-//     ArgumentType getArgumentType() const { return m_argType; }
-
-//     CfemInt getDimension() const override { return m_space->getDimension(); }
-    
-//     virtual ExpressionType getType() const override {
-//         return (m_argType == ArgumentType::Trial) ? ExpressionType::Trial : ExpressionType::Test;
-//     }
-
-//     void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
-//         spaces.insert(m_space);
-//     }
-
-//     std::string toString() const override { return m_name; }
-
-//     std::shared_ptr<const CfemExpression> timeDerivative() const override {
-//         CFEM_ERROR << "Time derivative not implemented for Argument (" << m_name << ").";
-//         return nullptr;
-//     }
-
-//     // --- Standard Evaluation (Returns 0 for pure symbolic arguments) ---
-//     void evaluate(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext& ctx) const override {
-//         std::fill(out.begin(), out.end(), 0.0);
-//     }
-
-//     // --- The Explicit Basis Interface (Used by the Assembler) ---
-//     virtual void evaluateBasis(CfemInt dof, std::span<CfemReal> out, EvalContext& ctx) const {
-//         const ShapeInfo* shape = (m_argType == ArgumentType::Trial) ? ctx.trialShape : ctx.testShape;
-//         if (!shape || dof < 0) {
-//             CFEM_ERROR << "Argument (" << m_name << "): missing shape context.";
-//         }
-
-//         const CfemInt dim = m_space->getDimension();
-//         const CfemInt numNodes = m_space->getNumActiveNodes();
-//         const CfemInt comp = dof / numNodes;
-//         const CfemInt node = dof % numNodes;
-
-//         std::fill(out.begin(), out.end(), 0.0);
-//         out[comp] = shape->values[node];
-//     }
-
-//     virtual void evaluateBasisGradient(CfemInt dof, std::span<CfemReal> out, EvalContext& ctx) const {
-//         const MappingInfo* mapping = (m_argType == ArgumentType::Trial) ? ctx.trialMapping : ctx.testMapping;
-//         if (!mapping || dof < 0) {
-//             CFEM_ERROR << "Argument (" << m_name << "): missing mapping context.";
-//         }
-
-//         const CfemInt numNodes = m_space->getNumActiveNodes();
-//         const CfemInt comp = dof / numNodes;
-//         const CfemInt node = dof % numNodes;
-
-//         const auto& g = mapping->physicalShapeGradients[node];
-
-//         std::fill(out.begin(), out.end(), 0.0);
-//         out[comp * 3 + 0] = g.x;
-//         out[comp * 3 + 1] = g.y;
-//         out[comp * 3 + 2] = g.z;
-//     }
-// };
-
-// class TrialFunction : public Argument {
-// public:
-//     TrialFunction(std::shared_ptr<LagrangeSpace> space, const std::string& name = "u")
-//         : Argument(std::move(space), ArgumentType::Trial, name) {}
-//     bool dependsOnFEField() const override { return false; }
-//     bool dependsOnShape() const override { return true; }
-//     ShapeEvaluationFlags requiredShapeFlags() const override {
-//         return ShapeEvaluationFlags::Value;
-//     }
-
-//     virtual ExpressionType getType() const override { return ExpressionType::Trial; }
-// };
-
-// class TestFunction : public Argument {
-// public:
-//     TestFunction(std::shared_ptr<LagrangeSpace> space, std::string name = "v")
-//         : Argument(std::move(space), ArgumentType::Test, std::move(name)) {}
-
-//     bool dependsOnFEField() const override { return false; }
-//     bool dependsOnShape() const override { return true; }
-//     ShapeEvaluationFlags requiredShapeFlags() const override {
-//         return ShapeEvaluationFlags::Value;
-//     }
-
-//     virtual ExpressionType getType() const override { return ExpressionType::Test; }
-// };
-
-// } // namespace cfem::sym
-
-
 #pragma once
 
 #include "CfemExpression.h"
@@ -120,6 +5,7 @@
 #include "EvalContext.h"
 #include <memory>
 #include <string>
+#include <map>
 
 namespace cfem::sym {
 
@@ -127,81 +13,97 @@ enum class ArgumentType { Trial, Test };
 
 /**
  * @class Argument
- * @brief Represents a Trial (u) or Test (v) function in a variational form.
- * * Updated to be agnostic of the FESpace type (CG or DG).
+ * @brief Représente une fonction de base Trial (u) ou Test (v).
+ * * Cette classe utilise un index (m_boundIndex) résolu lors de la phase de préparation (bind)
+ * pour accéder instantanément aux données de l'espace dans l'EvalContext.
  */
 class Argument : public CfemExpression {
 protected:
     std::shared_ptr<FESpace> m_space;
     ArgumentType m_argType;
     std::string m_name;
+    
+    // Index direct vers EvalContext::m_spaceDataCache[m_boundIndex]
+    // mutable car bind() est souvent appelé sur des expressions const.
+    mutable int m_boundIndex = -1;
 
 public:
-    // Update: Accept base FESpace instead of LagrangeSpace
     Argument(std::shared_ptr<FESpace> space, ArgumentType type, const std::string& name)
         : m_space(std::move(space)), m_argType(type), m_name(name) {}
 
     virtual ~Argument() = default;
 
+    // --- Identification ---
     const std::string &getName() const { return m_name; }
     const std::shared_ptr<FESpace>& getSpace() const { return m_space; }
     ArgumentType getArgumentType() const { return m_argType; }
-
-    CfemInt getDimension() const override { return m_space->getDimension(); }
+    
+    virtual CfemInt getDimension() const override { return m_space->getDimension(); }
     
     virtual ExpressionType getType() const override {
         return (m_argType == ArgumentType::Trial) ? ExpressionType::Trial : ExpressionType::Test;
     }
 
-    void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
+    virtual bool isContinuous() const override {
+        return m_space->getContinuity() == FESpace::Continuity::CG;
+    }
+    // --- Phase de Préparation (Binding) ---
+
+    virtual void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
         spaces.insert(m_space);
     }
 
-    std::string toString() const override { return m_name; }
-
-    std::shared_ptr<const CfemExpression> timeDerivative() const override {
-        CFEM_ERROR << "Time derivative not implemented for Argument (" << m_name << ").";
-        return nullptr;
+    /**
+     * @brief Lie l'argument à un index spécifique dans le tableau de cache du contexte.
+     * Appelé une seule fois par le DomainIntegrator avant la boucle de quadrature.
+     */
+    virtual void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+        auto it = spaceToId.find(m_space.get());
+        if (it != spaceToId.end()) {
+            m_boundIndex = it->second;
+        } else {
+            m_boundIndex = -1;
+            CFEM_ERROR << "Argument (" << m_name << "): Space not registered in integrator.";
+        }
     }
 
-    // Standard evaluation returns 0 because an Argument is a basis function placeholder, 
-    // not a field with values.
-    void evaluate(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext& ctx) const override {
+    // --- Évaluation Symbolique (Standard) ---
+    // Un argument pur n'a pas de valeur de champ, il retourne 0.
+    virtual void evaluate(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext& ctx) const override {
         std::fill(out.begin(), out.end(), 0.0);
     }
 
+    // --- Évaluation pour Assemblage (Bases) ---
+
     /**
-     * @brief Evaluates the basis function value for a specific local DOF.
-     * @param localDofIdx The index of the DOF within the current cell [0 ... DofsPerCell-1]
+     * @brief Évalue la valeur de la fonction de base pour un DOF local donné.
+     * @param localDofIdx Index local au sein de la cellule (0 à DofsPerCell-1).
      */
     virtual void evaluateBasis(CfemInt localDofIdx, std::span<CfemReal> out, EvalContext& ctx) const {
-        const ShapeInfo* shape = (m_argType == ArgumentType::Trial) ? ctx.trialShape : ctx.testShape;
-        
-        if (!shape || localDofIdx < 0) {
-            CFEM_ERROR << "Argument (" << m_name << "): invalid context or DOF index.";
-        }
+        // Accès O(1) via l'index lié
+        CFEM_ASSERT(m_boundIndex >= 0, "Argument not bound before evaluation!");
+        const auto& data = ctx.getSpaceData(m_boundIndex);
+
+        const ShapeInfo* shape = data.shape;
+
+        CFEM_ASSERT(shape != nullptr, "ShapeInfo is null in EvalContext!");
+        CFEM_ASSERT(out.size() >= m_space->getDimension(), "Output span too small!");
 
         const int dim = m_space->getDimension();
-        // Crucial logic change:
-        // We assume the assembler provides localDofIdx in [0, nodes * dim - 1]
-        // mapped as: Node0_Comp0, Node0_Comp1... NodeN_CompM
-        const int numNodes = static_cast<int>(shape->values.size());
-        const int comp = static_cast<int>(localDofIdx % dim);
+        // Layout: Interleaved (N0_x, N0_y, N0_z, N1_x, N1_y...)
         const int node = static_cast<int>(localDofIdx / dim);
+        const int comp = static_cast<int>(localDofIdx % dim);
 
         std::fill(out.begin(), out.end(), 0.0);
         out[comp] = shape->values[node];
     }
 
     /**
-     * @brief Evaluates the basis function gradient for a specific local DOF.
+     * @brief Évalue le gradient physique de la fonction de base pour un DOF local donné.
      */
     virtual void evaluateBasisGradient(CfemInt localDofIdx, std::span<CfemReal> out, EvalContext& ctx) const {
-        const MappingInfo* mapping = (m_argType == ArgumentType::Trial) ? ctx.trialMapping : ctx.testMapping;
-        
-        if (!mapping || localDofIdx < 0) {
-            CFEM_ERROR << "Argument (" << m_name << "): invalid mapping context.";
-        }
+        const auto& data = ctx.getSpaceData(m_boundIndex);
+        const MappingInfo* mapping = data.mapping;
 
         const int dim = m_space->getDimension();
         const int node = static_cast<int>(localDofIdx / dim);
@@ -210,26 +112,23 @@ public:
         const auto& g = mapping->physicalShapeGradients[node];
 
         std::fill(out.begin(), out.end(), 0.0);
-        // Map to vector/tensor output span: comp*3 + spatial_dir
+        // Le span de sortie contient le gradient complet (3 composantes par dimension d'espace)
+        // ex pour vecteur 3D: [dxUx, dyUx, dzUx, dxUy, dyUy, dzUy, dxUz, dyUz, dzUz]
         out[comp * 3 + 0] = g.x;
         out[comp * 3 + 1] = g.y;
         out[comp * 3 + 2] = g.z;
     }
-};
 
-class TrialFunction : public Argument {
-public:
-    TrialFunction(std::shared_ptr<FESpace> space, const std::string& name = "u")
-        : Argument(std::move(space), ArgumentType::Trial, name) {}
-        
-    bool dependsOnFEField() const override { return false; }
-    bool dependsOnShape() const override { return true; }
-    
-    ShapeEvaluationFlags requiredShapeFlags() const override {
-        return ShapeEvaluationFlags::Value;
+    virtual std::string toString() const override { return m_name; }
+
+    virtual std::shared_ptr<const CfemExpression> timeDerivative() const override {
+        return nullptr; // Les fonctions de base sont indépendantes du temps
     }
 };
 
+/**
+ * @brief Spécialisation pour les fonctions tests (v)
+ */
 class TestFunction : public Argument {
 public:
     TestFunction(std::shared_ptr<FESpace> space, const std::string& name = "v")
@@ -243,4 +142,20 @@ public:
     }
 };
 
-}
+/**
+ * @brief Spécialisation pour les fonctions inconnues / Trial (u)
+ */
+class TrialFunction : public Argument {
+public:
+    TrialFunction(std::shared_ptr<FESpace> space, const std::string& name = "u")
+        : Argument(std::move(space), ArgumentType::Trial, name) {}
+        
+    bool dependsOnFEField() const override { return false; }
+    bool dependsOnShape() const override { return true; }
+    
+    ShapeEvaluationFlags requiredShapeFlags() const override {
+        return ShapeEvaluationFlags::Value;
+    }
+};
+
+} // namespace cfem::sym

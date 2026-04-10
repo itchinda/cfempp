@@ -139,6 +139,18 @@ namespace cfem::sym
             m_components[8]->bind(spaceToId);
         }
 
+        bool isContinuous() const override {
+            return  m_components[0]->isContinuous() &&
+                    m_components[1]->isContinuous() &&
+                    m_components[2]->isContinuous() && 
+                    m_components[3]->isContinuous() && 
+                    m_components[4]->isContinuous() && 
+                    m_components[5]->isContinuous() && 
+                    m_components[6]->isContinuous() && 
+                    m_components[7]->isContinuous() && 
+                    m_components[8]->isContinuous();
+        }
+
         ExpressionType getType() const override { return ExpressionType::TensorExpression; }
 
         std::string toString() const override {

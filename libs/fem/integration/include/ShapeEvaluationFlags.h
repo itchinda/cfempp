@@ -14,20 +14,25 @@ namespace cfem
     enum class ShapeEvaluationFlags : CfemIntFlag
     {
         /// No fields requested. Useful for clearing state. */
-        None = 0,
+        None             = 0,
 
         /// Compute shape function values \f$ N_i \f$. Required for physical position and value interpolation.
-        Value = 1 << 0,
-
-        /// Compute shape function gradients \f$ \nabla N_i \f$. Required for Jacobian and stiffness matrices.
-        Gradient = 1 << 1,
-
-        /// Compute shape function Hessians \f$ \nabla^2 N_i \f$. Required for high-order geometric analysis or specific physics.
-        Hessian = 1 << 2,
+        Value            = 1 << 0,
+        
+        // Compute the physical position
+        PhysicalPosition = (1 << 1) | Value,
+        
+        /// Compute the Jacobian of the mapping from the reference element to the physical element. 
+        Jacobian         = 1 << 2,
+        
+        /// Compute shape function gradients \f$ \nabla N_i \f$. Required for Jacobian.
+        Gradient         = (1 << 3) | Jacobian,
+        
+        /// Compute shape function Hessians \f$ \nabla^2 N_i \f$. Required Jacobian and Shape Values
+        Hessian          = (1 << 4) | Gradient,
 
         /// Compute all available fields (Values, Gradients, and Hessians).
-        All = Value | Gradient | Hessian
-
+        All              = Value | PhysicalPosition | Jacobian | Gradient | Hessian
     };
     
     /// Enable bitwise OR for ShapeEvaluationFlags
@@ -53,13 +58,7 @@ namespace cfem
         a = a & b;
         return a;
     }
-
-    /// Test if a flag is set
-    // inline bool hasFlag(ShapeEvaluationFlags flags, ShapeEvaluationFlags test)
-    // {
-    //     return (flags & test) != ShapeEvaluationFlags::None;
-    // }
-
+    
     inline bool hasFlag(ShapeEvaluationFlags flags, ShapeEvaluationFlags test)
     {
         return static_cast<CfemIntFlag>(flags & test) != 0;

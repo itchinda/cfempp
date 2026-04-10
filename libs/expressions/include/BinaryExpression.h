@@ -40,6 +40,10 @@ namespace cfem::sym
 
         bool isPointwise() const override { return m_lhs->isPointwise() && m_rhs->isPointwise(); }
         bool isBinary() const override { return true; }
+
+        bool isContinuous() const override {
+            return  m_lhs->isContinuous() && m_rhs->isContinuous();
+        }
         bool dependsOnFEField() const override {
             return m_lhs->dependsOnFEField() || m_rhs->dependsOnFEField();
         }

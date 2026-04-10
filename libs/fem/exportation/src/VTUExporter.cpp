@@ -14,18 +14,62 @@ namespace cfem
     VTUExporter::VTUExporter(const Mesh &mesh) : MeshExporter(mesh)
     {  }
 
+    // void VTUExporter::write(const std::string &filename) const
+    // {
+    //     const std::string validated = validateFilename(filename, ".vtu");
+    //     if (m_format == Format::ASCII)
+    //     {
+    //         writeASCII(validated);
+    //     }
+    //     else
+    //     {
+    //         writeBINARY(validated);
+    //     }
+    // }
+
+
     void VTUExporter::write(const std::string &filename) const
     {
-        const std::string validated = validateFilename(filename, ".vtu");
-        if (m_format == Format::ASCII)
-        {
-            writeASCII(validated);
+        std::vector<ExportEntry> continuousFields;
+        std::vector<ExportEntry> discontinuousFields;
+
+        for (const auto& entry : m_entries) {
+            // On suppose que l'expression peut nous dire si elle est continue
+            // ou on vérifie le type de FEField/FESpace associé
+            if (entry.expr->isContinuous()) {
+                continuousFields.push_back(entry);
+            } else {
+                CFEM_INFO << "Discontinuous field detected";
+                discontinuousFields.push_back(entry);
+            }
         }
-        else
-        {
-            writeBINARY(validated);
+
+        // Export Continu
+        if (!continuousFields.empty()) {
+            std::string contFile = validateFilename(filename, ".cont.vtu");
+
+            if (m_format == Format::ASCII){
+                writeASCIIContinuous(contFile, continuousFields);
+            }
+            else{
+                writeBINARYContinuous(contFile, continuousFields);
+            }
+
+        }
+
+        // Export Discontinu
+        if (!discontinuousFields.empty()) {
+            std::string discFile = validateFilename(filename, ".disc.vtu");
+            if (m_format == Format::ASCII){
+                writeASCIIDiscontinuous(discFile, discontinuousFields);
+            }
+            else{
+                writeBINARYDiscontinuous(discFile, discontinuousFields);
+            }
         }
     }
+
+
     /**
      * @brief Exports the mesh and associated fields to a VTU Legacy (.vtu) ASCII file.
      *      This method follows the VTK Unstructured Grid specification. It handles:
@@ -35,7 +79,8 @@ namespace cfem
      * @param filename Path to the output file.
      * @throws CFEM_ERROR If the file cannot be opened for writing.
      */
-    void VTUExporter::writeASCII(const std::string &filename) const
+    void VTUExporter::writeASCIIContinuous(const std::string &filename,
+                                           const std::vector<ExportEntry>& continuousFields) const
     {
         std::ofstream out(filename);
         if (!out.is_open())
@@ -113,16 +158,16 @@ namespace cfem
         // 4) POINT DATA
         // ============================================================
 
-        if (!m_entries.empty())
+        if (!continuousFields.empty())
         {
             out << "<PointData>\n";
 
             // Evaluate expressions at each vertex
-            std::vector<std::vector<CfemReal>> allResults(m_entries.size());
-            for (size_t i = 0; i < m_entries.size(); ++i)
+            std::vector<std::vector<CfemReal>> allResults(continuousFields.size());
+            for (size_t i = 0; i < continuousFields.size(); ++i)
             {
-                m_entries[i].expr->prepare();
-                allResults[i].resize(nVerts * m_entries[i].expr->getDimension(), 0.0);
+                continuousFields[i].expr->prepare();
+                allResults[i].resize(nVerts * continuousFields[i].expr->getDimension(), 0.0);
             }
 
             std::vector<bool> computed(nVerts, false);
@@ -160,26 +205,6 @@ namespace cfem
                 const auto &refEl = *cache.refEl;
                 const auto &xiNodes = refEl.referenceNodes();
 
-                // for (size_t n = 0; n < connectivityCell.size(); ++n)
-                // {
-                //     CfemInt vid = connectivityCell[n];
-                //     if (computed[vid])
-                //         continue;
-
-                //     MappingInfo map;
-                //     refEl.computeMapping(xiNodes[n], physCoords, ShapeEvaluationFlags::None, cache.nodeShapes[n], map);
-                //     ctx.physPos = map.physicalPosition;
-
-                //     for (size_t i = 0; i < m_entries.size(); ++i)
-                //     {
-                //         int dim = m_entries[i].expr->getDimension();
-                //         std::span<CfemReal> outSpan(&allResults[i][vid * dim], dim);
-                //         m_entries[i].expr->evaluate(c, xiNodes[n], outSpan, ctx);
-                //     }
-
-                //     computed[vid] = true;
-                // }
-
                 for (size_t n = 0; n < connectivityCell.size(); ++n)
                 {
                     CfemInt vid = connectivityCell[n];
@@ -190,26 +215,26 @@ namespace cfem
 
                     refEl.computeMapping(xiNodes[n],
                                         physCoords,
-                                        ShapeEvaluationFlags::None,
+                                        ShapeEvaluationFlags::PhysicalPosition,
                                         cache.nodeShapes[n], ctx.scratchMapping);
 
                     ctx.physPos = ctx.scratchMapping.physicalPosition;
 
-                    for (size_t i = 0; i < m_entries.size(); ++i)
+                    for (size_t i = 0; i < continuousFields.size(); ++i)
                     {
-                        int dim = m_entries[i].expr->getDimension();
+                        int dim = continuousFields[i].expr->getDimension();
                         std::span<CfemReal> outSpan(&allResults[i][vid * dim], dim);
-                        m_entries[i].expr->evaluate(c, xiNodes[n], outSpan, ctx);
+                        continuousFields[i].expr->evaluate(c, xiNodes[n], outSpan, ctx);
                     }
                     computed[vid] = true;
                 }
             }
 
             // Write evaluated expressions
-            for (size_t i = 0; i < m_entries.size(); ++i)
+            for (size_t i = 0; i < continuousFields.size(); ++i)
             {
-                int dim = m_entries[i].expr->getDimension();
-                out << "<DataArray type=\"Float64\" Name=\"" << m_entries[i].name
+                int dim = continuousFields[i].expr->getDimension();
+                out << "<DataArray type=\"Float64\" Name=\"" << continuousFields[i].name
                     << "\" NumberOfComponents=\"" << dim << "\" format=\"ascii\">\n";
 
                 for (size_t v = 0; v < nVerts; ++v)
@@ -255,7 +280,8 @@ namespace cfem
      * @param filename Path to the output file.
      * @throws CFEM_ERROR If the file cannot be opened for writing.
      */
-    void VTUExporter::writeBINARY(const std::string &filename) const
+    void VTUExporter::writeBINARYContinuous(const std::string &filename,
+                                            const std::vector<ExportEntry>& continuousFields) const
     {
         std::ofstream out(filename, std::ios::binary);
         if (!out.is_open())
@@ -297,13 +323,13 @@ namespace cfem
         // 2) EVALUATE EXPRESSIONS (same logic as ASCII version)
         // ============================================================
 
-        size_t numEntries = m_entries.size();
+        size_t numEntries = continuousFields.size();
         std::vector<std::vector<CfemReal>> allResults(numEntries);
 
         for (size_t i = 0; i < numEntries; ++i)
         {
-            m_entries[i].expr->prepare();
-            allResults[i].resize(nVerts * m_entries[i].expr->getDimension(), 0.0);
+            continuousFields[i].expr->prepare();
+            allResults[i].resize(nVerts * continuousFields[i].expr->getDimension(), 0.0);
         }
 
         std::vector<bool> computed(nVerts, false);
@@ -353,16 +379,16 @@ namespace cfem
 
                 refEl.computeMapping(xiNodes[n],
                                      physCoords,
-                                     ShapeEvaluationFlags::None,
+                                     ShapeEvaluationFlags::PhysicalPosition,
                                      cache.nodeShapes[n], ctx.scratchMapping);
 
                 ctx.physPos = ctx.scratchMapping.physicalPosition;
 
-                for (size_t i = 0; i < m_entries.size(); ++i)
+                for (size_t i = 0; i < continuousFields.size(); ++i)
                 {
-                    int dim = m_entries[i].expr->getDimension();
+                    int dim = continuousFields[i].expr->getDimension();
                     std::span<CfemReal> outSpan(&allResults[i][vid * dim], dim);
-                    m_entries[i].expr->evaluate(c, xiNodes[n], outSpan, ctx);
+                    continuousFields[i].expr->evaluate(c, xiNodes[n], outSpan, ctx);
                 }
                 computed[vid] = true;
             }
@@ -491,14 +517,14 @@ namespace cfem
         out << "</Cells>\n";
 
         // PointData
-        if (!m_entries.empty() || !nodeMasks.empty())
+        if (!continuousFields.empty() || !nodeMasks.empty())
         {
             out << "<PointData>\n";
 
-            for (size_t i = 0; i < m_entries.size(); ++i)
+            for (size_t i = 0; i < continuousFields.size(); ++i)
             {
-                int dim = m_entries[i].expr->getDimension();
-                out << "<DataArray type=\"Float64\" Name=\"" << m_entries[i].name
+                int dim = continuousFields[i].expr->getDimension();
+                out << "<DataArray type=\"Float64\" Name=\"" << continuousFields[i].name
                     << "\" NumberOfComponents=\"" << dim
                     << "\" format=\"appended\" offset=\""
                     << exprOffsets[i] << "\"/>\n";
@@ -540,5 +566,267 @@ namespace cfem
         out.write(appended.data(), appended.size());
         out << "\n</AppendedData>\n</VTKFile>\n";
     }
+
+    /**
+     * @brief Exports the discontinuous fields to an ASCII VTU file.
+     * Nodes are duplicated for each cell to allow discontinuous visualization.
+     */
+    void VTUExporter::writeASCIIDiscontinuous(const std::string &filename,
+                                              const std::vector<ExportEntry>& discontFields) const
+    {
+        CFEM_INFO << "Exporting discontinuous fields";
+        std::ofstream out(filename);
+        if (!out.is_open())
+            CFEM_ERROR << "Cannot open VTU file for writing: " << filename;
+
+        const size_t nCells = m_mesh.getNumCells();
+        
+        // 1) CALCULATE TOTAL DUPLICATED POINTS
+        size_t totalDgPoints = 0;
+        for (size_t i = 0; i < nCells; ++i) {
+            totalDgPoints += m_mesh.getCellConnectivity(i).size();
+        }
+
+        // 2) WRITE XML HEADER
+        out << "<?xml version=\"1.0\"?>\n";
+        out << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
+        out << "<UnstructuredGrid>\n";
+        out << "<Piece NumberOfPoints=\"" << totalDgPoints << "\" NumberOfCells=\"" << nCells << "\">\n";
+
+        // 3) POINTS (Duplicated)
+        out << "<Points>\n";
+        out << "<DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
+        for (size_t c = 0; c < nCells; ++c) {
+            const auto& connectivity = m_mesh.getCellConnectivity(c);
+            for (CfemInt vId : connectivity) {
+                const auto& coords = m_mesh.getVertex(vId).coords;
+                out << std::setprecision(16) << coords[0] << " " << coords[1] << " " << coords[2] << "\n";
+            }
+        }
+        out << "</DataArray>\n";
+        out << "</Points>\n";
+
+        // 4) CELLS
+        out << "<Cells>\n";
+        
+        // Connectivity (Linear mapping)
+        out << "<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n";
+        for (size_t i = 0; i < totalDgPoints; ++i) {
+            out << i << " ";
+        }
+        out << "\n</DataArray>\n";
+
+        // Offsets
+        out << "<DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n";
+        int runningOffset = 0;
+        for (size_t c = 0; c < nCells; ++c) {
+            runningOffset += m_mesh.getCellConnectivity(c).size();
+            out << runningOffset << "\n";
+        }
+        out << "</DataArray>\n";
+
+        // Types
+        out << "<DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n";
+        for (size_t c = 0; c < nCells; ++c) {
+            out << static_cast<int>(getVTKCellType(m_mesh.getCell(c).type)) << "\n";
+        }
+        out << "</DataArray>\n";
+        out << "</Cells>\n";
+
+        // 5) POINT DATA (Evaluations)
+        if (!discontFields.empty()) {
+            out << "<PointData>\n";
+            
+            EvalContext ctx;
+            DynamicVector<Vector3D> physCoords;
+            CfemInt geoOrder = m_mesh.getOrderInt();
+
+            for (const auto& entry : discontFields) {
+                entry.expr->prepare();
+                int dim = entry.expr->getDimension();
+                
+                out << "<DataArray type=\"Float64\" Name=\"" << entry.name 
+                    << "\" NumberOfComponents=\"" << dim << "\" format=\"ascii\">\n";
+
+                for (CfemInt c = 0; c < (CfemInt)nCells; ++c) {
+                    const auto& cell = m_mesh.getCell(c);
+                    const auto& refEl = ReferenceElementFactory::getReferenceElement(cell.type, geoOrder);
+                    const auto& xiNodes = refEl.referenceNodes();
+                    
+                    m_mesh.getCellVerticesCoords(c, physCoords);
+
+                    for (size_t n = 0; n < xiNodes.size(); ++n) {
+                        ctx.resetBuffers();
+                        ShapeInfo info; // We need basic shape info to evaluate properly mapping
+                        refEl.evaluate(xiNodes[n], ShapeEvaluationFlags::Value, info);
+                        refEl.computeMapping(xiNodes[n], physCoords, ShapeEvaluationFlags::PhysicalPosition, info, ctx.scratchMapping);
+                        ctx.physPos = ctx.scratchMapping.physicalPosition;
+
+                        std::vector<CfemReal> values(dim, 0.0);
+                        std::span<CfemReal> outSpan(values.data(), dim);
+                        entry.expr->evaluate(c, xiNodes[n], outSpan, ctx);
+
+                        for (int d = 0; d < dim; ++d) {
+                            out << values[d] << " ";
+                        }
+                        out << "\n";
+                    }
+                }
+                out << "</DataArray>\n";
+            }
+            out << "</PointData>\n";
+        }
+
+        // 6) CLOSE XML
+        out << "</Piece>\n</UnstructuredGrid>\n</VTKFile>\n";
+    }
+    
+    /**
+     * @brief Exports the discontinuous fields to a Binary VTU file.
+     */
+    void VTUExporter::writeBINARYDiscontinuous(const std::string &filename,
+                                               const std::vector<ExportEntry>& discontFields) const
+    {
+        CFEM_INFO << "Exporting discontinuous fields";
+        std::ofstream out(filename, std::ios::binary);
+        if (!out.is_open())
+            CFEM_ERROR << "Cannot open VTU file for writing: " << filename;
+
+        const size_t nCells = m_mesh.getNumCells();
+
+        // 1) CALCULATE TOTAL DUPLICATED POINTS
+        size_t totalDgPoints = 0;
+        for (size_t i = 0; i < nCells; ++i) {
+            totalDgPoints += m_mesh.getCellConnectivity(i).size();
+        }
+
+        // 2) BUILD GEOMETRY BUFFERS
+        std::vector<double> points(3 * totalDgPoints);
+        std::vector<int> connectivity(totalDgPoints);
+        std::vector<int> offsets(nCells);
+        std::vector<unsigned char> types(nCells);
+
+        int runningOffset = 0;
+        int ptIdx = 0;
+
+        for (size_t c = 0; c < nCells; ++c) {
+            const auto &conn = m_mesh.getCellConnectivity(c);
+            for (auto vid : conn) {
+                const auto &coord = m_mesh.getVertex(vid).coords;
+                points[3 * ptIdx + 0] = coord[0];
+                points[3 * ptIdx + 1] = coord[1];
+                points[3 * ptIdx + 2] = coord[2];
+                
+                connectivity[ptIdx] = ptIdx; // Linear mapping for duplicated points
+                ptIdx++;
+            }
+            runningOffset += conn.size();
+            offsets[c] = runningOffset;
+            types[c] = (unsigned char)getVTKCellType(m_mesh.getCell(c).type);
+        }
+
+        // 3) EVALUATE EXPRESSIONS
+        size_t numEntries = discontFields.size();
+        std::vector<std::vector<CfemReal>> allResults(numEntries);
+
+        for (size_t i = 0; i < numEntries; ++i) {
+            discontFields[i].expr->prepare();
+            allResults[i].resize(totalDgPoints * discontFields[i].expr->getDimension(), 0.0);
+        }
+
+        EvalContext ctx;
+        DynamicVector<Vector3D> physCoords;
+        CfemInt geoOrder = m_mesh.getOrderInt();
+        int globalPtIdx = 0;
+
+        for (CfemInt c = 0; c < (CfemInt)nCells; ++c) {
+            const auto &cell = m_mesh.getCell(c);
+            const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type, geoOrder);
+            const auto &xiNodes = refEl.referenceNodes();
+
+            m_mesh.getCellVerticesCoords(c, physCoords);
+
+            for (size_t n = 0; n < xiNodes.size(); ++n) {
+                ctx.resetBuffers();
+                ShapeInfo info;
+                refEl.evaluate(xiNodes[n], ShapeEvaluationFlags::Value, info);
+                refEl.computeMapping(xiNodes[n], physCoords, ShapeEvaluationFlags::PhysicalPosition, info, ctx.scratchMapping);
+                ctx.physPos = ctx.scratchMapping.physicalPosition;
+
+                for (size_t i = 0; i < numEntries; ++i) {
+                    int dim = discontFields[i].expr->getDimension();
+                    std::span<CfemReal> outSpan(&allResults[i][globalPtIdx * dim], dim);
+                    discontFields[i].expr->evaluate(c, xiNodes[n], outSpan, ctx);
+                }
+                globalPtIdx++;
+            }
+        }
+
+        // 4) APPENDED BINARY SECTION
+        std::vector<char> appended;
+
+        auto appendBlock = [&](auto &vec) -> size_t {
+            size_t offset = appended.size();
+            uint32_t bytes = static_cast<uint32_t>(vec.size() * sizeof(typename std::decay_t<decltype(vec)>::value_type));
+
+            appended.insert(appended.end(),
+                            reinterpret_cast<char *>(&bytes),
+                            reinterpret_cast<char *>(&bytes) + sizeof(uint32_t));
+
+            appended.insert(appended.end(),
+                            reinterpret_cast<char *>(vec.data()),
+                            reinterpret_cast<char *>(vec.data()) + bytes);
+
+            return offset;
+        };
+
+        size_t pointsOffset = appendBlock(points);
+        size_t connOffset   = appendBlock(connectivity);
+        size_t offOffset    = appendBlock(offsets);
+        size_t typeOffset   = appendBlock(types);
+
+        std::vector<size_t> exprOffsets;
+        for (auto &r : allResults) {
+            exprOffsets.push_back(appendBlock(r));
+        }
+
+        // 5) WRITE XML HEADER
+        out << "<?xml version=\"1.0\"?>\n";
+        out << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
+        out << "<UnstructuredGrid>\n";
+        out << "<Piece NumberOfPoints=\"" << totalDgPoints << "\" NumberOfCells=\"" << nCells << "\">\n";
+
+        // Points
+        out << "<Points>\n";
+        out << "<DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"appended\" offset=\"" << pointsOffset << "\"/>\n";
+        out << "</Points>\n";
+
+        // Cells
+        out << "<Cells>\n";
+        out << "<DataArray type=\"Int32\" Name=\"connectivity\" format=\"appended\" offset=\"" << connOffset << "\"/>\n";
+        out << "<DataArray type=\"Int32\" Name=\"offsets\" format=\"appended\" offset=\"" << offOffset << "\"/>\n";
+        out << "<DataArray type=\"UInt8\" Name=\"types\" format=\"appended\" offset=\"" << typeOffset << "\"/>\n";
+        out << "</Cells>\n";
+
+        // PointData
+        if (!discontFields.empty()) {
+            out << "<PointData>\n";
+            for (size_t i = 0; i < numEntries; ++i) {
+                int dim = discontFields[i].expr->getDimension();
+                out << "<DataArray type=\"Float64\" Name=\"" << discontFields[i].name
+                    << "\" NumberOfComponents=\"" << dim
+                    << "\" format=\"appended\" offset=\"" << exprOffsets[i] << "\"/>\n";
+            }
+            out << "</PointData>\n";
+        }
+
+        out << "</Piece>\n</UnstructuredGrid>\n";
+
+        // 6) APPEND RAW DATA
+        out << "<AppendedData encoding=\"raw\">\n_";
+        out.write(appended.data(), appended.size());
+        out << "\n</AppendedData>\n</VTKFile>\n";
+    }
+
 
 }

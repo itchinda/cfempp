@@ -23,6 +23,10 @@ namespace cfem::sym
         std::shared_ptr<const CfemExpression> getInner() const { return m_expr; }
         bool isPointwise() const override { return m_expr->isPointwise(); }
 
+        bool isContinuous() const override{ 
+            return m_expr->isContinuous();
+        }
+
         bool dependsOnFEField() const override { return m_expr->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_expr->dependsOnShape(); }
         

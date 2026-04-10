@@ -71,6 +71,8 @@ namespace cfem::sym
         virtual bool isPointwise() const { return false; }
         virtual bool isBinary() const    { return false; }
         virtual bool isZero() const      { return false; }
+        virtual bool isContinuous() const { return true; }
+
         virtual bool isConstant() const  { return false; }
         virtual bool dependsOnFEField() const { return false; }
         virtual bool dependsOnShape() const { return true; }

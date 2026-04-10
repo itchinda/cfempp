@@ -42,11 +42,12 @@ namespace cfem {
     public:
         
         P1ReferenceTriangle() {
+            m_numNodes = 3;
+            m_dimension = 2;
+            m_nodes.resize(m_numNodes);
+
             m_nodes = { {0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0} };
         }
-
-        int dimension() const override { return 2; }
-        int getNumNodes() const override { return 3; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = getNumNodes();
@@ -96,7 +97,9 @@ namespace cfem {
     class P2ReferenceTriangle : public ReferenceElement {
     public:
         P2ReferenceTriangle() {
-            m_nodes.resize(6);
+            m_numNodes = 6;
+            m_dimension = 2;
+            m_nodes.resize(m_numNodes);
             // Main nodes
             m_nodes[0] = Vector3D{0.0, 0.0, 0.0};
             m_nodes[1] = Vector3D{1.0, 0.0, 0.0};
@@ -106,10 +109,7 @@ namespace cfem {
             m_nodes[4] = Vector3D{0.5, 0.5, 0.0};
             m_nodes[5] = Vector3D{0.0, 0.5, 0.0};
         }
-
-        int dimension() const override { return 2; }
-        int getNumNodes() const override { return 6; }
-
+        
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 6;
             if (out.values.size() != n) out.setup(n);
@@ -170,11 +170,12 @@ namespace cfem {
     class P0ReferenceTriangle : public ReferenceElement {
     public:
         P0ReferenceTriangle() {
+            m_numNodes = 1;
+            m_dimension = 2;
+            m_nodes.resize(m_numNodes);
+
             m_nodes = { {1.0/3.0, 1.0/3.0, 0.0} };
         }
-
-        int dimension() const override { return 2; }
-        int getNumNodes() const override { return 1; }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
             const int n = 1;

@@ -1,5 +1,6 @@
 #include "FEField.h"
 #include "DynamicVector.h"
+#include "ReferenceElementFactory.h"
 #include <stdexcept>
 #include <iostream>
 
@@ -10,11 +11,9 @@ namespace cfem
      * @param name Unique name of the field (e.g., "velocity", "temperature").
      * @param space Shared pointer to the FESpace (Lagrange, DG, etc.) providing the basis.
      */
-    FEField::FEField(ConstructorToken, const std::string &name, std::shared_ptr<FESpace> space)
-        : m_name(name),
-          m_dimension(space->getDimension()),
-          m_space(std::move(space)),
-          m_data(PETSC_DECIDE, m_space->getGlobalNumDofs())
+    FEField::FEField(ConstructorToken, std::shared_ptr<FESpace> space, const std::string &name)
+        : TrialFunction(space, name),
+         m_data(PETSC_DECIDE, space->getGlobalNumDofs())
     {
         m_data.setAll(0.0);
     }
@@ -91,13 +90,7 @@ namespace cfem
     void FEField::evaluateWithoutShape(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
     {
         const Cell &cell = m_space->getMesh()->getCell(cellId);
-        CellType baseType = cell.type;
-
-        if (m_space->getOrder() == Order::P1){
-            baseType = Cell::getLinearEquivalent(baseType);
-        }
-
-        const auto &refEl = m_space->getRefElement(baseType);
+        const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type, m_space->getOrderInt());
 
         refEl.evaluate(xi, ShapeEvaluationFlags::Value, ctx.scratchShape);
         this->evaluateWithShape(cellId, ctx.scratchShape, out);
@@ -147,17 +140,9 @@ namespace cfem
 
     void FEField::evaluateGradientWithoutCachedMapping(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
     {
-        // 1. Déterminer le type de cellule correct pour l'espace (P1 ou P2)
         const Cell &cell = m_space->getMesh()->getCell(cellId);
-        CellType baseType = cell.type;
-        
-        // Si l'espace est P1 mais le maillage est P2, on force le type linéaire (ex: TET10 -> TET4)
-        if (m_space->getOrder() == Order::P1) {
-            baseType = Cell::getLinearEquivalent(cell.type);
-        }
+        const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type, m_space->getOrderInt());
 
-        const auto &refEl = m_space->getRefElement(baseType);
-        
         m_space->getMesh()->getCellVerticesCoords(cellId, ctx.scratchCoords);
         
         int expectedNodes = refEl.getNumNodes();
@@ -167,7 +152,7 @@ namespace cfem
         
         refEl.computeMapping(xi, ctx.scratchCoords, ShapeEvaluationFlags::Gradient, 
                                 ctx.scratchShape, ctx.scratchMapping);
-        // 4. Évaluer le gradient physique
+        // Évaluer le gradient physique
         this->evaluateGradientWithCachedMapping(cellId, ctx.scratchMapping, out);
     }
 
@@ -223,18 +208,20 @@ namespace cfem
      */
     void FEField::project(const sym::CfemExpression &recipe)
     {
-        auto mesh = m_space->getMesh();
+        CFEM_INFO << "projecting field into " << getName();
+
+        const auto& mesh = m_space->getMesh();
         Vec petscVec = m_data.getRaw();
         int dim = this->getDimension();
 
-        // 1. Determine the local ownership range for MPI
+        // Determine the local ownership range for MPI
         CfemInt low, high;
         VecGetOwnershipRange(petscVec, &low, &high);
         CfemInt localSize = high - low;
 
         m_localValues.assign(localSize, 0.0);
 
-        // 2. Prepare for node visiting (CG: vertex-based, DG: cell-based)
+        // Prepare for node visiting (CG: vertex-based, DG: cell-based)
         CfemInt numPositions = m_space->getNumUniquePositions();
         std::vector<uint8_t> visited(numPositions, 0);
 
@@ -244,15 +231,14 @@ namespace cfem
             std::vector<CfemReal> valBuffer(dim);
             std::span<CfemReal> valSpan(valBuffer);
             
-            DynamicVector<Vector3D> physCoords;
-            MappingInfo map;
-
             #pragma omp for schedule(guided)
             for (CfemInt cellId = 0; cellId < mesh->getNumCells(); ++cellId)
             {
-                const auto &cell = mesh->getCell(cellId);
-                const auto &refEl = m_space->getRefElement(cell.type);
-                mesh->getCellVerticesCoords(cellId, physCoords);
+                const Cell &cell = mesh->getCell(cellId);
+                const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type, m_space->getOrderInt());
+                const auto &refElGeo = ReferenceElementFactory::getReferenceElement(cell.type, m_space->getMesh()->getOrderInt());
+
+                mesh->getCellVerticesCoords(cellId, evctx.scratchCoords);
 
                 for (int i = 0; i < (int)refEl.getNumNodes(); ++i)
                 {
@@ -266,11 +252,11 @@ namespace cfem
 
                     // Evaluate the recipe at the physical location of the node
                     Vector3D xi = refEl.getNodeCoords(i);
-                    ShapeInfo nodeShape;
-                    refEl.evaluate(xi, ShapeEvaluationFlags::Value, nodeShape);
-                    refEl.computeMapping(xi, physCoords, ShapeEvaluationFlags::None, nodeShape, map);
+                    // ShapeInfo nodeShape;
+                    refElGeo.evaluate(xi, ShapeEvaluationFlags::Value, evctx.scratchShape);
+                    refElGeo.computeMapping(xi, evctx.scratchCoords, ShapeEvaluationFlags::PhysicalPosition, evctx.scratchShape, evctx.scratchMapping);
 
-                    evctx.physPos = map.physicalPosition;
+                    evctx.physPos = evctx.scratchMapping.physicalPosition;
                     evctx.currentCellId = cellId;
                     evctx.currentXi = xi;
 
