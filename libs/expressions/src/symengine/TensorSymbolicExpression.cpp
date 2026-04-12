@@ -63,7 +63,7 @@ namespace cfem::sym
 
     // std::shared_ptr<const CfemExpression> TensorSymbolicExpression::grad() const  //TODO:  grad implementation goes here.
 
-    std::shared_ptr<const CfemExpression> TensorSymbolicExpression::timeDerivative() const {
+    std::shared_ptr<const CfemExpression> TensorSymbolicExpression::createTimeDerivative() const {
         std::shared_ptr<const ScalarSymbolicExpression> comps[9];
         for (CfemInt i=0; i<9; ++i){
             comps[i] = m_components[i]->diff(t_rcp);

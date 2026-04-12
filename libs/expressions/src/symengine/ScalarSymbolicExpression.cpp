@@ -31,7 +31,7 @@ namespace cfem::sym{
         }
     }
 
-    std::shared_ptr<const CfemExpression> ScalarSymbolicExpression::grad() const {
+    std::shared_ptr<const CfemExpression> ScalarSymbolicExpression::createGradient() const {
         return std::make_shared<VectorSymbolicExpression>(diff(sym::x_rcp), diff(sym::y_rcp), diff(sym::z_rcp));
     }
 
@@ -40,7 +40,7 @@ namespace cfem::sym{
         return nullptr;
     }
 
-    std::shared_ptr<const CfemExpression> ScalarSymbolicExpression::timeDerivative() const {
+    std::shared_ptr<const CfemExpression> ScalarSymbolicExpression::createTimeDerivative() const {
         auto dExprDt = m_expression.diff(t_rcp);
         
         return std::make_shared<ScalarSymbolicExpression>(dExprDt, m_vars);

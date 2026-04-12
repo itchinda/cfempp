@@ -2,6 +2,8 @@
 #include <regex>
 #include <filesystem>
 #include "Mesh.h"
+#include "FEField.h"
+#include "CfemExpression.h"
 
 namespace fs = std::filesystem;
 

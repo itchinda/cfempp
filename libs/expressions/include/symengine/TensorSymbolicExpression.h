@@ -51,8 +51,6 @@ namespace cfem::sym
         }
 
         ExpressionType getType() const override { return ExpressionType::TensorSymbolic; }
-        std::shared_ptr<const CfemExpression> timeDerivative() const override;
-
 
         std::string toString() const override {
             std::ostringstream os;
@@ -63,6 +61,11 @@ namespace cfem::sym
         }
     private:
         std::shared_ptr<const ScalarSymbolicExpression> m_components[9];
+        std::shared_ptr<const CfemExpression> createGradient() const override { 
+            CFEM_ERROR << "Gradient is not yet supported for tensor expressions. It would required a 3rd order tensor which is not implemented.";
+            return nullptr; 
+        }
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
     };
 
 }

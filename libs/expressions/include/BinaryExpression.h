@@ -18,12 +18,16 @@ namespace cfem::sym
      **************************************************************************** */
     class BinaryExpression : public CfemExpression
     {
+    private:
         std::shared_ptr<const CfemExpression> m_lhs;
         std::shared_ptr<const CfemExpression> m_rhs;
         MathOp                                m_op;
         CfemInt                               m_dimL;
         CfemInt                               m_dimR;
         CfemInt                               m_dimOut;
+    
+        std::shared_ptr<const CfemExpression> createGradient() const override;
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
 
     public:
         BinaryExpression(std::shared_ptr<const CfemExpression> lhs,
@@ -75,9 +79,7 @@ namespace cfem::sym
         MathOp getOp() const { return m_op; }
 
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override;
-        std::shared_ptr<const CfemExpression> grad() const override;
         std::shared_ptr<const CfemExpression> div() const override;
-        std::shared_ptr<const CfemExpression> timeDerivative() const override;
 
         CfemInt precedence() const override;
         std::string toString() const override;

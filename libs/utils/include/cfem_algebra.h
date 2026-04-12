@@ -8,6 +8,5 @@
 #include "FixedMatrix.h"
 
 #include "TensorO2.h"
-#include "SymTensorO2.h"
 
 #endif

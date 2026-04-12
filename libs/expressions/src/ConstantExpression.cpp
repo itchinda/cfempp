@@ -3,13 +3,6 @@
 namespace cfem::sym
 {
 
-    std::shared_ptr<const CfemExpression> ConstantExpression::grad() const {
-        CfemInt dim = getDimension();
-        if (dim == 1) return zeros::Zero3D;
-        if (dim == 3) return zeros::ZeroTensor;
-        return std::make_shared<ZeroExpression>(dim * 3);
-    }
-
     std::shared_ptr<const CfemExpression> ConstantExpression::div() const {
         CfemInt dim = getDimension();
             

@@ -18,8 +18,11 @@ namespace cfem::sym
      **************************************************************************** */
     class MagnitudeSqExpression : public CfemExpression
     {
+    private:
         CfemInt m_innerDim = 0;
         std::shared_ptr<const CfemExpression> m_expr;
+        std::shared_ptr<const CfemExpression> createGradient() const override;
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
         
 
     public:
@@ -54,13 +57,11 @@ namespace cfem::sym
         void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
 
         std::shared_ptr<const CfemExpression> getInner() const { return m_expr; }
-        std::shared_ptr<const CfemExpression> grad() const override;
-        std::shared_ptr<const CfemExpression> timeDerivative() const override;
 
 
         CfemInt precedence() const override { return 5; }
         ExpressionType getType() const override { return ExpressionType::MagnitudeSq; }
-        std::string toString() const override { return "grad(" + m_expr->toString() + ")"; }
+        std::string toString() const override { return "mag_sqr(" + m_expr->toString() + ")"; }
     };
 
 }

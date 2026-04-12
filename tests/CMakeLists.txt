@@ -22,10 +22,12 @@ target_link_libraries(unit_tests
         GTest::gtest
         cfem_solvers
         cfem_utils
+        cfem_quadrature
+        cfem_reference_element
         cfem_mesh
-        cfem_fem_integration
-        cfem_fields
+        cfem_fespace
         cfem_expressions
+        cfem_numerical_integration
         SymEngine::libsymengine 
         ${llvm_libs}
         ${GMP_LIB}

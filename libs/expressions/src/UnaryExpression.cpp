@@ -104,22 +104,19 @@ namespace cfem::sym
     }
 
     // --- grad() Implementation ---
-    std::shared_ptr<const CfemExpression> UnaryExpression::grad() const {
+    std::shared_ptr<const CfemExpression> UnaryExpression::createGradient() const {
 
         // Standard Chain Rule: f'(u) * grad(u)
         auto du = getDerivativeWrtInner();
 
         if (m_op == MathOp::Transpose) {
-            // Gradient of Transpose(A) is Transpose(Grad(A)) in the first two indices.
-            // This requires a specialized Tensor operation.
             return transpose(du);
         }
                 
         return du * m_expr->grad(); 
     }
 
-    // --- timeDerivative() Implementation ---
-    std::shared_ptr<const CfemExpression> UnaryExpression::timeDerivative() const {
+    std::shared_ptr<const CfemExpression> UnaryExpression::createTimeDerivative() const {
         if (m_op == MathOp::Transpose) {
             return std::make_shared<UnaryExpression>(m_expr->timeDerivative(), MathOp::Transpose);
         }

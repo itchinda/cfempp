@@ -16,9 +16,10 @@ add_library(cfem_mesh
 )
 
 target_include_directories(cfem_mesh
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/include/builders
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include 
+           ${CMAKE_CURRENT_SOURCE_DIR}/include/builders
 )
 
 target_link_libraries(cfem_mesh
-    PUBLIC cfem_petsc_wrappers cfem_utils cfem_fields
+    PUBLIC  cfem_utils
 )

@@ -59,14 +59,6 @@ namespace cfem::sym {
             if (m_inner) m_inner->bind(spaceToId);
         }
 
-        std::shared_ptr<const CfemExpression> grad() const override {
-            return std::make_shared<const CachedExpression>(m_inner->grad());
-        }
-
-        std::shared_ptr<const CfemExpression> timeDerivative() const override {
-            return std::make_shared<const CachedExpression>(m_inner->timeDerivative());
-        }
-
         std::string toString() const override { return m_inner->toString(); }
         ExpressionType getType() const override { return m_inner->getType(); }
 
@@ -74,6 +66,14 @@ namespace cfem::sym {
 
     private:
         std::shared_ptr<const CfemExpression> m_inner;
+
+        std::shared_ptr<const CfemExpression> createGradient() const override {
+            return std::make_shared<const CachedExpression>(m_inner->grad());
+        }
+
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override {
+            return std::make_shared<const CachedExpression>(m_inner->timeDerivative());
+        }
     };
 
     /**

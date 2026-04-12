@@ -5,10 +5,11 @@ namespace cfem::sym
     LambdaExpressionBase::LambdaExpressionBase(CfemInt dimension,
                                                std::shared_ptr<const CfemExpression> gradient,
                                                std::shared_ptr<const CfemExpression> timeDeriv): 
-        m_dimension(dimension),
-        m_gradient(std::move(gradient)),
-        m_timeDeriv(std::move(timeDeriv))
+        m_dimension(dimension)
     {
+        
+        m_gradient = std::move(gradient);
+        m_timeDeriv = std::move(timeDeriv);
         if (m_gradient){
             if (m_dimension == 1 && m_gradient->getDimension() != 3){
                 CFEM_ERROR << "The gradient of a scalar lambda expression must be a 3D vector.";
