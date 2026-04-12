@@ -77,58 +77,50 @@ The following example demonstrates how to generate a tetrahedral mesh, project a
 #include "Mesh.h"
 #include "FEField.h"
 #include "MathOperators.h"
-#include "DomainIntegrator.h"
+#include "FunctionIntegrator.h"
+#include "LagrangeSpace.h"
 #include "VTUExporter.h"
 
 using namespace cfem;
 using namespace cfem::sym;
+using namespace cfem::sym::symengine;
 
 int main(int argc, char **argv) {
-    // 1. One call to rule them all: Handles MPI, PETSc, and CFEM internal state
+    // One call to rule them all: Handles MPI, PETSc, and CFEM internal state
     cfem::Environment::initialize(argc, argv);
 
-    // 2. Generate Mesh
+    // Generate Mesh
     auto mesh = Mesh::block(MeshOrder::Linear, 
                             {10, 10, 10}, 
                             Mesh::BlockBounds({0,0,0}, {1,1,1}), 
                             Mesh::BlockElementType::Tetrahedron);
 
-    // 3. Setup P2 Vector Space and Field
-    auto velocitySpace = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
-    auto velocity = FEField::create("U", velocitySpace);
+    // Setup P2 Vector Space and Field
+    auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
+    auto u = FEField::create("u", V);
         
-    // 4. JIT-compiled Symbolic Definition
+    // JIT-compiled Symbolic Definition
     auto analytical_u = vector(sin(2 * pi * x), cos(2 * pi * y), sin(pi * x * y * z));
+    u->project(analytical_u);
 
-    // 5. High-level Projection
-    velocity->project(analytical_u);
-
-    // 6. Error Analysis (Clean syntax, no explicit scheme params needed)
+    // Error Analysis (Clean syntax, no explicit scheme params needed)
     CfemReal l2Norm_U, h1SemiNorm_U;
-    DomainIntegrator::L2Norm(mesh, analytical_u - velocity, &l2Norm_U, &h1SemiNorm_U);
-    
-    CFEM_INFO << "L2-norm error on U: " << l2Norm_U;
-    CFEM_INFO << "H1-semi norm error on U: " << h1SemiNorm_U;
+    IntegrationSchemeParams schemes_params{}; // Use default number of integration points
+    FunctionIntegrator integrator(mesh, schemes_params);
+    integrator.L2Norm(u - analytical_u, &l2Norm_U, &h1SemiNorm_U);    
+    CFEM_INFO << "L2-norm error on u: " << l2Norm_U;
+    CFEM_INFO << "H1-semi norm error on u: " << h1SemiNorm_U;
         
-    // 7. High-performance Binary Export
+    // High-performance Binary Export
     VTUExporter vtu_exporter(*mesh);
-    vtu_exporter.addExpression("U", velocity);
+    vtu_exporter.addExpression("u", u);
     vtu_exporter.setFormat(VTUExporter::Format::BINARY);
     vtu_exporter.write("simulation_results");
 
     return 0; 
-    // cfem::Environment handles finalization automatically on scope exit or via atexit
 }
 ```
 **From Preprocessing to Visualization**: Our robust `GmshParser` handles non-trivial manifolds with ease. Shown below is a 3D heart model imported into CFEM++ and visualized in ParaView. The seamless integration ensures that physical tags and boundary conditions remain consistent from the initial `.msh` file to the final visual results.
-
-<div align="center">
-
-![Figure 1: Complex cardiac geometry imported from Gmsh and visualized in ParaView.](tests/grenier/heart.png)
-
-*Figure 1: Complex cardiac geometry imported from Gmsh and visualized in ParaView.*
-
-</div>
 
 <p align="center">
   <img src="tests/grenier/heart.png" width="40%">
