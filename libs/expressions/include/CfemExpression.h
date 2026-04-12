@@ -5,6 +5,7 @@
 #include "Vector3D.h"
 #include "TensorO2.h"
 #include "FESpace.h"
+#include <set>
 #include <span>
 #include <memory>
 #include <ostream>
@@ -58,6 +59,13 @@ namespace cfem::sym
      **************************************************************************** */
     class CfemExpression : public std::enable_shared_from_this<CfemExpression>
     {
+    protected:
+        
+        mutable std::shared_ptr<const CfemExpression> m_gradient = nullptr;
+        mutable std::shared_ptr<const CfemExpression> m_timeDeriv = nullptr;
+        virtual std::shared_ptr<const CfemExpression> createGradient() const = 0;
+        virtual std::shared_ptr<const CfemExpression> createTimeDerivative() const = 0;
+
     public:
         virtual ~CfemExpression() = default;
 
@@ -65,6 +73,14 @@ namespace cfem::sym
         virtual ExpressionType getType() const = 0;
 
         virtual void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const = 0;
+        virtual void evaluateGradient(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const {
+            auto g = this->grad(); 
+            if (g && g.get() != this) {
+                g->evaluate(cellId, xi, out, ctx);
+                return;
+            }
+            CFEM_ERROR << "Gradient evaluation failed.";
+        }
 
         virtual void prepare() const {};
 
@@ -89,16 +105,31 @@ namespace cfem::sym
 
         virtual std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const {return nullptr; } 
 
-        virtual std::shared_ptr<const CfemExpression> grad() const { return nullptr; }
+        std::shared_ptr<const CfemExpression> grad() const { 
+            if ( !m_gradient ){
+                m_gradient = createGradient();
+            }
+            if ( !m_gradient ){
+                CFEM_ERROR << "Could not differentiate expression: " << toString();
+            }
+            return m_gradient;
+         }
+
+        std::shared_ptr<const CfemExpression> timeDerivative() const { 
+            if ( !m_timeDeriv ){
+                m_timeDeriv = createTimeDerivative();
+            }
+            if ( !m_timeDeriv ){
+                CFEM_ERROR << "Could not differentiate expression: " << toString();
+            }
+            return m_timeDeriv;
+        }
+
         virtual std::shared_ptr<const CfemExpression> div() const { return nullptr; } 
-        // virtual std::shared_ptr<const CfemExpression> cross()     const { return nullptr; } // to be implemented
-        // virtual std::shared_ptr<const CfemExpression> trace()     const { return nullptr; } // to be implemented
-        // virtual std::shared_ptr<const CfemExpression> transpose() const { return nullptr; }
 
         virtual std::string toString() const { return "???"; }
 
         virtual CfemInt precedence() const {  return 10; }
-        virtual std::shared_ptr<const CfemExpression> timeDerivative() const = 0;
 
     };
 

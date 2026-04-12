@@ -16,7 +16,7 @@
 #include "LagrangeSpace.h"
 #include "DGSpace.h"
 #include "FEField.h"
-#include "Integrator.h"
+#include "FunctionIntegrator.h"
 #include "VTKExporter.h"
 #include "VTUExporter.h"
 #include "MathOperators.h"
@@ -35,7 +35,7 @@ static char help[] = "CFEM Example: Field projection on a quadratic mesh.\n\n";
 
 int main(int argc, char **argv)
 {
-    // omp_set_num_threads(1);
+    //omp_set_num_threads(1);
     Environment::initialize(argc, argv, help);
     {
 
@@ -46,7 +46,7 @@ int main(int argc, char **argv)
 
             // mesh = Mesh::quad(
             //     MeshOrder::Linear,
-            //     Mesh::QuadSubdivisions{200, 200}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+            //     Mesh::QuadSubdivisions{2000, 2000}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
             //     Mesh::QuadBounds(
             //         Vector3D{0., 0., 0.},
             //         Vector3D{1., 1., 0.}
@@ -66,7 +66,7 @@ int main(int argc, char **argv)
 
         }
 
-        auto Q = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);
+        auto Q = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);
         auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
 
         auto p = Trial(Q, "p");
@@ -74,7 +74,6 @@ int main(int argc, char **argv)
         auto q = Test (Q, "q");
         auto v = Test (V, "v");
 
-        CFEM_INFO << "Field p is " << ((p->isContinuous()) ? "continuous" : "discontinuous");
         // auto analytical_p = scalar(x + y + 1.0); 
         // auto analytical_u = vector( x + y +  x + y,
         //                             y  + x +  y + 1,              
@@ -100,15 +99,16 @@ int main(int argc, char **argv)
         {
             PROFILE_SCOPE("L2Norm");
             IntegrationSchemeParams schemes_params{};
-            Integrator integrator(mesh, schemes_params);
-            // schemes_params.NumIntgPtHexElem = 1;
+            FunctionIntegrator integrator(mesh, schemes_params);
+            schemes_params.NumIntgPtHexElem = 1;
             CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
             integrator.L2Norm(p - analytical_p, &l2Norm_P, &h1SemiNorm_P);
             integrator.L2Norm(u - analytical_u, &l2Norm_U, &h1SemiNorm_U);
             CFEM_INFO << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P;
             CFEM_INFO << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U;
 
-            // CFEM_INFO << "sqrt (int_{Omega} |grad(u-analytical_u)|^2 ds ) = " << sqrt(integrator.computeIntegral(mag_sqr(grad(u-analytical_u)), "ymin"));
+            // auto p_ = p - (1/integrator.computeIntegral(scalar(1.0)) ) * integrator.computeIntegral(p);
+            // CFEM_INFO << "moy(p_) = " << integrator.computeIntegral(p_);
             // CFEM_INFO << "sqrt (int_{Omega} |grad(u-analytical_u)|^2 dx ) = " << sqrt(integrator.computeIntegral(scalar(x+1)));
             // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr(scalar(y)), "xmin") );
             // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr(grad(u - analytical_u)), "xmin") );

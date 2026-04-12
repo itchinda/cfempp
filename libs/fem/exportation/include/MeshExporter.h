@@ -2,8 +2,6 @@
 #define CFEM_MESH_EXPORTER_H
 
 #include "cfemutils.h"
-#include "FEField.h"
-#include "CfemExpression.h"
 #include "cfem_topology.h"
 
 
@@ -13,6 +11,10 @@
 namespace cfem {
 
     class Mesh;
+    class FEField;
+    namespace sym{
+        class CfemExpression;
+    }
 
     /**
      * @defgroup MeshExporter Mesh Export Infrastructure

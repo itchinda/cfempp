@@ -19,6 +19,11 @@ namespace cfem::sym
     {
     private:
         std::shared_ptr<const CfemExpression> m_components[9];
+        std::shared_ptr<const CfemExpression> createGradient() const override { 
+            CFEM_ERROR << "Gradient is not yet supported for tensor expressions. It would required a 3rd order tensor which is not implemented.";
+            return nullptr; 
+        }
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
 
     public:
         TensorExpression (std::shared_ptr<const CfemExpression> expr_xx, std::shared_ptr<const CfemExpression> expr_xy, std::shared_ptr<const CfemExpression> expr_xz,
@@ -160,12 +165,6 @@ namespace cfem::sym
                <<  "[" << m_components[6]->toString() << ", " << m_components[7]->toString() << ", " << m_components[8]->toString() << "]]";
             return os.str();
         }
-
-        std::shared_ptr<const CfemExpression> timeDerivative() const override;
-        std::shared_ptr<const CfemExpression> grad() const{ 
-            CFEM_ERROR << "The gradient of a tensor expression is not yet implemented. Would required a 3rd order tensor expression.";
-            return nullptr;
-        };
 
         std::shared_ptr<const CfemExpression> div() const override;
 

@@ -17,7 +17,16 @@ namespace cfem::sym
      **************************************************************************** */
     class GradExpression : public CfemExpression
     {
+    private:
         std::shared_ptr<const CfemExpression> m_expr;
+
+        std::shared_ptr<const CfemExpression> createGradient() const override{
+            CFEM_ERROR << "GradExpression does not yet support grad(). Cannot compute spatial derivatives for GradExpression.";
+            return nullptr; 
+        }
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override{
+            return std::make_shared<GradExpression>(m_expr->timeDerivative());
+        }
 
     public:
         explicit GradExpression(std::shared_ptr<const CfemExpression> expr) : m_expr(std::move(expr)) {
@@ -52,18 +61,7 @@ namespace cfem::sym
             if (m_expr) m_expr->bind(spaceToId);
         }
 
-        std::shared_ptr<const CfemExpression> timeDerivative() const override{
-            return std::make_shared<GradExpression>(m_expr->timeDerivative());
-        }
-
         std::string toString() const override{ return "grad(" + m_expr->toString() +")"; }
-
-        std::shared_ptr<const CfemExpression> grad() const override {
-            CFEM_ERROR << "GradExpression does not yet support grad(). Cannot compute spatial derivatives for GradExpression.";
-            return nullptr; 
-        }
-
-
     
     };
 

@@ -14,20 +14,6 @@ namespace cfem
     VTUExporter::VTUExporter(const Mesh &mesh) : MeshExporter(mesh)
     {  }
 
-    // void VTUExporter::write(const std::string &filename) const
-    // {
-    //     const std::string validated = validateFilename(filename, ".vtu");
-    //     if (m_format == Format::ASCII)
-    //     {
-    //         writeASCII(validated);
-    //     }
-    //     else
-    //     {
-    //         writeBINARY(validated);
-    //     }
-    // }
-
-
     void VTUExporter::write(const std::string &filename) const
     {
         std::vector<ExportEntry> continuousFields;

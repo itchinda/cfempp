@@ -26,6 +26,16 @@ namespace cfem::sym
         std::shared_ptr<const CfemExpression> m_dy;
         std::shared_ptr<const CfemExpression> m_dz;
 
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override {
+            // d(div(u)) / dt == div( du / dt )
+            return m_expr->timeDerivative()->div();
+        }
+
+        std::shared_ptr<const CfemExpression> createGradient() const override {
+            CFEM_ERROR << "The gradient of a divergence node requires a dedicated GradExpression fallback.";
+            return nullptr;
+        }
+
     public:
         DivergenceExpression(std::shared_ptr<const CfemExpression> expr)
             : m_expr(std::move(expr))
@@ -100,16 +110,6 @@ namespace cfem::sym
             // By Clairaut's theorem (symmetry of second derivatives):
             // d(div(u)) / dx_i == div( du / dx_i )
             return m_expr->diff(var_idx)->div(); 
-        }
-
-        std::shared_ptr<const CfemExpression> timeDerivative() const override {
-            // d(div(u)) / dt == div( du / dt )
-            return m_expr->timeDerivative()->div();
-        }
-
-        std::shared_ptr<const CfemExpression> grad() const override {
-            CFEM_ERROR << "The gradient of a divergence node requires a dedicated GradExpression fallback.";
-            return nullptr; // Or return std::make_shared<GradExpression>(shared_from_this())
         }
     };
 }

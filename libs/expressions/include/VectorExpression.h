@@ -19,6 +19,8 @@ namespace cfem::sym
     {
     private:
         std::shared_ptr<const CfemExpression> m_components[3];
+        std::shared_ptr<const CfemExpression> createGradient() const override;
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
 
     public:
         VectorExpression (std::shared_ptr<const CfemExpression> expr_x,
@@ -110,11 +112,6 @@ namespace cfem::sym
             return os.str();
         }
 
-        std::shared_ptr<const CfemExpression> timeDerivative() const override{
-           return std::make_shared<const VectorExpression>( m_components[0]->timeDerivative(), m_components[1]->timeDerivative(), m_components[2]->timeDerivative() );
-        }
-
-        std::shared_ptr<const CfemExpression> grad() const override;
         std::shared_ptr<const CfemExpression> div() const override;
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const {
             return std::make_shared<const VectorExpression>(m_components[0]->diff(var_idx), m_components[1]->diff(var_idx), m_components[2]->diff(var_idx));

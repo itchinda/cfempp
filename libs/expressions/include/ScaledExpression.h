@@ -50,23 +50,8 @@ namespace cfem::sym {
         const CfemExpression* getBasePtr() const { return m_base.get(); }
         std::shared_ptr<const CfemExpression> getBaseShared() const { return m_base; }
 
-        std::shared_ptr<const CfemExpression> grad() const override {
-            CFEM_ASSERT(m_base, "ScaledExpression::grad: base expression must be valid");
-
-            auto baseGrad = m_base->grad();
-            CFEM_ASSERT(baseGrad, "ScaledExpression:grad: base gradient is invalid!" );
-            if (!baseGrad) return nullptr; // Or return a ZeroExpression of correct dim
-            
-            return std::make_shared<ScaledExpression>(m_coeff, baseGrad);
-        }
-        
-        
         std::shared_ptr<const CfemExpression> div() const override{
             return std::make_shared<ScaledExpression>(m_coeff, m_base->div());
-        }
-        
-        std::shared_ptr<const CfemExpression> timeDerivative() const override{
-            return std::make_shared<ScaledExpression>(m_coeff, m_base->timeDerivative());
         }
 
         // std::string toString() const override {
@@ -100,5 +85,19 @@ namespace cfem::sym {
     private:
         CfemReal m_coeff;
         std::shared_ptr<const CfemExpression> m_base;
+
+        std::shared_ptr<const CfemExpression> createGradient() const override {
+            CFEM_ASSERT(m_base, "ScaledExpression::grad: base expression must be valid");
+
+            auto baseGrad = m_base->grad();
+            CFEM_ASSERT(baseGrad, "ScaledExpression:grad: base gradient is invalid!" );
+            if (!baseGrad) return nullptr; // Or return a ZeroExpression of correct dim
+            
+            return std::make_shared<ScaledExpression>(m_coeff, baseGrad);
+        }
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override{
+            CFEM_ASSERT(m_base, "ScaledExpression::createTimeFDerivative: base expression must be valid");
+            return std::make_shared<ScaledExpression>(m_coeff, m_base->timeDerivative());
+        }
     };
 }
