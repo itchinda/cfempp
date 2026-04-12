@@ -26,14 +26,22 @@ namespace cfem::sym {
         }
 
         CfemInt getDimension() const override { return m_base->getDimension(); }
+
+        bool isContinuous() const override {
+            return  m_base->isContinuous();
+        }
         bool dependsOnFEField() const override { return m_base->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_base->dependsOnShape(); }
         ShapeEvaluationFlags requiredShapeFlags() const override {
             return m_base->requiredShapeFlags();
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
             if (m_base) m_base->collectRequiredSpaces(spaces);
+        }
+
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            m_base->bind(spaceToId);
         }
         
         
@@ -42,23 +50,8 @@ namespace cfem::sym {
         const CfemExpression* getBasePtr() const { return m_base.get(); }
         std::shared_ptr<const CfemExpression> getBaseShared() const { return m_base; }
 
-        std::shared_ptr<const CfemExpression> grad() const override {
-            CFEM_ASSERT(m_base, "ScaledExpression::grad: base expression must be valid");
-
-            auto baseGrad = m_base->grad();
-            CFEM_ASSERT(baseGrad, "ScaledExpression:grad: base gradient is invalid!" );
-            if (!baseGrad) return nullptr; // Or return a ZeroExpression of correct dim
-            
-            return std::make_shared<ScaledExpression>(m_coeff, baseGrad);
-        }
-        
-        
         std::shared_ptr<const CfemExpression> div() const override{
             return std::make_shared<ScaledExpression>(m_coeff, m_base->div());
-        }
-        
-        std::shared_ptr<const CfemExpression> timeDerivative() const override{
-            return std::make_shared<ScaledExpression>(m_coeff, m_base->timeDerivative());
         }
 
         // std::string toString() const override {
@@ -92,5 +85,19 @@ namespace cfem::sym {
     private:
         CfemReal m_coeff;
         std::shared_ptr<const CfemExpression> m_base;
+
+        std::shared_ptr<const CfemExpression> createGradient() const override {
+            CFEM_ASSERT(m_base, "ScaledExpression::grad: base expression must be valid");
+
+            auto baseGrad = m_base->grad();
+            CFEM_ASSERT(baseGrad, "ScaledExpression:grad: base gradient is invalid!" );
+            if (!baseGrad) return nullptr; // Or return a ZeroExpression of correct dim
+            
+            return std::make_shared<ScaledExpression>(m_coeff, baseGrad);
+        }
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override{
+            CFEM_ASSERT(m_base, "ScaledExpression::createTimeFDerivative: base expression must be valid");
+            return std::make_shared<ScaledExpression>(m_coeff, m_base->timeDerivative());
+        }
     };
 }

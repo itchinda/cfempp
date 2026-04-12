@@ -20,6 +20,25 @@ namespace cfem::sym
         std::shared_ptr<const CfemExpression> m_gradExpr; 
         std::shared_ptr<const CfemExpression> m_timeDerivExpr;
 
+        std::shared_ptr<const CfemExpression> createGradient() const override {
+            if (!m_gradExpr) {
+                CFEM_ERROR << "Gradient was not provided. Cannot compute spatial derivatives for VariableExpression.";
+            }
+            return m_gradExpr;
+        }
+
+        /**
+         * @brief Returns the time derivative expression.
+         * @throw CFEM_ERROR if no time derivative or numerical scheme has been assigned.
+         */
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override {
+            if (!m_timeDerivExpr) {
+                CFEM_ERROR << "VariableExpression '" << m_name << 
+                    "' has no time derivative defined. Please assign a derivative or a numerical scheme (e.g., BDF1).";
+            }
+            return m_timeDerivExpr;
+        }
+
     public:
         VariableExpression(const std::string& name, const CfemReal* ptr, 
                         CfemInt dim, 
@@ -50,12 +69,6 @@ namespace cfem::sym
         //     return extractComponent(g, var_idx); 
         // }
 
-        std::shared_ptr<const CfemExpression> grad() const override {
-            if (!m_gradExpr) {
-                CFEM_ERROR << "Gradient was not provided. Cannot compute spatial derivatives for VariableExpression.";
-            }
-            return m_gradExpr;
-        }
 
         /**
          * @brief Defines or updates the expression used for the time derivative.
@@ -79,21 +92,14 @@ namespace cfem::sym
             m_gradExpr = std::move(expr);
         }
 
-        /**
-         * @brief Returns the time derivative expression.
-         * @throw CFEM_ERROR if no time derivative or numerical scheme has been assigned.
-         */
-        std::shared_ptr<const CfemExpression> timeDerivative() const override {
-            if (!m_timeDerivExpr) {
-                CFEM_ERROR << "VariableExpression '" << m_name << 
-                    "' has no time derivative defined. Please assign a derivative or a numerical scheme (e.g., BDF1).";
-            }
-            return m_timeDerivExpr;
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
+            if (m_gradExpr) m_gradExpr->collectRequiredSpaces(spaces); 
+            if (m_timeDerivExpr) m_timeDerivExpr->collectRequiredSpaces(spaces);       
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
-            m_gradExpr->collectRequiredSpaces(spaces); 
-            m_timeDerivExpr->collectRequiredSpaces(spaces);       
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            if (m_gradExpr) m_gradExpr->bind(spaceToId);
+            if (m_timeDerivExpr) m_timeDerivExpr->bind(spaceToId);
         }
 
         CfemInt getDimension() const override { return m_dim; }

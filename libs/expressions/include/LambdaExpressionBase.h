@@ -15,8 +15,33 @@ namespace cfem::sym
     {
     protected:
         CfemInt m_dimension;
-        std::shared_ptr<const CfemExpression> m_gradient;
-        std::shared_ptr<const CfemExpression> m_timeDeriv;
+
+        /**
+         * @brief Retourne le gradient analytique fourni par l'utilisateur (ou nullptr).
+         */
+        std::shared_ptr<const CfemExpression> createGradient() const override {
+            if (m_gradient) {
+                return m_gradient;
+            }
+            CFEM_ERROR << "You requested the gradient, but this lambda expression " \
+                            "was not provided with its gradient.";
+
+            return std::make_shared<const ZeroExpression>(3*m_dimension);
+        }
+
+        /**
+         * @brief Retourne la dérivée temporelle analytique fournie par l'utilisateur.
+         * Si non fournie, retourne une expression nulle (Zero).
+         */
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override {
+            if (m_timeDeriv) {
+                return m_timeDeriv;
+            }
+            CFEM_ERROR << "You requested the time derivative, but this lambda expression " \
+                            "was not provided with its time derivative.";
+            return std::make_shared<const ZeroExpression>(m_dimension);
+        }
+
 
         /**
          * @brief Constructeur de la base.
@@ -51,37 +76,16 @@ namespace cfem::sym
             return ShapeEvaluationFlags::None;
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
             if (m_gradient) m_gradient->collectRequiredSpaces(spaces);
             if (m_timeDeriv) m_timeDeriv->collectRequiredSpaces(spaces);
         }
 
-        /**
-         * @brief Retourne le gradient analytique fourni par l'utilisateur (ou nullptr).
-         */
-        std::shared_ptr<const CfemExpression> grad() const override {
-            if (m_gradient) {
-                return m_gradient;
-            }
-            CFEM_ERROR << "You requested the gradient, but this lambda expression " \
-                            "was not provided with its gradient.";
-
-            return std::make_shared<const ZeroExpression>(3*m_dimension);
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            if (m_gradient) m_gradient->bind(spaceToId);
+            if (m_timeDeriv) m_timeDeriv->bind(spaceToId);
         }
-
-        /**
-         * @brief Retourne la dérivée temporelle analytique fournie par l'utilisateur.
-         * Si non fournie, retourne une expression nulle (Zero).
-         */
-        std::shared_ptr<const CfemExpression> timeDerivative() const override {
-            if (m_timeDeriv) {
-                return m_timeDeriv;
-            }
-            CFEM_ERROR << "You requested the time derivative, but this lambda expression " \
-                            "was not provided with its time derivative.";
-            return std::make_shared<const ZeroExpression>(m_dimension);
-        }
-
+        
         std::string toString() const override {
             std::string typeStr = (m_dimension == 1) ? "Scalar" : 
                                   (m_dimension == 3) ? "Vector" : "Tensor";

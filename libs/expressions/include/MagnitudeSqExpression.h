@@ -18,8 +18,11 @@ namespace cfem::sym
      **************************************************************************** */
     class MagnitudeSqExpression : public CfemExpression
     {
+    private:
         CfemInt m_innerDim = 0;
         std::shared_ptr<const CfemExpression> m_expr;
+        std::shared_ptr<const CfemExpression> createGradient() const override;
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
         
 
     public:
@@ -30,29 +33,35 @@ namespace cfem::sym
         }
 
         CfemInt getDimension() const override { return 1; }
+
+        bool isContinuous() const override {
+            return  m_expr->isContinuous();
+        }
+
         bool dependsOnFEField() const override { return m_expr->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_expr->dependsOnShape(); }
         ShapeEvaluationFlags requiredShapeFlags() const override {
             return m_expr->requiredShapeFlags();
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
             if (m_expr) m_expr->collectRequiredSpaces(spaces);
         }
 
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            m_expr->bind(spaceToId);
+        }
 
         void prepare() const override { m_expr->prepare(); }
 
         void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
 
         std::shared_ptr<const CfemExpression> getInner() const { return m_expr; }
-        std::shared_ptr<const CfemExpression> grad() const override;
-        std::shared_ptr<const CfemExpression> timeDerivative() const override;
 
 
         CfemInt precedence() const override { return 5; }
         ExpressionType getType() const override { return ExpressionType::MagnitudeSq; }
-        std::string toString() const override { return "grad(" + m_expr->toString() + ")"; }
+        std::string toString() const override { return "mag_sqr(" + m_expr->toString() + ")"; }
     };
 
 }

@@ -35,7 +35,7 @@ namespace cfem::sym
         return std::make_shared<const VectorSymbolicExpression>(m_components[0]->diff(var), m_components[1]->diff(var), m_components[2]->diff(var));
     }
 
-    std::shared_ptr<const CfemExpression> VectorSymbolicExpression::grad() const {
+    std::shared_ptr<const CfemExpression> VectorSymbolicExpression::createGradient() const {
         std::shared_ptr<const ScalarSymbolicExpression> comps[9];
         for(int i=0; i<3; ++i) {
             comps[i*3 + 0] = m_components[i]->diff(sym::x_rcp);
@@ -55,7 +55,7 @@ namespace cfem::sym
         return std::make_shared<ScalarSymbolicExpression>(dux_dx + duy_dy + duz_dz, m_components[0]->get_vars());
     }
 
-    std::shared_ptr<const CfemExpression> VectorSymbolicExpression::timeDerivative() const {
+    std::shared_ptr<const CfemExpression> VectorSymbolicExpression::createTimeDerivative() const {
         std::shared_ptr<const ScalarSymbolicExpression> comps[3];
         for (CfemInt i=0; i<3; ++i){
             comps[i] = m_components[i]->diff(sym::t_rcp);

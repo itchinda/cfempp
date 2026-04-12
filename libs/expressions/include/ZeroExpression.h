@@ -16,6 +16,14 @@ namespace cfem::sym
      **************************************************************************** */
     class ZeroExpression : public CfemExpression
     {
+    private:
+        std::shared_ptr<const CfemExpression> createGradient() const override {
+            return std::make_shared<ZeroExpression>(m_dim * 3);
+        }
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override{
+            return std::make_shared<ZeroExpression>(m_dim);
+        }
+
         CfemInt m_dim {0};
 
     public:
@@ -35,18 +43,11 @@ namespace cfem::sym
             return std::make_shared<ZeroExpression>(this->getDimension());
         }
 
-        std::shared_ptr<const CfemExpression> grad() const override {
-            return std::make_shared<ZeroExpression>(m_dim * 3);
-        }
         std::shared_ptr<const CfemExpression> div() const override;
 
         ExpressionType getType() const override { return ExpressionType::Zero; }
 
         std::string toString() const override;
-
-         std::shared_ptr<const CfemExpression> timeDerivative() const override{
-            return std::make_shared<ZeroExpression>(m_dim);
-         }
          
     };
 

@@ -53,10 +53,6 @@ namespace cfem{
     class SphereMeshBuilder;
     class AnnulusMeshBuilder;
 
-
-class FESpace;
-
-
 struct TagGroup {
     std::vector<int> gmsh_tags;
     int internal_id;
@@ -493,8 +489,15 @@ public:
 
     CfemInt getDimension() const { return m_meshDim; }
     MeshOrder getOrder() const { return m_meshOrder; }
+    CfemInt getOrderInt() const { return static_cast<CfemInt>(m_meshOrder); }
     bool isQuadratic() const { return (m_meshOrder == MeshOrder::Quadratic); }
     bool isLinear() const { return (m_meshOrder == MeshOrder::Linear); }
+    bool isCellAffine(CfemInt cellId) const { 
+        return (cellId < (CfemInt)m_isCellAffine.size()) ? m_isCellAffine[cellId] : (m_meshOrder == MeshOrder::Linear); 
+    }
+    
+    bool isGloballyAffine() const { return m_isGloballyAffine; }
+
     size_t getNumVertices() const { return m_vertices.size(); }
     size_t getNumCells()    const { return m_cells.size(); }
     size_t getNumFacets()   const { return m_facets.size(); }
@@ -592,6 +595,7 @@ public:
     void upgradeToQuadratic();
     void downgradeToLinear();
     void updateEntities();
+    void updateAffineFlags();
 
     // HELPERS
     std::string cellTypeToString(CellType type) const;
@@ -625,7 +629,8 @@ public:
 
     void relaxMesh(CfemInt iterations, CfemReal lambda = 0.4);
 
-    void addObserver(std::shared_ptr<FESpace> space);
+    void addObserver(std::shared_ptr<MeshObserver> mesh_observer);
+    void notifyObservers();
 
     void registerFieldName(const std::string& name){
         NamingPolicy::validate(name);
@@ -914,12 +919,15 @@ private:
     std::vector<CfemInt> m_allCellFacetIds;   // Stores IDs of the Facets (edges/faces)
     std::vector<size_t>  m_neighborOffsets;   // Offsets into the neighbor blocks
 
+    std::vector<bool> m_isCellAffine;    //
+    bool m_isGloballyAffine = true;      //
+
     std::vector<std::unique_ptr<MeshEntity>> m_entities;
     std::unordered_set<CfemInt> m_entity_ids;
 
     std::vector<std::vector<int>> m_tagGroups; // Table de "interning"
 
-    std::vector<std::weak_ptr<FESpace>> m_observers; ///> list of FESpace attached to the mesh
+    std::vector<std::weak_ptr<MeshObserver>> m_observers; ///> list of MeshObservers attached to the mesh
 
     std::bitset<MAX_CELL_TYPES> m_cellTypeFlags;
     std::bitset<MAX_CELL_TYPES> m_facetTypeFlags;

@@ -23,6 +23,10 @@ namespace cfem::sym
         std::shared_ptr<const CfemExpression> getInner() const { return m_expr; }
         bool isPointwise() const override { return m_expr->isPointwise(); }
 
+        bool isContinuous() const override{ 
+            return m_expr->isContinuous();
+        }
+
         bool dependsOnFEField() const override { return m_expr->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_expr->dependsOnShape(); }
         
@@ -30,7 +34,11 @@ namespace cfem::sym
             return m_expr->requiredShapeFlags();
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            if (m_expr) m_expr->bind(spaceToId);
+        }
+
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
             if (m_expr) m_expr->collectRequiredSpaces(spaces);
         }
 
@@ -38,9 +46,7 @@ namespace cfem::sym
                       std::span<CfemReal> out, EvalContext& ctx) const override;
 
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override;
-        std::shared_ptr<const CfemExpression> grad() const override;
         std::shared_ptr<const CfemExpression> div() const override;
-        std::shared_ptr<const CfemExpression> timeDerivative() const override;
 
         std::string toString() const override;
         CfemInt precedence() const override;
@@ -51,6 +57,9 @@ namespace cfem::sym
         MathOp m_op;
         CfemInt m_dimIn;
         CfemInt m_dimOut;
+
+        std::shared_ptr<const CfemExpression> createGradient() const override;
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
 
         std::shared_ptr<const CfemExpression> getDerivativeWrtInner() const;
     };

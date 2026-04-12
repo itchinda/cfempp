@@ -19,6 +19,8 @@ namespace cfem::sym
     {
     private:
         std::shared_ptr<const CfemExpression> m_components[3];
+        std::shared_ptr<const CfemExpression> createGradient() const override;
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
 
     public:
         VectorExpression (std::shared_ptr<const CfemExpression> expr_x,
@@ -84,10 +86,22 @@ namespace cfem::sym
                    m_components[2]->requiredShapeFlags();
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
             m_components[0]->collectRequiredSpaces(spaces); 
             m_components[1]->collectRequiredSpaces(spaces); 
             m_components[2]->collectRequiredSpaces(spaces);   
+        }
+
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            m_components[0]->bind(spaceToId);
+            m_components[1]->bind(spaceToId);
+            m_components[2]->bind(spaceToId);
+        }
+
+        bool isContinuous() const override{ 
+            return m_components[0]->isContinuous()&&
+                   m_components[1]->isContinuous()&&
+                   m_components[2]->isContinuous();
         }
 
         ExpressionType getType() const override { return ExpressionType::VectorExpression; }
@@ -98,11 +112,6 @@ namespace cfem::sym
             return os.str();
         }
 
-        std::shared_ptr<const CfemExpression> timeDerivative() const override{
-           return std::make_shared<const VectorExpression>( m_components[0]->timeDerivative(), m_components[1]->timeDerivative(), m_components[2]->timeDerivative() );
-        }
-
-        std::shared_ptr<const CfemExpression> grad() const override;
         std::shared_ptr<const CfemExpression> div() const override;
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const {
             return std::make_shared<const VectorExpression>(m_components[0]->diff(var_idx), m_components[1]->diff(var_idx), m_components[2]->diff(var_idx));

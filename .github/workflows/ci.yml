@@ -98,4 +98,12 @@ jobs:
         export PATH=$PETSC_DIR/$P_ARCH/bin:$PATH
         cd build
         echo "Running ${{ matrix.build_type }} unit tests with ${{ matrix.mpi_ranks }} ranks"
-        mpiexec -n ${{ matrix.mpi_ranks }} ./tests/unit_tests
+        # On utilise un nom de fichier spécifique à la matrice pour ne rien écraser
+        mpiexec -n ${{ matrix.mpi_ranks }} ./tests/unit_tests --gtest_output="xml:report_${{ matrix.build_type }}_${{ matrix.mpi_ranks }}.xml"
+
+    - name: Publish Test Report
+      uses: mikepenz/action-junit-report@v4
+      if: success() || failure()
+      with:
+        report_paths: 'build/report_*.xml'
+        check_name: "GTest Results (${{ matrix.build_type }}, ${{ matrix.mpi_ranks }} ranks)"

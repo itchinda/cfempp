@@ -22,7 +22,7 @@ namespace cfem::sym
         return std::make_shared<const VectorExpression>(div_x, div_y, div_z);
     }
 
-    std::shared_ptr<const CfemExpression> TensorExpression::timeDerivative() const {
+    std::shared_ptr<const CfemExpression> TensorExpression::createTimeDerivative() const {
        return std::make_shared<const TensorExpression>( m_components[0]->timeDerivative(), m_components[1]->timeDerivative(), m_components[2]->timeDerivative(),
                                                         m_components[3]->timeDerivative(), m_components[4]->timeDerivative(), m_components[5]->timeDerivative(),
                                                         m_components[6]->timeDerivative(), m_components[7]->timeDerivative(), m_components[8]->timeDerivative() );

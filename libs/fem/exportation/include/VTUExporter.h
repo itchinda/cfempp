@@ -116,8 +116,10 @@ namespace cfem
 
     private:
         Format m_format{Format::BINARY};
-        void writeASCII(const std::string &filename) const;
-        void writeBINARY(const std::string &filename) const;
+        void writeASCIIContinuous(const std::string &filename, const std::vector<ExportEntry>& contField) const;
+        void writeBINARYContinuous(const std::string &filename, const std::vector<ExportEntry>& contField) const;
+        void writeASCIIDiscontinuous(const std::string &filename, const std::vector<ExportEntry>& discontField) const;
+        void writeBINARYDiscontinuous(const std::string &filename, const std::vector<ExportEntry>& discontField) const;
     };
 
 }

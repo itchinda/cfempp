@@ -42,22 +42,21 @@ namespace cfem::sym {
         }
 
         bool isConstant() const override { return m_inner->isConstant(); }
+        bool isContinuous() const override {
+            return  m_inner->isContinuous();
+        }
         bool dependsOnFEField() const override { return m_inner->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_inner->dependsOnShape(); }
         ShapeEvaluationFlags requiredShapeFlags() const override {
             return m_inner->requiredShapeFlags();
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
             if (m_inner) m_inner->collectRequiredSpaces(spaces);
         }
 
-        std::shared_ptr<const CfemExpression> grad() const override {
-            return std::make_shared<const CachedExpression>(m_inner->grad());
-        }
-
-        std::shared_ptr<const CfemExpression> timeDerivative() const override {
-            return std::make_shared<const CachedExpression>(m_inner->timeDerivative());
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            if (m_inner) m_inner->bind(spaceToId);
         }
 
         std::string toString() const override { return m_inner->toString(); }
@@ -67,6 +66,14 @@ namespace cfem::sym {
 
     private:
         std::shared_ptr<const CfemExpression> m_inner;
+
+        std::shared_ptr<const CfemExpression> createGradient() const override {
+            return std::make_shared<const CachedExpression>(m_inner->grad());
+        }
+
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override {
+            return std::make_shared<const CachedExpression>(m_inner->timeDerivative());
+        }
     };
 
     /**

@@ -1,13 +1,7 @@
 #include <gtest/gtest.h>
 #include <cmath>
 
-#include "ReferenceTriangle.h"
-#include "ReferenceSegment.h"
-#include "ReferenceQuad.h"
-
-#include "ReferenceTetrahedron.h"
-#include "ReferenceHexahedron.h"
-#include "ReferencePrism.h"
+#include "ReferenceElements.h"
 
 using namespace cfem;
 
@@ -224,7 +218,7 @@ TEST_F(MappingTest, Hex8ShearMapping) {
     MappingInfo map;
     ShapeInfo shape;
     Vector3D xi{0, 0, 0};
-    ShapeEvaluationFlags lRequestedFields = ShapeEvaluationFlags::Gradient;
+    ShapeEvaluationFlags lRequestedFields = ShapeEvaluationFlags::Jacobian;
 
     hex.computeMapping(xi, coords, lRequestedFields, shape, map);
 
@@ -260,7 +254,7 @@ TEST_F(MappingTest, P2TriangleCurvedHessians) {
     Vector3D xi{1.0/3.0, 1.0/3.0, 0};
     
     // On demande explicitement les Hessiennes et gradients
-    ShapeEvaluationFlags lRequestedFields = ShapeEvaluationFlags::Gradient | ShapeEvaluationFlags::Hessian;
+    ShapeEvaluationFlags lRequestedFields = ShapeEvaluationFlags::Hessian;
 
     tri.computeMapping(xi, coords, lRequestedFields, shape, map);
     EXPECT_GT(map.detJ, 0.0) << "Jacobian determinant should be positive";
@@ -346,7 +340,7 @@ TEST_F(MappingTest, JacobianInverseCheck) {
     ShapeInfo shape;
     Vector3D xi{0.0, 0.0, 0.0};
 
-    ShapeEvaluationFlags req = ShapeEvaluationFlags::Gradient;
+    ShapeEvaluationFlags req = ShapeEvaluationFlags::Jacobian;
     hex.computeMapping(xi, coords, req, shape, map);
 
     TensorO2 identity;
@@ -419,9 +413,8 @@ TEST_F(MappingTest, P2TetraCurvedHessians) {
     ShapeInfo shape;
     Vector3D xi{0.25, 0.25, 0.25}; // Evaluation point (inside the tet)
     
-    ShapeEvaluationFlags req = ShapeEvaluationFlags::Value | 
-                      ShapeEvaluationFlags::Gradient | 
-                      ShapeEvaluationFlags::Hessian;
+    ShapeEvaluationFlags req = ShapeEvaluationFlags::Gradient | 
+                               ShapeEvaluationFlags::Hessian;
 
     ASSERT_NO_THROW(tet.computeMapping(xi, coords, req, shape, map));
 
@@ -541,7 +534,7 @@ TEST_F(MappingTest, P2TetraInterpolationSuite) {
     ShapeInfo shape;
     MappingInfo map;
     // We need Gradients for the gradient tests later
-    tet.computeMapping(xi, coords, ShapeEvaluationFlags::Gradient, shape, map);
+    tet.computeMapping(xi, coords, ShapeEvaluationFlags::PhysicalPosition | ShapeEvaluationFlags::Gradient, shape, map);
 
     // --- TEST A: Scalar Value Interpolation ---
     CfemReal expectedScalar = map.physicalPosition.x + map.physicalPosition.y;
@@ -568,27 +561,45 @@ TEST_F(MappingTest, P2TetraInterpolationSuite) {
 
 // --- INSTANCIATION DES TESTS ---
 //1D elements
+static P0ReferenceSegment  p0seg;
 static P1ReferenceSegment  p1seg;
 static P2ReferenceSegment  p2seg;
 
-static P1ReferenceTriangle p1tri;
-static P2ReferenceTriangle p2tri;
+static P0ReferenceTriangle   p0tri;
+static P1ReferenceTriangle   p1tri;
+static P2ReferenceTriangle   p2tri;
+static MiniReferenceTriangle minitri;
 
-static Q1ReferenceQuad     q1quad;
-static Q2ReferenceQuad     q2quad;
+static Q0ReferenceQuad       q0quad;
+static Q1ReferenceQuad       q1quad;
+static Q2ReferenceQuad       q2quad;
+static MiniReferenceQuad     miniquad;
 
 // 3D elements
-static P1ReferenceTetrahedron p1tetra;
-static P2ReferenceTetrahedron p2tetra;
+static P0ReferenceTetrahedron   p0tetra;
+static P1ReferenceTetrahedron   p1tetra;
+static P2ReferenceTetrahedron   p2tetra;
+static MiniReferenceTetrahedron minitetra;
 
+static P0ReferencePrism       p0prism;
 static P1ReferencePrism       p1prism;
 static P2ReferencePrism       p2prism;
+static MiniReferencePrism     miniprism;
 
-static Q1ReferenceHexahedron  q1hex;
-static Q2ReferenceHexahedron  q2hex;
+static Q0ReferenceHexahedron   q0hex;
+static Q1ReferenceHexahedron   q1hex;
+static Q2ReferenceHexahedron   q2hex;
+static MiniReferenceHexahedron minihex;
 
 INSTANTIATE_TEST_SUITE_P(
     AllElements,
     ReferenceElementTest,
-    ::testing::Values(&p1seg, &p2seg, &p1tri, &p2tri, &q1quad, &q2quad, &p1tetra, &p2tetra, &p1prism, &p2prism, &q1hex, &q2hex)
+    ::testing::Values(
+                    &p0seg,   &p1seg,   &p2seg,  
+                    &p0tri,   &p1tri,   &p2tri,   &minitri,
+                    &q0quad,  &q1quad,  &q2quad,  &miniquad,
+                    &p0tetra, &p1tetra, &p2tetra, &minitetra,
+                    &p0prism, &p1prism, &p2prism, &miniprism,
+                    &q0hex,   &q1hex,   &q2hex,   &minihex
+                )
 );

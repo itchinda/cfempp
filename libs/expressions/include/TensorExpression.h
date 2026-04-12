@@ -19,6 +19,11 @@ namespace cfem::sym
     {
     private:
         std::shared_ptr<const CfemExpression> m_components[9];
+        std::shared_ptr<const CfemExpression> createGradient() const override { 
+            CFEM_ERROR << "Gradient is not yet supported for tensor expressions. It would required a 3rd order tensor which is not implemented.";
+            return nullptr; 
+        }
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
 
     public:
         TensorExpression (std::shared_ptr<const CfemExpression> expr_xx, std::shared_ptr<const CfemExpression> expr_xy, std::shared_ptr<const CfemExpression> expr_xz,
@@ -115,7 +120,7 @@ namespace cfem::sym
                    m_components[8]->requiredShapeFlags();
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
             m_components[0]->collectRequiredSpaces(spaces); 
             m_components[1]->collectRequiredSpaces(spaces); 
             m_components[2]->collectRequiredSpaces(spaces); 
@@ -127,6 +132,30 @@ namespace cfem::sym
             m_components[8]->collectRequiredSpaces(spaces);        
         }
 
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            m_components[0]->bind(spaceToId);
+            m_components[1]->bind(spaceToId);
+            m_components[2]->bind(spaceToId); 
+            m_components[3]->bind(spaceToId); 
+            m_components[4]->bind(spaceToId); 
+            m_components[5]->bind(spaceToId); 
+            m_components[6]->bind(spaceToId); 
+            m_components[7]->bind(spaceToId); 
+            m_components[8]->bind(spaceToId);
+        }
+
+        bool isContinuous() const override {
+            return  m_components[0]->isContinuous() &&
+                    m_components[1]->isContinuous() &&
+                    m_components[2]->isContinuous() && 
+                    m_components[3]->isContinuous() && 
+                    m_components[4]->isContinuous() && 
+                    m_components[5]->isContinuous() && 
+                    m_components[6]->isContinuous() && 
+                    m_components[7]->isContinuous() && 
+                    m_components[8]->isContinuous();
+        }
+
         ExpressionType getType() const override { return ExpressionType::TensorExpression; }
 
         std::string toString() const override {
@@ -136,12 +165,6 @@ namespace cfem::sym
                <<  "[" << m_components[6]->toString() << ", " << m_components[7]->toString() << ", " << m_components[8]->toString() << "]]";
             return os.str();
         }
-
-        std::shared_ptr<const CfemExpression> timeDerivative() const override;
-        std::shared_ptr<const CfemExpression> grad() const{ 
-            CFEM_ERROR << "The gradient of a tensor expression is not yet implemented. Would required a 3rd order tensor expression.";
-            return nullptr;
-        };
 
         std::shared_ptr<const CfemExpression> div() const override;
 

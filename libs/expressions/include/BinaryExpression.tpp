@@ -76,6 +76,12 @@ namespace cfem::sym
                         }
                     }
                 }
+                else if (m_dimL == 1) { // Scalaire . (Vecteur/Tenseur)
+                    for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[0] * spanR[i];
+                }
+                else if (m_dimR == 1) { // (Vecteur/Tenseur) . Scalaire
+                    for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] * spanR[0];
+                }
                 break;
             }
             case MathOp::Inner: { // Double contraction sigma : epsilon -> Scalaire

@@ -41,19 +41,15 @@ namespace cfem::sym
             }
             m_dimOut = std::max(m_dimL, m_dimR);
             break;
-
+            
         case MathOp::Dot:
-            // Supports: 
-            // Vec(3) . Vec(3) -> Scal(1)
-            // Ten(9) . Vec(3) -> Vec(3)
-            // Vec(3) . Ten(9) -> Vec(3)
-            // Ten(9) . Ten(9) -> Ten(9) (Matrix Multiplication)
-            if (m_dimL == 3 && m_dimR == 3)      m_dimOut = 1;
-            else if (m_dimL == 9 && m_dimR == 3) m_dimOut = 3;
-            else if (m_dimL == 3 && m_dimR == 9) m_dimOut = 3;
-            else if (m_dimL == 9 && m_dimR == 9) m_dimOut = 9;
+            if (m_dimL == 3 && m_dimR == 3) {      m_dimOut = 1;  } 
+            else if (m_dimL == 9 && m_dimR == 3) { m_dimOut = 3; }
+            else if (m_dimL == 3 && m_dimR == 9) { m_dimOut = 3; }
+            else if (m_dimL == 9 && m_dimR == 9) { m_dimOut = 9; }
+            else if (m_dimL == 1 || m_dimR == 1) { m_dimOut = std::max(m_dimL, m_dimR); }
             else {
-                CFEM_ERROR << "Dot product expects combinations of Vector(3) and Tensor(9).";
+                CFEM_ERROR << "Dot product: dimensions incompatibles (L:" << m_dimL << " R:" << m_dimR << ")";
             }
             break;
 
@@ -171,7 +167,7 @@ namespace cfem::sym
         }
     }
 
-    std::shared_ptr<const CfemExpression> BinaryExpression::grad() const {
+    std::shared_ptr<const CfemExpression> BinaryExpression::createGradient() const {
         auto L = m_lhs;
         auto R = m_rhs;
         auto gL = L->grad();
@@ -333,7 +329,7 @@ namespace cfem::sym
         return nullptr;
     }
 
-    std::shared_ptr<const CfemExpression> BinaryExpression::timeDerivative() const {
+    std::shared_ptr<const CfemExpression> BinaryExpression::createTimeDerivative() const {
         auto L = m_lhs;
         auto R = m_rhs;
         auto dL = L->timeDerivative();

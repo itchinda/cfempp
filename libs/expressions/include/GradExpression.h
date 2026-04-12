@@ -17,7 +17,16 @@ namespace cfem::sym
      **************************************************************************** */
     class GradExpression : public CfemExpression
     {
+    private:
         std::shared_ptr<const CfemExpression> m_expr;
+
+        std::shared_ptr<const CfemExpression> createGradient() const override{
+            CFEM_ERROR << "GradExpression does not yet support grad(). Cannot compute spatial derivatives for GradExpression.";
+            return nullptr; 
+        }
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override{
+            return std::make_shared<GradExpression>(m_expr->timeDerivative());
+        }
 
     public:
         explicit GradExpression(std::shared_ptr<const CfemExpression> expr) : m_expr(std::move(expr)) {
@@ -27,6 +36,9 @@ namespace cfem::sym
             }
         }
 
+        bool isContinuous() const override {
+            return  m_expr->getType() == ExpressionType::FEField? true : m_expr->isContinuous();
+        }
         CfemInt getDimension() const override { return m_expr->getDimension() * 3; }
         void prepare() const override { m_expr->prepare(); }
         void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
@@ -41,22 +53,15 @@ namespace cfem::sym
             return m_expr->requiredShapeFlags() | ShapeEvaluationFlags::Gradient;
         }
 
-        void collectRequiredSpaces(std::set<std::shared_ptr<const LagrangeSpace>>& spaces) const override {
+        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
             if (m_expr) m_expr->collectRequiredSpaces(spaces);
         }
 
-        std::shared_ptr<const CfemExpression> timeDerivative() const override{
-            return std::make_shared<GradExpression>(m_expr->timeDerivative());
+        void bind(const std::map<const FESpace*, int>& spaceToId) const override {
+            if (m_expr) m_expr->bind(spaceToId);
         }
 
         std::string toString() const override{ return "grad(" + m_expr->toString() +")"; }
-
-        std::shared_ptr<const CfemExpression> grad() const override {
-            CFEM_ERROR << "GradExpression does not yet support grad(). Cannot compute spatial derivatives for GradExpression.";
-            return nullptr; 
-        }
-
-
     
     };
 

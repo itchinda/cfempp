@@ -1,5 +1,4 @@
 #include "Mesh.h"
-#include "FESpace.h"
 #include <iostream>
 #include <algorithm>
 #include <map>
@@ -1033,17 +1032,31 @@ namespace cfem
      * The mesh only stores weak references to observers internally, allowing finite element spaces to be destroyed safely without requiring explicit
      * deregistration.
      *
-     * @see FESpace::updateAfterMeshChange()
+     * @see MeshObserver::updateAfterMeshChange()
      ***************************************************************************************************************************************/
-    void Mesh::addObserver(std::shared_ptr<FESpace> space)
+    void Mesh::addObserver(std::shared_ptr<MeshObserver> observer)
     {
-        m_observers.push_back(space);
+        m_observers.push_back(observer);
 
         // Si le maillage est déjà quadratique, on force l'espace
         // qui vient d'arriver à se mettre à jour immédiatement.
         if (this->isQuadratic())
         {
-            space->updateAfterMeshChange();
+            observer->updateAfterMeshChange();
+        }
+    }
+
+    void Mesh::notifyObservers() {
+        for (auto it = m_observers.begin(); it != m_observers.end();)
+        {
+            if (auto obs = it->lock())
+            { // On vérifie si l'observateur existe encore
+                obs->updateAfterMeshChange();
+                ++it;
+            }
+            else {
+                it = m_observers.erase(it); // Nettoyage automatique
+            }
         }
     }
 
@@ -1155,6 +1168,7 @@ namespace cfem
         buildInverseConnectivities();
         buildFacets(); 
         buildAdjacency();
+        updateAffineFlags();
 
         // 2. Initialize Core Entities
         MeshEntity* universe = getEntity(cfem::UNIVERSE_ID);
@@ -1783,19 +1797,10 @@ namespace cfem
         buildFacets(); 
         buildAdjacency();
         updateEntities();
+        updateAffineFlags();
 
-        for (auto it = m_observers.begin(); it != m_observers.end();)
-        {
-            if (auto space = it->lock())
-            { // On vérifie si l'espace existe encore
-                space->updateAfterMeshChange();
-                ++it;
-            }
-            else
-            {
-                it = m_observers.erase(it); // Nettoyage automatique
-            }
-        }
+        notifyObservers();
+
         CFEM_INFO <<  "Mesh successfully upgraded to quadratic.";
         CFEM_INFO <<  this->info();
 
@@ -1952,16 +1957,9 @@ namespace cfem
         buildInverseConnectivities();
         buildFacets(); 
         updateEntities();
-
-        // Cleanup Observers
-        for (auto it = m_observers.begin(); it != m_observers.end();) {
-            if (auto space = it->lock()) {
-                space->updateAfterMeshChange();
-                ++it;
-            } else {
-                it = m_observers.erase(it);
-            }
-        }
+        notifyObservers();
+        m_isGloballyAffine = true;
+        m_isCellAffine.assign(m_cells.size(), true);
     }
 
 
@@ -2010,6 +2008,123 @@ namespace cfem
             {
                 entity_ptr->update(); // Standard cell/facet-based update
             }
+        }
+    }
+
+    /**
+     * @brief Updates the affinity status for each cell in the mesh.
+     *
+     * This function analyzes the geometric mapping of every cell to determine if it is 
+     * "affine" (linear). A cell is considered affine if its Jacobian matrix is constant 
+     * throughout its domain.
+     *
+     * @details
+     * For linear elements (P1), the mapping is affine by definition. For quadratic 
+     * elements (P2), the function performs the following checks:
+     * * 1. **Edge Check**: Every edge must be straight. For each edge, the position 
+     * of the quadratic midpoint is compared to the theoretical linear midpoint 
+     * between the two edge corners.
+     * * 2. **Face Check**: For quadrilateral faces (Quad9, Hex27, Prism18), the 
+     * face-center node must be located at the geometric barycenter of the 
+     * four face corners.
+     * * 3. **Global Status**: Updates the @c m_isGloballyAffine flag, which allows 
+     * the integration engine to trigger fast-path optimizations if the entire 
+     * mesh consists of straight-edged elements.
+     *
+     * @note 
+     * This function should be called after any mesh transformation, such as 
+     * @c upgradeToQuadratic() or mesh smoothing, to ensure the integration 
+     * kernels use the correct mapping logic.
+     *
+     * @param tol Numerical tolerance for comparing node positions (default: 1e-10).
+     */
+    void Mesh::updateAffineFlags() {
+        const CfemInt numCells = getNumCells();
+        
+        // Initialiser tous les flags à true
+        m_isCellAffine.assign(numCells, true);
+        m_isGloballyAffine = true;
+
+        if (m_meshOrder == MeshOrder::Linear) return;
+
+        const CfemReal tol = cfem::ZERO_TOLERANCE * 1e4;
+
+        #pragma omp parallel for reduction(&& : m_isGloballyAffine)
+        for (CfemInt c = 0; c < numCells; ++c) {
+            const auto& cell = getCell(c);
+            
+            if (cell.type == Cell::getLinearEquivalent(cell.type)) {
+                continue; 
+            }
+
+            DynamicVector<Vector3D> coords;
+            getCellVerticesCoords(c, coords);
+
+            bool cellIsAffine = true;
+
+            // =========================================================
+            // VÉRIFICATION DES ARÊTES (Edges)
+            // =========================================================
+            const auto& edgeDefs = Cell::getLocalEdgesIndices(cell.type);
+            for (const auto& edge : edgeDefs) {
+                // Pour un élément P2, l'arête a 3 nœuds : {sommet1, sommet2, milieu}
+                if (edge.size() < 3) continue; 
+                
+                const Vector3D& p1 = coords[edge[0]];
+                const Vector3D& p2 = coords[edge[1]];
+                const Vector3D& pm = coords[edge[2]]; // Nœud milieu
+
+                Vector3D theoreticalMid = (p1 + p2) * 0.5;
+                
+                if ((pm - theoreticalMid).norm() > tol) {
+                    cellIsAffine = false;
+                    break; // Inutile de vérifier le reste, la cellule est courbée
+                }
+            }
+
+            // =========================================================
+            // VÉRIFICATION DES FACES QUADRILATÉRALES (Quad Faces)
+            // =========================================================
+            if (cellIsAffine) {
+                const auto& quadFaceDefs = Cell::getLocalQuadFacesIndices(cell.type);
+                for (const auto& face : quadFaceDefs) {
+                    // Pour une face de Quad9, Prism18 ou Hex27, on a 9 nœuds.
+                    // L'indice 8 est le centre de la face.
+                    if (face.size() < 9) continue; 
+                    
+                    const Vector3D& p0 = coords[face[0]];
+                    const Vector3D& p1 = coords[face[1]];
+                    const Vector3D& p2 = coords[face[2]];
+                    const Vector3D& p3 = coords[face[3]];
+                    const Vector3D& pCenter = coords[face[8]]; // Nœud central
+
+                    Vector3D theoreticalCenter = (p0 + p1 + p2 + p3) * 0.25;
+                    
+                    if ((pCenter - theoreticalCenter).norm() > tol) {
+                        cellIsAffine = false;
+                        break;
+                    }
+                }
+            }
+
+            // =========================================================
+            // VÉRIFICATION DU VOLUME CENTRAL (Hex27 uniquement)
+            // =========================================================
+            if (cellIsAffine && cell.type == CellType::HEX27 && coords.size() == 27) {
+                // il faut aussi s'assurer que le nœud 26 (centre du volume) est bien au milieu.
+                Vector3D theoreticalVolumeCenter = Vector3D(0, 0, 0);
+                for (int i = 0; i < 8; ++i) {
+                    theoreticalVolumeCenter += coords[i];
+                }
+                theoreticalVolumeCenter = theoreticalVolumeCenter * 0.125;
+
+                if ((coords[26] - theoreticalVolumeCenter).norm() > tol) {
+                    cellIsAffine = false;
+                }
+            }
+
+            m_isCellAffine[c] = cellIsAffine;
+            m_isGloballyAffine = m_isGloballyAffine && cellIsAffine;
         }
     }
 

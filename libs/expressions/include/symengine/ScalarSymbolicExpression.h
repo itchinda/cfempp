@@ -55,9 +55,6 @@ namespace cfem::sym
 
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx ) const override;
 
-        std::shared_ptr<const CfemExpression> timeDerivative() const override;
-
-        std::shared_ptr<const CfemExpression> grad() const override;
         std::shared_ptr<const CfemExpression> div() const override;
 
         std::string toString() const override { return finalizeString( m_expression.get_basic()->__str__() ); } // e.g., "x"
@@ -68,6 +65,9 @@ namespace cfem::sym
         SymEngine::Expression                                m_expression;
         std::vector<SymEngine::RCP<const SymEngine::Symbol>> m_vars;
         std::unique_ptr<SymbolicEvaluator>                   m_evaluator;   //! Compiled evaluator owned by this expression instance
+        
+        std::shared_ptr<const CfemExpression> createGradient() const override;
+        std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
     };
 
 
