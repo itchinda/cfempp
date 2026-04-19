@@ -36,9 +36,6 @@
 #include "ZeroExpression.h"
 #include "ScaledExpression.h"
 #include "AlgebraicSimplifier.h"
-#include "Argument.h"
-#include "FEField.h"
-#include "FESpace.h"
 
 using namespace cfem::sym::utils;
 
@@ -434,7 +431,6 @@ namespace cfem::sym
     }
 
     
-
     std::shared_ptr<const CfemExpression> abs(std::shared_ptr<const CfemExpression> u) {
         if (u->isZero()) return u;
         return foldUnary(u, MathOp::Abs, [](CfemReal x) { return std::abs(x); });
@@ -767,20 +763,6 @@ namespace cfem::sym
     std::shared_ptr<const CfemExpression> variable(const std::string name, CfemInt dimIndex)
     {
         return std::make_shared<CoordinateExpression>(name, dimIndex);
-    }
-
-
-    std::shared_ptr<FEField> Trial(std::shared_ptr<FESpace> V, const std::string& name)
-    {
-        sym::VariableRegistry::registerVariable(name);
-        return FEField::create(name, V);
-    }
-
-    std::shared_ptr<const TestFunction> Test(std::shared_ptr<FESpace> V, const std::string& name) 
-    {
-        sym::VariableRegistry::registerVariable(name);
-        
-        return std::make_shared<TestFunction>(V, name);
     }
 
     SymEngine::Expression sin(const SymEngine::Expression &e) { return SymEngine::sin(e); }

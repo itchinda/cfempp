@@ -16,8 +16,8 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#ifndef CFEM_SPHERE_MESH_BUILDER_H
-#define CFEM_SPHERE_MESH_BUILDER_H
+#ifndef CFEM_SOLID_SPHERE_BUILDER_H
+#define CFEM_SOLID_SPHERE_BUILDER_H
 
 #include "cfemutils.h"
 #include "Vector3D.h"
@@ -25,7 +25,7 @@
 
 namespace cfem
 {
-    using SphereElementType = Mesh::SphereElementType;
+    using SolidSphereElementType = Mesh::SolidSphereElementType;
 
     /**
      * @ingroup MeshBuilders
@@ -46,14 +46,14 @@ namespace cfem
      *
      * Quadratic meshes are supported through automatic upgrade.
      */
-    class SphereMeshBuilder
+    class SolidSphereBuilder
     {
     private:
         struct ConstructorToken { };
 
     public:
     
-        SphereMeshBuilder(ConstructorToken) {}
+        SolidSphereBuilder(ConstructorToken) {}
 
         /**
          * @brief Creates a sphere mesh.
@@ -76,7 +76,7 @@ namespace cfem
                                             CfemReal target_mesh_size,
                                             const cfem::Vector3D &center,
                                             CfemReal radius,
-                                            SphereElementType type = SphereElementType::Tetrahedron);
+                                            SolidSphereElementType type = SolidSphereElementType::Tetrahedron);
 
     private:
         /**
@@ -100,7 +100,7 @@ namespace cfem
                           CfemReal target_mesh_size,
                           const cfem::Vector3D &center,
                           CfemReal radius,
-                          SphereElementType type = SphereElementType::Tetrahedron);
+                          SolidSphereElementType type = SolidSphereElementType::Tetrahedron);
     };
 
 }

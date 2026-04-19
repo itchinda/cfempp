@@ -5,7 +5,8 @@ add_library(cfem_mesh
     src/builders/HollowCylinderMeshBuilder.cpp
     src/builders/LineMeshBuilder.cpp
     src/builders/QuadMeshBuilder.cpp
-    src/builders/SphereMeshBuilder.cpp
+    src/builders/SolidSphereBuilder.cpp
+    src/builders/SurfaceSphereBuilder.cpp
     src/builders/CylinderMeshBuilder.cpp
     src/Mesh.cpp
     src/MeshEntity.cpp

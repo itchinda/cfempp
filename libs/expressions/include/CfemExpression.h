@@ -184,6 +184,11 @@ namespace cfem::sym {
             }
             active_variables.insert(name);
         }
+
+        static void clear() {
+            // If it's a reserved coordinate name, we allow it (it's "pre-validated")
+            active_variables.clear();
+        }
     };
 }
 

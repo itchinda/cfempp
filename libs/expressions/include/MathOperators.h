@@ -21,15 +21,20 @@
 #include <memory>
 #include "CfemExpression.h"
 #include "ConstantExpression.h"
-#include "FESpace.h"
 #include "Argument.h"
-#include "FEField.h"
+// #include "FEField.h"
+// #include "FESpace.h"
 
 #include "symengine/SymEngineSymbols.h"
 
-
+namespace cfem
+{
+    class FEField;
+    class FESpace;
+}
 namespace cfem::sym
 {
+
     
     /**
      * @name Fundamental Linear Algebra Operations
