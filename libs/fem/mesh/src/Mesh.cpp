@@ -27,7 +27,8 @@
 #include "LineMeshBuilder.h"
 #include "DiskMeshBuilder.h"
 #include "BlockMeshBuilder.h"
-#include "SphereMeshBuilder.h"
+#include "SolidSphereBuilder.h"
+#include "SurfaceSphereBuilder.h"
 #include "CylinderMeshBuilder.h"
 #include "AnnulusMeshBuilder.h"
 #include "HollowCylinderMeshBuilder.h"
@@ -1186,7 +1187,6 @@ namespace cfem
         buildInverseConnectivities();
         buildFacets(); 
         buildAdjacency();
-        updateAffineFlags();
 
         // 2. Initialize Core Entities
         MeshEntity* universe = getEntity(cfem::UNIVERSE_ID);
@@ -1226,7 +1226,8 @@ namespace cfem
 
         // 5. Finalize
         universe->finalize();
-        boundary->finalize();
+        boundary->finalize();        
+        updateAffineFlags();
 
         // 6. Validation and Reporting
     #ifndef NDEBUG
@@ -1713,10 +1714,21 @@ namespace cfem
                 return (v1 == o.v1 && v2 == o.v2) || (v1 == o.v2 && v2 == o.v1); 
             }
         };
+        // struct EdgeHash {
+        //     size_t operator()(const Edge& e) const {
+        //         CfemInt a = std::min(e.v1, e.v2), b = std::max(e.v1, e.v2);
+        //         return std::hash<long long>{}((static_cast<long long>(a) << 32) | b);
+        //     }
+        // };
+
         struct EdgeHash {
             size_t operator()(const Edge& e) const {
-                CfemInt a = std::min(e.v1, e.v2), b = std::max(e.v1, e.v2);
-                return std::hash<long long>{}((static_cast<long long>(a) << 32) | b);
+                size_t seed = 0;
+                CfemInt a = std::min(e.v1, e.v2);
+                CfemInt b = std::max(e.v1, e.v2);
+                seed ^= std::hash<CfemInt>{}(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= std::hash<CfemInt>{}(b) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                return seed;
             }
         };
 
@@ -1753,9 +1765,12 @@ namespace cfem
         std::unordered_map<QuadFace, CfemInt, QuadFaceHash> quadface_to_midpoint;
 
         // Prepare the NEW Big Block for connectivity
-        // Estimate: Quadratic connectivity is ~2.5x larger than linear
         std::vector<CfemInt> newAllCellVertexIds;
         newAllCellVertexIds.reserve(m_allCellVertexIds.size() * 3);
+
+        m_cellOffsets.clear();
+        m_cellOffsets.reserve(m_cells.size() + 1);
+        m_cellOffsets.push_back(0);
 
         std::vector<CfemInt> quad_buffer; 
         quad_buffer.reserve(27);
@@ -1782,6 +1797,7 @@ namespace cfem
 
             // Append to the block
             newAllCellVertexIds.insert(newAllCellVertexIds.end(), quad_buffer.begin(), quad_buffer.end());
+            m_cellOffsets.push_back(newAllCellVertexIds.size());
         }
 
         m_cellTypeFlags.reset();
@@ -1806,6 +1822,12 @@ namespace cfem
             }
         }
 
+        auto itCell = std::unique(m_uniqueCellTypes.begin(), m_uniqueCellTypes.end());
+        m_uniqueCellTypes.erase(itCell, m_uniqueCellTypes.end());
+
+        auto itFacet = std::unique(m_uniqueFacetTypes.begin(), m_uniqueFacetTypes.end());
+        m_uniqueFacetTypes.erase(itFacet, m_uniqueFacetTypes.end());
+
         // Atomic Switch: Old linear block is deleted here
         m_allCellVertexIds = std::move(newAllCellVertexIds);
         m_meshOrder = MeshOrder::Quadratic;
@@ -1815,7 +1837,7 @@ namespace cfem
         buildFacets(); 
         buildAdjacency();
         updateEntities();
-        updateAffineFlags();
+        // updateAffineFlags(); Pas necessaire rendu la! on a simplement ajouter des points milieux. si l'element etait affine, il le demeure.
 
         notifyObservers();
 
@@ -1905,79 +1927,69 @@ namespace cfem
 
         PROFILE_SCOPE("Mesh::downgradeToLinear");
 
-        // Prepare a new Big Block for the linear connectivity
-        // Linear connectivity is much smaller, so this is memory-safe
-        std::vector<CfemInt> newLinearBlock;
-        newLinearBlock.reserve(m_cells.size() * 8); // Heuristic reserve
+        // 1. Préparation des nouveaux blocs de connectivité
+        std::vector<CfemInt> newAllCellVertexIds;
+        newAllCellVertexIds.reserve(m_cells.size() * 4); // Heuristique (moyenne 4 nœuds/cell)
 
-        // Loop through cells and "Clip" the connectivity
+        m_cellOffsets.clear();
+        m_cellOffsets.reserve(m_cells.size() + 1);
+        m_cellOffsets.push_back(0);
+
+        // 2. Boucle sur les cellules pour "tronquer" la connectivité
         for (auto &cell : m_cells)
         {
-            // Get the current quadratic nodes
+            // Récupère les nœuds quadratiques actuels
             auto quad_nodes = getCellConnectivity(cell.id);
             
-            // Determine how many corner nodes to keep
-            int linearCount = 0;
-            CellType linearType = cell.type;
+            CellType linearType = Cell::getLinearEquivalent(cell.type);
+            int linearCount = Cell::getNodeCount(linearType);
 
-            switch (cell.type)
-            {
-                case CellType::LINE3:   linearCount = 2; linearType = CellType::LINE2; break;
-                case CellType::TRI6:    linearCount = 3; linearType = CellType::TRI3;  break;
-                case CellType::QUAD9:   linearCount = 4; linearType = CellType::QUAD4; break;
-                case CellType::TET10:   linearCount = 4; linearType = CellType::TET4;  break;
-                case CellType::PRISM18: linearCount = 6; linearType = CellType::PRISM6; break;
-                case CellType::HEX27:   linearCount = 8; linearType = CellType::HEX8;  break;
-                default: 
-                    linearCount = cell.node_count; // Already linear or unknown
-                    break;
-            }
-
-            // Update the Cell Metadata
-            cell.offset = newLinearBlock.size();
+            cell.offset = newAllCellVertexIds.size();
             cell.node_count = linearCount;
             cell.type = linearType;
 
-            // Copy only the corners into the new block
             for (int i = 0; i < linearCount; ++i) {
-                newLinearBlock.push_back(quad_nodes[i]);
+                newAllCellVertexIds.push_back(quad_nodes[i]);
             }
+
+            // Mise à jour de l'offset CSR pour la cellule suivante
+            m_cellOffsets.push_back(newAllCellVertexIds.size());
         }
 
+        // 3. Mise à jour des Flags de Types (Cells & Facets)
         m_cellTypeFlags.reset();
         for (auto &type : m_uniqueCellTypes)
         {
             type = Cell::getLinearEquivalent(type);
-            int typeIdx = static_cast<int>(type);
-            if (!m_cellTypeFlags.test(typeIdx))
-            {
-                m_cellTypeFlags.set(typeIdx);
-            }
+            m_cellTypeFlags.set(static_cast<int>(type));
         }
+        // Nettoyage des doublons après conversion
+        std::sort(m_uniqueCellTypes.begin(), m_uniqueCellTypes.end());
+        m_uniqueCellTypes.erase(std::unique(m_uniqueCellTypes.begin(), m_uniqueCellTypes.end()), m_uniqueCellTypes.end());
 
         m_facetTypeFlags.reset();
         for (auto &type : m_uniqueFacetTypes)
         {
             type = Cell::getLinearEquivalent(type);
-            int typeIdx = static_cast<int>(type);
-            if (!m_facetTypeFlags.test(typeIdx))
-            {
-                m_facetTypeFlags.set(typeIdx);
-            }
+            m_facetTypeFlags.set(static_cast<int>(type));
         }
+        std::sort(m_uniqueFacetTypes.begin(), m_uniqueFacetTypes.end());
+        m_uniqueFacetTypes.erase(std::unique(m_uniqueFacetTypes.begin(), m_uniqueFacetTypes.end()), m_uniqueFacetTypes.end());
 
-        // Swap the blocks
-        m_allCellVertexIds = std::move(newLinearBlock);
+        // 4. Finalisation de la structure de données
+        m_allCellVertexIds = std::move(newAllCellVertexIds);
         m_meshOrder = MeshOrder::Linear;
 
-        // Rebuild Topology
-        // This will automatically "ignore" the mid-nodes still sitting in m_vertices
+        compactVertices(); 
         buildInverseConnectivities();
         buildFacets(); 
+        
         updateEntities();
-        notifyObservers();
+        
         m_isGloballyAffine = true;
         m_isCellAffine.assign(m_cells.size(), true);
+
+        notifyObservers();
     }
 
 
@@ -2018,7 +2030,7 @@ namespace cfem
             {
                 entity_ptr->updateUniverse();
             }
-            else if (entity_ptr->getName() == "Boundary")
+            else if (entity_ptr->getName() == "SYS_BOUNDARY")
             {
                 entity_ptr->updateBoundary();
             }
@@ -2659,9 +2671,20 @@ namespace cfem
                                     CfemReal mesh_size,
                                     const Vector3D &center,
                                     CfemReal radius,
-                                    SphereElementType elemtype)
+                                    SolidSphereElementType elemtype)
     {
-        return SphereMeshBuilder::create(order, mesh_size, center, radius, elemtype );
+        return SolidSphereBuilder::create(order, mesh_size, center, radius, elemtype);
+    }
+
+    std::shared_ptr<Mesh> Mesh::surface_sphere(
+                                            MeshOrder order, 
+                                            CfemReal mesh_size, 
+                                            const Vector3D& center, 
+                                            CfemReal radius
+                                        )
+    {
+        return SurfaceSphereBuilder::create(order, mesh_size, center, radius );
+
     }
 
 

@@ -68,7 +68,8 @@ namespace cfem{
     class LineMeshBuilder;
     class DiskMeshBuilder;
     class BlockMeshBuilder;
-    class SphereMeshBuilder;
+    class SolidSphereBuilder;
+    class SurfaceSphereBuilder;
     class AnnulusMeshBuilder;
 
 struct TagGroup {
@@ -432,7 +433,8 @@ class Mesh {
     friend class BlockMeshBuilder;
     friend class DiskMeshBuilder;
     friend class AnnulusMeshBuilder;
-    friend class SphereMeshBuilder;
+    friend class SolidSphereBuilder;
+    friend class SurfaceSphereBuilder;
 
 private:
     struct ConstructorToken {};
@@ -696,7 +698,7 @@ public:
         Triangle
     };
 
-    enum class SphereElementType
+    enum class SolidSphereElementType
     {
         Hexahedron,
         Tetrahedron
@@ -868,8 +870,15 @@ struct TJunctionBoundaryNames
                                             CfemReal mesh_size, 
                                             const Vector3D& center, 
                                             CfemReal radius,
-                                            SphereElementType elemtype = SphereElementType::Hexahedron
+                                            SolidSphereElementType elemtype = SolidSphereElementType::Hexahedron
                                         );
+
+    static std::shared_ptr<Mesh> surface_sphere(
+                                                    MeshOrder order, 
+                                                    CfemReal mesh_size, 
+                                                    const Vector3D& center, 
+                                                    CfemReal radius
+                                                );
 
     static std::shared_ptr<Mesh> cylinder( 
                                             MeshOrder order,

@@ -21,6 +21,7 @@
 #include "Mesh.h"
 #include "FunctionIntegrator.h"
 #include "MathOperators.h"
+#include "FEField.h"
 #include "LagrangeSpace.h"
 
 using namespace cfem;

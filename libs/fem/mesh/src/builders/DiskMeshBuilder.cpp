@@ -131,5 +131,6 @@ namespace cfem
             mesh.upgradeToQuadratic();
             Mesh::projectBoundaryMidNodes(mesh, center, radius);
         }
+        mesh.updateAffineFlags();
     }
 }
