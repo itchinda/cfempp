@@ -181,6 +181,7 @@ namespace cfem
                     if (current_r > 1e-12) { p.x = (p.x/current_r)*radius; p.y = (p.y/current_r)*radius; }
                 }
             }
+            mesh.updateAffineFlags();
         }
 
         // ------------------------

@@ -126,6 +126,27 @@ struct Vertex
             }
         }
 
+        inline static CfemInt getNodeCount(CellType type)
+        {
+            switch (type)
+            {
+                case CellType::LINE2:   return 2;
+                case CellType::TRI3:    return 3;
+                case CellType::QUAD4:   return 4;
+                case CellType::TET4:    return 4;
+                case CellType::PRISM6:  return 6;
+                case CellType::HEX8:    return 8;
+                case CellType::LINE3:   return 3;
+                case CellType::TRI6:    return 6;
+                case CellType::QUAD9:   return 9;
+                case CellType::TET10:   return 10;
+                case CellType::PRISM18: return 18;
+                case CellType::HEX27:   return 27;
+                default:
+                    return 0;
+            }
+        }
+
         inline static std::span<const CellType> getFacetTypes(CellType type) {
             CfemInt idx = static_cast<CfemInt>(type);
             if (idx < 0 || idx >= static_cast<CfemInt>(CellType::COUNT)) {

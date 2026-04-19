@@ -122,6 +122,10 @@ public:
     void reserve(int n) { m_data.reserve(static_cast<size_t>(n)); }
     void clear() { m_data.clear(); }
 
+    size_t capacity() const{
+        return m_data.capacity();
+    }
+
     // Extraire une portion du vecteur
     DynamicVector getBlock(int start, int size) const {
         CFEM_ASSERT(start + size <= this->size());

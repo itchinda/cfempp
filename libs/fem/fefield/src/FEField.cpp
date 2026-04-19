@@ -20,6 +20,7 @@
 #include "Mesh.h"
 #include "DynamicVector.h"
 #include "ReferenceElementFactory.h"
+
 #include <stdexcept>
 #include <iostream>
 
@@ -60,34 +61,81 @@ namespace cfem
     {
         CfemInt totalDofs = m_space->getGlobalNumDofs();
         
-        // Ensure the local cache is sized correctly
+        // 1. Assurer la taille du buffer (allocation unique au début, réutilisée ensuite)
         if (m_localValues.size() != static_cast<size_t>(totalDofs))
         {
             m_localValues.assign(totalDofs, 0.0);
         }
 
-        Vec petscVec = m_data.getRaw();
-        VecScatter ctx;
-        Vec localVec;
+        const Vec& petscVec = m_data.getRaw();
+        
+        // Obtenir le nombre de processus MPI
+        int mpi_size;
+        MPI_Comm_size(PETSC_COMM_WORLD, &mpi_size);
 
-        // Create a sequential vector on the local process to receive the full global data
-        VecCreateSeq(PETSC_COMM_SELF, totalDofs, &localVec);
-        VecScatterCreateToAll(petscVec, &ctx, &localVec);
+        if (mpi_size == 1) 
+        {
+            // Sur une seule machine, on lit directement le tableau interne de PETSc
+            const PetscScalar *array;
+            VecGetArrayRead(petscVec, &array);
+            
+            std::copy(array, array + totalDofs, m_localValues.begin());
+            
+            VecRestoreArrayRead(petscVec, &array);
+        }
+        else 
+        {
+            // pour ne pas être recréés à chaque fois, mais pour l'instant :
+            VecScatter ctx;
+            Vec localVec;
 
-        // Perform the communication
-        VecScatterBegin(ctx, petscVec, localVec, INSERT_VALUES, SCATTER_FORWARD);
-        VecScatterEnd(ctx, petscVec, localVec, INSERT_VALUES, SCATTER_FORWARD);
+            VecCreateSeq(PETSC_COMM_SELF, totalDofs, &localVec);
+            VecScatterCreateToAll(petscVec, &ctx, &localVec);
 
-        // Extract values from the local PETSc vector to our std::vector buffer
-        PetscScalar *array;
-        VecGetArray(localVec, &array);
-        std::copy(array, array + totalDofs, m_localValues.begin());
-        VecRestoreArray(localVec, &array);
+            VecScatterBegin(ctx, petscVec, localVec, INSERT_VALUES, SCATTER_FORWARD);
+            VecScatterEnd(ctx, petscVec, localVec, INSERT_VALUES, SCATTER_FORWARD);
 
-        // Clean up PETSc temporary objects
-        VecDestroy(&localVec);
-        VecScatterDestroy(&ctx);
+            const PetscScalar *array;
+            VecGetArrayRead(localVec, &array);
+            std::copy(array, array + totalDofs, m_localValues.begin());
+            VecRestoreArrayRead(localVec, &array);
+
+            VecDestroy(&localVec);
+            VecScatterDestroy(&ctx);
+        }
     }
+    // void FEField::updateLocalBuffer() const
+    // {
+    //     CfemInt totalDofs = m_space->getGlobalNumDofs();
+        
+    //     // Ensure the local cache is sized correctly
+    //     if (m_localValues.size() != static_cast<size_t>(totalDofs))
+    //     {
+    //         m_localValues.assign(totalDofs, 0.0);
+    //     }
+
+    //     Vec petscVec = m_data.getRaw();
+    //     VecScatter ctx;
+    //     Vec localVec;
+
+    //     // Create a sequential vector on the local process to receive the full global data
+    //     VecCreateSeq(PETSC_COMM_SELF, totalDofs, &localVec);
+    //     VecScatterCreateToAll(petscVec, &ctx, &localVec);
+
+    //     // Perform the communication
+    //     VecScatterBegin(ctx, petscVec, localVec, INSERT_VALUES, SCATTER_FORWARD);
+    //     VecScatterEnd(ctx, petscVec, localVec, INSERT_VALUES, SCATTER_FORWARD);
+
+    //     // Extract values from the local PETSc vector to our std::vector buffer
+    //     PetscScalar *array;
+    //     VecGetArray(localVec, &array);
+    //     std::copy(array, array + totalDofs, m_localValues.begin());
+    //     VecRestoreArray(localVec, &array);
+
+    //     // Clean up PETSc temporary objects
+    //     VecDestroy(&localVec);
+    //     VecScatterDestroy(&ctx);
+    // }
 
     /**
      * @brief Retrieves the value at a specific mesh node for a given component.
@@ -306,5 +354,20 @@ namespace cfem
         
         CFEM_INFO << "Projection of recipe onto field '" << m_name << "' completed.";
     }
+}
 
+namespace cfem::sym
+{
+    std::shared_ptr<FEField> Trial(std::shared_ptr<FESpace> V, const std::string& name)
+    {
+        sym::VariableRegistry::registerVariable(name);
+        return FEField::create(name, V);
+    }
+
+    std::shared_ptr<const TestFunction> Test(std::shared_ptr<FESpace> V, const std::string& name) 
+    {
+        sym::VariableRegistry::registerVariable(name);
+        
+        return std::make_shared<TestFunction>(V, name);
+    }
 } // namespace cfem

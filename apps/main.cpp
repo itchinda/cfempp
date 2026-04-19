@@ -72,21 +72,34 @@ int main(int argc, char **argv)
             //     Mesh::QuadElementType::TriangleCrissCross
             // );
 
-            // mesh = Mesh::block(
-            //     MeshOrder::Linear,
-            //     Mesh::BlockSubdivisions{10, 10, 10}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
-            //     Mesh::BlockBounds(
-            //         Vector3D{-1., -1., -1.},
-            //         Vector3D{1., 1., 1.}
-            //     ),
-            //     Mesh::BlockElementType::Tetrahedron 
-            // );
+            // mesh = Mesh::disk(MeshOrder::Quadratic, 0.1, Vector3D{0,0,0}, 0.5);
 
-            mesh = Mesh::hollow_cylinder(MeshOrder::Quadratic, 0.01, Vector3D{0, 0, 0}, 0.5, 0.75, 2, Vector3D{0, 1, 0});
+            mesh = Mesh::block(
+                MeshOrder::Linear,
+                Mesh::BlockSubdivisions{10, 10, 10}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+                Mesh::BlockBounds(
+                    Vector3D{-1., -1., -1.},
+                    Vector3D{1., 1., 1.}
+                ),
+                Mesh::BlockElementType::Tetrahedron 
+            );
+
+            // mesh = Mesh::sphere( MeshOrder::Quadratic,
+            //                      0.25,
+            //                      Vector3D{0,0,0},
+            //                      0.5);
+
+            // mesh = Mesh::sphere( MeshOrder::Quadratic,
+            //                      0.25,
+            //                      Vector3D{0,0,0},
+            //                      0.5,
+            //                     Mesh::SolidSphereElementType::Tetrahedron);
+
+            // mesh = Mesh::hollow_cylinder(MeshOrder::Quadratic, 0.01, Vector3D{0, 0, 0}, 0.5, 0.75, 2, Vector3D{0, 1, 0});
 
         }
 
-        auto Q = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);
+        auto Q = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);
         auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
 
         auto p = Trial(Q, "p");
@@ -100,15 +113,15 @@ int main(int argc, char **argv)
         //                             0.0);
 
         
-        // auto analytical_p = scalar(x + y + 1.0); 
-        // auto analytical_u = vector( x * x + y * y +  x + y,
-        //                             y * y + z * z +  y + z,                    
-        //                             x * x + z * z +  x + z);
+        auto analytical_p = scalar(x + y + 1.0); 
+        auto analytical_u = vector( x * x + y * y +  x + y,
+                                    y * y + z * z +  y + z,                    
+                                    x * x + z * z +  x + z);
 
-        auto analytical_p = scalar(x * x + y * y + z * z + y + x + y + z + 1); // SymEngine expressions
-        auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * z ),
-                                   cos(2 * pi * y ) * cos(2 * pi * x ),
-                                   cos(2 * pi * y ) * cos(2 * pi * z ));
+        // auto analytical_p = scalar(x * x + y * y + z * z + y + x + y + z + 1); // SymEngine expressions
+        // auto analytical_u = vector(sin(2 * pi * x ) * sin(2 * pi * z ),
+        //                            cos(2 * pi * y ) * cos(2 * pi * x ),
+        //                            cos(2 * pi * y ) * cos(2 * pi * z ));
 
         {
             PROFILE_SCOPE("FieldProjection");
@@ -124,26 +137,27 @@ int main(int argc, char **argv)
             CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
             integrator.L2Norm(p - analytical_p, &l2Norm_P, &h1SemiNorm_P);
             integrator.L2Norm(u - analytical_u, &l2Norm_U, &h1SemiNorm_U);
-            CFEM_INFO << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P;
-            CFEM_INFO << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U;
+            // CFEM_INFO << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P;
+            // CFEM_INFO << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U;
 
             // auto p_ = p - (1/integrator.computeIntegral(scalar(1.0)) ) * integrator.computeIntegral(p);
             // CFEM_INFO << "moy(p_) = " << integrator.computeIntegral(p_);
             // CFEM_INFO << "sqrt (int_{Omega} |grad(u-analytical_u)|^2 dx ) = " << sqrt(integrator.computeIntegral(scalar(x+1)));
             // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr(scalar(y)), "xmin") );
-            // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr(grad(u - analytical_u)), "xmin") );
+            CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr(grad(u - analytical_u)), "xmin") );
 
         }
 
-        {
-            PROFILE_SCOPE("Exportation");
-            VTUExporter vtu_exporter(*mesh);
-            vtu_exporter.addExpression("U", u);
-            vtu_exporter.addExpression("P", p);
-            vtu_exporter.setFormat(VTUExporter::Format::BINARY);
-            vtu_exporter.write("simulation_results");
+        // {
+        //     PROFILE_SCOPE("Exportation");
+        //     VTUExporter vtu_exporter(*mesh);
+        //     vtu_exporter.addExpression("U", u);
+        //     vtu_exporter.addExpression("P", p);
+        //     vtu_exporter.setFormat(VTUExporter::Format::BINARY);
+        //     vtu_exporter.exportCellQuality(true);
+        //     vtu_exporter.write("simulation_results");
 
-        }
+        // }
     }
 
     Profiler::instance().saveProfiler();
