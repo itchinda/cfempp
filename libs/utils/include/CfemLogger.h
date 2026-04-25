@@ -55,7 +55,10 @@ public:
         ~LogStream() noexcept(false) { // Note: noexcept(false) allows throwing from destructor
             std::string prefix;
             std::string color;
-            bool showMetadata = true;
+            bool showMetadata = false;
+#ifndef NDEBUG
+            showMetadata = true;
+#endif
 
             switch (level) {
                 case LogLevel::Info:
@@ -82,7 +85,6 @@ public:
             
             std::cerr << std::endl;
 
-            // --- The Critical Change ---
             if (level == LogLevel::Error) {
                 throw CfemException(ss.str());
             }

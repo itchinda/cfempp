@@ -8,6 +8,7 @@ add_executable(unit_tests
     fem/test_reference_element.cpp
     fem/test_quadrature.cpp
     fem/test_fields.cpp
+    fem/test_fefield.cpp
     mesh/test_mesh.cpp
     mesh/test_gmsh_parser.cpp
     utils/test_dynamic_vector.cpp

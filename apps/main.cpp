@@ -56,6 +56,7 @@ int main(int argc, char **argv)
     //omp_set_num_threads(1);
     Environment::initialize(argc, argv, help);
     {
+        #define CFEM_USE_DYNAMIC_SPACE_CACHE
 
         std::shared_ptr<Mesh> mesh;
 
@@ -78,7 +79,7 @@ int main(int argc, char **argv)
                 MeshOrder::Linear,
                 Mesh::BlockSubdivisions{10, 10, 10}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
                 Mesh::BlockBounds(
-                    Vector3D{-1., -1., -1.},
+                    Vector3D{0., 0., 0.},
                     Vector3D{1., 1., 1.}
                 ),
                 Mesh::BlockElementType::Tetrahedron 
@@ -99,7 +100,7 @@ int main(int argc, char **argv)
 
         }
 
-        auto Q = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);
+        auto Q = DGSpace::create(mesh, Order::P0, FieldType::Scalar);
         auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
 
         auto p = Trial(Q, "p");
@@ -113,7 +114,7 @@ int main(int argc, char **argv)
         //                             0.0);
 
         
-        auto analytical_p = scalar(x + y + 1.0); 
+        auto analytical_p = scalar(exp(x * y * z)); 
         auto analytical_u = vector( x * x + y * y +  x + y,
                                     y * y + z * z +  y + z,                    
                                     x * x + z * z +  x + z);
@@ -148,16 +149,16 @@ int main(int argc, char **argv)
 
         }
 
-        // {
-        //     PROFILE_SCOPE("Exportation");
-        //     VTUExporter vtu_exporter(*mesh);
-        //     vtu_exporter.addExpression("U", u);
-        //     vtu_exporter.addExpression("P", p);
-        //     vtu_exporter.setFormat(VTUExporter::Format::BINARY);
-        //     vtu_exporter.exportCellQuality(true);
-        //     vtu_exporter.write("simulation_results");
+        {
+            PROFILE_SCOPE("Exportation");
+            VTUExporter vtu_exporter(*mesh);
+            vtu_exporter.addExpression("U", u);
+            vtu_exporter.addExpression("P", p);
+            vtu_exporter.setFormat(VTUExporter::Format::BINARY);
+            vtu_exporter.exportCellQuality(true);
+            vtu_exporter.write("simulation_results");
 
-        // }
+        }
     }
 
     Profiler::instance().saveProfiler();

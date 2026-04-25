@@ -390,29 +390,6 @@ private:
 #endif // NDEBUG
 
 
-// #ifdef NDEBUG
-//     #define CFEM_ERROR(msg) \
-//         throw std::runtime_error(std::string("[CFEM ERROR] ") + msg)
-
-//     #define CFEM_WARNING(msg) \
-//         std::cerr << "[CFEM WARNING] " << msg << std::endl
-// #else
-//     #define CFEM_ERROR(msg) \
-//         throw std::runtime_error(std::string("[CFEM ERROR] ") + msg + \
-//         " File: " + __FILE__ + ":" + std::to_string(__LINE__))
-
-//     #define CFEM_WARNING(msg) \
-//         std::cerr << "[CFEM WARNING] " << msg << \
-//         " (File: " << __FILE__ << ":" << __LINE__ << ")" << std::endl
-// #endif
-
-// #define CFEM_INFO(info) \
-//         std::clog << "[CFEM LOG] " << info << std::endl
-
-// #define CFEM_LOG(info) \
-//         std::clog << "[CFEM LOG] " << info << std::endl
-
 #define CFEM_STATIC_ASSERT(condition, message) \
     static_assert(condition, "[CFEM STATIC ASSERT] " message)
-
 #endif // CFEM_CONTRACT_EXCEPTION_H

@@ -129,6 +129,24 @@ int main(int argc, char **argv) {
   <em>Figure 1: Complex cardiac geometry imported from Gmsh and visualized in ParaView.</em>
 </p>
 
+```c++
+// Future API (Expected)
+auto u = Trial(V, "u");
+auto v = Test(V, "v");
+auto kappa = constant(1.0);
+
+auto problem = VariationalProblem(mesh);
+problem.addTerm( Integrate(kappa * grad(u) * grad(v), Volume) );
+
+// Solver configuration
+NewtonSolver solver; 
+solver.setLinearSolver(PetscSolver); // ex: preconfigured PETSc solver (from PetscSolver)
+solver.setTolerance(1e-8);
+
+// Solve
+solver.solve(problem);
+```
+
 
 ## 📝 Metadata & License
 - **Lead Developer**: itchinda

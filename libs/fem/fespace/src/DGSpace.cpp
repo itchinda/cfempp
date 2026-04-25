@@ -76,7 +76,7 @@ void DGSpace::enumerateDofs() {
     CfemInt currentOffset = 0;
     for (CfemInt i = 0; i < numCells; ++i) {
         m_cellOffsets[i] = currentOffset;
-        const auto& refEl = getRefElement(m_mesh->getCell(i).type);
+        const auto& refEl = ReferenceElementFactory::getReferenceElement(m_mesh->getCell(i).type, getOrderInt());
         currentOffset += refEl.getNumNodes();
     }
     m_cellOffsets[numCells] = currentOffset; // Offset total final
