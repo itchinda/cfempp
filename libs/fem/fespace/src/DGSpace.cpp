@@ -32,13 +32,6 @@ DGSpace::DGSpace(ConstructorToken, std::shared_ptr<Mesh> mesh, Order order, int 
 
 }
 
-// std::shared_ptr<DGSpace> DGSpace::create(std::shared_ptr<Mesh> mesh, Order order, FieldType type) {
-//     auto space = std::make_shared<DGSpace>(ConstructorToken{}, mesh, order, static_cast<int>(type));
-//     space->enumerateDofs();
-//     return space;
-// }
-
-
 std::shared_ptr<DGSpace> DGSpace::create(std::shared_ptr<Mesh> mesh, 
                                          Order order, 
                                          FieldType field_type) {
