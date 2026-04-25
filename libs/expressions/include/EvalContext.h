@@ -377,42 +377,5 @@ namespace cfem {
                     << " MB\n";
         }
 
-        size_t getArenaMemoryBytes() const {
-            size_t total = 0;
-
-            // Taille du deque lui-même (approx)
-            total += sizeof(m_pages);
-
-            // Taille de chaque page
-            for (const auto& page : m_pages) {
-                total += sizeof(page); // objet vector
-                total += page.capacity() * sizeof(CfemReal); // buffer réel
-            }
-
-            return total;
-        }
-
-        void printArenaMemory() const {
-            size_t total = 0;
-
-            std::cout << "---- Arena Memory Debug ----\n";
-            std::cout << "Number of pages: " << m_pages.size() << "\n";
-
-            for (size_t i = 0; i < m_pages.size(); ++i) {
-                const auto& page = m_pages[i];
-                size_t mem = sizeof(page) + page.capacity() * sizeof(CfemReal);
-
-                std::cout << "Page " << i
-                        << " | size: " << page.size()
-                        << " | capacity: " << page.capacity()
-                        << " | mem: " << mem / 1024.0 << " KB\n";
-
-                total += mem;
-            }
-
-            std::cout << "TOTAL arena memory: "
-                    << total / (1024.0 * 1024.0)
-                    << " MB\n";
-        }
     };
 }
