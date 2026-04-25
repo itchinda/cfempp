@@ -32,13 +32,6 @@ DGSpace::DGSpace(ConstructorToken, std::shared_ptr<Mesh> mesh, Order order, int 
 
 }
 
-// std::shared_ptr<DGSpace> DGSpace::create(std::shared_ptr<Mesh> mesh, Order order, FieldType type) {
-//     auto space = std::make_shared<DGSpace>(ConstructorToken{}, mesh, order, static_cast<int>(type));
-//     space->enumerateDofs();
-//     return space;
-// }
-
-
 std::shared_ptr<DGSpace> DGSpace::create(std::shared_ptr<Mesh> mesh, 
                                          Order order, 
                                          FieldType field_type) {
@@ -76,7 +69,7 @@ void DGSpace::enumerateDofs() {
     CfemInt currentOffset = 0;
     for (CfemInt i = 0; i < numCells; ++i) {
         m_cellOffsets[i] = currentOffset;
-        const auto& refEl = getRefElement(m_mesh->getCell(i).type);
+        const auto& refEl = ReferenceElementFactory::getReferenceElement(m_mesh->getCell(i).type, getOrderInt());
         currentOffset += refEl.getNumNodes();
     }
     m_cellOffsets[numCells] = currentOffset; // Offset total final

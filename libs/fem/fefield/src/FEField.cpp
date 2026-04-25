@@ -104,49 +104,17 @@ namespace cfem
             VecScatterDestroy(&ctx);
         }
     }
-    // void FEField::updateLocalBuffer() const
-    // {
-    //     CfemInt totalDofs = m_space->getGlobalNumDofs();
-        
-    //     // Ensure the local cache is sized correctly
-    //     if (m_localValues.size() != static_cast<size_t>(totalDofs))
-    //     {
-    //         m_localValues.assign(totalDofs, 0.0);
-    //     }
-
-    //     Vec petscVec = m_data.getRaw();
-    //     VecScatter ctx;
-    //     Vec localVec;
-
-    //     // Create a sequential vector on the local process to receive the full global data
-    //     VecCreateSeq(PETSC_COMM_SELF, totalDofs, &localVec);
-    //     VecScatterCreateToAll(petscVec, &ctx, &localVec);
-
-    //     // Perform the communication
-    //     VecScatterBegin(ctx, petscVec, localVec, INSERT_VALUES, SCATTER_FORWARD);
-    //     VecScatterEnd(ctx, petscVec, localVec, INSERT_VALUES, SCATTER_FORWARD);
-
-    //     // Extract values from the local PETSc vector to our std::vector buffer
-    //     PetscScalar *array;
-    //     VecGetArray(localVec, &array);
-    //     std::copy(array, array + totalDofs, m_localValues.begin());
-    //     VecRestoreArray(localVec, &array);
-
-    //     // Clean up PETSc temporary objects
-    //     VecDestroy(&localVec);
-    //     VecScatterDestroy(&ctx);
-    // }
 
     /**
      * @brief Retrieves the value at a specific mesh node for a given component.
      * Agnostic to how DOFs are stored (CG vs DG).
      */
-    CfemReal FEField::getAtNode(CfemInt meshNodeId, int component) const
+    CfemReal FEField::getAtNode(CfemInt meshNodeId, CfemInt component) const
     {
         CfemInt globalIdx = m_space->getGlobalDofFromMeshNode(meshNodeId, component);
         
         if (globalIdx == -1 || globalIdx >= static_cast<CfemInt>(m_localValues.size()))
-            return 0.0;
+            CFEM_ERROR << "Mesh node ID out of bounds";
         
         return m_localValues[globalIdx];
     }
@@ -278,7 +246,7 @@ namespace cfem
         CFEM_INFO << "projecting field into " << getName();
 
         const auto& mesh = m_space->getMesh();
-        Vec petscVec = m_data.getRaw();
+        Vec& petscVec = m_data.getRaw();
         int dim = this->getDimension();
 
         // Determine the local ownership range for MPI
@@ -301,9 +269,9 @@ namespace cfem
             #pragma omp for schedule(guided)
             for (CfemInt cellId = 0; cellId < mesh->getNumCells(); ++cellId)
             {
-                const Cell &cell = mesh->getCell(cellId);
-                const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type, m_space->getOrderInt());
-                const auto &refElGeo = ReferenceElementFactory::getReferenceElement(cell.type, m_space->getMesh()->getOrderInt());
+                auto cell_type = mesh->getCell(cellId).type;
+                const auto &refEl = ReferenceElementFactory::getReferenceElement(cell_type, m_space->getOrderInt());
+                const auto &refElGeo = ReferenceElementFactory::getReferenceElement(cell_type, mesh->getOrderInt());
 
                 mesh->getCellVerticesCoords(cellId, evctx.scratchCoords);
 
@@ -321,7 +289,13 @@ namespace cfem
                     Vector3D xi = refEl.getNodeCoords(i);
                     // ShapeInfo nodeShape;
                     refElGeo.evaluate(xi, ShapeEvaluationFlags::Value, evctx.scratchShape);
-                    refElGeo.computeMapping(xi, evctx.scratchCoords, ShapeEvaluationFlags::PhysicalPosition, evctx.scratchShape, evctx.scratchMapping);
+                    refElGeo.computeMapping(
+                        xi, 
+                        evctx.scratchCoords, 
+                        ShapeEvaluationFlags::PhysicalPosition, 
+                        static_cast<const ShapeInfo&>(evctx.scratchShape), 
+                        evctx.scratchMapping
+                    );
 
                     evctx.physPos = evctx.scratchMapping.physicalPosition;
                     evctx.currentCellId = cellId;

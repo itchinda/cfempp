@@ -94,8 +94,8 @@ namespace cfem
         void updateOnSpaceChange() override { reallocate(); }
         void reallocate();
         void updateLocalBuffer() const;
-        CfemReal getAtNode(CfemInt meshNodeId, int component = 0) const;
-        CfemReal getAt(CfemInt globalDofIdx, int component) const;
+        CfemReal getAtNode(CfemInt meshNodeId, CfemInt component = 0) const;
+        CfemReal getAt(CfemInt globalDofIdx, CfemInt component) const;
         void evaluateWithoutShape(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext &ctx) const;
         void evaluateWithShape(CfemInt cellId, const ShapeInfo& shape, std::span<CfemReal> out) const;
         void evaluateGradient(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
