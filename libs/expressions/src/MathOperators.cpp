@@ -22,6 +22,7 @@
 #include "CachedExpression.h"
 #include "ConstantExpression.h"
 #include "CoordinateExpression.h"
+#include "GeometricNormalExpression.h"
 #include "GradExpression.h"
 #include "LambdaExpression.h"
 #include "MagnitudeSqExpression.h"
@@ -153,11 +154,31 @@ namespace cfem::sym
         CfemInt dimL = lhs->getDimension();
         CfemInt dimR = rhs->getDimension();
 
-        if (dimL != dimR && dimL != 1 && dimR != 1) {
-            CFEM_ERROR << "Invalid operator*";
-        }
-
         CfemInt outDim = std::max(dimL, dimR);
+
+        // Cas Scalaire (L ou R est dimension 1)
+        if (dimL == 1 || dimR == 1) {
+            outDim = std::max(dimL, dimR);
+        }
+        // Cas Tenseur * Tenseur (MatMul : 9 * 9 -> 9)
+        else if (dimL == 9 && dimR == 9) {
+            outDim = 9;
+        }
+        // Cas Tenseur * Vecteur (9 * 3 -> 3)
+        else if (dimL == 9 && dimR == 3) {
+            outDim = 3;
+        }
+        // Cas Vecteur * Tenseur (3 * 9 -> 3) - optionnel selon tes besoins
+        // else if (dimL == 3 && dimR == 9) {
+        //     outDim = 3;
+        // }
+        // Cas Hadamard ou Erreur (ex: 3 * 3 -> 3 si tu veux du terme à terme)
+        else if (dimL == dimR) {
+            outDim = dimL;
+        }
+        else {
+            CFEM_ERROR << "Invalid operator* : Cannot multiply dimension " << dimL << " with " << dimR;
+        }
 
         if (lhs->isZero() || rhs->isZero()) {
             if (outDim == 1) return zeros::Zero1D;
@@ -356,6 +377,25 @@ namespace cfem::sym
                 res[0] = vL[1] * vR[2] - vL[2] * vR[1];
                 res[1] = vL[2] * vR[0] - vL[0] * vR[2];
                 res[2] = vL[0] * vR[1] - vL[1] * vR[0];
+            });
+    }
+
+    std::shared_ptr<const CfemExpression> outer(std::shared_ptr<const CfemExpression> lhs, 
+                                                std::shared_ptr<const CfemExpression> rhs)
+    {
+        if (lhs->getDimension() != 3 || rhs->getDimension() != 3) {
+            CFEM_ERROR << "outer() product is only defined for dim 3 vectors.";
+        }
+
+        if (lhs->isZero() || rhs->isZero()) return zeros::ZeroTensor;
+
+        return foldBinary(lhs, rhs, MathOp::Outer, 9, 
+            [](const auto& vL, const auto& vR, auto& res) {
+                for (int i = 0; i < 3; ++i) {
+                    for (int j = 0; j < 3; ++j) {
+                        res[i*3+j] = vL[i]*vR[j];
+                    }
+                }
             });
     }
 
@@ -765,6 +805,20 @@ namespace cfem::sym
         return std::make_shared<CoordinateExpression>(name, dimIndex);
     }
 
+    std::shared_ptr<const CfemExpression> geometric_normal() {
+        return std::make_shared<GeometricNormalExpression>();
+    }
+
+    std::shared_ptr<const CfemExpression>  grad_s(std::shared_ptr<const CfemExpression> expr, 
+                                                  std::shared_ptr<const CfemExpression> normal) 
+    {
+        auto normale = (normal == nullptr) ? geometric_normal() : normal;
+        auto P = identity() - outer(normale, normale); // Projector
+        
+        if (expr->getDimension() == 1) return P * grad(expr);
+        else return grad(expr) * P;
+    }
+
     SymEngine::Expression sin(const SymEngine::Expression &e) { return SymEngine::sin(e); }
     SymEngine::Expression cos(const SymEngine::Expression &e) { return SymEngine::cos(e); }
     SymEngine::Expression tan(const SymEngine::Expression &e) { return SymEngine::tan(e); }
@@ -882,4 +936,5 @@ namespace cfem::sym::utils {
 
         return LambdaExpression<decltype(eval_func)>::fromScalar(std::move(eval_func), nullptr, comp_time_deriv);
     }
+    
 }

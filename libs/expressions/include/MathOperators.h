@@ -56,6 +56,9 @@ namespace cfem::sym
 
     std::shared_ptr<const CfemExpression> cross(std::shared_ptr<const CfemExpression> lhs, 
                                                 std::shared_ptr<const CfemExpression> rhs);
+
+    std::shared_ptr<const CfemExpression> outer(std::shared_ptr<const CfemExpression> lhs, 
+                                                std::shared_ptr<const CfemExpression> rhs);
     /** @} */
 
     /**
@@ -415,6 +418,22 @@ namespace cfem::sym
     std::shared_ptr<const CfemExpression> grad(const std::shared_ptr<const CfemExpression> &e);
 
     /**
+     * @brief Computes the surface gradient of an expression.
+     * 
+     * The surface gradient is defined as the projection of the standard gradient 
+     * onto the tangent space of the manifold:
+     * @f[ \nabla_s u = (I - \mathbf{n} \otimes \mathbf{n}) \nabla u @f]
+     * 
+     * @param expr   The scalar or vector expression to differentiate.
+     * @param normal (Optional) The normal vector to use for the projection. 
+     * If nullptr, it automatically uses sym::geometric_normal().
+     * @return A symbolic expression representing the surface gradient.
+     * @note If expr is a vector, the result is the surface Jacobian (matrix).
+     * @note This operator is crucial for solving PDEs on curved manifolds (e.g., Laplace-Beltrami).
+     */
+    std::shared_ptr<const CfemExpression> grad_s(std::shared_ptr<const CfemExpression> expr, std::shared_ptr<const CfemExpression> normal = nullptr);
+
+    /**
      * @brief Compute the divergence of a vector or tensor field.
      * @param e Vector expression (dim 3) or tensor expression (dim 9).
      * @return Divergence (dim 1 for a vector, dim 3 for a tensor).
@@ -455,6 +474,25 @@ namespace cfem::sym
      */
     std::shared_ptr<const TestFunction>  Test (std::shared_ptr<FESpace> V, const std::string& name = "v");
     /** @} */
+
+
+    /**
+     * @brief Factory function to create a GeometricNormalExpression.
+     * 
+     * This function returns a symbolic leaf representing the unit normal vector 
+     * derived from the geometry of the mesh (the MappingInfo).
+     * 
+     * @details When used in an integration loop, this expression automatically 
+     * triggers the ShapeEvaluationFlags::Normal flag, ensuring that the 
+     * geometric mapping computes the physical normal at each quadrature point.
+     * @return A shared pointer to a GeometricNormalExpression (3D Vector).
+     * 
+     * @example 
+     * @code
+     * auto flux = dot(velocity, geometric_normal());
+     * @endcode
+     */
+    std::shared_ptr<const CfemExpression> geometric_normal();
 }
 
 namespace cfem::sym::utils {

@@ -898,6 +898,29 @@ namespace cfem
         return *m_entities[0]; // Makes the compiler happy
     }
 
+    bool Mesh::isPartOfTheMeshEntities(const MeshEntity& entity) const{
+        return isPartOfTheMeshEntities(entity.getId());
+    }
+
+    bool Mesh::isPartOfTheMeshEntities(const std::string& entity_name) const{
+        for (auto &entity_ptr : m_entities)
+        {
+            if (entity_ptr->getName() == entity_name)
+                return true;
+        }
+        return false;
+    }
+
+    bool Mesh::isPartOfTheMeshEntities(CfemInt entity_id) const{
+        for (auto &entity_ptr : m_entities)
+        {
+            if (entity_ptr->getId() == entity_id)
+                return true;
+        }
+
+        return false;
+    }
+
     /** ************************************************************************************************************************************
      * @brief Create a system-level mesh entity with a predefined identifier.
      *

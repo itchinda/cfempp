@@ -94,9 +94,92 @@ namespace cfem
         return computeIntegral(expr, m_mesh->getEntityConst(entity_id));
     }
 
+    // ********************************************************************************************** 
+
+    CfemReal FunctionIntegrator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
+                                             CfemInt boundaryId) 
+    {
+        return computeFlux(expr, m_mesh->getEntityConst(boundaryId), m_mesh->getEntityConst(UNIVERSE_ID));
+    }
+
+    CfemReal FunctionIntegrator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
+                                             const std::string& boundary_name) 
+    {
+        return computeFlux(expr, m_mesh->getEntityConst(boundary_name), m_mesh->getEntityConst(UNIVERSE_ID));
+    }
+
+    CfemReal FunctionIntegrator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
+                                             const std::string& boundary_name,
+                                             const std::string& volume_name) 
+    {
+        return computeFlux(expr, m_mesh->getEntityConst(boundary_name), m_mesh->getEntityConst(volume_name));
+    }
+
+    CfemReal FunctionIntegrator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
+                                             CfemInt boundary_id,
+                                             CfemInt volume_id) 
+    {
+        return computeFlux(expr, m_mesh->getEntityConst(boundary_id), m_mesh->getEntityConst(volume_id));
+    }
+
+    CfemReal FunctionIntegrator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
+                                             const MeshEntity& boundary_entity) 
+    {
+        return computeFlux(expr, boundary_entity, m_mesh->getEntityConst(UNIVERSE_ID));
+    }
+
+    CfemReal FunctionIntegrator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
+                                            const MeshEntity& boundary_entity, 
+                                            const MeshEntity& volume_entity)
+    {
+        if( ! m_mesh->isPartOfTheMeshEntities(boundary_entity.getId()) ){
+            CFEM_ERROR << boundary_entity.getName() << " is not part of the mesh.";
+        }
+
+        CfemInt entityDim = boundary_entity.getDimension();
+        CfemInt meshDim   = m_mesh->getDimension();
+        
+        bool isBoundary = (entityDim == meshDim - 1);
+        bool isManifoldSurface = (entityDim == 2 && meshDim == 2);
+
+        if (!isBoundary && !isManifoldSurface) {
+            CFEM_ERROR << "computeFlux: Flux can only be computed on a boundary (dim " 
+                       << meshDim - 1 << ") or a surface manifold (dim 2). Target entity '" 
+                       << boundary_entity.getName() << "' has dimension " << entityDim;
+        }
+
+        if (isBoundary) {
+            if( ! m_mesh->isPartOfTheMeshEntities(volume_entity.getId()) ){
+                CFEM_ERROR << volume_entity.getName() << " is not part of the mesh.";
+            }
+            if( volume_entity.getDimension() != meshDim) {
+                CFEM_ERROR << "The body must have the same dimension as the mesh (" << meshDim << ").";
+            }
+        }
+
+        if (expr->getDimension() != 3) {
+            CFEM_ERROR << "computeFlux: The expression must be a 3D vector. "
+                       << "Got dimension " << expr->getDimension();
+        }
+    
+        auto fluxExpr = sym::dot(expr, sym::geometric_normal());
+        CfemReal totalFlux = 0.0;
+        
+        if (isBoundary) {
+            integrateBoundary({ EvaluationTarget{fluxExpr, &totalFlux} }, boundary_entity, volume_entity);
+        } else {
+            // Cas Manifold (isManifoldSurface == true) : 
+            // La frontière EST le maillage (ex: la sphère), on intègre directement sur les cellules.
+            integrate({ EvaluationTarget{fluxExpr, &totalFlux} }, boundary_entity);
+        }
+
+        return totalFlux;
+    }
+
     void FunctionIntegrator::dispatchIntegration(const std::vector<EvaluationTarget> &targets,
                                                  const MeshEntity                    &entity,
-                                                 const MeshEntity                    &volume) {
+                                                 const MeshEntity                    &volume) 
+    {
         if (entity.getCellIds().empty() && entity.getFacetIds().empty()) {
             for (const auto &target : targets) if (target.second) *(target.second) = 0.0;
             return;
@@ -156,7 +239,9 @@ namespace cfem
         }
 
         const bool needsFieldGradients = hasFlag(fieldFlags, ShapeEvaluationFlags::Gradient);
-        const ShapeEvaluationFlags geoFlags = ShapeEvaluationFlags::Value | ShapeEvaluationFlags::Gradient;
+        const ShapeEvaluationFlags geoFlags = ShapeEvaluationFlags::Value | ShapeEvaluationFlags::Jacobian;
+        const ShapeEvaluationFlags normalEvalFlag = hasFlag(fieldFlags, ShapeEvaluationFlags::Normal)? ShapeEvaluationFlags::Normal : ShapeEvaluationFlags::None;
+
         IntegrationScheme scheme;
 
         // ============================================================
@@ -249,7 +334,7 @@ namespace cfem
                 const bool isAffine = (geoOrder == 1) || m_mesh->isCellAffine(cellid);
 
                 if (isAffine) {
-                    refElGeo->computeMapping(lQuadPts[0].xi, physCoords, ShapeEvaluationFlags::Jacobian, cache->geoShapes[0], mapGeo);
+                    refElGeo->computeMapping(lQuadPts[0].xi, physCoords, ShapeEvaluationFlags::Jacobian | normalEvalFlag, cache->geoShapes[0], mapGeo);
                 }
 
                 for (size_t q = 0; q < lQuadPts.size(); ++q)
@@ -259,7 +344,9 @@ namespace cfem
                     if (isAffine) {
                         refElGeo->computeMapping(qp.xi, physCoords, ShapeEvaluationFlags::PhysicalPosition, cache->geoShapes[q], mapGeo);
                     } else {
-                        refElGeo->computeMapping(qp.xi, physCoords, ShapeEvaluationFlags::PhysicalPosition | ShapeEvaluationFlags::Jacobian, cache->geoShapes[q], mapGeo);
+                        refElGeo->computeMapping(qp.xi, physCoords, 
+                            ShapeEvaluationFlags::PhysicalPosition | ShapeEvaluationFlags::Jacobian | normalEvalFlag, 
+                            cache->geoShapes[q], mapGeo);
                     }
 
                     const CfemReal wDetJ = mapGeo.detJ * qp.weight;
@@ -270,6 +357,7 @@ namespace cfem
                     ctx.currentCellId = cellid;
                     ctx.currentXi = qp.xi;
                     ctx.physPos = mapGeo.physicalPosition;
+                    ctx.geometricMapping = &mapGeo;
 
                     for (size_t sIdx = 0; sIdx < cache->spaceCaches.size(); ++sIdx) {
                         const auto& spCache = cache->spaceCaches[sIdx];
@@ -346,7 +434,8 @@ namespace cfem
         }
 
         const bool needsFieldGradients = hasFlag(fieldFlags, ShapeEvaluationFlags::Gradient);
-        const ShapeEvaluationFlags geoFlags = ShapeEvaluationFlags::Value | ShapeEvaluationFlags::Gradient;
+        const ShapeEvaluationFlags geoFlags = ShapeEvaluationFlags::Value | ShapeEvaluationFlags::Jacobian;
+        const ShapeEvaluationFlags normalEvalFlag = hasFlag(fieldFlags, ShapeEvaluationFlags::Normal)? ShapeEvaluationFlags::Normal : ShapeEvaluationFlags::None;
         IntegrationScheme scheme;
 
         struct BoundarySpaceCache {
@@ -467,7 +556,7 @@ namespace cfem
 
                 if (isAffine) {
                     refElParentGeo.computeMapping( lQuadPts[0].xi, parentNodes, ShapeEvaluationFlags::Jacobian, cache.geoShapesParent[0], mapParentGeo);
-                    refElFacet.computeMapping(lQuadPts[0].xi, facetNodes, ShapeEvaluationFlags::Jacobian, cache.geoShapesFacet[0], mapSurf);
+                    refElFacet.computeMapping(lQuadPts[0].xi, facetNodes, ShapeEvaluationFlags::Jacobian | normalEvalFlag, cache.geoShapesFacet[0], mapSurf);
                 }
 
                 for (size_t q = 0; q < lQuadPts.size(); ++q)
@@ -485,7 +574,7 @@ namespace cfem
                         }
                         // pour une face courbee, on doit recalculer le jacobien de la transformation
                         refElFacet.computeMapping(qp.xi, facetNodes, 
-                            ShapeEvaluationFlags::PhysicalPosition | ShapeEvaluationFlags::Jacobian,
+                            ShapeEvaluationFlags::PhysicalPosition | ShapeEvaluationFlags::Jacobian | normalEvalFlag,
                             cache.geoShapesFacet[q], 
                             mapSurf
                         );
@@ -497,6 +586,7 @@ namespace cfem
                     ctx.currentCellId = parentId;
                     ctx.currentXi = xi_parent; 
                     ctx.physPos = mapSurf.physicalPosition; 
+                    ctx.geometricMapping = &mapSurf;
 
                     for (size_t sIdx = 0; sIdx < cache.spaceCaches.size(); ++sIdx) {
                         const auto& spCache = cache.spaceCaches[sIdx];

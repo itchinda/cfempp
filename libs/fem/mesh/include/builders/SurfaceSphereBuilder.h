@@ -27,24 +27,22 @@ namespace cfem
 {
 
     /**
-     * @ingroup MeshBuilders
-     * @brief Structured mesh generator for a solid sphere.
-     *
-     * This builder generates a volumetric mesh of a sphere of given center and radius.
-     * The mesh is constructed from a structured Cartesian grid mapped onto the sphere using a smooth radial
-     * projection.
-     *
-     * The resulting mesh can consist of:
-     * - Tetrahedra
-     * - Hexahedra
-     *
-     * The mesh is suitable for:
-     * - Elliptic problems
-     * - Stokes/Navier–Stokes simulations
-     * - CutFEM background grids
-     *
-     * Quadratic meshes are supported through automatic upgrade.
-     */
+    * @ingroup MeshBuilders
+    * @brief Surface mesh generator for a sphere (Icosphere).
+    *
+    * This builder generates a triangular surface mesh of a sphere using recursive 
+    * subdivision of a base polyhedron (typically an icosahedron or octahedron). 
+    * After each subdivision, new vertices are radially projected onto the exact 
+    * spherical surface of radius R.
+    *
+    * Unlike UV-spheres (lat/long grids), this method produces a quasi-uniform 
+    * distribution of triangles, avoiding the "pinched" elements at the poles.
+    *
+    * The generated mesh is suitable for:
+    * - Surface transport problems.
+    * - Shell and membrane finite element simulations.
+    * - Spherical boundary conditions in acoustics or electromagnetics.
+    */
     class SurfaceSphereBuilder
     {
     private:
@@ -55,20 +53,15 @@ namespace cfem
         SurfaceSphereBuilder(ConstructorToken) {}
 
         /**
-         * @brief Creates a sphere mesh.
+         * @brief Creates a spherical surface mesh.
+         * @param order           Polynomial order (Linear TRI3 or Quadratic TRI6).
+         * @param target_mesh_size The desired approximate size of the elements.
+         * @param center          Center coordinates of the sphere.
+         * @param radius          Radius of the sphere.
          *
-         * @param order            Polynomial order of the mesh (Linear or Quadratic).
-         * @param target_mesh_size Target approximate mesh size.
-         * @param center           Center of the sphere.
-         * @param radius           Sphere radius.
-         *
-         * @return Shared pointer to the generated mesh.
-         *
-         * The mesh is generated from a structured Cartesian grid
-         * enclosing the sphere and projected onto the spherical geometry.
-         *
-         * If quadratic order is requested, mid-edge nodes are projected
-         * onto the exact spherical boundary.
+         * @return Shared pointer to the generated Mesh object.
+         * * @note The number of subdivision levels is automatically calculated to 
+         * match the requested target_mesh_size as closely as possible.
          */
         static std::shared_ptr<Mesh> create(MeshOrder order,
                                             CfemReal target_mesh_size,
@@ -77,19 +70,14 @@ namespace cfem
 
     private:
         /**
-         * @brief Internal build routine.
+         * @brief Internal recursive construction algorithm.
          *
-         * @param mesh   Mesh to populate.
-         * @param order  Mesh order.
-         * @param target_mesh_size Approximate mesh size.
-         * @param center Sphere center.
-         * @param radius Sphere radius.
-         *
-         * The algorithm:
-         * 1. Builds a structured background grid.
-         * 2. Keeps cells inside the sphere.
-         * 3. Projects boundary vertices onto the exact sphere.
-         * 4. Upgrades to quadratic if requested.
+         * The algorithm follows these steps:
+         * 1. Initialize a base unit polyhedron (e.g., Icosahedron).
+         * 2. Calculate the required subdivision depth based on target_mesh_size.
+         * 3. Subdivide each triangular face into 4 smaller triangles.
+         * 4. Project new mid-edge nodes onto the sphere: P_new = C + (P_mid - C).norm() * R.
+         * 5. If quadratic order is requested, mid-edge nodes are preserved and mapped.
          */
         static void build(Mesh &mesh,
                           MeshOrder order,

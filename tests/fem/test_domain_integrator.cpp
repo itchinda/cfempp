@@ -127,3 +127,64 @@ TEST_F(FunctionIntegratorTest, SurfaceGradientError) {
     
     EXPECT_NEAR(surface_grad_int, 88.0/3.0, TOL);
 }
+
+class SurfaceManifoldTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        VariableRegistry::clear();
+    }
+
+    // Paramètres de la sphère
+    const CfemReal x0 = 0.0, y0 = 0.0, z0 = 0.0;
+    const CfemReal r0 = 0.5;
+    const CfemReal h = 0.03125; // Maillage assez fin pour la convergence
+};
+
+/**
+ * @brief Vérifie que le flux calculé sur une sphère 2D (Manifold)
+ * correspond à la valeur analytique PI/2.
+ */
+TEST_F(SurfaceManifoldTest, ComputeFluxOnSphere) {
+    auto mesh = Mesh::surface_sphere(MeshOrder::Quadratic, h, Vector3D{x0, y0, z0}, r0);
+    ASSERT_NE(mesh, nullptr);
+
+    auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
+    auto u = Trial(V, "u");
+
+    // u = [ x² + y² + x + y,  y² + z² + y + z,  x² + z² + x + z ]
+    auto analytical_u = vector( x * x + y * y + x + y,
+                                y * y + z * z + y + z,
+                                x * x + z * z + x + z);
+
+    u->project(analytical_u);
+
+    IntegrationSchemeParams params{};
+    FunctionIntegrator integrator(mesh, params);
+
+    CfemReal computedFlux = integrator.computeFlux(u, UNIVERSE_ID);
+
+    // (Valeur théorique : PI / 2)
+    const CfemReal expectedFlux = M_PI / 2.0;
+    EXPECT_NEAR(computedFlux, expectedFlux, 1e-5);
+}
+
+/**
+ * @brief Vérifie la convergence du gradient de surface (grad_s).
+ */
+TEST_F(SurfaceManifoldTest, SurfaceGradientError) {
+    auto mesh = Mesh::surface_sphere(MeshOrder::Quadratic, h, Vector3D{x0, y0, z0}, r0);
+    
+    auto Q = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);
+    auto p = Trial(Q, "p");
+
+
+    // Champ scalaire analytique : exp(x*y*z)
+    auto analytical_p = scalar(exp(x * y * z));
+    p->project(analytical_p);
+
+    IntegrationSchemeParams params{};
+    FunctionIntegrator integrator(mesh, params);
+
+    CfemReal error_grad_s = sqrt(integrator.computeIntegral(mag_sqr(grad_s(p) - grad_s(analytical_p))));
+    EXPECT_LT(error_grad_s, 1e-4);
+}

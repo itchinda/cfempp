@@ -477,7 +477,8 @@ public:
 
     /**
      * @brief Factory method to load and construct a mesh from a Gmsh (.msh) file.
-     * * This method invokes the internal GmshParser to read a physical mesh file.
+     * 
+     * This method invokes the internal GmshParser to read a physical mesh file.
      * It automatically handles physical groups and creates corresponding MeshEntity 
      * objects in the mesh.
      *
@@ -485,7 +486,7 @@ public:
      * @param pReferenceNormal Optional reference normal vector, useful for orienting 
      * 2D manifolds embedded in a 3D space.
      * @return A shared pointer to the fully constructed Mesh populated with the file data.
-     * * @note In a multi-process (MPI) context, this method usually runs on a single 
+     * @note In a multi-process (MPI) context, this method usually runs on a single 
      * master process (Rank 0) before distributing the grid to other processes.
      */
     static std::shared_ptr<Mesh> loadFromGmsh(const std::string& filename, std::optional<Vector3D> pReferenceNormal = std::nullopt){
@@ -608,6 +609,10 @@ public:
 
     const MeshEntity& getEntityConst(const std::string& name) const;
     const MeshEntity& getEntityConst(CfemInt id) const;
+
+    bool isPartOfTheMeshEntities(const MeshEntity& entity) const;
+    bool isPartOfTheMeshEntities(const std::string& entity_name) const;
+    bool isPartOfTheMeshEntities(CfemInt entity_id) const;
 
     std::string info() const;
     std::string getMeshFormat() const;

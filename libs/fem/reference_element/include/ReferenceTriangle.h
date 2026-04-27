@@ -85,7 +85,7 @@ namespace cfem {
                 out.values[2] = xi.y;
             }
 
-            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
+            if (hasFlag(requested, ShapeEvaluationFlags::Gradient) || hasFlag(requested, ShapeEvaluationFlags::Jacobian)  || hasFlag(requested, ShapeEvaluationFlags::Normal)) {
                 out.gradients[0] = Vector3D{-1.0, -1.0, 0.0};
                 out.gradients[1] = Vector3D{ 1.0,  0.0, 0.0};
                 out.gradients[2] = Vector3D{ 0.0,  1.0, 0.0};

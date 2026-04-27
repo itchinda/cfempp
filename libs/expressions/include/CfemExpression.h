@@ -38,7 +38,7 @@ namespace cfem::sym
      **************************************************************************** */
     enum class MathOp {
         // Binary
-        Add, Sub, Mul, Div, Dot, Inner, Cross, Pow, Max, Min, Atan2,
+        Add, Sub, Mul, Div, Dot, Inner, Cross, Outer, Pow, Max, Min, Atan2,
         // Unary
         Negate, Transpose, Trace, Det, Inv,
         Abs, Sqrt, Cbrt, 

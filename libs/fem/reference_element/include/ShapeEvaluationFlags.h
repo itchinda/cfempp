@@ -49,8 +49,10 @@ namespace cfem
         /// Compute shape function Hessians \f$ \nabla^2 N_i \f$. Required Jacobian and Shape Values
         Hessian          = (1 << 4) | Gradient,
 
+        Normal           = (1 << 5) | Jacobian,
+
         /// Compute all available fields (Values, Gradients, and Hessians).
-        All              = Value | PhysicalPosition | Jacobian | Gradient | Hessian
+        All              = Value | PhysicalPosition | Jacobian | Gradient | Hessian | Normal
     };
     
     /// Enable bitwise OR for ShapeEvaluationFlags

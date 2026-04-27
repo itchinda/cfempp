@@ -97,6 +97,7 @@ namespace cfem {
         const ShapeInfo*   testShape    = nullptr;
         const MappingInfo* trialMapping = nullptr;
         const MappingInfo* testMapping  = nullptr;
+        const MappingInfo* geometricMapping = nullptr;
         /** @} */
 
         CfemInt trialDof = -1; /**< Current local Trial DOF index being processed. */

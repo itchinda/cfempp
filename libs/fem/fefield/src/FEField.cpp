@@ -245,9 +245,14 @@ namespace cfem
     {
         CFEM_INFO << "projecting field into " << getName();
 
+        
+        recipe.prepare();
+
         const auto& mesh = m_space->getMesh();
         Vec& petscVec = m_data.getRaw();
         int dim = this->getDimension();
+
+        const auto recipeFlags = recipe.requiredShapeFlags();
 
         // Determine the local ownership range for MPI
         CfemInt low, high;
@@ -288,11 +293,11 @@ namespace cfem
                     // Evaluate the recipe at the physical location of the node
                     Vector3D xi = refEl.getNodeCoords(i);
                     // ShapeInfo nodeShape;
-                    refElGeo.evaluate(xi, ShapeEvaluationFlags::Value, evctx.scratchShape);
+                    refElGeo.evaluate(xi, ShapeEvaluationFlags::Value | recipeFlags, evctx.scratchShape);
                     refElGeo.computeMapping(
                         xi, 
                         evctx.scratchCoords, 
-                        ShapeEvaluationFlags::PhysicalPosition, 
+                        ShapeEvaluationFlags::PhysicalPosition | recipeFlags, 
                         static_cast<const ShapeInfo&>(evctx.scratchShape), 
                         evctx.scratchMapping
                     );
@@ -300,6 +305,7 @@ namespace cfem
                     evctx.physPos = evctx.scratchMapping.physicalPosition;
                     evctx.currentCellId = cellId;
                     evctx.currentXi = xi;
+                    evctx.geometricMapping = &evctx.scratchMapping;
 
                     recipe.evaluate(cellId, xi, valSpan, evctx);
 
