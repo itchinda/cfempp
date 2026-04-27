@@ -80,6 +80,7 @@ struct MappingInfo {
     TensorO2 jacobian;         ///< Jacobian matrix (dx/dxi)
     TensorO2 invJacobian;      ///< Inverse Jacobian matrix (dxi/dx)
     CfemReal detJ;             ///< Determinant of the Jacobian
+    Vector3D normal;
 
     DynamicVector<Vector3D> physicalShapeGradients;   ///< dN_i/dx (Gradients in physical space)
     DynamicVector<SymTensorO2> physicalShapeHessians; ///< d2N_i/dx2 (Hessians in physical space)
@@ -215,6 +216,8 @@ public:
     void computePhysicalHessians(const DynamicVector<Vector3D>& physicalNodesCoords, 
                                 const ShapeInfo& shape, 
                                 MappingInfo& out) const;
+
+    void computeGeometricNormal(const ShapeInfo &shape, MappingInfo &out) const;
 
     /**
      * @brief Interpolates a field (scalar or vector) at a point evaluated in ShapeInfo.

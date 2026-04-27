@@ -47,6 +47,28 @@ namespace cfem::sym
             break;
 
         case MathOp::Mul:
+            if (m_dimL == 1 || m_dimR == 1)
+            {
+                m_dimOut = std::max(m_dimL, m_dimR);
+            }
+            else if (m_dimL == 9 && m_dimR == 9)
+            {
+                m_dimOut = 9;
+            }
+            else if (m_dimL == 9 && m_dimR == 3)
+            {
+                m_dimOut = 3;
+            }
+            // Cas Matching (Hadamard / Element-wise) : 3 * 3 -> 3
+            else if (m_dimL == m_dimR)
+            {
+                m_dimOut = m_dimL;
+            }
+            else
+            {
+                CFEM_ERROR << "Multiplication: dimensions incompatibles (L:" << m_dimL << " R:" << m_dimR << ")";
+            }
+            break;
         case MathOp::Div:
         case MathOp::Pow:
         case MathOp::Max:
@@ -77,6 +99,11 @@ namespace cfem::sym
                 CFEM_ERROR << "Cross product is only defined for 3D vectors.";
             }
             m_dimOut = 3;
+            break;
+
+        case MathOp::Outer:
+            CFEM_ASSERT(m_dimL == 3 && m_dimR == 3, "Outer product requires two vectors of dimension 3.");
+            m_dimOut = 9;
             break;
 
         case MathOp::Inner:

@@ -55,13 +55,30 @@ namespace cfem::sym
                 for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] - spanR[i];
                 break;
             }
-            case MathOp::Mul:{
-                if (m_dimL == 1) // Scalaire * (Vecteur ou Tenseur)
+            case MathOp::Mul: {
+                if (m_dimL == 1) { // Scalaire * (Scalaire ou Vecteur ou Tenseur)
                     for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[0] * spanR[i];
-                else if (m_dimR == 1) // (Vecteur ou Tenseur) * Scalaire
+                }
+                else if (m_dimR == 1) { // (Vecteur ou Tenseur) * Scalaire
                     for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] * spanR[0];
-                else // Multiplication élément par élément (Hadamard)
+                }
+                else if (m_dimL == 9 && m_dimR == 9) { // TENSEUR * TENSEUR (MatMul)
+                    for (int i = 0; i < 3; ++i) {
+                        for (int j = 0; j < 3; ++j) {
+                            out[i * 3 + j] = spanL[i * 3 + 0] * spanR[0 * 3 + j] +
+                                             spanL[i * 3 + 1] * spanR[1 * 3 + j] +
+                                             spanL[i * 3 + 2] * spanR[2 * 3 + j];
+                        }
+                    }
+                }
+                else if (m_dimL == 9 && m_dimR == 3) { // Tenseur * Vecteur -> Vecteur
+                    out[0] = spanL[0]*spanR[0] + spanL[1]*spanR[1] + spanL[2]*spanR[2];
+                    out[1] = spanL[3]*spanR[0] + spanL[4]*spanR[1] + spanL[5]*spanR[2];
+                    out[2] = spanL[6]*spanR[0] + spanL[7]*spanR[1] + spanL[8]*spanR[2];
+                }
+                else { // Par défaut : Multiplication élément par élément (Hadamard)
                     for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] * spanR[i];
+                }
                 break;
             }
             case MathOp::Div:{
@@ -114,6 +131,15 @@ namespace cfem::sym
                 out[2] = spanL[0] * spanR[1] - spanL[1] * spanR[0];
                 break;
             }
+            case MathOp::Outer:
+                // spanL = [a0, a1, a2], spanR = [b0, b1, b2]
+                // out = [a0*b0, a0*b1, a0*b2, a1*b0, a1*b1, a1*b2, a2*b0, a2*b1, a2*b2]
+                for (int i = 0; i < 3; ++i) {
+                    for (int j = 0; j < 3; ++j) {
+                        out[i * 3 + j] = spanL[i] * spanR[j];
+                    }
+                }
+                break;
             case MathOp::Pow:{
                 for (int i = 0; i < m_dimOut; ++i) out[i] = std::pow(spanL[i], spanR[i]);
                 break;

@@ -56,9 +56,10 @@ namespace cfem
     {
         const int n = m_numNodes;
         const bool wantPhysicalPosition = hasFlag(requestedFields, ShapeEvaluationFlags::PhysicalPosition);
-        const bool wantJacobian = hasFlag(requestedFields, ShapeEvaluationFlags::Jacobian);
+        const bool wantJacobian  = hasFlag(requestedFields, ShapeEvaluationFlags::Jacobian);
         const bool wantGradients = hasFlag(requestedFields, ShapeEvaluationFlags::Gradient);
-        const bool wantHessians = hasFlag(requestedFields, ShapeEvaluationFlags::Hessian);
+        const bool wantHessians  = hasFlag(requestedFields, ShapeEvaluationFlags::Hessian);
+        const bool wantNormal    = hasFlag(requestedFields, ShapeEvaluationFlags::Normal);
 
         out.setup(n, wantHessians);
 
@@ -82,6 +83,10 @@ namespace cfem
 
         if (wantHessians) {
             computePhysicalHessians(physicalNodesCoords, shape, out);
+        }
+
+        if (wantNormal) {
+            computeGeometricNormal(shape, out);
         }
     }
 
@@ -255,6 +260,41 @@ namespace cfem
         }
     }
 
+
+    inline void ReferenceElement::computeGeometricNormal(const ShapeInfo &shape, MappingInfo &out) const
+    {
+        if (m_dimension == 2) 
+        {
+            // Variété 2D (Surface, Triangle/Quad) dans l'espace 3D
+            // Les deux vecteurs tangents sont les deux premières colonnes du Jacobien
+            Vector3D t1(out.jacobian(0, 0), out.jacobian(1, 0), out.jacobian(2, 0));
+            Vector3D t2(out.jacobian(0, 1), out.jacobian(1, 1), out.jacobian(2, 1));
+            
+            out.normal = (t1.cross(t2)).normalized();
+
+        }
+        else if (m_dimension == 1) 
+        {
+            // Variété 1D (Ligne) dans un espace 2D (ou 3D z=0)
+            CfemReal dx = out.jacobian(0, 0);
+            CfemReal dy = out.jacobian(1, 0);
+            CfemReal norm = std::sqrt(dx * dx + dy * dy);
+            
+            if (norm > cfem::ZERO_TOLERANCE) {
+                // Règle de la main droite (rotation de -90 degrés du vecteur tangent)
+                // L'orientation extérieure dépend de la convention de rotation de ton maillage
+                out.normal = Vector3D(dy / norm, -dx / norm, 0.0); 
+            } else {
+                out.normal = Vector3D(0.0, 0.0, 0.0);
+            }
+        }
+        else 
+        {
+            // Dimension 3 (Volume). La normale n'est pas définie à l'intérieur.
+            out.normal = Vector3D(0.0, 0.0, 0.0);
+            // CFEM_ERROR << "Geometric normal undefined inside a 3D cell.";
+        }
+    }
     // ----------------------------------------------------------------------
     // ------------------------------- interpolation ------------------------
     template <typename T>

@@ -168,9 +168,11 @@ namespace cfem
 
             // Evaluate expressions at each vertex
             std::vector<std::vector<CfemReal>> allResults(continuousFields.size());
+            ShapeEvaluationFlags fieldFlags = ShapeEvaluationFlags::None;
             for (size_t i = 0; i < continuousFields.size(); ++i)
             {
                 continuousFields[i].expr->prepare();
+                fieldFlags |= continuousFields[i].expr->requiredShapeFlags();
                 allResults[i].resize(nVerts * continuousFields[i].expr->getDimension(), 0.0);
             }
 
@@ -194,7 +196,7 @@ namespace cfem
                 for (const auto &xi : refEl.referenceNodes())
                 {
                     ShapeInfo info;
-                    refEl.evaluate(xi, ShapeEvaluationFlags::Value, info);
+                    refEl.evaluate(xi, ShapeEvaluationFlags::Value | fieldFlags, info);
                     cache.nodeShapes.push_back(info);
                 }
             }
@@ -219,10 +221,11 @@ namespace cfem
 
                     refEl.computeMapping(xiNodes[n],
                                         physCoords,
-                                        ShapeEvaluationFlags::PhysicalPosition,
+                                        ShapeEvaluationFlags::PhysicalPosition | fieldFlags,
                                         cache.nodeShapes[n], ctx.scratchMapping);
 
                     ctx.physPos = ctx.scratchMapping.physicalPosition;
+                    ctx.geometricMapping = &ctx.scratchMapping;
 
                     for (size_t i = 0; i < continuousFields.size(); ++i)
                     {
@@ -328,11 +331,13 @@ namespace cfem
         // ============================================================
 
         size_t numEntries = continuousFields.size();
+        ShapeEvaluationFlags fieldFlags= ShapeEvaluationFlags::None;
         std::vector<std::vector<CfemReal>> allResults(numEntries);
 
         for (size_t i = 0; i < numEntries; ++i)
         {
             continuousFields[i].expr->prepare();
+            fieldFlags |= continuousFields[i].expr->requiredShapeFlags();
             allResults[i].resize(nVerts * continuousFields[i].expr->getDimension(), 0.0);
         }
 
@@ -357,7 +362,7 @@ namespace cfem
             for (const auto &xi : refEl.referenceNodes())
             {
                 ShapeInfo info;
-                refEl.evaluate(xi, ShapeEvaluationFlags::Value, info);
+                refEl.evaluate(xi, ShapeEvaluationFlags::Value | fieldFlags, info);
                 cache.nodeShapes.push_back(info);
             }
         }
@@ -383,10 +388,11 @@ namespace cfem
 
                 refEl.computeMapping(xiNodes[n],
                                      physCoords,
-                                     ShapeEvaluationFlags::PhysicalPosition,
+                                     ShapeEvaluationFlags::PhysicalPosition | fieldFlags,
                                      cache.nodeShapes[n], ctx.scratchMapping);
 
                 ctx.physPos = ctx.scratchMapping.physicalPosition;
+                ctx.geometricMapping = &ctx.scratchMapping;
 
                 for (size_t i = 0; i < continuousFields.size(); ++i)
                 {
@@ -645,8 +651,13 @@ namespace cfem
             DynamicVector<Vector3D> physCoords;
             CfemInt geoOrder = m_mesh.getOrderInt();
 
+            ShapeEvaluationFlags fieldFlags = ShapeEvaluationFlags::None;
+            for (size_t i = 0; i < discontFields.size(); ++i) {
+                discontFields[i].expr->prepare();
+                fieldFlags |= discontFields[i].expr->requiredShapeFlags();
+            }
+
             for (const auto& entry : discontFields) {
-                entry.expr->prepare();
                 int dim = entry.expr->getDimension();
                 
                 out << "<DataArray type=\"Float64\" Name=\"" << entry.name 
@@ -662,9 +673,10 @@ namespace cfem
                     for (size_t n = 0; n < xiNodes.size(); ++n) {
                         ctx.resetBuffers();
                         ShapeInfo info; // We need basic shape info to evaluate properly mapping
-                        refEl.evaluate(xiNodes[n], ShapeEvaluationFlags::Value, info);
-                        refEl.computeMapping(xiNodes[n], physCoords, ShapeEvaluationFlags::PhysicalPosition, info, ctx.scratchMapping);
+                        refEl.evaluate(xiNodes[n], ShapeEvaluationFlags::Value | fieldFlags, info);
+                        refEl.computeMapping(xiNodes[n], physCoords, ShapeEvaluationFlags::PhysicalPosition | fieldFlags, info, ctx.scratchMapping);
                         ctx.physPos = ctx.scratchMapping.physicalPosition;
+                        ctx.geometricMapping = &ctx.scratchMapping;
 
                         std::vector<CfemReal> values(dim, 0.0);
                         std::span<CfemReal> outSpan(values.data(), dim);
@@ -733,8 +745,10 @@ namespace cfem
         size_t numEntries = discontFields.size();
         std::vector<std::vector<CfemReal>> allResults(numEntries);
 
+        ShapeEvaluationFlags fieldFlags= ShapeEvaluationFlags::None;
         for (size_t i = 0; i < numEntries; ++i) {
             discontFields[i].expr->prepare();
+            fieldFlags |= discontFields[i].expr->requiredShapeFlags();
             allResults[i].resize(totalDgPoints * discontFields[i].expr->getDimension(), 0.0);
         }
 
@@ -753,9 +767,10 @@ namespace cfem
             for (size_t n = 0; n < xiNodes.size(); ++n) {
                 ctx.resetBuffers();
                 ShapeInfo info;
-                refEl.evaluate(xiNodes[n], ShapeEvaluationFlags::Value, info);
-                refEl.computeMapping(xiNodes[n], physCoords, ShapeEvaluationFlags::PhysicalPosition, info, ctx.scratchMapping);
+                refEl.evaluate(xiNodes[n], ShapeEvaluationFlags::Value | fieldFlags, info);
+                refEl.computeMapping(xiNodes[n], physCoords, ShapeEvaluationFlags::PhysicalPosition | fieldFlags, info, ctx.scratchMapping);
                 ctx.physPos = ctx.scratchMapping.physicalPosition;
+                ctx.geometricMapping = &ctx.scratchMapping;
 
                 for (size_t i = 0; i < numEntries; ++i) {
                     int dim = discontFields[i].expr->getDimension();

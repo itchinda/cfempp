@@ -133,6 +133,13 @@ namespace cfem
         CfemReal computeIntegral(const std::shared_ptr<const sym::CfemExpression> &expr, CfemInt entity_id);
         CfemReal computeIntegral(const std::shared_ptr<const sym::CfemExpression> &expr, const MeshEntity& entity);
         ///@}
+        
+        CfemReal computeFlux(const std::shared_ptr<const sym::CfemExpression> &expr, const MeshEntity& boundary_entity, const MeshEntity& volume_entity);
+        CfemReal computeFlux(const std::shared_ptr<const sym::CfemExpression> &expr, const MeshEntity& boundary_entity);
+        CfemReal computeFlux(const std::shared_ptr<const sym::CfemExpression> &expr, const std::string& boundaryName);
+        CfemReal computeFlux(const std::shared_ptr<const sym::CfemExpression> &expr, const std::string& boundaryName, const std::string& volumeName);
+        CfemReal computeFlux(const std::shared_ptr<const sym::CfemExpression> &expr, CfemInt boundaryId);
+        CfemReal computeFlux(const std::shared_ptr<const sym::CfemExpression> &expr, CfemInt boundaryId, CfemInt volumeId);
     };
 }
 #endif

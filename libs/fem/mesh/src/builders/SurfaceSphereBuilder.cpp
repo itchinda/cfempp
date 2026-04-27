@@ -37,98 +37,100 @@ namespace cfem {
         return mesh;
     }
 
-void SurfaceSphereBuilder::build(
-    Mesh &mesh,
-    MeshOrder order,
-    CfemReal h,
-    const cfem::Vector3D &center,
-    CfemReal radius) 
-{
-    mesh.clear();
-    mesh.setOrder(MeshOrder::Linear);
-    mesh.setDimension(2); // Surface 2D dans l'espace 3D
+    void SurfaceSphereBuilder::build(
+        Mesh &mesh,
+        MeshOrder order,
+        CfemReal h,
+        const cfem::Vector3D &center,
+        CfemReal radius) 
+    {
+        mesh.clear();
+        mesh.setOrder(MeshOrder::Linear);
+        mesh.setDimension(2); // Surface 2D dans l'espace 3D
 
-    // 1. Calcul du nombre de subdivisions nécessaires pour atteindre h
-    // La longueur d'arête d'un icosaèdre unité est d'environ 1.05.
-    // Après n subdivisions, h_approx = (radius * 1.05) / 2^n
-    int subdivisions = 0;
-    CfemReal current_h = radius * 1.05;
-    while (current_h > h && subdivisions < 8) {
-        current_h /= 2.0;
-        subdivisions++;
-    }
+        // Ajout des 12 sommets de base (normalisés et projetés)
+        auto addProjectedVertex = [&](CfemReal x, CfemReal y, CfemReal z) {
+            cfem::Vector3D p = (cfem::Vector3D(x, y, z)).normalized() * radius + center;
+            return mesh.addVertex(p.x, p.y, p.z);
+        };
 
-    // 2. Génération des sommets de l'icosaèdre de base
-    const CfemReal t = (1.0 + std::sqrt(5.0)) / 2.0;
-    std::vector<cfem::Vector3D> base_coords = {
-        {-1,  t,  0}, { 1,  t,  0}, {-1, -t,  0}, { 1, -t,  0},
-        { 0, -1,  t}, { 0,  1,  t}, { 0, -1, -t}, { 0,  1, -t},
-        { t,  0, -1}, { t,  0,  1}, {-t,  0, -1}, {-t,  0,  1}
-    };
+        std::vector<CfemInt> v;
+        const CfemReal t = (1.0 + std::sqrt(5.0)) / 2.0;
+        v.push_back(addProjectedVertex(-1,  t,  0)); v.push_back(addProjectedVertex( 1,  t,  0));
+        v.push_back(addProjectedVertex(-1, -t,  0)); v.push_back(addProjectedVertex( 1, -t,  0));
+        v.push_back(addProjectedVertex( 0, -1,  t)); v.push_back(addProjectedVertex( 0,  1,  t));
+        v.push_back(addProjectedVertex( 0, -1, -t)); v.push_back(addProjectedVertex( 0,  1, -t));
+        v.push_back(addProjectedVertex( t,  0, -1)); v.push_back(addProjectedVertex( t,  0,  1));
+        v.push_back(addProjectedVertex(-t,  0, -1)); v.push_back(addProjectedVertex(-t,  0,  1));
 
-    for (auto &v : base_coords) {
-        v = center + v.normalized() * radius;
-        mesh.addVertex(v.x, v.y, v.z);
-    }
+        // Faces initiales
+        std::vector<std::vector<CfemInt>> faces = {
+            {0, 11, 5}, {0, 5, 1}, {0, 1, 7}, {0, 7, 10}, {0, 10, 11},
+            {1, 5, 9}, {5, 11, 4}, {11, 10, 2}, {10, 7, 6}, {7, 1, 8},
+            {3, 9, 4}, {3, 4, 2}, {3, 2, 6}, {3, 6, 8}, {3, 8, 9},
+            {4, 9, 5}, {2, 4, 11}, {6, 2, 10}, {8, 6, 7}, {9, 8, 1}
+        };
 
-    // Faces de l'icosaèdre (indices des sommets)
-    std::vector<std::vector<CfemInt>> faces = {
-        {0, 11, 5}, {0, 5, 1}, {0, 1, 7}, {0, 7, 10}, {0, 10, 11},
-        {1, 5, 9}, {5, 11, 4}, {11, 10, 2}, {10, 7, 6}, {7, 1, 8},
-        {3, 9, 4}, {3, 4, 2}, {3, 2, 6}, {3, 6, 8}, {3, 8, 9},
-        {4, 9, 5}, {2, 4, 11}, {6, 2, 10}, {8, 6, 7}, {9, 8, 1}
-    };
+        // Calcul du nombre de subdivisions
+        // L'arête initiale de l'icosaèdre est d'environ 1.05 * radius. 
+        // Chaque subdivision divise l'arête par 2.
+        int subdivisions = 0;
+        CfemReal current_h = 1.05 * radius;
+        while (current_h > h) { 
+            current_h /= 2.0;
+            subdivisions++;
+        }
 
-    // Utilisation d'un cache pour ne pas créer deux fois le même nœud milieu
-    std::map<std::pair<CfemInt, CfemInt>, CfemInt> midpoint_cache;
-    auto getMidpoint = [&](CfemInt v1, CfemInt v2) {
-        if (v1 > v2) std::swap(v1, v2);
-        auto edge = std::make_pair(v1, v2);
-        if (midpoint_cache.count(edge)) return midpoint_cache[edge];
+        std::unordered_map<uint64_t, CfemInt> midpoint_cache;
 
-        const auto& p1 = mesh.getVertex(v1).coords;
-        const auto& p2 = mesh.getVertex(v2).coords;
-        cfem::Vector3D mid = center + ((p1 + p2) * 0.5 - center).normalized() * radius;
-        
-        CfemInt new_id = mesh.addVertex(mid.x, mid.y, mid.z);
-        return midpoint_cache[edge] = new_id;
-    };
+        auto getMidpoint = [&](CfemInt v1, CfemInt v2) {
+            //uint64_t key = (v1 < v2) ? ((uint64_t)v1 << 32 | v2) : ((uint64_t)v2 << 32 | v1);
+            uint64_t key = (uint64_t)std::min(v1, v2) << 32 | (uint64_t)std::max(v1, v2);
+            auto it = midpoint_cache.find(key);
+            if (it != midpoint_cache.end()) return it->second;
 
-    for (int s = 0; s < subdivisions; ++s) {
-        std::vector<std::vector<CfemInt>> new_faces;
+            const auto& p1 = mesh.getVertex(v1).coords;
+            const auto& p2 = mesh.getVertex(v2).coords;
+            cfem::Vector3D mid = center + ((p1 + p2) * 0.5 - center).normalized() * radius;
+            
+            CfemInt new_id = mesh.addVertex(mid.x, mid.y, mid.z);
+            midpoint_cache[key] = new_id;
+            return new_id;
+        };
+
+        for (int s = 0; s < subdivisions; ++s) {
+            std::vector<std::vector<CfemInt>> next_faces;
+            next_faces.reserve(faces.size() * 4); 
+            midpoint_cache.reserve(faces.size() * 3);
+
+            for (const auto& f : faces) {
+                CfemInt a = getMidpoint(f[0], f[1]);
+                CfemInt b = getMidpoint(f[1], f[2]);
+                CfemInt c = getMidpoint(f[2], f[0]);
+
+                next_faces.push_back({f[0], a, c});
+                next_faces.push_back({f[1], b, a});
+                next_faces.push_back({f[2], c, b});
+                next_faces.push_back({a, b, c});
+            }
+            faces = std::move(next_faces);
+            midpoint_cache.clear(); // On vide le cache car les arêtes changent d'ID à chaque niveau
+        }
+
         for (const auto& f : faces) {
-            CfemInt a = getMidpoint(f[0], f[1]);
-            CfemInt b = getMidpoint(f[1], f[2]);
-            CfemInt c = getMidpoint(f[2], f[0]);
-
-            new_faces.push_back({f[0], a, c});
-            new_faces.push_back({f[1], b, a});
-            new_faces.push_back({f[2], c, b});
-            new_faces.push_back({a, b, c});
+            mesh.addCell(CellType::TRI3, f);
         }
-        faces = std::move(new_faces);
-        midpoint_cache.clear();
-    }
 
-    // Ajout des cellules au maillage
-    for (const auto& f : faces) {
-        mesh.addCell(CellType::TRI3, f);
-    }
+        mesh.buildMesh();
 
-    mesh.buildMesh();
-
-    // mesh.relaxMesh(10);
-
-    if (order == MeshOrder::Quadratic) {
-        mesh.upgradeToQuadratic();
-        // IMPORTANT : Projeter TOUS les nœuds sur la sphère, pas seulement le bord
-        for (CfemInt i = 0; i < mesh.getNumVertices(); ++i) {
-            auto& v = mesh.getVertex(i).coords;
-            v = center + (v - center).normalized() * radius;
+        if (order == MeshOrder::Quadratic) {
+            mesh.upgradeToQuadratic();
+            for (CfemInt i = 0; i < mesh.getNumVertices(); ++i) {
+                auto& v = mesh.getVertex(i).coords;
+                v = center + (v - center).normalized() * radius;
+            }
         }
+        
+        mesh.updateAffineFlags();
     }
-    
-    mesh.updateAffineFlags();
-}
-
 } // namespace cfem

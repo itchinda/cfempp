@@ -50,11 +50,11 @@ namespace cfem
 
     /**
      * @brief Exports the mesh and associated fields to a VTK Legacy (.vtk) ASCII file.
-     * * This method follows the VTK Unstructured Grid specification. It handles:
+     * This method follows the VTK Unstructured Grid specification. It handles:
      * 1. Geometry (Points and Cells)
      * 2. Field Interpolation (Mapping P1/P2 physics to geometric vertices)
      * 3. Metadata (Mesh quality and Entity masks)
-     * * @param filename Path to the output file.
+     * @param filename Path to the output file.
      * @throws CFEM_ERROR If the file cannot be opened for writing.
      */
     void VTKExporter::writeASCII(const std::string &filename) const
@@ -116,9 +116,12 @@ namespace cfem
             // Pre-prepare all expressions and allocate all result buffers
             size_t numEntries = m_entries.size();
             std::vector<std::vector<CfemReal>> allResults(numEntries);
+            
+            ShapeEvaluationFlags fieldFlags = ShapeEvaluationFlags::None;
             for (size_t i = 0; i < numEntries; ++i)
             {
                 m_entries[i].expr->prepare();
+                fieldFlags |= m_entries[i].expr->requiredShapeFlags();
                 allResults[i].resize(m_mesh.getNumVertices() * m_entries[i].expr->getDimension(), 0.0);
             }
 
@@ -143,7 +146,7 @@ namespace cfem
                 for (const auto &xi : refEl.referenceNodes())
                 {
                     ShapeInfo info;
-                    refEl.evaluate(xi, ShapeEvaluationFlags::Value, info);
+                    refEl.evaluate(xi, ShapeEvaluationFlags::Value | fieldFlags, info);
                     cache.nodeShapes.push_back(info);
                 }
             }
@@ -170,10 +173,11 @@ namespace cfem
 
                     refEl.computeMapping(xiNodes[n],
                                         physCoords,
-                                        ShapeEvaluationFlags::PhysicalPosition,
+                                        ShapeEvaluationFlags::PhysicalPosition | fieldFlags,
                                         cache.nodeShapes[n], ctx.scratchMapping);
 
                     ctx.physPos = ctx.scratchMapping.physicalPosition;
+                    ctx.geometricMapping = &ctx.scratchMapping;
 
                     for (size_t i = 0; i < numEntries; ++i)
                     {
@@ -266,11 +270,12 @@ namespace cfem
 
     /**
      * @brief Exports the mesh and associated fields to a VTK Legacy (.vtk) binary file.
-     * * This method follows the VTK Unstructured Grid specification. It handles:
+     * 
+     * This method follows the VTK Unstructured Grid specification. It handles:
      * 1. Geometry (Points and Cells)
      * 2. Field Interpolation (Mapping P1/P2 physics to geometric vertices)
      * 3. Metadata (Mesh quality and Entity masks)
-     * * @param filename Path to the output file.
+     * @param filename Path to the output file.
      * @throws CFEM_ERROR If the file cannot be opened for writing.
      */
     void VTKExporter::writeBINARY(const std::string &filename) const
@@ -373,10 +378,12 @@ namespace cfem
 
             std::size_t numEntries = m_entries.size();
             std::vector<std::vector<double>> allResults(numEntries);
-
+            
+            ShapeEvaluationFlags fieldFlags = ShapeEvaluationFlags::None;
             for (std::size_t i = 0; i < numEntries; ++i)
             {
                 m_entries[i].expr->prepare();
+                fieldFlags |= m_entries[i].expr->requiredShapeFlags();
                 allResults[i].resize(nVerts * m_entries[i].expr->getDimension(), 0.0);
             }
 
@@ -397,7 +404,7 @@ namespace cfem
                 for (const auto &xi : refEl.referenceNodes())
                 {
                     ShapeInfo info;
-                    refEl.evaluate(xi, ShapeEvaluationFlags::Value, info);
+                    refEl.evaluate(xi, ShapeEvaluationFlags::Value | fieldFlags, info);
                     cache.nodeShapes.push_back(info);
                 }
             }
@@ -426,10 +433,11 @@ namespace cfem
 
                     refEl.computeMapping(xiNodes[n],
                                         physCoords,
-                                        ShapeEvaluationFlags::PhysicalPosition,
+                                        ShapeEvaluationFlags::PhysicalPosition | fieldFlags,
                                         cache.nodeShapes[n], ctx.scratchMapping);
 
                     ctx.physPos = ctx.scratchMapping.physicalPosition;
+                    ctx.geometricMapping = &ctx.scratchMapping;
 
                     for (size_t i = 0; i < numEntries; ++i)
                     {
