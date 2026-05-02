@@ -457,7 +457,7 @@ namespace cfem
         for (CellType cType : m_mesh->getCellTypesPresent()) 
         {
             int cIdx = static_cast<int>(cType);
-            CfemInt numFaces = Cell::getLocalFacesCount(cType); 
+            CfemInt numFaces = Cell::getFaceCount(cType); 
             parentFaceCache[cIdx].resize(numFaces);
 
             const auto& refElParentGeo = ReferenceElementFactory::getReferenceElement( cType, geoOrder );

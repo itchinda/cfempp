@@ -94,7 +94,7 @@ ConformityReport MeshConformityChecker::check(const Mesh& mesh, bool check_geome
         }
 
         // Tally local faces for Manifold check
-        int local_faces_count = mesh.getLocalFacesCount(cell.type);
+        int local_faces_count = Cell::getFaceCount(cell.type);
         for (int f_idx = 0; f_idx < local_faces_count; ++f_idx) {
             LocalFace lf = mesh.getLocalFaceData(c_id, f_idx);
             face_usage_count[getCanonicalFaceKey(lf)]++;

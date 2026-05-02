@@ -39,6 +39,8 @@ namespace cfem
 
     Mesh::Mesh(ConstructorToken ltok)
     {
+        m_cellCountPerType.fill(0);
+        m_faceCountPerType.fill(0);
         CFEM_CHECK_INVARIANTS();
     }
 
@@ -47,6 +49,10 @@ namespace cfem
         CFEM_PRECONDITION(p_meshDim >= 1 && p_meshDim <= 3);
         CFEM_POSTCONDITION(m_meshDim == p_meshDim);
         CFEM_POSTCONDITION(m_meshOrder == p_meshOrder);
+
+        m_cellCountPerType.fill(0);
+        m_faceCountPerType.fill(0);
+
         CFEM_CHECK_INVARIANTS();
     }
 
@@ -139,7 +145,10 @@ namespace cfem
         cell.offset = startPos;        // Store the integer index
         cell.node_count = final_vids.size(); // Store the integer count
 
-        // 6. Manage unique element types
+        // update the cell count for this type
+        ++m_cellCountPerType[static_cast<size_t>(type)];
+
+        // Manage unique element types
         int typeIdx = static_cast<int>(type);
         if (!m_cellTypeFlags.test(typeIdx))
         {
@@ -210,7 +219,7 @@ namespace cfem
         MeshOrder cellOrder = getCellOrderFromType(type);
         if (cellOrder != m_meshOrder)
         {
-            CFEM_ERROR << "Cannot add " << cellTypeToString(type) <<
+            CFEM_ERROR << "Cannot add " << Cell::cellTypeToString(type) <<
                        " to a " << (m_meshOrder == MeshOrder::Linear ? "linear mesh." 
                                  : m_meshOrder == MeshOrder::Quadratic ? "quadratic mesh."
                                                                        : "mesh with unkmown order.");
@@ -220,12 +229,12 @@ namespace cfem
         if (cellDim != m_meshDim)
         {
             CFEM_ERROR << "Cannot add a " << std::to_string(cellDim) << "D element (" <<
-                       cellTypeToString(type) << ") to a " << std::to_string(m_meshDim) << "D mesh.";
+                       Cell::cellTypeToString(type) << ") to a " << std::to_string(m_meshDim) << "D mesh.";
         }
 
         if (v_ids.size() != getNodeCountPerCell(type))
         {
-            CFEM_ERROR << "Topology error: " << cellTypeToString(type) <<
+            CFEM_ERROR << "Topology error: " << Cell::cellTypeToString(type) <<
                        " expects " << std::to_string(getNodeCountPerCell(type)) <<
                        " nodes, but " << std::to_string(v_ids.size()) << " were provided.";
         }
@@ -429,47 +438,23 @@ namespace cfem
     }
 
     /** ************************************************************************************************************************************
-     * @brief Construct cell-to-cell adjacency information.
+     * @brief Builds the cell-to-cell adjacency graph based on shared facets.
      *
-     * This routine builds the neighbor connectivity for all cells in the mesh.
-     * For each cell face, the algorithm determines which neighboring cell shares the corresponding facet.
+     * @details
+     * Populates highly optimized, contiguous internal arrays (CSR format) to map each 
+     * cell to its immediate neighbors and bounding facets. This establishes the spatial 
+     * relationship between elements, which is strictly required for algorithms involving 
+     * face-based flux computations, gradient reconstructions, or mesh smoothing.
+     * 
+     * Internal `Cell` structures are updated with direct pointers to this contiguous 
+     * memory, guaranteeing $O(1)$ cache-friendly neighbor lookups during assembly.
+     * Boundary faces are explicitly designated by a neighbor ID of `-1`.
      *
-     * The resulting adjacency information is stored in compressed contiguous arrays owned by the Mesh:
-     *
-     * - `m_allCellNeighbors` : neighbor cell indices
-     * - `m_allCellFacetIds`  : facet identifiers associated with each face
-     * - `m_neighborOffsets`  : offsets into the above arrays
-     *
-     * The layout follows a CSR-style structure:
-     *
-     * @code
-     * cell i neighbors are stored in 
-     * m_allCellNeighbors[m_neighborOffsets[i] ... m_neighborOffsets[i+1]-1]
-     * @endcode
-     *
-     * Each entry corresponds to one local face of the cell. If the face lies
-     * on the boundary, the neighbor index is set to `-1`.
-     *
-     * In addition, the method initializes pointers inside each `Cell` structure so that the cell can directly access its neighbors and
-     * associated facets without additional lookups.
-     *
-     * Algorithm overview:
-     *
-     * 1. Determine the number of faces for each cell.
-     * 2. Allocate contiguous storage for neighbor relations.
-     * 3. Loop over all facets in the mesh.
-     * 4. For each facet:
-     *    - Identify the local face index in the left cell
-     *    - Record the right cell as its neighbor
-     *    - Repeat symmetrically for the right cell (if not boundary)
-     * 5. Link the resulting arrays back to the `Cell` structures.
-     *
-     * @note
-     * This routine assumes that `buildFacets()` has already been executed, since facet ownership (`left_cell`, `right_cell`) is required to
-     * establish adjacency.
-     *
-     * @warning
-     * This method overwrites any existing adjacency information.
+     * @pre `buildFacets()` MUST be executed prior to this function, as the adjacency 
+     * logic strictly relies on the left/right cell ownership established by the facets.
+     * 
+     * @warning This is a destructive operation. It clears and rewrites all neighbor 
+     * mapping arrays, invalidating any previously cached adjacency pointers.
      *
      * @complexity
      * Approximately linear in the number of facets.
@@ -488,7 +473,7 @@ namespace cfem
         size_t totalSlots = 0;
         for (size_t i = 0; i < numCells; ++i) {
             m_neighborOffsets[i] = totalSlots;
-            totalSlots += getLocalFacesCount(m_cells[i].type);
+            totalSlots += Cell::getFaceCount(m_cells[i].type);
         }
         m_neighborOffsets[numCells] = totalSlots; 
 
@@ -500,7 +485,7 @@ namespace cfem
             auto f_nodes = getFacetConnectivity(f.id);
 
             auto getLocalFaceIdx = [&](CfemInt cell_id) -> int {
-                int num_faces = getLocalFacesCount(m_cells[cell_id].type);
+                int num_faces = Cell::getFaceCount(m_cells[cell_id].type);
                 for (int i = 0; i < num_faces; ++i) {
                     LocalFace currentLocal = getLocalFaceData(cell_id, i);
                     if (static_cast<size_t>(currentLocal.size) == f_nodes.size()) {
@@ -541,7 +526,7 @@ namespace cfem
         for (size_t i = 0; i < numCells; ++i) {
             Cell& cell = m_cells[i];
             size_t startIdx = m_neighborOffsets[i];
-            cell.num_faces = static_cast<CfemInt>(getLocalFacesCount(cell.type));
+            cell.num_faces = static_cast<CfemInt>(Cell::getFaceCount(cell.type));
             
             // Point to the data inside the Mesh's big blocks
             cell.neighbor_cells_ptr = &m_allCellNeighbors[startIdx];
@@ -550,131 +535,49 @@ namespace cfem
     }
 
     /** ************************************************************************************************************************************
-     * @brief Construct mesh facets (edges in 2D, faces in 3D).
+     * @brief Detects and constructs all unique geometric facets (edges/faces) in the mesh.
      *
-     * This routine detects and constructs all facets shared by mesh cells. A facet represents the interface between two neighboring cells, or
-     * a boundary surface if only one cell is attached.
+     * @details
+     * Scans the connectivity of all elements to extract a globally unique set of internal 
+     * interfaces and boundary surfaces. For each discovered facet, the algorithm determines 
+     * its topological ownership, assigning the "left" and "right" sharing cells (or marking 
+     * it as a boundary if unshared).
+     * 
+     * To maximize HPC performance during boundary and surface integrations, all facet 
+     * connectivities are packed into a single, contiguous CSR memory block rather than 
+     * individual heap allocations.
      *
-     * The resulting facets are stored in the mesh as:
+     * @pre `buildInverseConnectivities()` MUST be called before this function. The facet-matching 
+     * algorithm uses the `Vertex -> Cells` inverse map to perform ultra-fast, localized 
+     * neighbor searches instead of global $O(N^2)$ checks.
+     * 
+     * @warning This completely destroys and recreates the global facet list. Any external 
+     * integer IDs referencing facets, or `std::span` views of facet connectivities acquired 
+     * prior to this call, will become dangling or invalid.
      *
-     * - `m_facets`              : list of facet descriptors
-     * - `m_allFacetVertexIds`   : contiguous storage of facet vertex indices
-     * - `m_facetOffsets`        : CSR-style offsets into the connectivity block
-     *
-     * Each facet records:
-     *
-     * - the owning cells (`left_cell`, `right_cell`)
-     * - the facet topology type
-     * - the offset and node count into the global connectivity array
-     *
-     * Boundary facets are identified when no neighboring cell is found.
-     *
-     * ---
-     *
-     * ### Algorithm Overview
-     *
-     * The construction proceeds in three stages:
-     *
-     * **1. Initialization**
-     *
-     * Existing facet data structures are cleared and storage is reserved based on an estimate of the number of facets.
-     *
-     * Temporary metadata structures are also prepared to store facet information during construction.
-     *
-     * **2. Topology Construction**
-     *
-     * Each cell face is processed:
-     *
-     * - A local face representation is generated (`LocalFace`)
-     * - Neighbor cells are searched by examining cells connected to one anchor vertex of the face
-     * - If another cell contains a matching face, the two cells share the same facet
-     *
-     * The face connectivity is then stored in a global contiguous
-     * connectivity block.
-     *
-     * **3. Finalization**
-     *
-     * Temporary metadata is converted into permanent `Facet` objects
-     * stored in `m_facets`.
-     *
-     * Each facet records:
-     *
-     * - its ID
-     * - its topology type
-     * - its left and right cells
-     * - its connectivity offset
-     * - its node count
-     *
-     * ---
-     *
-     * ### Data Layout
-     *
-     * Facet connectivity is stored using a contiguous block format:
-     *
-     * @code
-     * m_allFacetVertexIds
-     * [v0 v1 v2 v3 | v4 v5 v6 | v7 v8 ...]
-     * @endcode
-     *
-     * Each facet stores:
-     *
-     * - `offset`     : start position in the block
-     * - `node_count` : number of vertices
-     *
-     * This avoids per-facet allocations and improves cache locality.
-     *
-     * ---
-     *
-     * @note
-     * This routine requires that inverse connectivities (`Vertex -> connected cells`) have already been built.
-     *
-     * @warning
-     * Calling this function invalidates any previously computed facet
-     * information.
-     *
-     * @complexity
-     * Approximately linear in the number of cells, assuming bounded vertex connectivity.
      ***************************************************************************************************************************************/
     void Mesh::buildFacets() 
     {
         PROFILE_SCOPE("Mesh::buildFacets");
 
-        // ---------------------------------------------------------
-        // STEP 1: RESET & RESERVE
-        // ---------------------------------------------------------
+        // RESET & RESERVE
         m_facets.clear();
         m_allFacetVertexIds.clear();
-        // m_facetOffsets is actually redundant if we store offset/count in the Facet struct,
-        // but it's useful for CSR-style algorithms, so we'll keep it.
         m_facetOffsets.clear();
+        m_faceCountPerType = {};
 
         size_t est_facets = m_cells.size() * 4; 
         m_allFacetVertexIds.reserve(est_facets * 4); 
         m_facetOffsets.reserve(est_facets + 1);
         m_facetOffsets.push_back(0); 
+        m_facets.reserve(est_facets);
 
         std::vector<CfemInt> cell_face_to_facet(m_cells.size() * 6, -1);
 
-        // Metadata structure to hold temp info
-        struct FacetMeta {
-            CfemInt left;
-            CfemInt right;
-            CellType type;
-            size_t offset;
-            size_t count;
-            CfemInt left_facet_id;
-            CfemInt right_facet_id;
-        };
-        std::vector<FacetMeta> temp_meta;
-        temp_meta.reserve(est_facets);
-
-        // ---------------------------------------------------------
-        // STEP 2: BUILD TOPOLOGY
-        // ---------------------------------------------------------
+        // BUILD TOPOLOGY
         for (CfemInt c_id = 0; c_id < static_cast<CfemInt>(m_cells.size()); ++c_id) 
         {
-
-            const int num_faces = getLocalFacesCount(m_cells[c_id].type);
+            const int num_faces = Cell::getFaceCount(m_cells[c_id].type);
             
             for (int f_idx = 0; f_idx < num_faces; ++f_idx) 
             {
@@ -682,19 +585,29 @@ namespace cfem
 
                 LocalFace current_face = getLocalFaceData(c_id, f_idx);
                 
-                // --- Neighbor Search ---
+                // Neighbor Search: Find Best Anchor
+                CfemInt v_anchor = current_face.v[0];
+                CfemInt min_degree = m_vertices[v_anchor].num_connected_cells;
+                
+                for (int k = 1; k < current_face.size; ++k) {
+                    CfemInt candidate = current_face.v[k];
+                    CfemInt degree = m_vertices[candidate].num_connected_cells;
+                    if (degree < min_degree) {
+                        min_degree = degree;
+                        v_anchor = candidate;
+                    }
+                }
+
+                const auto& anchor_vert = m_vertices[v_anchor];
                 CfemInt neighbor_id = -1;
                 int neighbor_f_idx = -1;
-
-                CfemInt v_anchor = current_face.v[0];
-                const auto& anchor_vert = m_vertices[v_anchor];
 
                 for (CfemInt i = 0; i < anchor_vert.num_connected_cells; ++i) 
                 {
                     CfemInt other_c_id = anchor_vert.connected_cells_ptr[i];
                     if (other_c_id == c_id) continue;
 
-                    const int other_num_faces = getLocalFacesCount(m_cells[other_c_id].type);
+                    const int other_num_faces = Cell::getFaceCount(m_cells[other_c_id].type);
                     for (int j = 0; j < other_num_faces; ++j) {
                         LocalFace other_face = getLocalFaceData(other_c_id, j);
                         if (current_face.matches(other_face)) {
@@ -706,114 +619,70 @@ namespace cfem
                 }
                 found_neighbor:;
 
-                // --- Store Connectivity in Big Block ---
+                // Store Connectivity in Big Block (Bulk Insert)
                 size_t start_offset = m_allFacetVertexIds.size();
-                for (int k = 0; k < current_face.size; ++k) {
-                    m_allFacetVertexIds.push_back(current_face.v[k]);
-                }
+                m_allFacetVertexIds.insert(m_allFacetVertexIds.end(), current_face.v, current_face.v + current_face.size);
 
-                // --- Record Metadata ---
-                temp_meta.push_back({
-                    c_id, 
-                    neighbor_id, 
-                    current_face.type, 
-                    start_offset, 
-                    (size_t)current_face.size,
-                    f_idx,
-                    neighbor_f_idx
-                });
+                // Construction in m_facets
+                CfemInt new_facet_id = static_cast<CfemInt>(m_facets.size());
+                
+                m_facets.emplace_back();
+                Facet& f = m_facets.back();
+                f.id = new_facet_id;
+                f.type = current_face.type;
+                f.left_cell = c_id;
+                f.right_cell = neighbor_id;
+                f.left_cell_facet_id = f_idx;
+                f.right_cell_facet_id = neighbor_f_idx;
+                f.offset = start_offset;
+                f.node_count = static_cast<size_t>(current_face.size);
+
+                ++m_faceCountPerType[static_cast<size_t>(f.type)];
 
                 // Update mapping
-                CfemInt new_facet_id = static_cast<CfemInt>(temp_meta.size() - 1);
                 cell_face_to_facet[c_id * 6 + f_idx] = new_facet_id;
                 if (neighbor_id != -1) {
                     cell_face_to_facet[neighbor_id * 6 + neighbor_f_idx] = new_facet_id;
                 }
 
-                // Sync the CSR offsets (optional but good practice)
                 m_facetOffsets.push_back(m_allFacetVertexIds.size());
             }
-        }
-
-        // ---------------------------------------------------------
-        // STEP 3: FINALIZE FACETS (INDEX-BASED)
-        // ---------------------------------------------------------
-        m_facets.resize(temp_meta.size());
-
-
-        for (size_t i = 0; i < temp_meta.size(); ++i) 
-        {
-            Facet& f = m_facets[i];
-            const auto& meta = temp_meta[i];
-
-            f.id = static_cast<CfemInt>(i);
-            f.type = meta.type;
-            f.left_cell = meta.left;
-            f.right_cell = meta.right;
-
-            f.left_cell_facet_id = meta.left_facet_id;
-            f.right_cell_facet_id = meta.right_facet_id;
-            
-            // No pointers! Just integers. 
-            // This is now 100% safe from reallocations.
-            f.offset = meta.offset;
-            f.node_count = meta.count;
-            
         }
     }
 
     /** ************************************************************************************************************************************
      * @name Mesh Entities
      *
-     * Mesh entities represent labeled geometric subsets of the mesh such as
-     * boundaries, regions, or internal interfaces. Entities are commonly used
-     * to assign boundary conditions, material regions, or source terms.
-     *
-     * Entities are identified by both:
-     * - a unique integer identifier
-     * - a unique string name
-     *
-     * Internally, entities are stored as `MeshEntity` objects owned by the mesh.
-     *
+     * Mesh entities map physical groups (e.g., "inlet", "wall", "steel_region") to 
+     * specific topological subsets of the mesh. They act as the bridge between the 
+     * raw geometry and the finite element formulation (Boundary Conditions, Materials).
      * @{
      ***************************************************************************************************************************************/
 
      /** ************************************************************************************************************************************
-     * @brief Create a new user-defined mesh entity.
+     * @brief Registers a new user-defined physical group in the mesh.
      *
-     * This method registers a new mesh entity with the given name andtopological dimension. 
-     * Entities are typically used to represent physical regions or boundaries on which conditions will be applied.
+     * @details
+     * Creates a named entity of a specific topological dimension (0=Vertex, 1=Edge, 
+     * 2=Face, 3=Volume). The mesh automatically safely assigns a unique internal ID 
+     * that is guaranteed not to collide with critical system entities (like `Universe` 
+     * or `SYS_BOUNDARY`).
      *
-     * The mesh automatically assigns a unique internal identifier to the entity. The identifier is guaranteed not
-     * to collide with existing entities.
+     * @param name Unique string identifier (must pass `validateEntityName()` policy).
+     * @param dim Topological dimension of the geometry it represents.
+     * @return The auto-generated safe integer ID for this entity.
      *
-     * Some identifiers may be reserved for internal system entities (e.g. default boundary markers), and the numbering is adjusted
-     * accordingly to avoid conflicts.
-     *
-     * @param name Unique name of the entity.
-     * @param dim Topological dimension of the entity:
-     *            - 0 : vertices
-     *            - 1 : edges
-     *            - 2 : faces
-     *            - 3 : volumetric regions
-     *
-     * @return The unique identifier assigned to the new entity.
-     *
-     * @throws Runtime error if the entity name is invalid or already used.
-     *
-     * @note
-     * Entity names must satisfy the mesh naming policy enforced by `validateEntityName()`.
      ***************************************************************************************************************************************/
     CfemInt Mesh::createEntity(const std::string &name, CfemInt dim)
     {
         validateEntityName(name);
 
         CfemInt newId = static_cast<CfemInt>(m_entities.size());
-        if (getEntity(cfem::SYS_BOUNDARY_ID) && getEntity(cfem::SYS_BOUNDARY_ID))
+        if (getEntity(cfem::UNIVERSE_ID) && getEntity(cfem::SYS_BOUNDARY_ID))
         {
             newId -= 2;
         }
-        else if (getEntity(cfem::SYS_BOUNDARY_ID) || getEntity(cfem::SYS_BOUNDARY_ID))
+        else if (getEntity(cfem::SYS_BOUNDARY_ID) || getEntity(cfem::UNIVERSE_ID))
         {
             newId -= 1;
         }
@@ -831,17 +700,15 @@ namespace cfem
     }
 
     /** ************************************************************************************************************************************
-     * @brief Retrieve an entity by its name.
-     *
-     * Searches the mesh entity registry and returns the entity whose
-     * name matches the provided string.
-     *
+     * @brief Retrieves a non-owning pointer to an entity by its name.
      * @param name Name of the entity.
+     * @return Pointer to the corresponding entity, or `nullptr` if no entity with this name exists.
      *
-     * @return Pointer to the corresponding entity, or `nullptr`
-     *         if no entity with this name exists.
-     *
-     * @note
+     * @note Performs a linear search `O(N)` over registered entities. Since the number 
+     * of physical groups is typically very small, this is fast enough for initialization 
+     * phases. Do not call this inside hot assembly loops.
+     * 
+     * @warning
      * The returned pointer is owned by the mesh and must not be deleted.
      ***************************************************************************************************************************************/
     MeshEntity *Mesh::getEntity(const std::string &name)
@@ -854,6 +721,17 @@ namespace cfem
         return nullptr;
     }
 
+    /** ************************************************************************************************************************************
+     * @brief Retrieves a const reference to an entity by its name.
+     * @param name The name of the entity.
+     * @return const reference to the corresponding entity.
+     * @throw CFEM_ERROR  if no entity with this name exists
+     *
+     * @note Performs a linear search `O(N)` over registered entities. Since the number 
+     * of physical groups is typically very small, this is fast enough for initialization 
+     * phases. Do not call this inside hot assembly loops.
+     * 
+     ***************************************************************************************************************************************/
     const MeshEntity& Mesh::getEntityConst(const std::string &name) const
     {
         for (auto &entity_ptr : m_entities)
@@ -866,16 +744,16 @@ namespace cfem
     }
 
     /** ************************************************************************************************************************************
-     * @brief Retrieve an entity by its identifier.
+     * @brief Retrieves a non-owning pointer to an entity by its ID.
+     * @param id Internal ID of the entity.
+     * @return Pointer to the corresponding entity, or `nullptr` if no entity with this ID exists.
      *
-     * Searches the mesh entity registry and returns the entity with the specified internal identifier.
-     *
-     * @param id Identifier of the entity.
-     *
-     * @return Pointer to the entity if found, otherwise `nullptr`.
-     *
-     * @note
-     * The returned pointer remains owned by the mesh.
+     * @note Performs a linear search `O(N)` over registered entities. Since the number 
+     * of physical groups is typically very small, this is fast enough for initialization 
+     * phases. Do not call this inside hot assembly loops.
+     * 
+     * @warning
+     * The returned pointer is owned by the mesh and must not be deleted.
      ***************************************************************************************************************************************/
     MeshEntity *Mesh::getEntity(CfemInt id)
     {
@@ -887,6 +765,17 @@ namespace cfem
         return nullptr;
     }
 
+    /** ************************************************************************************************************************************
+     * @brief Retrieves a const reference to an entity by its ID.
+     * @param id Internal ID of the entity.
+     * @return const reference to the corresponding entity.
+     * @throw CFEM_ERROR  if no entity with this ID exists
+     *
+     * @note Performs a linear search `O(N)` over registered entities. Since the number 
+     * of physical groups is typically very small, this is fast enough for initialization 
+     * phases. Do not call this inside hot assembly loops.
+     * 
+     ***************************************************************************************************************************************/
     const MeshEntity& Mesh::getEntityConst(CfemInt id) const
     {
         for (auto &entity_ptr : m_entities)
@@ -922,8 +811,9 @@ namespace cfem
     }
 
     /** ************************************************************************************************************************************
-     * @brief Create a system-level mesh entity with a predefined identifier.
+     * @brief Internal factory for system-critical entities.
      *
+     * @details
      * This function is used internally by the mesh infrastructure to create
      * special entities such as system-defined boundaries or regions.
      *
@@ -938,10 +828,9 @@ namespace cfem
      *
      * @pre The provided identifier must not already exist.
      *
-     * @warning
-     * This function bypasses the automatic ID generation used by
-     * `createEntity()` and should normally only be used by internal
-     * mesh-building routines.
+     * @warning **DO NOT USE for physical groups.** This bypasses collision safety checks 
+     * and forces a specific ID. It is strictly reserved for the core mesh builder to 
+     * construct the `Universe` and `SYS_BOUNDARY` singletons.
      ***************************************************************************************************************************************/
     MeshEntity &Mesh::createInternalEntity(CfemInt id, const std::string &name, CfemInt dim)
     {
@@ -964,23 +853,19 @@ namespace cfem
      ***************************************************************************************************************************************/
 
     /** ************************************************************************************************************************************
-     * @brief Change the polynomial order of the mesh.
+     * @brief This method switches the mesh between linear and quadratic representations.
      *
-     * This method switches the mesh between linear and quadratic representations.
-     *
-     * If the mesh already contains elements, the connectivity will be transformed accordingly:
-     *
-     * - **Linear → Quadratic** : mid-edge (and possibly face) nodes are inserted using `upgradeToQuadratic()`.
-     *
-     * - **Quadratic → Linear** : higher-order nodes are removed using  `downgradeToLinear()`.
+     * @details
+     * Acts as a high-level wrapper. If the mesh is populated, this immediately triggers 
+     * a heavy topological rebuild (`upgradeToQuadratic()` or `downgradeToLinear()`).
      *
      * If the mesh is empty, the order is simply updated.
      *
      * @param newOrder Desired mesh order (`Linear` or `Quadratic`).
-     *
-     * @note
-     * Changing the mesh order modifies element connectivity and may invalidate existing finite element spaces or fields defined on
-     * the mesh.
+     * 
+     * @warning Modifying the order of a populated mesh is a destructive operation. 
+     * It invalidates all previously acquired connectivity spans and automatically 
+     * triggers updates on all registered FE Space observers.
      ***************************************************************************************************************************************/
     void Mesh::setOrder(MeshOrder newOrder)
     {
@@ -1003,15 +888,15 @@ namespace cfem
     }
 
     /** ************************************************************************************************************************************
-     * @brief Set the spatial dimension of the mesh.
+     * @brief Sets the spatial dimension (1D, 2D, or 3D) of the domain.
      *
-     * This function defines whether the mesh represents a 1D, 2D, or 3D domain.
-     *
-     * The dimension must be specified **before elements are inserted** into the mesh.
+     * @pre **The mesh MUST be completely empty.** Calling this after vertices or 
+     * cells have been added will trigger a fatal assertion, as it would render the 
+     * existing topology geometrically invalid.
      *
      * @param newDim Mesh dimension (1, 2, or 3).
      *
-     * @throws Runtime error if the mesh already contains elements.
+     * @throws CFEM_ERROR if the mesh already contains elements.
      *
      * @note
      * Changing the dimension after elements have been added would invalidate the topology and is therefore prohibited.
@@ -1027,14 +912,11 @@ namespace cfem
     }
 
     /** ************************************************************************************************************************************
-     * @brief Define a global reference normal vector.
-     *
-     * Some mesh operations require a consistent orientation convention,
-     * particularly when importing external meshes or constructing surface
-     * meshes embedded in 3D.
-     *
-     * This method defines a global reference normal that can be used to
-     * orient elements consistently.
+     * @brief Defines a global reference normal for 2D manifolds embedded in 3D.
+     * 
+     * @details
+     * Crucial for surface meshes (e.g., a sphere surface or a 2D sheet in 3D space) 
+     * to ensure consistent winding rules and positive signed areas across all elements.
      *
      * @param norm Reference normal vector.
      ***************************************************************************************************************************************/
@@ -1052,27 +934,21 @@ namespace cfem
     }
 
     /** ************************************************************************************************************************************
-     * @brief Register a finite element space as an observer of the mesh.
+     * @brief Registers a Finite Element space to listen for topological mutations.
      *
-     * This method adds a finite element space to the list of observers that must be notified when the mesh topology changes (for example after
-     * upgrading the mesh order or modifying connectivity).
-     *
-     * Observers are stored internally as weak references and are notified whenever the mesh structure is modified. This mechanism ensures that
-     * finite element spaces remain consistent with the underlying mesh.
-     *
-     * If the mesh is already quadratic when the observer is added, the space is immediately notified so it can update its internal data structures.
-     * This ensures that newly registered spaces are synchronized with the current mesh state.
-     *
-     * Typical updates triggered by observers include:
-     * - rebuilding DOF numbering
-     * - updating element connectivity
-     * - resizing internal data structures
+     * @details
+     * Uses a weak-referencing Observer pattern. The mesh does not take ownership of 
+     * the FE space, allowing spaces to be safely destroyed without dangling pointer 
+     * issues. 
+     * 
+     * If the mesh is already in a non-default state (e.g., Quadratic) when the 
+     * observer is added, the observer is immediately notified to synchronize its DOFs.
      *
      * @param space Shared pointer to the finite element space observing the mesh.
      *
      * @note
-     * The mesh only stores weak references to observers internally, allowing finite element spaces to be destroyed safely without requiring explicit
-     * deregistration.
+     * The mesh only stores weak references to observers internally, allowing finite element spaces
+     * to be destroyed safely without requiring explicit deregistration.
      *
      * @see MeshObserver::updateAfterMeshChange()
      ***************************************************************************************************************************************/
@@ -1088,11 +964,18 @@ namespace cfem
         }
     }
 
+    /** ************************************************************************************************************************************
+     * @brief Broadcasts a topology change event to all living observers.
+     * 
+     * @details
+     * Automatically performs garbage collection during the broadcast: any observer 
+     * (FE Space) that has been destroyed by the user is silently removed from the 
+     * notification list.
+     ***************************************************************************************************************************************/
     void Mesh::notifyObservers() {
         for (auto it = m_observers.begin(); it != m_observers.end();)
         {
-            if (auto obs = it->lock())
-            { // On vérifie si l'observateur existe encore
+            if (auto obs = it->lock()) { // On vérifie si l'observateur existe encore
                 obs->updateAfterMeshChange();
                 ++it;
             }
@@ -1103,97 +986,36 @@ namespace cfem
     }
 
     /** ************************************************************************************************************************************
-     * @brief Finalize mesh construction and build all topological structures.
+     * @brief Finalizes mesh construction by orchestrating the complete topological rebuild.
      *
-     * This routine completes the mesh construction process by generating all derived topological relationships required 
-     * for finite element operations. It must be called after vertices and cells have been inserted into the mesh.
+     * @details
+     * Acts as the main compiler for the mesh data structure. It takes the raw, unstructured 
+     * list of vertices and cells, and weaves the complete topological web required for 
+     * finite element operations.
+     * 
+     * This method executes the "Golden Sequence" of topology construction:
+     * 1. Garbage collects unreferenced vertices.
+     * 2. Builds `Vertex -> Cell` inverse mappings.
+     * 3. Extracts unique boundary and internal Facets.
+     * 4. Establishes `Cell -> Cell` CSR adjacency.
+     * 
+     * Additionally, it automatically generates and populates the core system entities: 
+     * `Universe` (containing all elements) and `SYS_BOUNDARY` (containing all unshared 
+     * external facets and their associated vertices).
      *
-     * The method performs the following steps:
+     * ### Operational Details
+     * - **Safe Execution:** Triggers `updateAffineFlags()` to cache Jacobian mapping 
+     *   properties for the integration engine.
+     * - **Validation:** In debug builds (`!NDEBUG`), automatically runs the 
+     *   `MeshConformityChecker` to catch degenerate elements or twisted topologies 
+     *   before they crash the solver.
      *
-     * ---
-     *
-     * ### 1. Topology Construction
-     *
-     * Core connectivity structures are generated in the following order (often referred to internally as the *golden sequence*):
-     *
-     * 1. `compactVertices()`  
-     *    Removes unused vertices and compacts vertex storage.
-     *
-     * 2. `buildInverseConnectivities()`  
-     *    Constructs vertex → cell connectivity.
-     *
-     * 3. `buildFacets()`  
-     *    Detects all mesh facets (edges in 2D, faces in 3D) and identifies
-     *    cell-to-facet relationships.
-     *
-     * 4. `buildAdjacency()`  
-     *    Builds cell-to-cell adjacency through shared facets.
-     *
-     * ---
-     *
-     * ### 2. Core Entity Initialization
-     *
-     * Two system entities are automatically created if they do not exist:
-     *
-     * - **Universe**  
-     *   Represents the full mesh domain and contains all vertices, cells, and facets.
-     *
-     * - **SYS_BOUNDARY**  
-     *   Represents the geometric boundary of the mesh (facets with only one adjacent cell).
-     *
-     * ---
-     *
-     * ### 3. Populate Universe Entity
-     *
-     * All mesh vertices and cells are added to the Universe entity.
-     *
-     * ---
-     *
-     * ### 4. Boundary Detection
-     *
-     * Boundary facets are detected by checking facets that have only one adjacent cell. These facets are added to the `SYS_BOUNDARY` entity.
-     *
-     * All vertices belonging to boundary facets are also registered as boundary vertices.
-     *
-     * ---
-     *
-     * ### 5. Entity Finalization
-     *
-     * After population, system entities are finalized to optimize their internal storage and connectivity structures.
-     *
-     * ---
-     *
-     * ### 6. Debug Validation
-     *
-     * In debug builds (`!NDEBUG`), a mesh conformity check is performed using `MeshConformityChecker`. The verification detects:
-     *
-     * - non-conforming mesh topology
-     * - degenerated elements
-     * - invalid connectivity
-     *
-     * If issues are detected, the build is aborted.
-     *
-     * ---
-     *
-     * ### 7. Orientation Fix Reporting
-     *
-     * If any inverted elements were detected and corrected during mesh construction, a summary report is printed indicating how many
-     * elements were reoriented for each cell type.
-     *
-     * ---
-     *
-     * @pre
-     * - The mesh must contain vertices and cells.
-     * - The mesh dimension must be defined.
-     *
-     * @throws Runtime error if the mesh is empty or invalid.
-     *
-     * @note
-     * This function should typically be called once after mesh construction. Subsequent modifications to vertices or cells may require rebuilding
-     * the mesh topology.
-     *
-     * @warning
-     * Calling this method invalidates any previously computed connectivity structures and mesh entities.
+     * @pre The mesh must possess a defined dimension (`m_meshDim > 0`) and contain 
+     * at least one cell and one vertex.
+     * @warning This is a heavy, destructive operation. It will completely overwrite 
+     * any existing topological maps, adjacency structures, and system entity lists. 
+     * It should typically be called only once after the initial geometric generation 
+     * or after a major topological mutation.
      *
      * @complexity
      * Approximately linear in the number of mesh cells and facets.
@@ -1205,20 +1027,20 @@ namespace cfem
             return;
         }
 
-        // 1. Build topological structures (The Golden Sequence)
+        // Build topological structures (The Golden Sequence)
         compactVertices();
         buildInverseConnectivities();
         buildFacets(); 
         buildAdjacency();
 
-        // 2. Initialize Core Entities
+        // Initialize Core Entities
         MeshEntity* universe = getEntity(cfem::UNIVERSE_ID);
         if (!universe) universe = &createInternalEntity(cfem::UNIVERSE_ID, "Universe", m_meshDim);
 
         MeshEntity* boundary = getEntity(cfem::SYS_BOUNDARY_ID);
         if (!boundary) boundary = &createInternalEntity(cfem::SYS_BOUNDARY_ID, "SYS_BOUNDARY", m_meshDim - 1);
 
-        // 3. Populate Universe
+        // Populate Universe
         if (universe->isEmpty()) {
             universe->reserveVertices(m_vertices.size());
             universe->reserveCells(m_cells.size());
@@ -1226,9 +1048,9 @@ namespace cfem
             for (CfemInt i = 0; i < (CfemInt)m_cells.size(); ++i)    universe->addCell(i);
         }
 
-        // 4. Populate Facets and Identify Boundary
+        // Populate Facets and Identify Boundary
         // Use a bitset/bool vector to avoid massive duplicate insertions into 'boundary'
-        std::vector<bool> vertex_on_boundary(m_vertices.size(), false);
+        std::vector<uint8_t> vertex_on_boundary(m_vertices.size(), 0);
 
         for (const auto &facet : m_facets) {
             universe->addFacet(facet.id);
@@ -1237,7 +1059,7 @@ namespace cfem
                 boundary->addFacet(facet.id);
                 auto f_vids = getFacetConnectivity(facet.id); 
                 for (CfemInt v_id : f_vids) {
-                    vertex_on_boundary[v_id] = true;
+                    vertex_on_boundary[v_id] = 1;
                 }
             }
         }
@@ -1247,12 +1069,12 @@ namespace cfem
             if (vertex_on_boundary[v_id]) boundary->addVertex(v_id);
         }
 
-        // 5. Finalize
+        // Finalize
         universe->finalize();
         boundary->finalize();        
         updateAffineFlags();
 
-        // 6. Validation and Reporting
+        // Validation and Reporting
     #ifndef NDEBUG
         ConformityReport report = MeshConformityChecker::check(*this, true);
         if (!report.is_valid) {
@@ -1274,7 +1096,7 @@ namespace cfem
             for (auto const& [type, count] : m_invertedCellCounts)
             {
                 totalFixed += count;
-                details += "\n  - " + cellTypeToString(type) + ": " + std::to_string(count);
+                details += "\n  - " + Cell::cellTypeToString(type) + ": " + std::to_string(count);
             }
 
             CFEM_INFO << "Orientation Check: " << std::to_string(totalFixed) << 
@@ -1285,47 +1107,38 @@ namespace cfem
     }
     
     /** ************************************************************************************************************************************
-     * @brief Remove unused vertices from the mesh and remap connectivity.
+     * @brief Performs garbage collection on the mesh by removing unreferenced vertices.
      *
-     * This function "compacts" the vertex array by eliminating vertices that are
-     * not referenced by any cell or facet. It updates all relevant connectivity
-     * arrays, including:
-     *   - Cell-to-vertex connectivity (m_allCellVertexIds)
-     *   - Facet-to-vertex connectivity (m_allFacetVertexIds)
-     *   - Vertex sets stored in MeshEntities
+     * @details
+     * Analyzes the active cell connectivity to identify and discard orphaned nodes. 
+     * It then automatically remaps all global identifiers across the entire mesh 
+     * architecture, ensuring a contiguous, memory-tight Vertex array from 0 to N-1.
      *
-     * After this function:
-     *   - The m_vertices array contains only vertices actually used by the mesh.
-     *   - All vertex IDs in cells, facets, and entities are remapped to the
-     *     new compacted indices.
+     * ### Operational Details
+     * - **Global Remapping:** Safely updates `m_allCellVertexIds`, `m_allFacetVertexIds`, 
+     *   and the internal vertex lists of all physical `MeshEntities`.
+     * - **Memory Locality:** Eliminating gaps in the vertex array significantly improves 
+     *   cache hit rates during finite element matrix assembly.
+     * - **HPC Optimized:** Uses byte-arrays instead of bit-masks for the marking phase 
+     *   to ensure loop vectorization and maximum CPU throughput.
      *
-     * This improves memory locality, reduces storage requirements, and ensures
-     * that vertex IDs are contiguous from 0 to n-1.
+     * @note This function solely cleans and remaps data; it does NOT automatically 
+     * rebuild adjacency maps (like cell neighbors). The caller must invoke 
+     * `buildInverseConnectivities()`, `buildFacets()`, and `buildAdjacency()` 
+     * after compaction if the topology needs to be fully restored.
      *
-     * Note:
-     *   - Adjacency structures (inverse connectivity, facets, cell neighbors) 
-     *     are not rebuilt automatically in this function. Call
-     *     `buildInverseConnectivities()`, `buildFacets()`, and `buildAdjacency()`
-     *     afterward if needed.
+     * @warning **Destructive ID Shift:** This operation shifts internal IDs. Any integer 
+     * referencing a vertex ID acquired before calling this function will likely point 
+     * to the wrong node (or out of bounds) afterward.
      *
-     * Steps performed:
-     *   1) Mark all vertices used by any cell.
-     *   2) Build an old-to-new vertex index map and a new vertex array.
-     *   3) Remap cell connectivity according to the new indices.
-     *   4) Remap facet connectivity if stored explicitly.
-     *   5) Remap vertex sets in all mesh entities.
-     *   6) Replace m_vertices with the compacted vertex array.
-     *   7) Optionally, clear/rebuild adjacency structures.
      ***************************************************************************************************************************************/
     void Mesh::compactVertices()
     {
         const CfemInt oldVertexCount = static_cast<CfemInt>(m_vertices.size());
         if (oldVertexCount == 0) return;
 
-        // ------------------------------------------------------------
-        // 1) Mark used vertices
-        // ------------------------------------------------------------
-        std::vector<bool> used(oldVertexCount, false);
+        // Mark used vertices (Using uint8_t instead of bool for HPC memory speed)
+        std::vector<uint8_t> used(oldVertexCount, 0);
 
         for (CfemInt cellId = 0; cellId < static_cast<CfemInt>(m_cells.size()); ++cellId)
         {
@@ -1333,24 +1146,21 @@ namespace cfem
             for (CfemInt vid : conn)
             {
                 if (vid >= 0 && vid < oldVertexCount)
-                    used[vid] = true;
+                    used[vid] = 1;
             }
         }
 
-        // Count used
+        // Count used vertices
         CfemInt usedCount = 0;
-        for (bool u : used)
+        for (uint8_t u : used) {
             if (u) ++usedCount;
+        }
 
-        // Nothing to do
-        if (usedCount == oldVertexCount)
-            return;
+        // Early exit if no compaction is needed
+        if (usedCount == oldVertexCount) return;
 
-        // ------------------------------------------------------------
-        // 2) Build old -> new index map
-        // ------------------------------------------------------------
+        // Build old -> new index map
         std::vector<CfemInt> oldToNew(oldVertexCount, -1);
-
         std::vector<Vertex> newVertices;
         newVertices.reserve(usedCount);
 
@@ -1365,31 +1175,17 @@ namespace cfem
             }
         }
 
-        // ------------------------------------------------------------
-        // 3) Remap cell connectivity (flat storage)
-        // ------------------------------------------------------------
-        for (CfemInt& vid : m_allCellVertexIds)
-        {
-            if (vid >= 0)
-            {
-                vid = oldToNew[vid];
-            }
+        // Remap cell connectivity (flat storage)
+        for (CfemInt& vid : m_allCellVertexIds) {
+            if (vid >= 0) vid = oldToNew[vid];
         }
 
-        // ------------------------------------------------------------
-        // 4) Remap facet connectivity (if stored explicitly)
-        // ------------------------------------------------------------
-        for (CfemInt& vid : m_allFacetVertexIds)
-        {
-            if (vid >= 0)
-            {
-                vid = oldToNew[vid];
-            }
+        // Remap facet connectivity (if stored explicitly)
+        for (CfemInt& vid : m_allFacetVertexIds) {
+            if (vid >= 0) vid = oldToNew[vid];
         }
 
-        // ------------------------------------------------------------
-        // 5) Remap entity vertex sets
-        // ------------------------------------------------------------
+        // Remap entity vertex sets
         for (const auto& entity : m_entities)
         {
             std::vector<CfemInt> newEntityVertices;
@@ -1400,80 +1196,67 @@ namespace cfem
                 if (oldVid >= 0 && oldVid < oldVertexCount)
                 {
                     CfemInt mapped = oldToNew[oldVid];
-                    if (mapped >= 0)
-                        newEntityVertices.push_back(mapped);
+                    if (mapped >= 0) newEntityVertices.push_back(mapped);
                 }
             }
-
             entity->replaceVertexList(newEntityVertices);
         }
 
-        // ------------------------------------------------------------
-        // 6) Replace vertex array
-        // ------------------------------------------------------------
+        // Finalize
         m_vertices = std::move(newVertices);
-
-        // ------------------------------------------------------------
-        // 7) Clear adjacency (will be rebuilt)
-        // ------------------------------------------------------------
-        // buildInverseConnectivities();
-        // buildFacets();
-        // buildAdjacency();
     }
 
 
     /** ************************************************************************************************************************************
-     * @brief Generate a human-readable summary of the mesh.
+     * @brief Generates a concise, human-readable summary of the mesh.
      *
-     * This function returns a formatted string containing key information about the mesh structure, including:
+     * @details
+     * Returns a formatted string detailing the global state of the mesh. This is 
+     * highly useful for quick topological inspection, logging, and verifying the 
+     * success of mesh transformations (e.g., confirming order upgrades).
      *
-     * - spatial dimension
-     * - polynomial order
-     * - number of vertices
-     * - number of cells
-     * - number of facets
+     * The summary includes:
+     * - **Global Statistics:** Dimension, polynomial order, and total counts for 
+     *   vertices, cells, and facets.
+     * - **Cell Type Distribution:** A precise breakdown of the elements present 
+     *   in the mesh (e.g., distinguishing the number of HEX27 vs. PRISM18).
+     * - **Physical Entities:** A table of all registered mesh entities (Universe, 
+     *   Boundaries, user groups), including their internal IDs and topological sizes.
      *
-     * It also lists all registered mesh entities and reports, for each:
+     * @return A formatted multi-line string containing the mesh summary.
      *
-     * - entity name
-     * - entity identifier
-     * - number of associated elements (cells or facets depending on dimension)
-     * - number of associated vertices
+     * @note This method is `const` and relies entirely on pre-computed $O(1)$ 
+     * metadata counters. It is computationally free and completely safe to call 
+     * at any time, even within high-frequency simulation loops or debug assertions.
      *
-     * The output is intended for debugging, logging, and quick inspection of the mesh state.
-     *
-     * Example output:
-     *
-     * @code
-     * ================ MESH SUMMARY ================
-     *  Dimension: 3D
-     *  Order:     Linear
-     *  Vertices:  125
-     *  Cells:     320
-     *  Facets:    480
-     * ---------------------------------------------------
-     *  Entity Name         ID        Elements       Vertices
-     *  Universe            0         320            125
-     *  SYS_BOUNDARY        1         96             64
-     * ===================================================
-     * @endcode
-     *
-     * @return A formatted string describing the mesh.
-     *
-     * @note
-     * This function does not modify the mesh and is safe to call at any time after mesh construction.
      ***************************************************************************************************************************************/
     std::string Mesh::info() const
     {
         std::stringstream ss;
         ss << "\n================ MESH SUMMARY ================" << std::endl;
         ss << " Dimension: " << getDimension() << "D" << std::endl;
-        ss << " Order:     " << (getOrder() == MeshOrder::Linear ? "Linear" : (getOrder() == MeshOrder::Quadratic) ? "Quadratic"
-                                                                                                                   : "None")
-           << std::endl;
+        ss << " Order:     " << (getOrder() == MeshOrder::Linear ? "Linear" : 
+                                (getOrder() == MeshOrder::Quadratic) ? "Quadratic" : "None") << std::endl;
         ss << " Vertices:  " << getNumVertices() << std::endl;
         ss << " Cells:     " << getNumCells() << std::endl;
         ss << " Facets:    " << getNumFacets() << std::endl;
+
+        if (!m_uniqueCellTypes.empty()) 
+        {
+            ss << "---------------------------------------------------\n";
+            ss << std::left << std::setw(20) << "Cell Type" 
+               << "Count\n";
+            for (CellType type : m_uniqueCellTypes) 
+            {
+                size_t count = m_cellCountPerType[static_cast<size_t>(type)];
+                if (count > 0) 
+                {
+                    ss << std::left << std::setw(20) << Cell::cellTypeToString(type) 
+                       << count << "\n";
+                }
+            }
+        }
+
         ss << "---------------------------------------------------" << std::endl;
         ss << std::left << std::setw(20) << "Entity Name"
            << std::setw(10) << "ID"
@@ -1499,79 +1282,27 @@ namespace cfem
     }
 
     /** ************************************************************************************************************************************
-     * @brief Export the mesh in a detailed textual debug format.
+     * @brief Generates a detailed, human-readable string representation of the mesh topology.
      *
-     * This function generates a human-readable representation of the mesh including its topology and connectivity. The output is primarily
-     * intended for debugging, inspection, and development purposes.
+     * @details
+     * Dumps the complete internal state of the mesh into a formatted text string. This 
+     * is primarily designed for debugging, deep inspection, and verifying connectivity 
+     * algorithms during development.
      *
-     * The output begins with the mesh summary produced by `info()`, followed by structured sections describing nodes, cells, and facets.
+     * The generated string is divided into four main sections:
+     * - **1. Mesh Summary:** Global statistics and physical entity listings (via `info()`).
+     * - **2. Nodes:** A list of all vertices and their physical 3D coordinates.
+     * - **3. Cells:** Element types, node connectivity arrays, and adjacent neighbor IDs 
+     *   (with 'B' indicating a boundary face).
+     * - **4. Facets:** Edge/face connectivity and their Left/Right bounding cell IDs.
      *
-     * ---
+     * @return A formatted multi-line string describing the full mesh connectivity.
      *
-     * ### Output Structure
-     *
-     * 1. **Mesh Summary**
-     *    The first section is the formatted summary returned by `info()`, containing global statistics and entity information.
-     *
-     * 2. **Nodes Section**
-     *
-     * ```
-     * $Nodes
-     * <number_of_nodes>
-     * node_id  x  y  z
-     * ...
-     * $EndNodes
-     * ```
-     *
-     * Lists all mesh vertices with their coordinates.
-     *
-     * 3. **Cells Section**
-     *
-     * ```
-     * $Cells
-     * <number_of_cells>
-     * cell_id  type  node_count  node_ids | Neighbors: ...
-     * ...
-     * $EndCells
-     * ```
-     *
-     * Each cell entry contains:
-     *
-     * - element type
-     * - vertex connectivity
-     * - neighboring cells
-     *
-     * Neighbor values are reported as:
-     *
-     * - a cell index for interior neighbors
-     * - `B` if the face lies on the boundary.
-     *
-     * 4. **Facets Section**
-     *
-     * ```
-     * $Facets
-     * <number_of_facets>
-     * facet_id node_count node_ids | L: <left_cell> R: <right_cell>
-     * ...
-     * $EndFacets
-     * ```
-     *
-     * Each facet entry records:
-     *
-     * - its vertex connectivity
-     * - the indices of adjacent cells
-     *
-     * Boundary facets have `R = -1`.
-     *
-     * ---
-     *
-     * @return A formatted string containing the mesh summary and full connectivity description.
-     *
-     * @note
-     * This format is intended for debugging and topology inspection and should not be considered a stable mesh file format.
-     *
-     * @warning
-     * The layout of this output may change between versions of the library.
+     * @note This is a diagnostic tool, not a standardized file exporter. To export 
+     * meshes for external solvers or visualization software (e.g., ParaView), use 
+     * dedicated writers (like VTK or Gmsh exporters) instead.
+     * @warning The specific string layout and formatting is unstable by design and 
+     * subject to change across library versions. Do not parse this output programmatically.
      ***************************************************************************************************************************************/
     std::string Mesh::getMeshFormat() const
     {
@@ -1601,7 +1332,7 @@ namespace cfem
             auto cell_vids = getCellConnectivity(cell.id); 
 
             ss << i << " "
-            << std::setw(8) << cellTypeToString(cell.type) << " "
+            << std::setw(8) << Cell::cellTypeToString(cell.type) << " "
             << cell_vids.size() << "  ";
 
             // Print Node IDs
@@ -1641,19 +1372,25 @@ namespace cfem
     }
 
     /** ************************************************************************************************************************************
-     * @brief Upgrade the mesh from linear to quadratic order.
+     * @brief Upgrades the mesh from linear (P1) to quadratic (P2) order.
      *
-     * This routine converts a linear mesh into a quadratic mesh by inserting additional nodes on element edges (and faces where required). The
-     * connectivity of all cells is updated accordingly, and element types are replaced by their quadratic equivalents.
+     * @details
+     * Converts all linear elements into their quadratic counterparts by inserting 
+     * new vertices at edge midpoints and face centers.
+     * 
+     * The upgrade process guarantees a conforming mesh: nodes added on edges or faces 
+     * shared by multiple cells are uniquely created and correctly referenced across 
+     * neighboring elements.
      *
-     * The upgrade process creates:
-     *
-     * - **mid-edge nodes** for all elements
-     * - **mid-face nodes** for elements that require them (e.g. HEX27, PRISM18)
-     *
-     * Newly created nodes are shared between neighboring elements to ensure a conforming quadratic mesh.
-     *
-     * ---
+     * ### Operational Details
+     * - **Memory Efficient:** Uses exact pre-allocation based on the current cell type 
+     *   histogram to avoid any dynamic memory reallocation overhead.
+     * - **Topology Rebuild:** Automatically rebuilds all connectivity structures 
+     *   (inverse connectivities, facets, and cell adjacency).
+     * - **Entity Update:** Refreshes all physical groups (MeshEntities) to include 
+     *   the newly created higher-order vertices.
+     * - **Observer Notification:** Triggers `updateAfterMeshChange()` on all attached 
+     *   FE spaces so they can resize their internal DOF mappings.
      *
      * ### Supported Element Transformations
      *
@@ -1665,131 +1402,100 @@ namespace cfem
      * | TET4        | TET10          |
      * | PRISM6      | PRISM18        |
      * | HEX8        | HEX27          |
-     *
-     * ---
-     *
-     * ### Algorithm Overview
-     *
-     * 1. **Edge midpoint generation**
-     *
-     *    A hash map is used to track edges and ensure that each edge midpoint is created only once, even if the edge is shared by multiple cells.
-     *
-     * 2. **Face midpoint generation**
-     *
-     *    For elements that require face nodes (e.g. HEX27), a second hash map  tracks quadrilateral faces to ensure consistent face center creation.
-     *
-     * 3. **Connectivity reconstruction**
-     *
-     *    A new contiguous connectivity block is created containing the quadratic node ordering for all cells.
-     *
-     * 4. **Cell update**
-     *
-     *    Each cell updates:
-     *
-     *    - its node offset
-     *    - its node count
-     *    - its element type
-     *
-     * 5. **Topology rebuild**
-     *
-     *    Since connectivity changes, the following structures are rebuilt:
-     *
-     *    - vertex → cell connectivity
-     *    - facets
-     *    - cell adjacency
-     *
-     * 6. **Entity update**
-     *
-     *    Mesh entities are updated to reflect the new vertex set.
-     *
-     * 7. **Observer notification**
-     *
-     *    Registered finite element spaces observing the mesh are notified via `updateAfterMeshChange()` so that they can update their internal
-     *    data structures.
-     *
-     * ---
-     *
-     * @note
-     * If the mesh is already quadratic, this function returns immediately.
-     *
-     * @warning
-     * This operation modifies the global mesh topology and invalidates previously stored connectivity information.
-     *
-     * @post
-     * - All cells use quadratic element types.
-     * - Additional vertices are inserted at edge and face midpoints.
-     * - Mesh topology structures are rebuilt.
+     * 
+     * @note If the mesh is already quadratic, this function returns immediately.
+     * @warning This operation modifies the global mesh topology. It invalidates any 
+     * previously acquired `std::span` views or pointers to connectivity arrays.
      *
      * @complexity
      * Approximately linear in the number of cells.
      ***************************************************************************************************************************************/
     void Mesh::upgradeToQuadratic() {
-#ifndef NDEBUG
-        CFEM_INFO << "Upgrading the mesh to quadratic... ";
-#endif
         if (this->isQuadratic()) return;
         PROFILE_SCOPE("Mesh::upgradeToQuadratic");
+        
+        CFEM_INFO << "Upgrading the mesh to quadratic... ";
 
-        // Setup high-speed edge tracking
+        // FAST EDGE TRACKING
         struct Edge {
             CfemInt v1, v2;
+            Edge(CfemInt a, CfemInt b) : v1(std::min(a, b)), v2(std::max(a, b)) {}
+            
             bool operator==(const Edge& o) const { 
-                return (v1 == o.v1 && v2 == o.v2) || (v1 == o.v2 && v2 == o.v1); 
+                return v1 == o.v1 && v2 == o.v2; 
             }
         };
-        // struct EdgeHash {
-        //     size_t operator()(const Edge& e) const {
-        //         CfemInt a = std::min(e.v1, e.v2), b = std::max(e.v1, e.v2);
-        //         return std::hash<long long>{}((static_cast<long long>(a) << 32) | b);
-        //     }
-        // };
 
         struct EdgeHash {
             size_t operator()(const Edge& e) const {
-                size_t seed = 0;
-                CfemInt a = std::min(e.v1, e.v2);
-                CfemInt b = std::max(e.v1, e.v2);
-                seed ^= std::hash<CfemInt>{}(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-                seed ^= std::hash<CfemInt>{}(b) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-                return seed;
+                if constexpr (sizeof(CfemInt) <= 4) { // If using 32 bits int
+                    return (static_cast<uint64_t>(e.v1) << 32) | static_cast<uint64_t>(e.v2);
+                } 
+                else { // if using 64 bits int
+                    size_t seed = 0;
+                    seed ^= std::hash<CfemInt>{}(e.v1) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                    seed ^= std::hash<CfemInt>{}(e.v2) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                    return seed;
+                }
             }
         };
 
+        // FAST QUAD FACE TRACKING (Manual Sorting Network)
         struct QuadFace {
-            CfemInt v1, v2, v3, v4; // Fixed typo: v3, v3 -> v3, v4
+            CfemInt v[4];
 
-            // Equality operator: true if both faces have the same 4 vertices
+            QuadFace(CfemInt a, CfemInt b, CfemInt c, CfemInt d) {
+                v[0] = a; v[1] = b; v[2] = c; v[3] = d;
+                
+                // Avoid the STL overhead of std::sort call.
+                if (v[0] > v[1]) std::swap(v[0], v[1]);
+                if (v[2] > v[3]) std::swap(v[2], v[3]);
+                if (v[0] > v[2]) std::swap(v[0], v[2]);
+                if (v[1] > v[3]) std::swap(v[1], v[3]);
+                if (v[1] > v[2]) std::swap(v[1], v[2]);
+            }
+
             bool operator==(const QuadFace& o) const {
-                std::array<CfemInt, 4> a = {v1, v2, v3, v4};
-                std::array<CfemInt, 4> b = {o.v1, o.v2, o.v3, o.v4};
-                
-                std::sort(a.begin(), a.end());
-                std::sort(b.begin(), b.end());
-                
-                return a == b;
+                return v[0] == o.v[0] && v[1] == o.v[1] && v[2] == o.v[2] && v[3] == o.v[3];
             }
         };
 
         struct QuadFaceHash {
             size_t operator()(const QuadFace& f) const {
-                std::array<CfemInt, 4> nodes = {f.v1, f.v2, f.v3, f.v4};
-                std::sort(nodes.begin(), nodes.end());
-
                 size_t seed = 0;
-                // Standard hash combination (based on boost::hash_combine)
-                // This efficiently mixes the sorted node IDs into a single size_t
-                for (CfemInt v : nodes) {
-                    seed ^= std::hash<CfemInt>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-                }
+                // Boucle déroulée manuellement pour mixer les 4 noeuds déjà triés.
+                seed ^= std::hash<CfemInt>{}(f.v[0]) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= std::hash<CfemInt>{}(f.v[1]) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= std::hash<CfemInt>{}(f.v[2]) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= std::hash<CfemInt>{}(f.v[3]) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
                 return seed;
             }
         };
+
         std::unordered_map<Edge, CfemInt, EdgeHash> edge_to_midpoint;
         std::unordered_map<QuadFace, CfemInt, QuadFaceHash> quadface_to_midpoint;
-
-        // Prepare the NEW Big Block for connectivity
+    
+        // Prepare the new Big Block for connectivity
         std::vector<CfemInt> newAllCellVertexIds;
-        newAllCellVertexIds.reserve(m_allCellVertexIds.size() * 3);
+
+        size_t totalNodes = 0;
+        size_t totalEdges = 0;
+        size_t totalQuadFaces = 0;
+
+        for (size_t t = 0; t < static_cast<size_t>(CellType::COUNT); ++t) {
+            size_t count = m_cellCountPerType[t];
+            if (count == 0) continue;
+
+            CellType type = static_cast<CellType>(t);
+
+            totalNodes += count * Cell::getNodeCount(Cell::getQuadraticEquivalent(type));
+            totalEdges += count * Cell::getEdgeCount(type);
+            totalQuadFaces += count * Cell::getLocalQuadFacesCount(type);
+        }
+
+        newAllCellVertexIds.reserve(totalNodes);
+        edge_to_midpoint.reserve(totalEdges);
+        quadface_to_midpoint.reserve(totalQuadFaces);
 
         m_cellOffsets.clear();
         m_cellOffsets.reserve(m_cells.size() + 1);
@@ -1798,10 +1504,12 @@ namespace cfem
         std::vector<CfemInt> quad_buffer; 
         quad_buffer.reserve(27);
 
-        // Loop over cells and upgrade
+        // MAIN UPGRADE LOOP
         for (size_t i = 0; i < m_cells.size(); ++i) {
             Cell &cell = m_cells[i];
-            auto linear_vids = getCellConnectivity(cell.id); // Current safe span
+            auto linear_vids = getCellConnectivity(cell.id);
+
+            quad_buffer.clear(); // Make sure the buffer is empty at each iteration loop
 
             switch (cell.type) {
                 case CellType::LINE2:  fillLine3Nodes(linear_vids, edge_to_midpoint, quad_buffer); break;
@@ -1823,121 +1531,101 @@ namespace cfem
             m_cellOffsets.push_back(newAllCellVertexIds.size());
         }
 
+        // UPDATE FLAGS & FIX STD::UNIQUE BUG
         m_cellTypeFlags.reset();
-        for (auto &type : m_uniqueCellTypes)
-        {
+        for (auto &type : m_uniqueCellTypes) {
             type = Cell::getQuadraticEquivalent(type);
             int typeIdx = static_cast<int>(type);
-            if (!m_cellTypeFlags.test(typeIdx))
-            {
+            if (!m_cellTypeFlags.test(typeIdx)) {
                 m_cellTypeFlags.set(typeIdx);
             }
         }
 
         m_facetTypeFlags.reset();
-        for (auto &type : m_uniqueFacetTypes)
-        {
+        for (auto &type : m_uniqueFacetTypes) {
             type = Cell::getQuadraticEquivalent(type);
             int typeIdx = static_cast<int>(type);
-            if (!m_facetTypeFlags.test(typeIdx))
-            {
+            if (!m_facetTypeFlags.test(typeIdx)) {
                 m_facetTypeFlags.set(typeIdx);
             }
         }
 
+        std::array<size_t, static_cast<size_t>(CellType::COUNT)> newCellCountPerType{};
+        newCellCountPerType.fill(0);
+
+        for (size_t i = 0; i < m_cellCountPerType.size(); ++i)
+        {
+            const auto count = m_cellCountPerType[i];
+            if (count == 0) continue;
+
+            const auto qt = static_cast<size_t>( Cell::getQuadraticEquivalent(static_cast<CellType>(i)) );
+            newCellCountPerType[qt] += count;
+        }
+
+        m_cellCountPerType = newCellCountPerType;
+
+        std::sort(m_uniqueCellTypes.begin(), m_uniqueCellTypes.end());
         auto itCell = std::unique(m_uniqueCellTypes.begin(), m_uniqueCellTypes.end());
         m_uniqueCellTypes.erase(itCell, m_uniqueCellTypes.end());
 
+        std::sort(m_uniqueFacetTypes.begin(), m_uniqueFacetTypes.end());
         auto itFacet = std::unique(m_uniqueFacetTypes.begin(), m_uniqueFacetTypes.end());
         m_uniqueFacetTypes.erase(itFacet, m_uniqueFacetTypes.end());
 
-        // Atomic Switch: Old linear block is deleted here
+        // FINALIZE (Atomic Switch)
         m_allCellVertexIds = std::move(newAllCellVertexIds);
         m_meshOrder = MeshOrder::Quadratic;
 
-        // Rebuild everything dependent on connectivity
         buildInverseConnectivities();
         buildFacets(); 
         buildAdjacency();
         updateEntities();
-        // updateAffineFlags(); Pas necessaire rendu la! on a simplement ajouter des points milieux. si l'element etait affine, il le demeure.
 
         notifyObservers();
 
-        CFEM_INFO <<  "Mesh successfully upgraded to quadratic.";
-        CFEM_INFO <<  this->info();
-
+        CFEM_INFO << "Mesh successfully upgraded to quadratic.";
+        CFEM_INFO << this->info();
     }
 
-
     /** ************************************************************************************************************************************
-     * @brief Downgrade the mesh from quadratic to linear order.
+     * @brief Downgrades the mesh from quadratic (P2) to linear (P1) order.
      *
-     * This routine converts a quadratic mesh into a linear mesh by removing higher-order nodes (mid-edge, mid-face, and interior nodes) from the
-     * cell connectivity. Only the corner vertices of each element are kept, and the element types are replaced with their linear equivalents.
+     * @details
+     * Converts all quadratic elements into their linear counterparts by discarding 
+     * higher-order nodes (mid-edge, face-center, and volume-center nodes) from the 
+     * cell connectivity.
+     * 
+     * The downgrade process safely preserves the core geometric shape while executing 
+     * a complete garbage collection of orphaned higher-order nodes.
      *
-     * The downgrade process does not delete the higher-order vertices from the global vertex list. Instead, the cell connectivity is rebuilt so
-     * that only the corner nodes are referenced. As a result, unused vertices may remain in the mesh until a later compaction step is performed.
-     *
-     * ---
+     * ### Operational Details
+     * - **Exact Memory Allocation:** Calculates the exact required capacity for the 
+     *   new connectivity block to guarantee zero dynamic reallocations.
+     * - **Topology Compaction & Rebuild:** Automatically compacts the vertex array 
+     *   to remove unused nodes, then strictly rebuilds all adjacency structures 
+     *   (inverse connectivities, facets, and neighbors).
+     * - **Entity Update:** Refreshes all physical groups (MeshEntities) to reflect 
+     *   the new, compacted vertex set.
+     * - **Observer Notification:** Triggers `updateAfterMeshChange()` on all attached 
+     *   FE spaces so they can resize and remap their internal DOFs.
      *
      * ### Supported Element Transformations
      *
      * | Quadratic Type | Linear Type |
-     * |----------------|------------|
-     * | LINE3          | LINE2      |
-     * | TRI6           | TRI3       |
-     * | QUAD9          | QUAD4      |
-     * | TET10          | TET4       |
-     * | PRISM18        | PRISM6     |
-     * | HEX27          | HEX8       |
+     * |----------------|-------------|
+     * | LINE3          | LINE2       |
+     * | TRI6           | TRI3        |
+     * | QUAD9          | QUAD4       |
+     * | TET10          | TET4        |
+     * | PRISM18        | PRISM6      |
+     * | HEX27          | HEX8        |
      *
-     * ---
-     *
-     * ### Algorithm Overview
-     *
-     * 1. **Connectivity clipping**
-     *
-     *    For each cell, only the first nodes corresponding to the corner vertices are copied into a new connectivity block.
-     *
-     * 2. **Cell update**
-     *
-     *    Each cell updates:
-     *
-     *    - its connectivity offset
-     *    - its node count
-     *    - its element type
-     *
-     * 3. **Connectivity replacement**
-     *
-     *    The new linear connectivity block replaces the quadratic one.
-     *
-     * 4. **Topology rebuild**
-     *
-     *    Since connectivity has changed, the following structures are rebuilt:
-     *
-     *    - vertex → cell inverse connectivity
-     *    - facets
-     *    - mesh entities
-     *
-     * 5. **Observer notification**
-     *
-     *    All registered finite element spaces observing the mesh are notified via `updateAfterMeshChange()` so they can rebuild their internal
-     *    data structures.
-     *
-     * ---
-     *
-     * @note
-     * If the mesh is already linear, the function returns immediately.
-     *
-     * @warning
-     * This operation invalidates existing connectivity and topology data.
-     *
-     * @post
-     * - All cells use linear element types.
-     * - Only corner nodes remain in cell connectivity.
-     * - Higher-order vertices may still exist in `m_vertices` but are unused.
-     *
+     * @note If the mesh is already linear, this function returns immediately.
+     * @warning This operation is highly destructive to the global mesh topology. 
+     * Because it triggers `compactVertices()`, **existing Vertex IDs may change**. 
+     * It also invalidates any previously acquired `std::span` views or pointers to 
+     * connectivity arrays.
+     * 
      * @complexity
      * Approximately linear in the number of cells.
      *
@@ -1950,18 +1638,27 @@ namespace cfem
 
         PROFILE_SCOPE("Mesh::downgradeToLinear");
 
-        // 1. Préparation des nouveaux blocs de connectivité
+        // Prepare the new Big Bloc for connectivities
         std::vector<CfemInt> newAllCellVertexIds;
-        newAllCellVertexIds.reserve(m_cells.size() * 4); // Heuristique (moyenne 4 nœuds/cell)
+        size_t totalNodes = 0;
+
+        for (size_t t = 0; t < static_cast<size_t>(CellType::COUNT); ++t) {
+            size_t count = m_cellCountPerType[t];
+            if (count == 0) continue;
+
+            CellType type = static_cast<CellType>(t);
+            totalNodes += count * Cell::getNodeCount(Cell::getLinearEquivalent(type));
+        }
+        newAllCellVertexIds.reserve(totalNodes);
 
         m_cellOffsets.clear();
         m_cellOffsets.reserve(m_cells.size() + 1);
         m_cellOffsets.push_back(0);
 
-        // 2. Boucle sur les cellules pour "tronquer" la connectivité
+        // Loop over cells to truncate quadratic nodes
         for (auto &cell : m_cells)
         {
-            // Récupère les nœuds quadratiques actuels
+            // Get the current quadratic cell connectivity
             auto quad_nodes = getCellConnectivity(cell.id);
             
             CellType linearType = Cell::getLinearEquivalent(cell.type);
@@ -1970,23 +1667,39 @@ namespace cfem
             cell.offset = newAllCellVertexIds.size();
             cell.node_count = linearCount;
             cell.type = linearType;
+            
+            newAllCellVertexIds.insert( 
+                newAllCellVertexIds.end(),
+                quad_nodes.begin(),
+                quad_nodes.begin() + linearCount
+            );
 
-            for (int i = 0; i < linearCount; ++i) {
-                newAllCellVertexIds.push_back(quad_nodes[i]);
-            }
-
-            // Mise à jour de l'offset CSR pour la cellule suivante
+            // CSR offset update for the next cell
             m_cellOffsets.push_back(newAllCellVertexIds.size());
         }
 
-        // 3. Mise à jour des Flags de Types (Cells & Facets)
+        // Update cell count per type
+        std::array<size_t, static_cast<size_t>(CellType::COUNT)> newCellCountPerType{};
+        newCellCountPerType.fill(0);
+
+        for (size_t i = 0; i < m_cellCountPerType.size(); ++i)
+        {
+            const auto count = m_cellCountPerType[i];
+            if (count == 0) continue;
+
+            const auto qt = static_cast<size_t>( Cell::getLinearEquivalent(static_cast<CellType>(i)) );
+            newCellCountPerType[qt] += count;
+        }
+        m_cellCountPerType = newCellCountPerType;
+
+        // Update types flags
         m_cellTypeFlags.reset();
         for (auto &type : m_uniqueCellTypes)
         {
             type = Cell::getLinearEquivalent(type);
             m_cellTypeFlags.set(static_cast<int>(type));
         }
-        // Nettoyage des doublons après conversion
+        // Clean up after upgrading
         std::sort(m_uniqueCellTypes.begin(), m_uniqueCellTypes.end());
         m_uniqueCellTypes.erase(std::unique(m_uniqueCellTypes.begin(), m_uniqueCellTypes.end()), m_uniqueCellTypes.end());
 
@@ -1999,13 +1712,14 @@ namespace cfem
         std::sort(m_uniqueFacetTypes.begin(), m_uniqueFacetTypes.end());
         m_uniqueFacetTypes.erase(std::unique(m_uniqueFacetTypes.begin(), m_uniqueFacetTypes.end()), m_uniqueFacetTypes.end());
 
-        // 4. Finalisation de la structure de données
+        // Data structure finalization
         m_allCellVertexIds = std::move(newAllCellVertexIds);
         m_meshOrder = MeshOrder::Linear;
 
         compactVertices(); 
         buildInverseConnectivities();
         buildFacets(); 
+        buildAdjacency();
         
         updateEntities();
         
@@ -2017,33 +1731,27 @@ namespace cfem
 
 
     /** ************************************************************************************************************************************
-     * @brief Update all mesh entities after a topology modification.
+     * @brief Synchronizes all physical groups (entities) with the current mesh topology.
      *
-     * This method refreshes the contents of all registered mesh entities to ensure they remain consistent with the current mesh topology.
+     * @details
+     * Refreshes the internal geometric sets (vertices, facets, cells) of all registered 
+     * mesh entities, including the global domain ("Universe"), the geometric boundary 
+     * ("SYS_BOUNDARY"), and user-defined physical groups.
+     * 
+     * This must be invoked after any operation that modifies the underlying connectivity 
+     * (e.g., order upgrades, downgrades, or manual vertex compaction) to ensure that 
+     * material assignments and boundary conditions remain mapped to valid elements.
      *
-     * Mesh entities represent subsets of the mesh such as:
-     * - the global domain ("Universe")
-     * - the global boundary
-     * - user-defined physical groups
+     * ### Operational Details
+     * - **Entity Preservation:** Entity IDs and names remain strictly intact; only their 
+     *   underlying element lists are recomputed.
+     * - **System-Aware:** Automatically triggers specialized rebuild routines for system 
+     *   entities (Universe and Boundary) before updating standard user entities.
      *
-     * Since operations like mesh refinement, order upgrade/downgrade, or connectivity rebuild may alter vertices, facets, or cells, entities
-     * must be updated to reflect the new mesh state.
+     * @warning Failing to call this after a topological modification will result in 
+     * physical groups referencing orphaned, invalid, or mismatched element IDs, leading 
+     * to catastrophic failures during finite element assembly.
      *
-     * The update behavior depends on the type of entity:
-     *
-     * - **Universe entity**: updated via `updateUniverse()`, which rebuilds the full set of cells, facets, and vertices belonging to the mesh.
-     *
-     * - **Boundary entity**: updated via `updateBoundary()`, which detects boundary facets and their associated vertices.
-     *
-     * - **User-defined entities**: updated using the generic `update()` method, which recomputes their vertex and element sets based on
-     *   the entity definition. This method is typically invoked after operations that modify the mesh connectivity, such as:
-     *
-     * - `upgradeToQuadratic()`
-     * - `downgradeToLinear()`
-     * - mesh generation or rebuilding
-     *
-     * @note
-     * The update preserves entity identifiers and names while rebuilding their internal lists of vertices, facets, and cells.
      ***************************************************************************************************************************************/
     void Mesh::updateEntities()
     {
@@ -2064,7 +1772,7 @@ namespace cfem
         }
     }
 
-    /**
+    /** ************************************************************************************************************************************
      * @brief Updates the affinity status for each cell in the mesh.
      *
      * This function analyzes the geometric mapping of every cell to determine if it is 
@@ -2086,15 +1794,14 @@ namespace cfem
      *
      * @note 
      * This function should be called after any mesh transformation, such as 
-     * @c upgradeToQuadratic() or mesh smoothing, to ensure the integration 
+     * @c upgradeToQuadratic() or mesh smoothing ( @c relaxMesh() ), to ensure the integration 
      * kernels use the correct mapping logic.
      *
      * @param tol Numerical tolerance for comparing node positions (default: 1e-10).
-     */
+     ************************************************************************************************************************************ */
     void Mesh::updateAffineFlags() {
         const CfemInt numCells = getNumCells();
         
-        // Initialiser tous les flags à true
         m_isCellAffine.assign(numCells, true);
         m_isGloballyAffine = true;
 
@@ -2115,41 +1822,37 @@ namespace cfem
 
             bool cellIsAffine = true;
 
-            // =========================================================
-            // VÉRIFICATION DES ARÊTES (Edges)
-            // =========================================================
+            // Check if cell Edges are affine
             const auto& edgeDefs = Cell::getLocalEdgesIndices(cell.type);
             for (const auto& edge : edgeDefs) {
-                // Pour un élément P2, l'arête a 3 nœuds : {sommet1, sommet2, milieu}
+                // For a quadratic cell, an edge has 3 vertices : {p1, p2, pm}
                 if (edge.size() < 3) continue; 
                 
                 const Vector3D& p1 = coords[edge[0]];
                 const Vector3D& p2 = coords[edge[1]];
-                const Vector3D& pm = coords[edge[2]]; // Nœud milieu
+                const Vector3D& pm = coords[edge[2]]; // Mid-node
 
                 Vector3D theoreticalMid = (p1 + p2) * 0.5;
                 
                 if ((pm - theoreticalMid).norm() > tol) {
                     cellIsAffine = false;
-                    break; // Inutile de vérifier le reste, la cellule est courbée
+                    break; // Unecessary to check the rest... the cell is curved.
                 }
             }
 
-            // =========================================================
-            // VÉRIFICATION DES FACES QUADRILATÉRALES (Quad Faces)
-            // =========================================================
+            // Check if Quad Faces are affine (At this stage, triangular faces are affine: no mid-node)
             if (cellIsAffine) {
                 const auto& quadFaceDefs = Cell::getLocalQuadFacesIndices(cell.type);
                 for (const auto& face : quadFaceDefs) {
-                    // Pour une face de Quad9, Prism18 ou Hex27, on a 9 nœuds.
-                    // L'indice 8 est le centre de la face.
+                    // Quad9, Prism18 and Hex27 have 9 nodes quad faces.
+                    // The mid-node index is the last in the facet connectivity (node at index 8)
                     if (face.size() < 9) continue; 
                     
                     const Vector3D& p0 = coords[face[0]];
                     const Vector3D& p1 = coords[face[1]];
                     const Vector3D& p2 = coords[face[2]];
                     const Vector3D& p3 = coords[face[3]];
-                    const Vector3D& pCenter = coords[face[8]]; // Nœud central
+                    const Vector3D& pCenter = coords[face[8]]; // mid-node
 
                     Vector3D theoreticalCenter = (p0 + p1 + p2 + p3) * 0.25;
                     
@@ -2160,18 +1863,17 @@ namespace cfem
                 }
             }
 
-            // =========================================================
-            // VÉRIFICATION DU VOLUME CENTRAL (Hex27 uniquement)
-            // =========================================================
+            // ISOPARAMETRIC CENTER VERIFICATION (Hex27 only)
             if (cellIsAffine && cell.type == CellType::HEX27 && coords.size() == 27) {
-                // il faut aussi s'assurer que le nœud 26 (centre du volume) est bien au milieu.
-                Vector3D theoreticalVolumeCenter = Vector3D(0, 0, 0);
+                // For an affine transformation, the central node (node 26) must coincide 
+                // exactly with the geometric barycenter of the 8 corner vertices.
+                Vector3D theoreticalBarycenter = Vector3D(0, 0, 0);
                 for (int i = 0; i < 8; ++i) {
-                    theoreticalVolumeCenter += coords[i];
+                    theoreticalBarycenter += coords[i];
                 }
-                theoreticalVolumeCenter = theoreticalVolumeCenter * 0.125;
+                theoreticalBarycenter = theoreticalBarycenter * 0.125;
 
-                if ((coords[26] - theoreticalVolumeCenter).norm() > tol) {
+                if ((coords[26] - theoreticalBarycenter).norm() > tol) {
                     cellIsAffine = false;
                 }
             }
@@ -2184,38 +1886,6 @@ namespace cfem
     //------------------------------------------------------------------------------------
     //------------------------- HELPER FUMCTIOMS -----------------------------------------
     //------------------------------------------------------------------------------------
-
-    /** ************************************************************************************************************************************
-     * @brief Convert a cell type enum to a human-readable string.
-     *
-     * This utility is used for reporting, logging, and debugging. It covers all standard linear and quadratic types.
-     *
-     * @param type The cell type (CellType enum).
-     * @return A string representing the cell type, e.g., "TET4" or "QUAD9".
-     *         Returns "UNKNOWN_CELL_TYPE" if the type is unrecognized.
-     ***************************************************************************************************************************************/
-    std::string Mesh::cellTypeToString(CellType type) const
-    {
-        switch (type)
-        {
-        case CellType::LINE2:   return "LINE2";
-        case CellType::TRI3:    return "TRI3";
-        case CellType::QUAD4:   return "QUAD4";
-        case CellType::TET4:    return "TET4";
-        case CellType::PRISM6:  return "PRISM6";
-        case CellType::HEX8:    return "HEX8";
-        case CellType::LINE3:   return "LINE3";
-        case CellType::TRI6:    return "TRI6";
-        case CellType::QUAD9:   return "QUAD9";
-        case CellType::TET10:   return "TET10";
-        case CellType::PRISM18: return "PRISM18";
-        case CellType::HEX27:   return "HEX27";
-        // ... others?
-        default:
-            return "UNKNOWN_CELL_TYPE";
-        }
-    }
-
 
     /** ************************************************************************************************************************************
      * @brief Compute a quality metric for a specific cell.
@@ -2252,6 +1922,38 @@ namespace cfem
         case CellType::PRISM6:
         case CellType::PRISM18:
             return computePrismQuality(getCellConnectivity(cellId));
+
+        default:
+            return 1.0; // Fallback for types not yet implemented
+        }
+    }
+
+    /** ************************************************************************************************************************************
+     * @brief Compute a quality metric for a specific facet.
+     *
+     * Quality is a dimensionless number between 0 and 1, where 1 represents
+     * an ideal element (perfectly shaped) and 0 represents a degenerate element
+     * (zero area/volume or inverted orientation).
+     *
+     * Supported types:
+     * - TRI3, TRI6, QUAD4, QUAD9
+     *
+     * @param facetId The global index of the facet.
+     * @return A real number in [0,1] measuring the element quality.
+     ***************************************************************************************************************************************/
+    CfemReal Mesh::computeFacetQuality(CfemInt facetId) const
+    {
+        const auto &facet = getFacet(facetId);
+
+        switch (facet.type)
+        {
+        case CellType::TRI3:
+        case CellType::TRI6:
+            return computeTriQuality(getFacetConnectivity(facetId));
+
+        case CellType::QUAD4:
+        case CellType::QUAD9:
+            return computeQuadQuality(getFacetConnectivity(facetId));
 
         default:
             return 1.0; // Fallback for types not yet implemented

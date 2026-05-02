@@ -175,7 +175,6 @@ namespace cfem
      * - cell adjacency
      * - boundary detection
      *
-     * @see getLocalFacesCount()
      * @see buildFacets()
      * @see buildAdjacency()
      ***************************************************************************************************************************************/
@@ -225,8 +224,8 @@ namespace cfem
             if (face_idx == 0)
             {
                 lf.v[0] = v[0];
-                lf.v[1] = v[1];
-                lf.v[2] = v[2];
+                lf.v[1] = v[2];
+                lf.v[2] = v[1];
             }
             else if (face_idx == 1)
             {
@@ -399,11 +398,11 @@ namespace cfem
             if (face_idx == 0)
             {
                 lf.v[0] = v[0];
-                lf.v[1] = v[1];
-                lf.v[2] = v[2];
-                lf.v[3] = v[4];
+                lf.v[1] = v[2];
+                lf.v[2] = v[1];
+                lf.v[3] = v[6];
                 lf.v[4] = v[5];
-                lf.v[5] = v[6];
+                lf.v[5] = v[4];
             }
             else if (face_idx == 1)
             {
@@ -592,76 +591,6 @@ namespace cfem
     }
 
     /** ************************************************************************************************************************************
-     * @brief Returns the number of local faces for a given cell type.
-     *
-     * This function provides the number of facets (faces in 3D, edges in 2D, nodes in 1D) associated with a specific cell type. It is primarily used
-     * when iterating over the faces of a cell during mesh topology construction, such as building facet lists or computing cell adjacency.
-     *
-     * The returned value corresponds to the number of valid indices that can be passed to Mesh::getLocalFaceData().
-     *
-     * ---
-     *
-     * ### Face counts by cell type
-     *
-     * | Cell Type        | Faces                                    |
-     * |------------------|------------------------------------------|
-     * | LINE2 / LINE3    | 2 nodes                                  |
-     * | TRI3 / TRI6      | 3 edges                                  |
-     * | QUAD4 / QUAD9    | 4 edges                                  |
-     * | TET4 / TET10     | 4 triangular faces                       |
-     * | PRISM6 / PRISM18 | 5 faces (2 triangular + 3 quadrilateral) |
-     * | HEX8 / HEX27     | 6 quadrilateral faces                    |
-     *
-     * ---
-     *
-     * @param type The cell type whose number of faces is requested.
-     *
-     * @return The number of local faces associated with the cell type.
-     *
-     * @pre
-     * The cell type must be supported by the mesh topology system.
-     *
-     * @note
-     * Linear and quadratic versions of the same element share the same number of faces since higher-order nodes only add interpolation
-     * points but do not change the topological structure.
-     *
-     * @warning
-     * An error is triggered if an unsupported cell type is provided.
-     *
-     * @see getLocalFaceData()
-     * @see buildFacets()
-     * @see buildAdjacency()
-     ***************************************************************************************************************************************/
-    inline int Mesh::getLocalFacesCount(CellType type) const
-    {
-        switch (type)
-        {
-            case CellType::LINE2:
-            case CellType::LINE3:
-                return 2;
-            case CellType::TRI3:
-            case CellType::TRI6:
-                return 3;
-            case CellType::QUAD4:
-            case CellType::QUAD9:
-                return 4;
-            case CellType::TET4:
-            case CellType::TET10:
-                return 4;
-            case CellType::PRISM6:
-            case CellType::PRISM18:
-                return 5;
-            case CellType::HEX8:
-            case CellType::HEX27:
-                return 6;
-
-            default:
-                CFEM_ERROR << "Unsupported cell type."; 
-                return -1;
-        }
-    }
-
-    /** ************************************************************************************************************************************
      * @brief Finds the local face index of a given face within a cell.
      *
      * This function searches the faces of a specified cell and determines which local face corresponds to a given target face. The comparison
@@ -700,12 +629,11 @@ namespace cfem
      * This function is typically used when reconstructing mesh topology, such as mapping global facets back to the local face index of a cell.
      *
      * @see getLocalFaceData()
-     * @see getLocalFacesCount()
      * @see buildFacets()
      ***************************************************************************************************************************************/
     inline int Mesh::findLocalFaceIndex(CfemInt cell_id, const LocalFace &target) const
     {
-        const int n = getLocalFacesCount(m_cells[cell_id].type);
+        const int n = Cell::getFaceCount(m_cells[cell_id].type);
         for (int i = 0; i < n; ++i)
         {
             LocalFace other = getLocalFaceData(cell_id, i);
@@ -1595,7 +1523,7 @@ namespace cfem
         }
 
         default:
-            CFEM_ERROR << "Measure calculation not implemented for " << cellTypeToString(type);
+            CFEM_ERROR << "Measure calculation not implemented for " << Cell::cellTypeToString(type);
             return 0;
         }
     }
