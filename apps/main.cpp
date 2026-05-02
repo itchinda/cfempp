@@ -60,22 +60,22 @@ int main(int argc, char **argv)
 
         std::shared_ptr<Mesh> mesh;
 
-        // CfemReal x0 = 0;
-        // CfemReal y0 = 0;
-        // CfemReal z0 = 0;
-        // CfemReal r0 = 0.5;
-        // CfemReal h = 0.03125;
+        CfemReal x0 = 0;
+        CfemReal y0 = 0;
+        CfemReal z0 = 0;
+        CfemReal r0 = 0.5;
+        CfemReal h = 0.25;
         {
             PROFILE_SCOPE("MeshBuilding");
 
             // mesh = Mesh::quad(
             //     MeshOrder::Linear,
-            //     Mesh::QuadSubdivisions{2000, 2000}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+            //     Mesh::QuadSubdivisions{1, 1}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
             //     Mesh::QuadBounds(
             //         Vector3D{0., 0., 0.},
             //         Vector3D{1., 1., 0.}
             //     ),
-            //     Mesh::QuadElementType::TriangleCrissCross
+            //     Mesh::QuadElementType::Quadrilateral
             // );
 
             // mesh = Mesh::disk(MeshOrder::Quadratic, 0.1, Vector3D{0,0,0}, 0.5);
@@ -90,8 +90,11 @@ int main(int argc, char **argv)
                 Mesh::BlockElementType::Tetrahedron 
             );
 
+            //mesh = Mesh::loadFromGmsh("../tests/grenier/stanford_bunny/bunny.msh");
+            // mesh = Mesh::loadFromGmsh("../tests/grenier/wheel/wheel.msh");
+
             // mesh = Mesh::sphere( MeshOrder::Quadratic,
-            //                      0.5,
+            //                      0.25,
             //                      Vector3D{0,0,0},
             //                      0.5);
 
@@ -121,8 +124,8 @@ int main(int argc, char **argv)
         auto v = Test (V, "v");
 
         // auto analytical_p = scalar(x + y + 1.0); 
-        // auto analytical_u = vector( x + y +  x + y,
-        //                             y  + x +  y + 1,              
+        // auto analytical_u = vector( x*y + y*y +  x + y,
+        //                             y*y  + x*x +  x*y + 1,              
         //                             0.0);
 
         
@@ -183,18 +186,23 @@ int main(int argc, char **argv)
         // h = 0.0625 lseminorm_p = 0.000222298 lseminorm_u = 0.000602551
         // h = 0.03125 lseminorm_p = 5.56204e-05 lseminorm_u = 0.000150505
 
-        // {
-        //     PROFILE_SCOPE("Exportation");
-        //     VTUExporter vtu_exporter(*mesh);
-        //     vtu_exporter.addExpression("U", u);
-        //     vtu_exporter.addExpression("P", p);
-        //     vtu_exporter.addExpression("n", n);
+        {
+            // PROFILE_SCOPE("Exportation");
+            // VTKExporter vtu_exporter(*mesh);
+            // vtu_exporter.addExpression("U", u);
+            // vtu_exporter.addExpression("P", p);
+            // vtu_exporter.setExportedEntities({"Mag_external_surface", "Bande_de_roulement", "Caoutchouc"});
+            // //vtu_exporter.addExpression("N", geometric_normal());
             
-        //     vtu_exporter.setFormat(VTUExporter::Format::BINARY);
-        //     vtu_exporter.exportCellQuality(true);
-        //     vtu_exporter.write("simulation_results");
+            // vtu_exporter.setFormat(VTKExportFormat::BINARY);
+            // vtu_exporter.exportCellQuality(true);
+            // vtu_exporter.write("result_global");
+            // vtu_exporter.write("Gomme", "Gomme");
+            // vtu_exporter.write("Mag_external_surface", "Mag_external_surface");
+            // vtu_exporter.write("Bande_de_roulement", "Bande_de_roulement");
+            // vtu_exporter.write("Caoutchouc", "Caoutchouc");
 
-        // }
+        }
     }
 
     Profiler::instance().saveProfiler();

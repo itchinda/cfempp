@@ -16,490 +16,352 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-/**
- * @file VTKExporter.cpp
- * @brief Implementation of the VTK Legacy format exporter for CFEM simulations.
- */
-
 #include "VTKExporter.h"
 #include "CfemExpression.h"
-#include "FEField.h"
-#include "LagrangeSpace.h"
-#include "Mesh.h"
-#include "ReferenceElementFactory.h"
 #include <algorithm>
 #include <iomanip>
+#include <fstream>
 
 namespace cfem
 {
-    VTKExporter::VTKExporter(const Mesh &mesh) : MeshExporter(mesh)
-    { }
-
-    void VTKExporter::write(const std::string &filename) const
-    {
-        const std::string validated = validateFilename(filename, ".vtk");
-        if (m_format == Format::ASCII)
-        {
-            writeASCII(validated);
-        }
-        else
-        {
-            writeBINARY(validated);
-        }
+    VTKExporter::VTKExporter(const Mesh &mesh) : VTKFamilyExporter(mesh)
+    {  
+        m_outputFileExtension = "vtk";
     }
 
-    /**
-     * @brief Exports the mesh and associated fields to a VTK Legacy (.vtk) ASCII file.
-     * This method follows the VTK Unstructured Grid specification. It handles:
-     * 1. Geometry (Points and Cells)
-     * 2. Field Interpolation (Mapping P1/P2 physics to geometric vertices)
-     * 3. Metadata (Mesh quality and Entity masks)
-     * @param filename Path to the output file.
-     * @throws CFEM_ERROR If the file cannot be opened for writing.
-     */
-    void VTKExporter::writeASCII(const std::string &filename) const
+    // ========================================================================
+    // --- FORMATTER 1: ASCII CONTINUOUS
+    // ========================================================================
+    void VTKExporter::writeASCIIContinuous(const std::string &filename, 
+                                           const std::vector<ExportEntry>& fields, 
+                                           CfemInt entityId) const
     {
-
         std::ofstream out(filename);
-        if (!out.is_open())
-        {
-            CFEM_ERROR << "Cannot open VTK file for writing: " << filename;
+        if (!out.is_open()) CFEM_ERROR << "Cannot open VTK file: " << filename;
+
+        auto geo = buildContinuousGeometry(entityId);
+        auto data = evaluateFields(geo, fields, entityId, false);
+
+        out << "# vtk DataFile Version 3.0\nCFEM++ Continuous Export\nASCII\nDATASET UNSTRUCTURED_GRID\n";
+        
+        // --- POINTS ---
+        out << "POINTS " << geo.numActiveVerts << " double\n";
+        for (size_t i = 0; i < geo.numActiveVerts; ++i) {
+            out << std::setprecision(16) << geo.points[3*i] << " " << geo.points[3*i+1] << " " << geo.points[3*i+2] << "\n";
         }
 
-        // High precision is required to avoid artifacts in derivative calculations in ParaView
-        out << std::scientific << std::setprecision(12);
-
-        // --- 1. HEADER ---
-        out << "# vtk DataFile Version 3.0\n";
-        out << "CFEM Simulation Export\n";
-        out << "ASCII\n";
-        out << "DATASET UNSTRUCTURED_GRID\n\n";
-
-        // --- 2. POINTS ---
-        out << "POINTS " << m_mesh.getNumVertices() << " double\n";
-        for (size_t i = 0; i < m_mesh.getNumVertices(); ++i)
-        {
-            const auto &coords = m_mesh.getVertex(i).coords;
-            out << coords[0] << " " << coords[1] << " " << coords[2] << "\n";
-        }
-
-        // --- 3. CELLS ---
-        // Calculate total size: sum of (1 + number of nodes per cell)
-        size_t totalCellSize = 0;
-        for (size_t i = 0; i < m_mesh.getNumCells(); ++i)
-        {
-            totalCellSize += 1 + m_mesh.getCellConnectivity(i).size();
-        }
-
-        out << "\nCELLS " << m_mesh.getNumCells() << " " << totalCellSize << "\n";
-        for (size_t i = 0; i < m_mesh.getNumCells(); ++i)
-        {
-            const auto &cell_ids = m_mesh.getCellConnectivity(i);
-            out << cell_ids.size();
-            for (auto vid : cell_ids)
-                out << " " << vid;
+        // --- CELLS ---
+        int totalConnSize = geo.connectivity.size() + geo.numActiveCells;
+        out << "\nCELLS " << geo.numActiveCells << " " << totalConnSize << "\n";
+        for (size_t i = 0; i < geo.numActiveCells; ++i) {
+            int start = (i == 0) ? 0 : geo.offsets[i-1];
+            int end = geo.offsets[i];
+            out << (end - start);
+            for (int j = start; j < end; ++j) out << " " << geo.connectivity[j];
             out << "\n";
         }
 
-        // --- 4. CELL TYPES ---
-        out << "\nCELL_TYPES " << m_mesh.getNumCells() << "\n";
-        for (size_t i = 0; i < m_mesh.getNumCells(); ++i)
-        {
-            out << getVTKCellType(m_mesh.getCell(i).type) << "\n";
-        }
+        out << "\nCELL_TYPES " << geo.numActiveCells << "\n";
+        for (auto t : geo.types) out << static_cast<int>(t) << "\n";
 
-        // --- 2. POINT DATA OPTIMIZATION ---
-        if (!m_entries.empty() || !m_exportedEntityNames.empty())
-        {
-            out << "\nPOINT_DATA " << m_mesh.getNumVertices() << "\n";
-
-            // Pre-prepare all expressions and allocate all result buffers
-            size_t numEntries = m_entries.size();
-            std::vector<std::vector<CfemReal>> allResults(numEntries);
-            
-            ShapeEvaluationFlags fieldFlags = ShapeEvaluationFlags::None;
-            for (size_t i = 0; i < numEntries; ++i)
-            {
-                m_entries[i].expr->prepare();
-                fieldFlags |= m_entries[i].expr->requiredShapeFlags();
-                allResults[i].resize(m_mesh.getNumVertices() * m_entries[i].expr->getDimension(), 0.0);
-            }
-
-            std::vector<bool> computed(m_mesh.getNumVertices(), false);
-            EvalContext ctx;
-            DynamicVector<Vector3D> physCoords;
-
-            struct TypeCache
-            {
-                std::vector<ShapeInfo> nodeShapes;
-                const ReferenceElement *refEl;
-            };
-            std::map<CellType, TypeCache> geoCache;
-            CfemInt geoOrder = m_mesh.getOrderInt();
-
-            for (CellType type : m_mesh.getCellTypesPresent())
-            {
-                const auto &refEl = ReferenceElementFactory::getReferenceElement(type, geoOrder);
-                auto &cache = geoCache[type];
-                cache.refEl = &refEl;
-
-                for (const auto &xi : refEl.referenceNodes())
-                {
-                    ShapeInfo info;
-                    refEl.evaluate(xi, ShapeEvaluationFlags::Value | fieldFlags, info);
-                    cache.nodeShapes.push_back(info);
-                }
-            }
-
-            // SINGLE PASS OVER THE MESH
-            for (CfemInt c = 0; c < (CfemInt)m_mesh.getNumCells(); ++c)
-            {
-                const auto &cell = m_mesh.getCell(c);
-                const auto &connectivity = m_mesh.getCellConnectivity(c);
-                auto &cache = geoCache[cell.type];
-
-                m_mesh.getCellVerticesCoords(c, physCoords);
-
-                const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type, geoOrder);
-                const auto &xiNodes = refEl.referenceNodes();
-
-                for (size_t n = 0; n < connectivity.size(); ++n)
-                {
-                    CfemInt vid = connectivity[n];
-                    if (computed[vid])
-                        continue;
-
-                    ctx.resetBuffers(); 
-
-                    refEl.computeMapping(xiNodes[n],
-                                        physCoords,
-                                        ShapeEvaluationFlags::PhysicalPosition | fieldFlags,
-                                        cache.nodeShapes[n], ctx.scratchMapping);
-
-                    ctx.physPos = ctx.scratchMapping.physicalPosition;
-                    ctx.geometricMapping = &ctx.scratchMapping;
-
-                    for (size_t i = 0; i < numEntries; ++i)
-                    {
-                        int dim = m_entries[i].expr->getDimension();
-                        std::span<CfemReal> outSpan(&allResults[i][vid * dim], dim);
-                        m_entries[i].expr->evaluate(c, xiNodes[n], outSpan, ctx);
-                    }
-                    computed[vid] = true;
-                }
-            }
-
-            // WRITE ALL EVALUATED DATA TO FILE
-            for (size_t i = 0; i < numEntries; ++i)
-            {
-                int dim = m_entries[i].expr->getDimension();
-                const std::string &name = m_entries[i].name;
-
-                if (dim == 1)
-                {
-                    out << "SCALARS " << name << " double 1\nLOOKUP_TABLE default\n";
-                    for (size_t j = 0; j < m_mesh.getNumVertices(); ++j)
-                        out << allResults[i][j] << "\n";
-                }
-                else
-                {
-                    out << "VECTORS " << name << " double\n";
-                    for (size_t j = 0; j < m_mesh.getNumVertices(); ++j)
-                    {
-                        out << allResults[i][j * dim] << " "
-                            << (dim >= 2 ? allResults[i][j * dim + 1] : 0.0) << " "
-                            << (dim >= 3 ? allResults[i][j * dim + 2] : 0.0) << "\n";
+        // --- POINT DATA (Fields & Node Masks) ---
+        if (!fields.empty() || !data.nodeMasks.empty()) {
+            out << "\nPOINT_DATA " << geo.numActiveVerts << "\n";
+            for (size_t i = 0; i < fields.size(); ++i) {
+                int dim = fields[i].expr->getDimension();
+                if (dim == 1) {
+                    out << "SCALARS " << fields[i].name << " double 1\nLOOKUP_TABLE default\n";
+                    for (size_t v = 0; v < geo.numActiveVerts; ++v) out << data.fields[i][v] << "\n";
+                } else {
+                    out << "VECTORS " << fields[i].name << " double\n";
+                    for (size_t v = 0; v < geo.numActiveVerts; ++v) {
+                        out << data.fields[i][v * dim + 0] << " " << data.fields[i][v * dim + 1] << " " 
+                            << (dim >= 3 ? data.fields[i][v * dim + 2] : 0.0) << "\n";
                     }
                 }
             }
-
-            // B. Node Masks (Boundary Conditions / Entity Sets)
-            for (const auto &entityName : m_exportedEntityNames)
-            {
-                MeshEntity *entity = const_cast<Mesh &>(m_mesh).getEntity(entityName);
-                if (!entity)
-                    continue;
-
-                std::string safeName = "NodeMask_" + entityName;
-                std::replace(safeName.begin(), safeName.end(), ' ', '_');
-                out << "SCALARS " << safeName << " float 1\nLOOKUP_TABLE default\n";
-
-                const auto &vids = entity->getVertexIds();
-                for (CfemInt i = 0; i < (CfemInt)m_mesh.getNumVertices(); ++i)
-                {
-                    out << (std::binary_search(vids.begin(), vids.end(), i) ? "1.0" : "0.0") << "\n";
-                }
+            // Node Masks
+            for (size_t i = 0; i < data.nodeMasks.size(); ++i) {
+                out << "SCALARS NodeMask_" << m_exportedEntityNames[i] << " float 1\nLOOKUP_TABLE default\n";
+                for (size_t v = 0; v < geo.numActiveVerts; ++v) out << data.nodeMasks[i][v] << "\n";
             }
         }
 
-        // --- 3. CELL DATA (Quality + Cell Masks) ---
-        bool hasCellData = m_exportQuality || !m_exportedEntityNames.empty();
-        if (hasCellData)
-        {
-            out << "\nCELL_DATA " << m_mesh.getNumCells() << "\n";
-
-            if (m_exportQuality)
-            {
+        // --- CELL DATA (Quality & Cell Masks) ---
+        if (m_exportQuality || !data.cellMasks.empty()) {
+            out << "\nCELL_DATA " << geo.numActiveCells << "\n";
+            if (m_exportQuality) {
                 out << "SCALARS Mesh_Quality float 1\nLOOKUP_TABLE default\n";
-                for (size_t i = 0; i < m_mesh.getNumCells(); ++i)
-                {
-                    out << m_mesh.computeCellQuality(i) << "\n";
-                }
+                for (auto q : data.cellQuality) out << q << "\n";
             }
-
-            for (const auto &entityName : m_exportedEntityNames)
-            {
-                MeshEntity *entity = const_cast<Mesh &>(m_mesh).getEntity(entityName);
-                if (!entity)
-                    continue;
-
-                std::string safeName = "CellMask_" + entityName;
-                std::replace(safeName.begin(), safeName.end(), ' ', '_');
-                out << "SCALARS " << safeName << " float 1\nLOOKUP_TABLE default\n";
-
-                const auto &cids = entity->getCellIds();
-                for (CfemInt i = 0; i < (CfemInt)m_mesh.getNumCells(); ++i)
-                {
-                    out << (std::binary_search(cids.begin(), cids.end(), i) ? "1.0" : "0.0") << "\n";
-                }
+            for (size_t i = 0; i < data.cellMasks.size(); ++i) {
+                out << "SCALARS CellMask_" << m_exportedEntityNames[i] << " float 1\nLOOKUP_TABLE default\n";
+                for (auto m : data.cellMasks[i]) out << m << "\n";
             }
         }
-
-        out.close();
     }
 
-    /**
-     * @brief Exports the mesh and associated fields to a VTK Legacy (.vtk) binary file.
-     * 
-     * This method follows the VTK Unstructured Grid specification. It handles:
-     * 1. Geometry (Points and Cells)
-     * 2. Field Interpolation (Mapping P1/P2 physics to geometric vertices)
-     * 3. Metadata (Mesh quality and Entity masks)
-     * @param filename Path to the output file.
-     * @throws CFEM_ERROR If the file cannot be opened for writing.
-     */
-    void VTKExporter::writeBINARY(const std::string &filename) const
+    // ========================================================================
+    // --- FORMATTER 2: BINARY CONTINUOUS
+    // ========================================================================
+    void VTKExporter::writeBINARYContinuous(const std::string &filename, 
+                                            const std::vector<ExportEntry>& fields, 
+                                            CfemInt entityId) const
     {
         std::ofstream out(filename, std::ios::binary);
-        if (!out.is_open())
-            CFEM_ERROR << "Cannot open VTK file for writing: " << filename;
+        if (!out.is_open()) CFEM_ERROR << "Cannot open VTK file: " << filename;
 
-        auto writeBigEndian = [&](auto *data, std::size_t count)
-        {
-            using T = std::remove_pointer_t<decltype(data)>;
-            for (std::size_t i = 0; i < count; ++i)
-            {
-                T value = data[i];
-
+        // Big-Endian serializer constraint for VTK legacy
+        auto writeBigEndian = [&](const auto *d, std::size_t count) {
+            using T = std::decay_t<decltype(d[0])>;
+            for (std::size_t i = 0; i < count; ++i) {
+                T val = d[i];
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-                char *p = reinterpret_cast<char *>(&value);
+                char *p = reinterpret_cast<char *>(&val);
                 std::reverse(p, p + sizeof(T));
 #endif
-                out.write(reinterpret_cast<char *>(&value), sizeof(T));
+                out.write(reinterpret_cast<const char *>(&val), sizeof(T));
             }
         };
 
-        // --------------------------------------------------
-        // HEADER (ASCII)
-        // --------------------------------------------------
+        auto geo = buildContinuousGeometry(entityId);
+        auto data = evaluateFields(geo, fields, entityId, false);
 
-        out << "# vtk DataFile Version 3.0\n";
-        out << "CFEM Simulation Export\n";
-        out << "BINARY\n";
-        out << "DATASET UNSTRUCTURED_GRID\n";
-
-        // --------------------------------------------------
-        // POINTS
-        // --------------------------------------------------
-
-        std::size_t nVerts = m_mesh.getNumVertices();
-        out << "POINTS " << nVerts << " double\n";
-
-        std::vector<double> pointBuffer(3 * nVerts);
-
-        for (std::size_t i = 0; i < nVerts; ++i)
-        {
-            const auto &coords = m_mesh.getVertex(i).coords;
-            pointBuffer[3 * i + 0] = coords[0];
-            pointBuffer[3 * i + 1] = coords[1];
-            pointBuffer[3 * i + 2] = coords[2];
-        }
-
-        writeBigEndian(pointBuffer.data(), pointBuffer.size());
+        out << "# vtk DataFile Version 3.0\nCFEM++ Continuous Export\nBINARY\nDATASET UNSTRUCTURED_GRID\n";
+        
+        // --- POINTS ---
+        out << "POINTS " << geo.numActiveVerts << " double\n";
+        writeBigEndian(geo.points.data(), geo.points.size());
         out << "\n";
 
-        // --------------------------------------------------
-        // CELLS
-        // --------------------------------------------------
-
-        std::size_t nCells = m_mesh.getNumCells();
-        std::size_t totalCellSize = 0;
-
-        for (std::size_t i = 0; i < nCells; ++i)
-            totalCellSize += 1 + m_mesh.getCellConnectivity(i).size();
-
-        out << "CELLS " << nCells << " " << totalCellSize << "\n";
-
+        // --- CELLS ---
+        int totalConnSize = geo.connectivity.size() + geo.numActiveCells;
+        out << "CELLS " << geo.numActiveCells << " " << totalConnSize << "\n";
         std::vector<int> cellBuffer;
-        cellBuffer.reserve(totalCellSize);
-
-        for (std::size_t i = 0; i < nCells; ++i)
-        {
-            const auto &conn = m_mesh.getCellConnectivity(i);
-            cellBuffer.push_back((int)conn.size());
-            for (auto vid : conn)
-                cellBuffer.push_back((int)vid);
+        cellBuffer.reserve(totalConnSize);
+        for (size_t i = 0; i < geo.numActiveCells; ++i) {
+            int start = (i == 0) ? 0 : geo.offsets[i-1];
+            int end = geo.offsets[i];
+            cellBuffer.push_back(end - start);
+            for (int j = start; j < end; ++j) cellBuffer.push_back(geo.connectivity[j]);
         }
-
         writeBigEndian(cellBuffer.data(), cellBuffer.size());
         out << "\n";
 
-        // --------------------------------------------------
-        // CELL TYPES
-        // --------------------------------------------------
-
-        out << "CELL_TYPES " << nCells << "\n";
-
-        std::vector<int> typeBuffer(nCells);
-
-        for (std::size_t i = 0; i < nCells; ++i)
-            typeBuffer[i] = getVTKCellType(m_mesh.getCell(i).type);
-
+        out << "CELL_TYPES " << geo.numActiveCells << "\n";
+        std::vector<int> typeBuffer(geo.types.begin(), geo.types.end());
         writeBigEndian(typeBuffer.data(), typeBuffer.size());
         out << "\n";
 
-        // --------------------------------------------------
-        // POINT DATA (UNCHANGED EVALUATION LOGIC)
-        // --------------------------------------------------
-
-        if (!m_entries.empty() || !m_exportedEntityNames.empty())
-        {
-            out << "POINT_DATA " << nVerts << "\n";
-
-            std::size_t numEntries = m_entries.size();
-            std::vector<std::vector<double>> allResults(numEntries);
-            
-            ShapeEvaluationFlags fieldFlags = ShapeEvaluationFlags::None;
-            for (std::size_t i = 0; i < numEntries; ++i)
-            {
-                m_entries[i].expr->prepare();
-                fieldFlags |= m_entries[i].expr->requiredShapeFlags();
-                allResults[i].resize(nVerts * m_entries[i].expr->getDimension(), 0.0);
-            }
-
-            struct TypeCache
-            {
-                std::vector<ShapeInfo> nodeShapes;
-                const ReferenceElement *refEl;
-            };
-            std::map<CellType, TypeCache> geoCache;
-            CfemInt geoOrder = m_mesh.getOrderInt();
-
-            for (CellType type : m_mesh.getCellTypesPresent())
-            {
-                const auto &refEl = ReferenceElementFactory::getReferenceElement(type, geoOrder);
-                auto &cache = geoCache[type];
-                cache.refEl = &refEl;
-
-                for (const auto &xi : refEl.referenceNodes())
-                {
-                    ShapeInfo info;
-                    refEl.evaluate(xi, ShapeEvaluationFlags::Value | fieldFlags, info);
-                    cache.nodeShapes.push_back(info);
-                }
-            }
-
-            std::vector<bool> computed(nVerts, false);
-            EvalContext ctx;
-            DynamicVector<Vector3D> physCoords;
-
-            for (CfemInt c = 0; c < (CfemInt)nCells; ++c)
-            {
-                const auto &cell = m_mesh.getCell(c);
-                const auto &connectivity = m_mesh.getCellConnectivity(c);
-                const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type, geoOrder);
-                const auto &xiNodes = refEl.referenceNodes();
-                auto &cache = geoCache[cell.type];
-
-                m_mesh.getCellVerticesCoords(c, physCoords);
-
-                for (size_t n = 0; n < connectivity.size(); ++n)
-                {
-                    CfemInt vid = connectivity[n];
-                    if (computed[vid])
-                        continue;
-
-                    ctx.resetBuffers(); 
-
-                    refEl.computeMapping(xiNodes[n],
-                                        physCoords,
-                                        ShapeEvaluationFlags::PhysicalPosition | fieldFlags,
-                                        cache.nodeShapes[n], ctx.scratchMapping);
-
-                    ctx.physPos = ctx.scratchMapping.physicalPosition;
-                    ctx.geometricMapping = &ctx.scratchMapping;
-
-                    for (size_t i = 0; i < numEntries; ++i)
-                    {
-                        int dim = m_entries[i].expr->getDimension();
-                        std::span<CfemReal> outSpan(&allResults[i][vid * dim], dim);
-                        m_entries[i].expr->evaluate(c, xiNodes[n], outSpan, ctx);
-                    }
-                    computed[vid] = true;
-                }
-            }
-
-            // ---- Write evaluated fields in binary ----
-
-            for (std::size_t i = 0; i < numEntries; ++i)
-            {
-                int dim = m_entries[i].expr->getDimension();
-                const std::string &name = m_entries[i].name;
-
-                if (dim == 1)
-                {
-                    out << "SCALARS " << name << " double 1\n";
-                    out << "LOOKUP_TABLE default\n";
-                    writeBigEndian(allResults[i].data(), allResults[i].size());
+        // --- POINT DATA ---
+        if (!fields.empty() || !data.nodeMasks.empty()) {
+            out << "POINT_DATA " << geo.numActiveVerts << "\n";
+            for (size_t i = 0; i < fields.size(); ++i) {
+                int dim = fields[i].expr->getDimension();
+                if (dim == 1) {
+                    out << "SCALARS " << fields[i].name << " double 1\nLOOKUP_TABLE default\n";
+                    writeBigEndian(data.fields[i].data(), data.fields[i].size());
                     out << "\n";
-                }
-                else
-                {
-                    out << "VECTORS " << name << " double\n";
-
-                    std::vector<double> vecBuffer(3 * nVerts, 0.0);
-
-                    for (std::size_t j = 0; j < nVerts; ++j)
-                    {
-                        for (int d = 0; d < dim && d < 3; ++d)
-                            vecBuffer[3 * j + d] = allResults[i][j * dim + d];
+                } else {
+                    out << "VECTORS " << fields[i].name << " double\n";
+                    std::vector<double> vecBuffer(3 * geo.numActiveVerts, 0.0);
+                    for (size_t v = 0; v < geo.numActiveVerts; ++v) {
+                        vecBuffer[3*v+0] = data.fields[i][v*dim+0];
+                        vecBuffer[3*v+1] = data.fields[i][v*dim+1];
+                        if (dim >= 3) vecBuffer[3*v+2] = data.fields[i][v*dim+2];
                     }
-
                     writeBigEndian(vecBuffer.data(), vecBuffer.size());
                     out << "\n";
                 }
             }
+            // Node Masks
+            for (size_t i = 0; i < data.nodeMasks.size(); ++i) {
+                out << "SCALARS NodeMask_" << m_exportedEntityNames[i] << " float 1\nLOOKUP_TABLE default\n";
+                writeBigEndian(data.nodeMasks[i].data(), data.nodeMasks[i].size());
+                out << "\n";
+            }
         }
 
-        // --------------------------------------------------
-        // CELL DATA
-        // --------------------------------------------------
+        // --- CELL DATA ---
+        if (m_exportQuality || !data.cellMasks.empty()) {
+            out << "CELL_DATA " << geo.numActiveCells << "\n";
+            if (m_exportQuality) {
+                out << "SCALARS Mesh_Quality float 1\nLOOKUP_TABLE default\n";
+                writeBigEndian(data.cellQuality.data(), data.cellQuality.size());
+                out << "\n";
+            }
+            for (size_t i = 0; i < data.cellMasks.size(); ++i) {
+                out << "SCALARS CellMask_" << m_exportedEntityNames[i] << " float 1\nLOOKUP_TABLE default\n";
+                writeBigEndian(data.cellMasks[i].data(), data.cellMasks[i].size());
+                out << "\n";
+            }
+        }
+    }
 
-        if (m_exportQuality)
-        {
-            out << "CELL_DATA " << nCells << "\n";
-            out << "SCALARS Mesh_Quality float 1\n";
-            out << "LOOKUP_TABLE default\n";
+    // ========================================================================
+    // --- FORMATTER 3 & 4: DISCONTINUOUS
+    // ========================================================================
+    // Grâce à l'abstraction, la logique de formatage est rigoureusement identique.
+    // On rappelle les noyaux en activant le mode "discontinu".
+    
+    void VTKExporter::writeASCIIDiscontinuous(const std::string &filename, 
+                                              const std::vector<ExportEntry>& fields, 
+                                              CfemInt entityId) const
+    {
+        std::ofstream out(filename);
+        if (!out.is_open()) CFEM_ERROR << "Cannot open VTK file: " << filename;
 
-            std::vector<float> quality(nCells);
-            for (std::size_t i = 0; i < nCells; ++i)
-                quality[i] = (float)m_mesh.computeCellQuality(i);
+        auto geo = buildDiscontinuousGeometry(entityId);
+        auto data = evaluateFields(geo, fields, entityId, true);
 
-            writeBigEndian(quality.data(), quality.size());
+        out << "# vtk DataFile Version 3.0\nCFEM++ Discontinuous Export\nASCII\nDATASET UNSTRUCTURED_GRID\n";
+        
+        // --- POINTS ---
+        out << "POINTS " << geo.numActiveVerts << " double\n";
+        for (size_t i = 0; i < geo.numActiveVerts; ++i) {
+            out << std::setprecision(16) << geo.points[3*i] << " " << geo.points[3*i+1] << " " << geo.points[3*i+2] << "\n";
+        }
+
+        // --- CELLS ---
+        int totalConnSize = geo.connectivity.size() + geo.numActiveCells;
+        out << "\nCELLS " << geo.numActiveCells << " " << totalConnSize << "\n";
+        for (size_t i = 0; i < geo.numActiveCells; ++i) {
+            int start = (i == 0) ? 0 : geo.offsets[i-1];
+            int end = geo.offsets[i];
+            out << (end - start);
+            for (int j = start; j < end; ++j) out << " " << geo.connectivity[j];
             out << "\n";
         }
 
-        out.close();
+        out << "\nCELL_TYPES " << geo.numActiveCells << "\n";
+        for (auto t : geo.types) out << static_cast<int>(t) << "\n";
+
+        // --- POINT DATA ---
+        if (!fields.empty() || !data.nodeMasks.empty()) {
+            out << "\nPOINT_DATA " << geo.numActiveVerts << "\n";
+            for (size_t i = 0; i < fields.size(); ++i) {
+                int dim = fields[i].expr->getDimension();
+                if (dim == 1) {
+                    out << "SCALARS " << fields[i].name << " double 1\nLOOKUP_TABLE default\n";
+                    for (size_t v = 0; v < geo.numActiveVerts; ++v) out << data.fields[i][v] << "\n";
+                } else {
+                    out << "VECTORS " << fields[i].name << " double\n";
+                    for (size_t v = 0; v < geo.numActiveVerts; ++v) {
+                        out << data.fields[i][v * dim + 0] << " " << data.fields[i][v * dim + 1] << " " 
+                            << (dim >= 3 ? data.fields[i][v * dim + 2] : 0.0) << "\n";
+                    }
+                }
+            }
+            for (size_t i = 0; i < data.nodeMasks.size(); ++i) {
+                out << "SCALARS NodeMask_" << m_exportedEntityNames[i] << " float 1\nLOOKUP_TABLE default\n";
+                for (size_t v = 0; v < geo.numActiveVerts; ++v) out << data.nodeMasks[i][v] << "\n";
+            }
+        }
+
+        // --- CELL DATA ---
+        if (m_exportQuality || !data.cellMasks.empty()) {
+            out << "\nCELL_DATA " << geo.numActiveCells << "\n";
+            if (m_exportQuality) {
+                out << "SCALARS Mesh_Quality float 1\nLOOKUP_TABLE default\n";
+                for (auto q : data.cellQuality) out << q << "\n";
+            }
+            for (size_t i = 0; i < data.cellMasks.size(); ++i) {
+                out << "SCALARS CellMask_" << m_exportedEntityNames[i] << " float 1\nLOOKUP_TABLE default\n";
+                for (auto m : data.cellMasks[i]) out << m << "\n";
+            }
+        }
+    }
+
+    void VTKExporter::writeBINARYDiscontinuous(const std::string &filename, 
+                                               const std::vector<ExportEntry>& fields, 
+                                               CfemInt entityId) const
+    {
+        std::ofstream out(filename, std::ios::binary);
+        if (!out.is_open()) CFEM_ERROR << "Cannot open VTK file: " << filename;
+
+        auto writeBigEndian = [&](const auto *d, std::size_t count) {
+            using T = std::decay_t<decltype(d[0])>;
+            for (std::size_t i = 0; i < count; ++i) {
+                T val = d[i];
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+                char *p = reinterpret_cast<char *>(&val);
+                std::reverse(p, p + sizeof(T));
+#endif
+                out.write(reinterpret_cast<const char *>(&val), sizeof(T));
+            }
+        };
+
+        auto geo = buildDiscontinuousGeometry(entityId);
+        auto data = evaluateFields(geo, fields, entityId, true);
+
+        out << "# vtk DataFile Version 3.0\nCFEM++ Discontinuous Export\nBINARY\nDATASET UNSTRUCTURED_GRID\n";
+        
+        // --- POINTS ---
+        out << "POINTS " << geo.numActiveVerts << " double\n";
+        writeBigEndian(geo.points.data(), geo.points.size());
+        out << "\n";
+
+        // --- CELLS ---
+        int totalConnSize = geo.connectivity.size() + geo.numActiveCells;
+        out << "CELLS " << geo.numActiveCells << " " << totalConnSize << "\n";
+        std::vector<int> cellBuffer;
+        cellBuffer.reserve(totalConnSize);
+        for (size_t i = 0; i < geo.numActiveCells; ++i) {
+            int start = (i == 0) ? 0 : geo.offsets[i-1];
+            int end = geo.offsets[i];
+            cellBuffer.push_back(end - start);
+            for (int j = start; j < end; ++j) cellBuffer.push_back(geo.connectivity[j]);
+        }
+        writeBigEndian(cellBuffer.data(), cellBuffer.size());
+        out << "\n";
+
+        out << "CELL_TYPES " << geo.numActiveCells << "\n";
+        std::vector<int> typeBuffer(geo.types.begin(), geo.types.end());
+        writeBigEndian(typeBuffer.data(), typeBuffer.size());
+        out << "\n";
+
+        // --- POINT DATA ---
+        if (!fields.empty() || !data.nodeMasks.empty()) {
+            out << "POINT_DATA " << geo.numActiveVerts << "\n";
+            for (size_t i = 0; i < fields.size(); ++i) {
+                int dim = fields[i].expr->getDimension();
+                if (dim == 1) {
+                    out << "SCALARS " << fields[i].name << " double 1\nLOOKUP_TABLE default\n";
+                    writeBigEndian(data.fields[i].data(), data.fields[i].size());
+                    out << "\n";
+                } else {
+                    out << "VECTORS " << fields[i].name << " double\n";
+                    std::vector<double> vecBuffer(3 * geo.numActiveVerts, 0.0);
+                    for (size_t v = 0; v < geo.numActiveVerts; ++v) {
+                        vecBuffer[3*v+0] = data.fields[i][v*dim+0];
+                        vecBuffer[3*v+1] = data.fields[i][v*dim+1];
+                        if (dim >= 3) vecBuffer[3*v+2] = data.fields[i][v*dim+2];
+                    }
+                    writeBigEndian(vecBuffer.data(), vecBuffer.size());
+                    out << "\n";
+                }
+            }
+            for (size_t i = 0; i < data.nodeMasks.size(); ++i) {
+                out << "SCALARS NodeMask_" << m_exportedEntityNames[i] << " float 1\nLOOKUP_TABLE default\n";
+                writeBigEndian(data.nodeMasks[i].data(), data.nodeMasks[i].size());
+                out << "\n";
+            }
+        }
+
+        // --- CELL DATA ---
+        if (m_exportQuality || !data.cellMasks.empty()) {
+            out << "CELL_DATA " << geo.numActiveCells << "\n";
+            if (m_exportQuality) {
+                out << "SCALARS Mesh_Quality float 1\nLOOKUP_TABLE default\n";
+                writeBigEndian(data.cellQuality.data(), data.cellQuality.size());
+                out << "\n";
+            }
+            for (size_t i = 0; i < data.cellMasks.size(); ++i) {
+                out << "SCALARS CellMask_" << m_exportedEntityNames[i] << " float 1\nLOOKUP_TABLE default\n";
+                writeBigEndian(data.cellMasks[i].data(), data.cellMasks[i].size());
+                out << "\n";
+            }
+        }
     }
 
 } // namespace cfem

@@ -41,14 +41,14 @@ namespace cfem::reference_elem::utils{
     }
 
     static const std::vector<std::vector<int>> tet4_face_nodes = {
-        {0, 1, 2}, 
+        {0, 2, 1}, 
         {0, 1, 3}, 
         {1, 2, 3}, 
         {2, 0, 3}
     };
 
     static const std::vector<std::vector<int>> tet10_face_nodes = {
-        {0, 1, 2, 4, 5, 6}, 
+        {0, 2, 1, 6, 5, 4}, 
         {0, 1, 3, 4, 8, 7}, 
         {1, 2, 3, 5, 9, 8}, 
         {2, 0, 3, 6, 7, 9}

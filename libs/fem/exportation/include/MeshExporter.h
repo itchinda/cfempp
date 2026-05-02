@@ -29,6 +29,7 @@
 namespace cfem {
 
     class Mesh;
+    class MeshEntity;
     class FEField;
     namespace sym{
         class CfemExpression;
@@ -125,7 +126,10 @@ namespace cfem {
          *
          * @param filename Output file name.
          */
-        virtual void write(const std::string& filename) const = 0;
+
+        virtual void write(const std::string &filename, CfemInt entityId = UNIVERSE_ID) const = 0;
+        virtual void write(const std::string &filename, const std::string& entityName) const;
+        virtual void write(const std::string &filename, const MeshEntity& entity) const;
 
     protected:
 
@@ -134,7 +138,7 @@ namespace cfem {
          */
         struct ExportEntry {
             std::string name;                                   ///< Field name
-            std::shared_ptr<const sym::CfemExpression> expr;         ///< Expression to evaluate
+            std::shared_ptr<const sym::CfemExpression> expr;    ///< Expression to evaluate
         };
 
         const Mesh& m_mesh;                                     ///< Mesh being exported

@@ -20,6 +20,7 @@
 #include <regex>
 #include <filesystem>
 #include "Mesh.h"
+#include "MeshEntity.h"
 #include "FEField.h"
 #include "CfemExpression.h"
 
@@ -110,6 +111,24 @@ namespace cfem
             default: 
                 CFEM_ERROR << "Unsupported cell type."; // VTK_EMPTY_CELL case 13: return CellType::PRISM6; case 32: return CellType::PRISM18;
                 return 0;
+        }
+    }
+
+    void MeshExporter::write(const std::string &filename, const std::string& entityName) const{
+        if (m_mesh.isPartOfTheMeshEntities(entityName)){
+            write(filename, m_mesh.getEntityConst(entityName).getId());
+        }
+        else{
+            CFEM_ERROR << "MeshExporter::write: Entity " << entityName << " is not part of the mesh.";
+        }
+    }
+
+    void MeshExporter::write(const std::string &filename, const MeshEntity& entity) const{
+        if (m_mesh.isPartOfTheMeshEntities(entity)){
+            write(filename, entity.getId());
+        }
+        else{
+            CFEM_ERROR << "MeshExporter::write: Entity " << entity.getName() << " is not part of the mesh.";
         }
     }
 }

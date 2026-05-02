@@ -147,6 +147,50 @@ struct Vertex
             }
         }
 
+        inline static CfemInt getEdgeCount(CellType type)
+        {
+            switch (type)
+            {
+                case CellType::LINE2: 
+                case CellType::LINE3:    return 1;
+                case CellType::TRI3:
+                case CellType::TRI6:     return 3;
+                case CellType::QUAD4:
+                case CellType::QUAD9:    return 4;
+                case CellType::TET4:
+                case CellType::TET10:    return 6;
+                case CellType::PRISM6:
+                case CellType::PRISM18:  return 9;
+                case CellType::HEX8:
+                case CellType::HEX27:    return 12;
+                default:
+                    CFEM_ERROR << "Unsupported Cell Type";
+                    return 0;
+            }
+        }
+
+        inline static CfemInt getFaceCount(CellType type)
+        {
+            switch (type)
+            {
+                case CellType::LINE2:
+                case CellType::LINE3:    return 2;
+                case CellType::TRI3:
+                case CellType::TRI6:     return 3;
+                case CellType::QUAD4:
+                case CellType::QUAD9:    return 4;
+                case CellType::TET4:
+                case CellType::TET10:    return 4;
+                case CellType::PRISM6:
+                case CellType::PRISM18:  return 5;
+                case CellType::HEX8:
+                case CellType::HEX27:    return 6;
+                default:
+                    CFEM_ERROR << "Unsupported Cell Type";
+                    return 0;
+            }
+        }
+
         inline static std::span<const CellType> getFacetTypes(CellType type) {
             CfemInt idx = static_cast<CfemInt>(type);
             if (idx < 0 || idx >= static_cast<CfemInt>(CellType::COUNT)) {
@@ -292,6 +336,84 @@ struct Vertex
             }
         }
 
+        inline static const std::vector<std::vector<CfemInt>>& getLocalFacesIndices(CellType type)
+        {
+            static const std::vector<std::vector<CfemInt>> empty = {};
+            
+            // --- 1D: Les faces sont les noeuds d'extrémité (0D) ---
+            static const std::vector<std::vector<CfemInt>> line2 = {{0}, {1}};
+            static const std::vector<std::vector<CfemInt>> line3 = {{0}, {1}};
+            
+            // --- 2D: Les faces sont les arêtes (1D) ---
+            static const std::vector<std::vector<CfemInt>> tri3  = {{0, 1}, {1, 2}, {2, 0}};
+            static const std::vector<std::vector<CfemInt>> tri6  = {{0, 1, 3}, {1, 2, 4}, {2, 0, 5}};
+            static const std::vector<std::vector<CfemInt>> quad4 = {{0, 1}, {1, 2}, {2, 3}, {3, 0}};
+            static const std::vector<std::vector<CfemInt>> quad9 = {{0, 1, 4}, {1, 2, 5}, {2, 3, 6}, {3, 0, 7}};
+
+            // --- 3D: Les faces sont des surfaces (2D) ---
+            
+            static const std::vector<std::vector<CfemInt>> tet4  = {
+                {0, 2, 1},
+                {0, 1, 3}, 
+                {1, 2, 3}, 
+                {2, 0, 3}
+            };
+            
+            static const std::vector<std::vector<CfemInt>> tet10 = {
+                {0, 2, 1, 6, 5, 4}, 
+                {0, 1, 3, 4, 8, 7}, 
+                {1, 2, 3, 5, 9, 8}, 
+                {2, 0, 3, 6, 7, 9}
+            };
+            // Prismes (2 Faces Triangulaires + 3 Faces Quadrilatérales)
+            // L'ordre respecte ta méthode getFacetType (Triangles en index 0 et 1)
+            static const std::vector<std::vector<CfemInt>> prism6 = {
+                {0, 2, 1}, {3, 4, 5},                        // Faces 0, 1 : Triangles
+                {0, 1, 4, 3}, {1, 2, 5, 4}, {2, 0, 3, 5}     // Faces 2, 3, 4 : Quads
+            };
+            
+            static const std::vector<std::vector<CfemInt>> prism18 = {
+                {0, 2, 1, 8, 7, 6}, {3, 4, 5, 9, 10, 11},    // Faces 0, 1 : Triangles P2
+                {0, 1, 4, 3, 6, 13, 9, 12, 15},              // Faces 2, 3, 4 : Quads P2
+                {1, 2, 5, 4, 7, 14, 10, 13, 16}, 
+                {2, 0, 3, 5, 8, 12, 11, 14, 17}
+            };
+
+            // Hexaèdres (Faces Quadrilatérales)
+            static const std::vector<std::vector<CfemInt>> hex8 = {
+                {0, 3, 2, 1}, {4, 5, 6, 7}, {0, 1, 5, 4}, 
+                {1, 2, 6, 5}, {2, 3, 7, 6}, {3, 0, 4, 7}
+            };
+            
+            static const std::vector<std::vector<CfemInt>> hex27 = {
+                {0, 3, 2, 1, 11, 10, 9, 8, 24}, 
+                {4, 5, 6, 7, 12, 13, 14, 15, 25},
+                {0, 1, 5, 4, 8, 17, 12, 16, 22},
+                {1, 2, 6, 5, 9, 18, 13, 17, 21},
+                {2, 3, 7, 6, 10, 19, 14, 18, 23},
+                {3, 0, 4, 7, 11, 16, 15, 19, 20}
+            };
+
+            switch (type)
+            {
+                case CellType::LINE2:   return line2;
+                case CellType::LINE3:   return line3;
+                case CellType::TRI3:    return tri3;
+                case CellType::TRI6:    return tri6;
+                case CellType::QUAD4:   return quad4;
+                case CellType::QUAD9:   return quad9;
+                case CellType::TET4:    return tet4;
+                case CellType::TET10:   return tet10;
+                case CellType::PRISM6:  return prism6;
+                case CellType::PRISM18: return prism18;
+                case CellType::HEX8:    return hex8;
+                case CellType::HEX27:   return hex27;
+
+                default:
+                    CFEM_ERROR << "Unsupported cell type."; 
+                    return empty;
+            }
+        }
 
         inline static const std::vector<std::vector<CfemInt>>& getLocalQuadFacesIndices(CellType type)
         {
@@ -353,6 +475,37 @@ struct Vertex
                     return empty;
             }
         }
+
+        /** ************************************************************************************************************************************
+         * @brief Convert a cell type enum to a human-readable string.
+         *
+         * @param type The cell type (CellType enum).
+         * @return A string representing the cell type, e.g., "TET4" or "QUAD9".
+         *         Returns "UNKNOWN_CELL_TYPE" if the type is unrecognized.
+         ***************************************************************************************************************************************/
+        inline static std::string cellTypeToString(CellType type)
+        {
+            switch (type)
+            {
+            case CellType::LINE2:   return "LINE2";
+            case CellType::TRI3:    return "TRI3";
+            case CellType::QUAD4:   return "QUAD4";
+            case CellType::TET4:    return "TET4";
+            case CellType::PRISM6:  return "PRISM6";
+            case CellType::HEX8:    return "HEX8";
+            case CellType::LINE3:   return "LINE3";
+            case CellType::TRI6:    return "TRI6";
+            case CellType::QUAD9:   return "QUAD9";
+            case CellType::TET10:   return "TET10";
+            case CellType::PRISM18: return "PRISM18";
+            case CellType::HEX27:   return "HEX27";
+            // ... others?
+            default:
+                CFEM_ERROR << "UNKNOWN_CELL_TYPE";
+                return "UNKNOWN_CELL_TYPE";
+            }
+        }
+
     };
 
     struct Facet {
@@ -361,8 +514,8 @@ struct Vertex
         CfemInt left_cell{-1};
         CfemInt right_cell{-1};
 
-        CfemInt left_cell_facet_id{-1};
-        CfemInt right_cell_facet_id{-1};
+        CfemInt left_cell_facet_id{-1};  //! local id of the Facet in the left cell
+        CfemInt right_cell_facet_id{-1}; //! local id of the Facet in the right ell
         
         // Index-based storage
         size_t offset{0};

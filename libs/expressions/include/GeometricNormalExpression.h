@@ -160,7 +160,7 @@ namespace cfem::sym
         /** 
          * @brief Assumed continuous within the element.
          */
-        bool isContinuous() const override { return true; }
+        bool isContinuous() const override { return false; }
     };
 
 } // namespace cfem::sym

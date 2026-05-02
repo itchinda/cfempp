@@ -279,14 +279,33 @@ std::shared_ptr<Mesh> GmshParser::load(const std::string &filename, std::optiona
     bool universeFound = false;
 
     for (auto const& [key, name] : physicalNames) {
-        if (name == "Universe" && key.first == maxDim) {
-            gmshToInternal[key] = UNIVERSE_ID;
-            universeFound = true;
-            mesh->createInternalEntity(UNIVERSE_ID, name, maxDim);
+        // if (name == "Universe" && key.first == maxDim) {
+        //     gmshToInternal[key] = UNIVERSE_ID;
+        //     universeFound = true;
+        //     mesh->createInternalEntity(UNIVERSE_ID, name, maxDim);
+        // } else {
+        //     gmshToInternal[key] = mesh->createEntity(name, key.first);
+        // }
+
+
+        if (name == "Universe") {
+            if (key.first == maxDim) {
+                gmshToInternal[key] = UNIVERSE_ID;
+                universeFound = true;
+                mesh->createInternalEntity(UNIVERSE_ID, name, maxDim);
+            } else {
+                CFEM_ERROR << "GmshParser Error : Entity 'Universe' must have the mesh dimension (" 
+                           << std::to_string(maxDim) + "D), but was tagged as " 
+                           << std::to_string(key.first) + "D in the .msh file.";
+            }
         } else {
             gmshToInternal[key] = mesh->createEntity(name, key.first);
         }
+
+
+
     }
+    
     if (!universeFound) CFEM_ERROR << "Physical entity 'Universe' not found in .msh file.";
 
     // Helper to find Physical Groups associated with a Gmsh Entity

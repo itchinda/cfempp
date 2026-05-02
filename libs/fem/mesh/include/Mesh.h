@@ -129,302 +129,37 @@ private:
 
 /** *******************************************************************************
  * @class Mesh
- * @brief Central geometric and topological representation of a finite element mesh.
- *
- * The Mesh class stores the discretized domain used by CFEM for
- * finite element simulations. It manages:
- *
- * - Vertex coordinates
- * - Cell (element) connectivity
- * - Facets (edges in 2D, faces in 3D)
- * - Adjacency relations between elements
- * - Boundary and physical entities
- *
- * The mesh acts as the **foundation of the finite element pipeline**,
- * providing geometry and topology information required for:
- *
- * - Finite element space construction
- * - Numerical integration
- * - Assembly of linear systems
- * - Visualization and export
- *
- * ---
- *
- * # Mesh Components
- *
- * A mesh consists of three primary geometric components:
- *
- * ## Vertices
- *
- * Vertices store the geometric coordinates of the mesh nodes.
- *
- * ```text
- * Vertex:
- *   (x, y, z)
- * ```
- *
- * They are stored in the container:
- *
- * ```cpp
- * std::vector<Vertex> m_vertices;
- * ```
- *
- * ---
- *
- * ## Cells (Elements)
- *
- * Cells represent the topological elements used for discretization
- * (triangles, quadrilaterals, tetrahedra, hexahedra, etc.).
- *
- * Each cell references its vertices through an index-based connectivity.
- *
- * The connectivity is stored in a **compact contiguous buffer**:
- *
- * ```cpp
- * std::vector<CfemInt> m_allCellVertexIds;
- * ```
- *
- * Each Cell stores:
- *
- * - the offset into the connectivity buffer
- * - the number of nodes
- * - the element type
- *
- * This layout improves cache efficiency and supports mixed element meshes.
- *
- * ---
- *
- * ## Facets
- *
- * Facets represent element boundaries:
- *
- * | Mesh Dimension | Facet Type |
- * |---------------|------------|
- * | 2D            | Edges      |
- * | 3D            | Faces      |
- *
- * Facets are constructed automatically during mesh building and are
- * used for:
- *
- * - boundary condition detection
- * - adjacency relationships
- * - flux integrals
- *
- * ---
- *
- * # Connectivity Structures
- *
- * The mesh stores multiple connectivity structures used by FEM algorithms:
- *
- * ### Cell → Vertices
- *
- * ```
- * cell → vertex indices
- * ```
- *
- * Used during element integration.
- *
- * ---
- *
- * ### Cell → Facets
- *
- * ```
- * cell → facet indices
- * ```
- *
- * Used to traverse element boundaries.
- *
- * ---
- *
- * ### Cell → Neighbor Cells
- *
- * ```
- * cell → adjacent cells
- * ```
- *
- * Used in:
- *
- * - flux computations
- * - discontinuous Galerkin methods
- * - mesh smoothing
- *
- * ---
- *
- * # Mesh Entities
- *
- * Mesh entities represent **physical or logical groups of mesh elements**.
- * These correspond to **Gmsh physical groups**.
- *
- * Examples:
- *
- * ```
- * "wall"
- * "inlet"
- * "outlet"
- * "symmetry"
- * ```
- *
- * Entities allow attaching:
- *
- * - boundary conditions
- * - source terms
- * - material properties
- *
- * Entities are represented by the class:
- *
- * ```
- * MeshEntity
- * ```
- *
- * and stored as:
- *
- * ```cpp
- * std::vector<std::unique_ptr<MeshEntity>> m_entities;
- * ```
- *
- * ---
- *
- * # Mesh Construction
- *
- * Mesh objects are typically created using **factory methods**
- * rather than direct constructors.
- *
- * Example:
- *
- * ```cpp
- * auto mesh = Mesh::create(3, MeshOrder::Linear);
- * ```
- *
- * Or using a geometry generator:
- *
- * ```cpp
- * auto mesh = Mesh::block(
- *     MeshOrder::Linear,
- *     Mesh::BlockSubdivisions{10,10,10},
- *     Mesh::BlockBounds({0,0,0},{1,1,1}),
- *     Mesh::BlockElementType::Tetrahedron
- * );
- * ```
- *
- * ---
- *
- * # Mesh Generation Utilities
- *
- * The Mesh class provides built-in generators for common geometries:
- *
- * | Geometry | Factory Method |
- * |--------|--------|
- * | Rectangle | `Mesh::quad()` |
- * | Block | `Mesh::block()` |
- * | Disk | `Mesh::disk()` |
- * | Annulus | `Mesh::annulus()` |
- * | Sphere | `Mesh::sphere()` |
- * | Cylinder | `Mesh::cylinder()` |
- * | Hollow cylinder | `Mesh::hollow_cylinder()` |
- *
- * These generators produce structured or semi-structured meshes
- * with automatically generated boundary entities.
- *
- * ---
- *
- * # Mesh Building Pipeline
- *
- * After vertices and cells are added, the mesh topology must be finalized.
- *
- * Typical workflow:
- *
- * ```cpp
- * mesh->addVertex(...);
- * mesh->addCell(...);
- *
- * mesh->buildMesh();
- * ```
- *
- * Internally this performs:
- *
- * 1. Facet construction
- * 2. Inverse connectivity generation
- * 3. Cell adjacency computation
- *
- * ---
- *
- * # Polynomial Order
- *
- * The mesh supports:
- *
- * | Order | Description |
- * |-----|------|
- * | Linear | Nodes only at vertices |
- * | Quadratic | Mid-edge / mid-face nodes |
- *
- * The order can be modified using:
- *
- * ```cpp
- * upgradeToQuadratic();
- * downgradeToLinear();
- * ```
- *
- * ---
- *
- * # Memory Layout
- *
- * The mesh uses **compact storage** to support large meshes efficiently.
- *
- * Key structures:
- *
- * ```
- * m_vertices            → vertex coordinates
- * m_allCellVertexIds    → cell connectivity
- * m_cells               → cell metadata
- * m_facets              → facet metadata
- * m_allCellNeighbors    → adjacency graph
- * ```
- *
- * This design minimizes memory fragmentation and improves
- * cache locality during finite element assembly.
- *
- * ---
- *
- * # Observers
- *
- * Finite element spaces may register as observers of the mesh.
- *
- * When the mesh topology changes (e.g. order upgrade), observers
- * are notified so they can update internal structures.
- *
- * ---
- *
- * # File Import
- *
- * Meshes can be imported from **Gmsh files**:
- *
- * ```cpp
- * auto mesh = Mesh::loadFromGmsh("mesh.msh");
- * ```
- *
- * Physical groups in Gmsh are automatically converted into
- * mesh entities.
- *
- * ---
- *
- * # Thread Safety
- *
- * Mesh objects are **not thread-safe for modification**.
- * However, once built they can safely be accessed concurrently
- * for read-only operations.
- *
- * ---
- *
- * # Design Notes
- *
- * The mesh is designed to:
- *
- * - support mixed element types
- * - scale to large meshes
- * - integrate with symbolic expressions
- * - support high-order finite elements
- *
- * It serves as the central data structure used throughout the CFEM.
+ * @brief Core topological and geometric representation of a finite element mesh.
+ *
+ * @details
+ * The Mesh class is the central data structure in CFEM. It defines the discretized 
+ * domain by managing vertices, cells (elements), facets (boundaries/interfaces), 
+ * and physical entities.
+ * 
+ * To support large-scale simulations efficiently, the mesh stores connectivity 
+ * data in contiguous "Big Block" memory arrays (CSR-like format). This avoids 
+ * memory fragmentation and ensures high CPU cache hit rates during FE assembly.
+ *
+ * ### Key Features
+ * - **Mixed Elements**: Supports hybrid meshes (e.g., Hexahedra + Tetrahedra).
+ * - **Polynomial Order**: Supports Linear (P1) and Quadratic (P2) discretizations.
+ *   Use `upgradeToQuadratic()` or `downgradeToLinear()` to mutate the mesh.
+ * - **High-Performance Adjacency**: Provides O(1) access to Vertex->Cells, 
+ *   Cell->Facets, and Cell->Neighbors via lightweight `std::span` accessors 
+ *   (e.g., `getCellConnectivity`).
+ * - **Mesh Entities**: Logical groupings (e.g., "inlet", "wall") mapped directly 
+ *   from Gmsh physical groups for applying boundary conditions.
+ *
+ * ### Typical Workflow
+ * 1. Create a mesh via factory methods (e.g., `Mesh::loadFromGmsh` or `Mesh::block`).
+ * 2. If building manually, add vertices and cells using `addVertex()` and `addCell()`.
+ * 3. Call `buildMesh()` to finalize topology (compacts vertices, builds facets and adjacency).
+ *
+ * @warning Mesh modification methods (adding cells/vertices, changing order) are 
+ * **NOT thread-safe**. However, once `buildMesh()` is called, all read-only 
+ * geometric queries can be safely executed concurrently.
+ *
+ * @ingroup Mesh
  * 
  *********************************************************************************** */
 class Mesh {
@@ -623,8 +358,6 @@ public:
     void updateAffineFlags();
 
     // HELPERS
-    std::string cellTypeToString(CellType type) const;
-
     template<typename T>
     CfemReal computeCellMeasure(CellType type, const T& v_ids) const;
     //CfemReal computeCellMeasure(CellType type, const auto& v_ids) const; 
@@ -638,6 +371,7 @@ public:
     const std::vector<CellType>& getCellTypesPresent() const { return m_uniqueCellTypes; }
     const std::vector<CellType>& getFacetTypesPresent() const { return m_uniqueFacetTypes; }
     CfemReal computeCellQuality(CfemInt cellId) const;
+    CfemReal computeFacetQuality(CfemInt facetId) const;
 
     void clear() {
         m_vertices.clear();
@@ -931,7 +665,6 @@ struct TJunctionBoundaryNames
 
     static void projectBoundaryMidNodes(Mesh &mesh, const cfem::Vector3D &center, CfemReal radius);
 
-    int getLocalFacesCount(CellType type) const;
     LocalFace getLocalFaceData(CfemInt cell_id, int face_idx) const;
 private:
     CfemInt m_meshDim {0};
@@ -965,6 +698,8 @@ private:
     std::bitset<MAX_CELL_TYPES> m_facetTypeFlags;
     std::vector<CellType> m_uniqueCellTypes;
     std::vector<CellType> m_uniqueFacetTypes;
+    std::array<size_t, static_cast<size_t>(CellType::COUNT)> m_cellCountPerType{};
+    std::array<size_t, static_cast<size_t>(CellType::COUNT)> m_faceCountPerType{};
 
     std::vector<CfemInt> m_globalConnectivity;
 
@@ -997,8 +732,6 @@ private:
     CfemReal computeTetQuality(const std::span<const CfemInt>& v) const;
     CfemReal computePrismQuality(const std::span<const CfemInt>& v) const;
 
-    // int getLocalFacesCount(CellType type) const;
-    // LocalFace getLocalFaceData(CfemInt cell_id, int face_idx) const;
     int findLocalFaceIndex(CfemInt cell_id, const LocalFace& target) const;
 
     std::set<std::string> m_globalFieldRegistry;
