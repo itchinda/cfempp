@@ -29,10 +29,10 @@ mkdir -p "$INSTALL_DIR"
 
 # --- SYSTEM DEPS ---
 echo -e "${BLUE}==> Verifying system dependencies${NC}"
-sudo apt-get update >/dev/null 2>&1
+sudo apt-get update >/dev/null
 sudo apt-get install -y build-essential gfortran cmake git pkg-config \
     libgmp-dev libmpfr-dev libmpc-dev libzstd-dev \
-    libcurl4-openssl-dev llvm-dev libomp-dev >/dev/null 2>&1
+    libcurl4-openssl-dev llvm-dev libomp-dev >/dev/null
 
 # --- PETSc ---
 export PETSC_DIR="$INSTALL_DIR/petsc"
@@ -88,12 +88,18 @@ done
 
 if [ "$SYM_FOUND" = false ]; then
     echo -e "${BLUE}==> Building SymEngine ($CMAKE_BUILD_TYPE)...${NC}"
-    SYM_SRC_DIR="$PARENT_DIR/symengine"
+    SYM_SRC_DIR="$INSTALL_DIR/symengine"
     [ ! -d "$SYM_SRC_DIR" ] && git clone https://github.com/symengine/symengine "$SYM_SRC_DIR"
     
     export SymEngine_DIR="$SYM_SRC_DIR/build_${MODE_ARG}"
     mkdir -p "$SymEngine_DIR" && cd "$SymEngine_DIR"
-    cmake .. -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWITH_LLVM=ON -Dln_depend_mode=OFF || return 1
+
+    cmake .. -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
+             -DBUILD_SHARED_LIBS=ON \
+             -DWITH_SYMENGINE_RCP=OFF \
+             -DWITH_LLVM=ON \
+             -Dln_depend_mode=OFF || return 1
+
     make -j$(nproc) || return 1
     cd - >/dev/null
 fi
