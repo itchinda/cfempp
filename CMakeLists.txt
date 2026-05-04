@@ -42,9 +42,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-#set(CMAKE_CXX_FLAGS_ASAN "-O1 -g -fsanitize=address -fno-omit-frame-pointer" CACHE STRING "") # For intense debug/segmentation fault/ illegal memory acces
-# set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -DNDEBUG -DTEUCHOS_DEBUG_OFF" CACHE STRING "")   # For pure performance (HPC)
+# set(CMAKE_CXX_FLAGS_ASAN "-O1 -g -fsanitize=address -fno-omit-frame-pointer" CACHE STRING "For intense debug/segmentation fault/ illegal memory acces")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -ffp-contract=fast -fno-math-errno -DNDEBUG -DTEUCHOS_DEBUG_OFF" CACHE STRING "Flags for pure performance (HPC)" FORCE)
+
 # Define the App name here so it's available in the subdirectories
 if(TARGET_PETSC_ARCH STREQUAL "arch-linux-c-debug")
     set(APP_PROJECT_NAME cfem_app_dev)
@@ -60,36 +60,30 @@ pkg_search_module(PETSC REQUIRED IMPORTED_TARGET petsc)
 # ------------------------------------------------------------
 # Find SymEngine
 # ------------------------------------------------------------
-# On définit d'abord les chemins de recherche potentiels (HINTS)
-set(SymEngine_HINTS
-    "$ENV{SYMENGINE_INSTALL_DIR}"
-    "${CMAKE_SOURCE_DIR}/../symengine/${SYMENGINE_BUILD_DIR}"
-    "/usr/local/lib/cmake/symengine"
-)
 
-# On cherche le package. CMake regardera dans les dossiers standards système 
-# (/usr/local, /usr) ET dans nos HINTS.
+# We are looking for SymEngine. CMake will look inside standards system dirs 
+# (/usr/local, /usr) and our HINTS.
 find_package(SymEngine REQUIRED CONFIG HINTS ${SymEngine_HINTS})
 if(SymEngine_FOUND)
-    # On vérifie quel est le nom de la cible réelle
+    # Check the exact name of the target
     if(TARGET symengine)
         add_library(SymEngine::libsymengine ALIAS symengine)
     elseif(TARGET libsymengine)
         add_library(SymEngine::libsymengine ALIAS libsymengine)
     endif()
     
-    # Sécurité : On s'assure que les dossiers d'include sont globaux
+    # Security : make sure the include directories are global.
     include_directories(SYSTEM ${SymEngine_INCLUDE_DIRS})
 endif()
 
-# Une fois SymEngine trouvé, il nous faut LLVM car SymEngine est lié statiquement
+# Once SymEngine is found, we need LLVM. SymEngine is statically linked.
 find_package(LLVM REQUIRED CONFIG)
 if(LLVM_FOUND)
-    # Ajout de 'bitreader', 'target', 'mc' et 'support' qui manquent dans ton log
+    # Add 'bitreader', 'target', 'mc' and 'support'
     llvm_map_components_to_libnames(llvm_libs 
         core mcjit orcjit native ipo bitreader target mc support
     )
-    # LLVM a aussi besoin de libffi et libterminfo (tinfo) sur Ubuntu
+    # LLVM also needs libffi and libterminfo (tinfo) on Ubuntu
     set(LLVM_SYSTEM_LIBS z zstd dl pthread m ffi tinfo)
 endif()
 
@@ -112,7 +106,7 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 # ------------------------------------------------------------
-# Add Modular Libraries & Applications
+# Modular Libraries & Applications
 # ------------------------------------------------------------
 add_subdirectory(libs)
 add_subdirectory(apps) # This will look for apps/CMakeLists.txt

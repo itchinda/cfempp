@@ -276,7 +276,14 @@ inline DynamicVector<T> operator*(const DynamicMatrix<T>& A, const DynamicVector
     return res;
 }
 
-/** @brief Matrix-Matrix multiplication: C = A * B (ikj optimized) */
+/**
+ * @brief Matrix-Matrix multiplication: C = A * B (ikj optimized) 
+ * 
+ * @tparam T The matrix element type
+ * @param A The left matrix
+ * @param B The right matrix
+ * @return DynamicMatrix<T> the result of the multiplication 
+ */
 template <typename T>
 inline DynamicMatrix<T> operator*(const DynamicMatrix<T>& A, const DynamicMatrix<T>& B) {
     CFEM_ASSERT(A.cols() == B.rows());
