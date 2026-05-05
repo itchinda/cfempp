@@ -63,7 +63,7 @@ pkg_search_module(PETSC REQUIRED IMPORTED_TARGET petsc)
 
 # We are looking for SymEngine. CMake will look inside standards system dirs 
 # (/usr/local, /usr) and our HINTS.
-find_package(SymEngine REQUIRED CONFIG HINTS ${SymEngine_HINTS})
+find_package(SymEngine REQUIRED CONFIG)
 if(SymEngine_FOUND)
     # Check the exact name of the target
     if(TARGET symengine)
