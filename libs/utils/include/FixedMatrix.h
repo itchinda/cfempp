@@ -262,8 +262,6 @@ inline FixedMatrix<T, R, C> operator*(T scalar, const FixedMatrix<T, R, C>& m) {
     return m * scalar;
 }
 
-// --- Specialized Tools for Jacobians ---
-
 /** 
  * @brief Determinant for 2x2 matrix.
  * \f$ det(M) = m_{00}m_{11} - m_{01}m_{10} \f$

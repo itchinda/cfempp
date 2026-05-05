@@ -1,0 +1,23 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "user-paths",
+      "hidden": true,
+      "cacheVariables": {
+        "PETSC_DIR": "/PATH/TO/YOUR/PETSC/INSTALLATION",
+        "SymEngine_DIR": "/PATH/TO/YOUR/SYMENGINE/build_${presetName}"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": ["shared-debug", "user-paths"],
+      "displayName": "My Local Debug"
+    },
+    {
+      "name": "release",
+      "inherits": ["shared-release", "user-paths"],
+      "displayName": "My Local Release"
+    }
+  ]
+}
