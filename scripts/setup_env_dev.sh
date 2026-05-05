@@ -79,18 +79,21 @@ case "$PKG_MANAGER" in
     apt) PKGS=(build-essential gfortran cmake git pkg-config libgmp-dev libmpfr-dev libmpc-dev libzstd-dev libcurl4-openssl-dev llvm-dev libomp-dev) ;;
     dnf) PKGS=(gcc gcc-c++ gcc-gfortran cmake git pkgconf-pkg-config gmp-devel mpfr-devel libmpc-devel zstd-devel libcurl-devel llvm-devel libomp-devel) ;;
     pacman) PKGS=(base-devel gcc-fortran cmake git pkgconf gmp mpfr libmpc zstd curl llvm openmp) ;;
-    brew) PKGS=(cmake git pkg-config gmp mpfr libmpc zstd curl llvm libomp) ;;
+    brew) PKGS=(gcc cmake git pkg-config gmp mpfr libmpc zstd curl llvm libomp) ;; # g++ remplacé par gcc ici
     *) PKGS=() ;;
 esac
 
 MISSING_PKGS=()
 for pkg in "${PKGS[@]}"; do
-    if ! check_pkg "$pkg"; then
+    if ! check_pkg "$PKG_MANAGER" "$pkg"; then
         MISSING_PKGS+=("$pkg")
     fi
 done
 
-REQUIRED_TOOLS=(g++ cmake git pkg-config make)
+# Pour Mac, on vérifie 'gcc' au lieu de 'g++' dans les outils requis
+COMPILER_TOOL=$([[ "$PKG_MANAGER" == "brew" ]] && echo "gcc" || echo "g++")
+REQUIRED_TOOLS=($COMPILER_TOOL cmake git pkg-config make)
+
 MISSING_TOOLS=0
 for tool in "${REQUIRED_TOOLS[@]}"; do
     if ! command -v $tool &> /dev/null; then
@@ -105,13 +108,12 @@ if [ ${#MISSING_PKGS[@]} -gt 0 ] || [ "$MISSING_TOOLS" -eq 1 ]; then
         apt) sudo apt-get update && sudo apt-get install -y "${MISSING_PKGS[@]}" "${REQUIRED_TOOLS[@]}" || exit 1 ;;
         dnf) sudo dnf install -y "${MISSING_PKGS[@]}" "${REQUIRED_TOOLS[@]}" || exit 1 ;;
         pacman) sudo pacman -Sy --noconfirm "${MISSING_PKGS[@]}" "${REQUIRED_TOOLS[@]}" || exit 1 ;;
-        brew) brew install "${MISSING_PKGS[@]}" "${REQUIRED_TOOLS[@]}" || exit 1 ;;
+        brew) brew install "${MISSING_PKGS[@]}" || exit 1 ;; # Brew gère déjà les doublons d'outils
         *) echo -e "${YELLOW}[WARN] Unknown package manager. Please install manually.${NC}" ;;
     esac
 else
     echo -e "${GREEN}==> All required tools and libraries found.${NC}"
 fi
-
 # ------------------------------------------------------------
 # PETSc
 # ------------------------------------------------------------
