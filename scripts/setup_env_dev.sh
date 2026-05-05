@@ -114,6 +114,22 @@ if [ ${#MISSING_PKGS[@]} -gt 0 ] || [ "$MISSING_TOOLS" -eq 1 ]; then
 else
     echo -e "${GREEN}==> All required tools and libraries found.${NC}"
 fi
+
+# ------------------------------------------------------------
+# COMPILER SELECTION (CRITICAL FOR macOS)
+# ------------------------------------------------------------
+if [[ "$PKG_MANAGER" == "brew" ]]; then
+    echo -e "${BLUE}==> Using Apple Clang toolchain (recommended on macOS)${NC}"
+    export CC=clang
+    export CXX=clang++
+    export FC=gfortran
+else
+    echo -e "${BLUE}==> Using GCC toolchain${NC}"
+    export CC=gcc
+    export CXX=g++
+    export FC=gfortran
+fi
+
 # ------------------------------------------------------------
 # PETSc
 # ------------------------------------------------------------
@@ -129,7 +145,8 @@ if ( [ ! -f "$PETSC_DIR/$PETSC_ARCH/lib/libpetsc.so" ] && \
     cd "$PETSC_DIR"
     DEBUG_FLAG=$([[ "$MODE_ARG" == "debug" ]] && echo "yes" || echo "no")
 
-    ./configure --with-debugging=$DEBUG_FLAG \
+    ./configure CC="$CC" CXX="$CXX" FC="$FC" \
+                --with-debugging=$DEBUG_FLAG \
                 --download-fblaslapack \
                 --download-mpich \
                 --with-shared-libraries=1 \
