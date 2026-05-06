@@ -3,7 +3,6 @@ add_library(cfem_fefield
 
 )
 
-# Use the variables SymEngine provides explicitly
 target_include_directories(cfem_fefield
     PUBLIC 
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -18,7 +17,4 @@ target_link_libraries(cfem_fefield
         cfem_expressions
         cfem_mesh
         cfem_fespace
-        SymEngine::libsymengine 
-        PkgConfig::PETSC
-        OpenMP::OpenMP_CXX
 )

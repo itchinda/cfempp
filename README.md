@@ -8,7 +8,7 @@ Designed to handle **10^7+ Degrees of Freedom (DoFs)**, the project focuses on t
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
 ### 1. Robust Mesh Topology
 * **Gmsh 4.1 Integration:** Native support for MSH ASCII formats with advanced vertex unique-ification and tag interning.
@@ -41,35 +41,51 @@ Leveraging **PETSc** for its linear algebra core, CFEM++ provides:
 
 ---
 
-## 🛠 Installation & Automated Setup
+## 🛠 Installation & Environment Setup
 
-CFEM++ includes a **Smart Setup Script** that automates the installation of PETSc, SymEngine, and system dependencies.
+CFEM++ includes HPC-grade setup scripts that automate the configuration of PETSc, SymEngine, and system dependencies across Linux and macOS (Apple Silicon & Intel).
 
-### 1. Initialize Environment
-Run the setup script from the project root. This will verify your compiler, install required `apt` packages, and configure dependencies.
+### Option A: Standard Users (Public Setup)
+For researchers and users who want to safely configure the environment or build missing dependencies automatically.
 
+**1. Source the public script:**
 ```bash
-# Recommended: Standard Release mode
-source scripts/setup_env.sh release
-
-# For development: Debug mode with heavy error-checking
-source scripts/setup_env.sh debug
-         
+source scripts/setup_env_pub.sh release
 ```
 
-### 2. Build Project
+**2. Missing dependencies?** Use the bootstrap flag to automatically build PETSc and SymEngine in your home directory without requiring root privileges:
 ```bash
-cd build
+source scripts/setup_env_pub.sh release --bootstrap
+```
+
+### Option B: Core Developers (Dev Setup)
+For contributors. This script aggressively checks tools, automatically calls system package managers (apt, dnf, pacman, brew), and generates the CMakeUserPresets.
+
+**1. Run the developer bootstrap script:**
+```bash
+./scripts/setup_env_dev.sh release
+```
+
+**2. (Optional) For heavy debugging**, use the debug mode:
+```bash
+./scripts/setup_env_dev.sh debug
+```
+
+### Build the Project
+CFEM++ generates isolated build directories based on the chosen mode.
+
+```bash
+cd build_release
 make -j$(nproc)
 ```
 
-### 3. Run Tests
+### Run Tests
 ```bash
 # Execute unit tests across 4 MPI ranks
 mpiexec -n 4 ./tests/unit_tests
 ```
 
-## 💻 C++ API Example: Field Projection
+## C++ API Example: Field Projection
 The following example demonstrates how to generate a tetrahedral mesh, project a symbolic JIT-compiled velocity field, calculate numerical errors (L2/H1 norms), and export the results for ParaView.
 
 ```c++
@@ -128,7 +144,6 @@ int main(int argc, char **argv) {
 <p align="center">
   <em>Figure 1: Complex cardiac geometry imported from Gmsh and visualized in ParaView.</em>
 </p>
-
 ```c++
 // Future API (Expected)
 auto u = Trial(V, "u");

@@ -7,7 +7,10 @@ add_library(cfem_petsc_wrappers
 
 target_include_directories(cfem_petsc_wrappers PUBLIC include)
 #target_link_libraries(cfem_petsc_wrappers PUBLIC ${PETSC_LIBRARIES})
-target_link_libraries(cfem_petsc_wrappers PUBLIC PkgConfig::PETSC cfem_utils)
+target_link_libraries(cfem_petsc_wrappers 
+    PUBLIC 
+        PkgConfig::PETSC 
+        cfem_utils
+)
 
-# Alias for easier linking later
 add_library(cfempp::wrappers::petsc ALIAS cfem_petsc_wrappers)

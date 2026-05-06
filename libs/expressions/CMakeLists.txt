@@ -29,8 +29,10 @@ target_link_libraries(cfem_expressions
         cfem_utils
         cfem_mesh
         cfem_reference_element
-        # On utilise la cible IMPORTED, elle s'occupe de GMP, MPFR, et des includes !
         SymEngine::libsymengine 
-        PkgConfig::PETSC
-        OpenMP::OpenMP_CXX
+        #${llvm_libs}
+        ${GMP_LIB}
+        ${MPFR_LIB}
+        ${MPC_LIB}
+        # ${LLVM_SYSTEM_LIBS}
 )
