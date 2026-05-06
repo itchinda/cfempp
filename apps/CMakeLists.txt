@@ -34,10 +34,10 @@ target_link_libraries(${APP_PROJECT_NAME}
         cfem_expressions
         cfem_exporter
         cfem_numerical_integration
-        SymEngine::libsymengine   # 1. La lib statique qui demande des symboles
-        ${llvm_libs}              # 2. Les libs LLVM qui fournissent les symboles
-        ${GMP_LIB}                # 3. Les libs de calcul
-        ${MPFR_LIB}
-        ${MPC_LIB}
-        ${LLVM_SYSTEM_LIBS}       # 4. Les libs système de bas niveau
+        # SymEngine::libsymengine   # 1. La lib statique qui demande des symboles
+        # ${llvm_libs}              # 2. Les libs LLVM qui fournissent les symboles
+        # ${GMP_LIB}                # 3. Les libs de calcul
+        # ${MPFR_LIB}
+        # ${MPC_LIB}
+        # ${LLVM_SYSTEM_LIBS}       # 4. Les libs système de bas niveau
 )

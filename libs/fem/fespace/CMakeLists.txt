@@ -17,7 +17,4 @@ target_link_libraries(cfem_fespace
         cfem_mesh
         cfem_expressions
         cfem_fefield
-        SymEngine::libsymengine 
-        PkgConfig::PETSC
-        OpenMP::OpenMP_CXX
 )

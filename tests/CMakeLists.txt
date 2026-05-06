@@ -29,12 +29,6 @@ target_link_libraries(unit_tests
         cfem_fespace
         cfem_expressions
         cfem_numerical_integration
-        SymEngine::libsymengine 
-        ${llvm_libs}
-        ${GMP_LIB}
-        ${MPFR_LIB}
-        ${LLVM_SYSTEM_LIBS}
 )
 
-# This command tells CMake to find all TEST() macros in the binary
 gtest_discover_tests(unit_tests)
