@@ -1,11 +1,26 @@
 #!/bin/bash
-# ============================================================
-# CFEM++ DEPENDENCIES BOOTSTRAP (HPC GRADE)
-# - Auto-installs system dependencies (portable)
-# - Intelligent MPI detection (System vs Download)
-# - Toolchain consistency (PETSc <-> SymEngine)
-# - Generates CMakeUserPresets.json
-# ============================================================
+#************************************************************************
+# --- CFEM++ Library
+# ---
+# --- Copyright 2024-2026 Ismaël Tchinda Ngueyong et al.
+# --- ALL RIGHTS RESERVED
+# ---
+# --- This software is protected by international copyright laws.
+# --- Use, distribution, or modification of this software in any form,
+# --- source or binary, for personal, academic, or non-commercial 
+# --- purposes is permitted free of charge, provided that this 
+# --- copyright notice and this permission notice appear in all 
+# --- copies and supporting documentation.
+# ---
+# --- The authors and contributors provide this code "as is" without 
+# --- any express or implied warranty. In no event shall they be 
+# --- held liable for any damages arising from the use of this software.
+#************************************************************************
+
+# ==============================================================================
+# CFEM++ Environment Setup Script 
+# Verifies dependencies and configures the CMake build environment safely.
+# ==============================================================================
 
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -151,17 +166,29 @@ if ( [ ! -f "$PETSC_DIR/$PETSC_ARCH/lib/libpetsc.so" ] && \
 
     cd "$PETSC_DIR"
     DEBUG_FLAG=$([[ "$MODE_ARG" == "debug" ]] && echo "yes" || echo "no")
-    
-    # Intelligent MPI handling for HPC compatibility
+        
+    # Intelligent MPI & Compiler handling
     if command -v mpicc &> /dev/null && command -v mpicxx &> /dev/null; then
         echo -e "${GREEN}    -> System MPI detected, skipping MPICH download.${NC}"
         MPI_OPTION="--with-mpi=1"
+        
+        if command -v mpif90 &> /dev/null; then
+            MPI_FC="mpif90"
+        elif command -v mpifort &> /dev/null; then
+            MPI_FC="mpifort"
+        else
+            MPI_FC="$FC"
+        fi
+        COMPILER_OPTS="--with-cc=mpicc --with-cxx=mpicxx --with-fc=$MPI_FC"
     else
         echo -e "${YELLOW}    -> No System MPI detected, forcing MPICH download.${NC}"
         MPI_OPTION="--download-mpich"
+        
+        # On force GCC/Clang car PETSc va compiler MPICH lui-même
+        COMPILER_OPTS="--with-cc=$CC --with-cxx=$CXX --with-fc=$FC"
     fi
 
-    ./configure CC="$CC" CXX="$CXX" FC="$FC" \
+    ./configure $COMPILER_OPTS \
                 --with-debugging=$DEBUG_FLAG \
                 --download-fblaslapack \
                 $MPI_OPTION \
