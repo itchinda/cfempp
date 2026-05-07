@@ -25,9 +25,10 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential gfortran cmake python3 m4 wget \
                                 libgmp-dev libmpfr-dev libmpc-dev libzstd-dev \
-                                libedit-dev libcurl4-openssl-dev zlib1g-dev
+                                libedit-dev libcurl4-openssl-dev zlib1g-dev \
+                                llvm-dev libomp-dev
 
-    # 3- Set Environment Variables based on Matrix
+    # Set Environment Variables based on Matrix
     - name: Set Configuration Variables
       run: |
         if [[ "${{ matrix.build_type }}" == "Debug" ]]; then
@@ -39,7 +40,7 @@ jobs:
         fi
         echo "PETSC_DIR=$HOME/petsc" >> $GITHUB_ENV
 
-    # 4- Cache PETSc (Key includes the architecture/build_type)
+    # Cache PETSc (Key includes the architecture/build_type)
     - name: Cache PETSc
       id: cache-petsc
       uses: actions/cache@v4
@@ -59,13 +60,13 @@ jobs:
                     --PETSC_ARCH=${{ env.P_ARCH }}
         make PETSC_DIR=$HOME/petsc PETSC_ARCH=${{ env.P_ARCH }} all
 
-    # 5- Cache SymEngine (Separated by Build Type)
+    # Cache SymEngine (Separated by Build Type)
     - name: Cache SymEngine
       id: cache-symengine
       uses: actions/cache@v4
       with:
         path: ~/symengine_install
-        key: ${{ runner.os }}-symengine-v14-${{ matrix.build_type }}-v1
+        key: ${{ runner.os }}-symengine-v14-${{ matrix.build_type }}-v2
 
     - name: Build SymEngine
       if: steps.cache-symengine.outputs.cache-hit != 'true'
@@ -73,15 +74,17 @@ jobs:
         git clone https://github.com/symengine/symengine ~/symengine
         cd ~/symengine
         mkdir build && cd build
+        # FIX: Ajout de BUILD_SHARED_LIBS=ON et alignement de WITH_SYMENGINE_RCP=OFF
         cmake .. \
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
           -DCMAKE_INSTALL_PREFIX=$HOME/symengine_install \
-          -DWITH_SYMENGINE_RCP=ON \
+          -DBUILD_SHARED_LIBS=ON \
+          -DWITH_SYMENGINE_RCP=OFF \
           -DWITH_LLVM=ON \
           -Dln_depend_mode=OFF
         make -j$(nproc) install
 
-    # 6- Build CFEM++
+    # Build CFEM++
     - name: Configure and Build Project
       run: |
         export PATH=$PETSC_DIR/$P_ARCH/bin:$PATH
@@ -92,13 +95,12 @@ jobs:
                  -DSymEngine_DIR=$HOME/symengine_install/lib/cmake/symengine
         make -j$(nproc)
 
-    # 7- Run Tests
+    # Run Tests
     - name: Run Unit Tests
       run: |
         export PATH=$PETSC_DIR/$P_ARCH/bin:$PATH
         cd build
         echo "Running ${{ matrix.build_type }} unit tests with ${{ matrix.mpi_ranks }} ranks"
-        # On utilise un nom de fichier spécifique à la matrice pour ne rien écraser
         mpiexec -n ${{ matrix.mpi_ranks }} ./tests/unit_tests --gtest_output="xml:report_${{ matrix.build_type }}_${{ matrix.mpi_ranks }}.xml"
 
     - name: Publish Test Report
