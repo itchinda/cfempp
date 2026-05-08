@@ -12,6 +12,7 @@ target_include_directories(cfem_fespace
 
 target_link_libraries(cfem_fespace
     PUBLIC 
+        cfem_openmp_interface
         cfem_utils
         cfem_reference_element
         cfem_mesh

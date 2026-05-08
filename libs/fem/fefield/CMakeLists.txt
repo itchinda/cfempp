@@ -10,7 +10,8 @@ target_include_directories(cfem_fefield
 )
 
 target_link_libraries(cfem_fefield
-    PUBLIC 
+    PUBLIC
+        cfem_openmp_interface 
         cfem_utils
         cfem_petsc_wrappers
         cfem_reference_element

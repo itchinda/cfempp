@@ -15,4 +15,5 @@ target_include_directories(cfem_assembly
 target_link_libraries(cfem_assembly
     PUBLIC cfem_petsc_wrappers
     cfem_utils
+    cfem_openmp_interface
 )

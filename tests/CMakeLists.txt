@@ -21,6 +21,7 @@ add_executable(unit_tests
 target_link_libraries(unit_tests
     PRIVATE
         GTest::gtest
+	cfem_openmp_interface
         cfem_solvers
         cfem_utils
         cfem_quadrature
