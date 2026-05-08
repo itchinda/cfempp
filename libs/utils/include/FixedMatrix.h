@@ -44,27 +44,27 @@ namespace cfem {
  * @tparam R Number of rows.
  * @tparam C Number of columns.
  */
-template <typename T, int R, int C>
+template <typename T, CfemInt R, CfemInt C>
 struct FixedMatrix {
     /** 
      * @brief Flat array storage to ensure memory contiguity. 
      */
-    T data[R * C] = {0};
+    T data[R * C] = {};
 
     /** 
      * @brief Default constructor. Initializes all entries to zero. 
      */
-    FixedMatrix() = default;
+    constexpr FixedMatrix() noexcept = default;
 
     /** 
      * @brief Initializer list constructor.
      * @param list Values provided in row-major order.
      * @throw CFEM_ASSERT if list size does not match R*C.
      */
-    FixedMatrix(std::initializer_list<T> list) {
-        CFEM_ASSERT(list.size() == R * C);
-        int i = 0;
-        for (auto val : list) data[i++] = val;
+    constexpr FixedMatrix(std::initializer_list<T> list) {
+        CFEM_ASSERT(list.size() == R * C, "Invalid initializer_list size.");
+        CfemInt i = 0;
+        for (const auto& val : list) data[i++] = val;
     }
 
     /** 
@@ -73,8 +73,8 @@ struct FixedMatrix {
      * @param c Column index.
      * @return Reference to the element at (r, c).
      */
-    inline T& operator()(int r, int c) {
-        CFEM_ASSERT(r < R && c < C, "Index outof bounds.");
+    constexpr inline T& operator()(CfemInt r, CfemInt c) {
+        CFEM_ASSERT(r >= 0  && r < R && c >= 0 && c < C, "Matrix Index out of bounds.");
         return data[r * C + c];
     }
 
@@ -84,41 +84,41 @@ struct FixedMatrix {
      * @param c Column index.
      * @return Constant reference to the element at (r, c).
      */
-    inline const T& operator()(int r, int c) const {
-        CFEM_ASSERT(r < R && c < C);
+    constexpr inline const T& operator()(CfemInt r, CfemInt c) const {
+        CFEM_ASSERT(r >= 0  && r < R && c >= 0 && c < C, "Matrix Index out of bounds.");
         return data[r * C + c];
     }
 
     /** 
      * @brief Returns number of rows. 
      */
-    static constexpr int rows() noexcept { return R; }
+    [[nodiscard]] static constexpr CfemInt rows() noexcept { return R; }
 
     /**
      * @brief Returns number of columns. 
      */
-    static constexpr int cols() noexcept { return C; }
+    [[nodiscard]] static constexpr CfemInt cols() noexcept { return C; }
 
     /** 
      * @brief Returns dimensions as a std::pair {Rows, Cols}. 
      */
-    static constexpr std::pair<int,int> dimensions() noexcept { return {R, C}; }
+    [[nodiscard]] static constexpr std::pair<CfemInt,CfemInt> dimensions() noexcept { return {R, C}; }
 
     // --- Basic Operations ---
 
     /** @brief Resets all matrix entries to zero. */
-    void setZero() {
-        for (int i = 0; i < R * C; ++i) data[i] = static_cast<T>(0);
+    constexpr void setZero() noexcept{
+        std::fill_n(data, R*C, T{});
     }
 
     /** 
      * @brief Sets the matrix to Identity (\f$ I \f$).
      * @note Only available for square matrices.
      */
-    void setIdentity() {
-        static_assert(R == C, "Identity matrix must be square.");
+    constexpr void setIdentity() {
+        CFEM_STATIC_ASSERT(R == C, "Identity matrix must be square.");
         setZero();
-        for (int i = 0; i < R; ++i) (*this)(i, i) = static_cast<T>(1);
+        for (CfemInt i = 0; i < R; ++i) (*this)(i, i) = static_cast<T>(1);
     }
 
     // --- Arithmetic ---
@@ -128,7 +128,7 @@ struct FixedMatrix {
      */
     FixedMatrix<T, R, C> operator*(T scalar) const {
         FixedMatrix<T, R, C> res;
-        for (int i = 0; i < R * C; ++i) res.data[i] = data[i] * scalar;
+        for (CfemInt i = 0; i < R * C; ++i) res.data[i] = data[i] * scalar;
         return res;
     }
 
@@ -138,7 +138,7 @@ struct FixedMatrix {
     FixedMatrix<T, R, C> operator/(T scalar) const {
         CFEM_ASSERT(std::abs(scalar) > cfem::ZERO_TOLERANCE);
         FixedMatrix<T, R, C> res;
-        for (int i = 0; i < R * C; ++i) res.data[i] = data[i] / scalar;
+        for (CfemInt i = 0; i < R * C; ++i) res.data[i] = data[i] / scalar;
         return res;
     }
 
@@ -147,7 +147,7 @@ struct FixedMatrix {
      */
     FixedMatrix<T, R, C> operator+(const FixedMatrix& other) const {
         FixedMatrix<T, R, C> res;
-        for (int i = 0; i < R * C; ++i) res.data[i] = data[i] + other.data[i];
+        for (CfemInt i = 0; i < R * C; ++i) res.data[i] = data[i] + other.data[i];
         return res;
     }
 
@@ -156,7 +156,7 @@ struct FixedMatrix {
      */
     FixedMatrix<T, R, C> operator-(const FixedMatrix& other) const {
         FixedMatrix<T, R, C> res;
-        for (int i = 0; i < R * C; ++i) res.data[i] = data[i] - other.data[i];
+        for (CfemInt i = 0; i < R * C; ++i) res.data[i] = data[i] - other.data[i];
         return res;
     }
 
@@ -164,7 +164,7 @@ struct FixedMatrix {
      * @brief In-place scalar multiplication. 
      */
     FixedMatrix<T, R, C>& operator*=(T scalar) {
-        for (int i = 0; i < R * C; ++i) data[i] *= scalar;
+        for (CfemInt i = 0; i < R * C; ++i) data[i] *= scalar;
         return *this;
     }
 
@@ -173,7 +173,7 @@ struct FixedMatrix {
      */
     FixedMatrix<T, R, C>& operator/=(T scalar) {
         CFEM_ASSERT(std::abs(scalar) > cfem::ZERO_TOLERANCE);
-        for (int i = 0; i < R * C; ++i) data[i] /= scalar;
+        for (CfemInt i = 0; i < R * C; ++i) data[i] /= scalar;
         return *this;
     }
 
@@ -181,7 +181,7 @@ struct FixedMatrix {
      * @brief In-place matrix addition. 
      */
     FixedMatrix<T, R, C>& operator+=(const FixedMatrix& other) {
-        for (int i = 0; i < R * C; ++i) data[i] += other.data[i];
+        for (CfemInt i = 0; i < R * C; ++i) data[i] += other.data[i];
         return *this;
     }
 
@@ -189,7 +189,7 @@ struct FixedMatrix {
      * @brief In-place matrix subtraction. 
      */
     FixedMatrix<T, R, C>& operator-=(const FixedMatrix& other) {
-        for (int i = 0; i < R * C; ++i) data[i] -= other.data[i];
+        for (CfemInt i = 0; i < R * C; ++i) data[i] -= other.data[i];
         return *this;
     }
 
@@ -199,8 +199,8 @@ struct FixedMatrix {
      */
     FixedMatrix<T, C, R> transpose() const {
         FixedMatrix<T, C, R> res;
-        for (int i = 0; i < R; ++i)
-            for (int j = 0; j < C; ++j)
+        for (CfemInt i = 0; i < R; ++i)
+            for (CfemInt j = 0; j < C; ++j)
                 res(j, i) = (*this)(i, j);
         return res;
     }
@@ -210,12 +210,12 @@ struct FixedMatrix {
  * @brief Matrix-Vector Product: \f$ y = A \cdot x \f$
  * @relates FixedMatrix
  */
-template <typename T, int R, int C>
+template <typename T, CfemInt R, CfemInt C>
 inline FixedVector<T, R> operator*(const FixedMatrix<T, R, C>& m, const FixedVector<T, C>& v) {
     FixedVector<T, R> res;
-    for (int i = 0; i < R; ++i) {
+    for (CfemInt i = 0; i < R; ++i) {
         T sum = 0;
-        for (int j = 0; j < C; ++j) {
+        for (CfemInt j = 0; j < C; ++j) {
             sum += m(i, j) * v[j];
         }
         res[i] = sum;
@@ -228,14 +228,14 @@ inline FixedVector<T, R> operator*(const FixedMatrix<T, R, C>& m, const FixedVec
  *        Optimized with ikj loop order for better cache performance.
  * @relates FixedMatrix
  */
-template <typename T, int R, int Inner, int C2>
+template <typename T, CfemInt R, CfemInt Inner, CfemInt C2>
 inline FixedMatrix<T, R, C2> operator*(const FixedMatrix<T, R, Inner>& A, const FixedMatrix<T, Inner, C2>& B) {
     FixedMatrix<T, R, C2> res;
     res.setZero();
-    for (int i = 0; i < R; ++i) {
-        for (int k = 0; k < Inner; ++k) {
+    for (CfemInt i = 0; i < R; ++i) {
+        for (CfemInt k = 0; k < Inner; ++k) {
             T val = A(i, k);
-            for (int j = 0; j < C2; ++j) {
+            for (CfemInt j = 0; j < C2; ++j) {
                 res(i, j) += val * B(k, j);
             }
         }
@@ -257,7 +257,7 @@ inline Vector3D operator*(const FixedMatrix<CfemReal, 3, 3>& A, const Vector3D& 
 }
 
 /** @brief Left-side scalar multiplication. @relates FixedMatrix */
-template <typename T, int R, int C>
+template <typename T, CfemInt R, CfemInt C>
 inline FixedMatrix<T, R, C> operator*(T scalar, const FixedMatrix<T, R, C>& m) {
     return m * scalar;
 }
@@ -315,11 +315,11 @@ inline FixedMatrix<T, 3, 3> inverse(const FixedMatrix<T, 3, 3>& m, T determinant
 /** 
  * @brief Prints the matrix in a readable grid format. 
  */
-template <typename T, int R, int C>
+template <typename T, CfemInt R, CfemInt C>
 inline std::ostream& operator<<(std::ostream& os, const FixedMatrix<T, R, C>& m) {
-    for (int i = 0; i < R; ++i) {
+    for (CfemInt i = 0; i < R; ++i) {
         os << "| ";
-        for (int j = 0; j < C; ++j) {
+        for (CfemInt j = 0; j < C; ++j) {
             os << m(i, j) << (j == C - 1 ? "" : ", ");
         }
         os << " |\n";

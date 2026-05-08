@@ -97,7 +97,7 @@ namespace cfem::sym
                 g->evaluate(cellId, xi, out, ctx);
                 return;
             }
-            CFEM_ERROR << "Gradient evaluation failed.";
+            CFEM_THROW("Gradient evaluation failed.");
         }
 
         virtual void prepare() const {};
@@ -128,7 +128,7 @@ namespace cfem::sym
                 m_gradient = createGradient();
             }
             if ( !m_gradient ){
-                CFEM_ERROR << "Could not differentiate expression: " << toString();
+                CFEM_THROW("Could not differentiate expression: " << toString());
             }
             return m_gradient;
          }
@@ -138,7 +138,7 @@ namespace cfem::sym
                 m_timeDeriv = createTimeDerivative();
             }
             if ( !m_timeDeriv ){
-                CFEM_ERROR << "Could not differentiate expression: " << toString();
+                CFEM_THROW("Could not differentiate expression: " << toString());
             }
             return m_timeDeriv;
         }
@@ -180,7 +180,7 @@ namespace cfem::sym {
 
             // Otherwise, check if it's already used by someone else to avoid collisions
             if (active_variables.contains(name)) {
-                CFEM_ERROR << "Variable name '" << name << "' is already in use.";
+                CFEM_THROW("Variable name '" << name << "' is already in use.");
             }
             active_variables.insert(name);
         }

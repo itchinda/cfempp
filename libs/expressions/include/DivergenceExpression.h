@@ -50,7 +50,7 @@ namespace cfem::sym
         }
 
         std::shared_ptr<const CfemExpression> createGradient() const override {
-            CFEM_ERROR << "The gradient of a divergence node requires a dedicated GradExpression fallback.";
+            CFEM_THROW("The gradient of a divergence node requires a dedicated GradExpression fallback.");
             return nullptr;
         }
 
@@ -61,13 +61,13 @@ namespace cfem::sym
             m_dimIn = m_expr->getDimension();
             
             if (m_dimIn == 1) {
-                CFEM_ERROR << "Divergence cannot be applied to a scalar field: " << m_expr->toString();
+                CFEM_THROW("Divergence cannot be applied to a scalar field: " << m_expr->toString());
             } else if (m_dimIn == 3) {
                 m_dimOut = 1; // Vector -> Scalar
             } else if (m_dimIn == 9) {
                 m_dimOut = 3; // Tensor -> Vector
             } else {
-                CFEM_ERROR << "Unsupported dimension for divergence: " << m_dimIn;
+                CFEM_THROW("Unsupported dimension for divergence: " << m_dimIn);
             }
 
             m_dx = m_expr->diff(0);

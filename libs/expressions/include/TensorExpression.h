@@ -38,7 +38,7 @@ namespace cfem::sym
     private:
         std::shared_ptr<const CfemExpression> m_components[9];
         std::shared_ptr<const CfemExpression> createGradient() const override { 
-            CFEM_ERROR << "Gradient is not yet supported for tensor expressions. It would required a 3rd order tensor which is not implemented.";
+            CFEM_THROW("Gradient is not yet supported for tensor expressions. It would required a 3rd order tensor which is not implemented.");
             return nullptr; 
         }
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
@@ -60,7 +60,7 @@ namespace cfem::sym
 
             for (int i = 0; i < 9; ++i) {
                 if (!m_components[i] || m_components[i]->getDimension() != 1) {
-                    CFEM_ERROR << "TensorExpression component " << i << " must be a valid scalar expression.";
+                    CFEM_THROW("TensorExpression component " + std::to_string(i) + " must be a valid scalar expression.");
                 }
             }
 

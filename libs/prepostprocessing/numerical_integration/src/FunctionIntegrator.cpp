@@ -35,7 +35,7 @@ namespace cfem
         m_schemes_params(schemes_params)
     {
         if (!m_mesh)
-            CFEM_ERROR << "FunctionIntegrator requires a valid mesh.";
+            CFEM_THROW("FunctionIntegrator requires a valid mesh.");
     }
 
     void FunctionIntegrator::L2Norm(const std::shared_ptr<const sym::CfemExpression> &expr,
@@ -133,7 +133,7 @@ namespace cfem
                                             const MeshEntity& volume_entity)
     {
         if( ! m_mesh->isPartOfTheMeshEntities(boundary_entity.getId()) ){
-            CFEM_ERROR << boundary_entity.getName() << " is not part of the mesh.";
+            CFEM_THROW(boundary_entity.getName() << " is not part of the mesh.");
         }
 
         CfemInt entityDim = boundary_entity.getDimension();
@@ -143,23 +143,23 @@ namespace cfem
         bool isManifoldSurface = (entityDim == 2 && meshDim == 2);
 
         if (!isBoundary && !isManifoldSurface) {
-            CFEM_ERROR << "computeFlux: Flux can only be computed on a boundary (dim " 
+            CFEM_THROW("computeFlux: Flux can only be computed on a boundary (dim " 
                        << meshDim - 1 << ") or a surface manifold (dim 2). Target entity '" 
-                       << boundary_entity.getName() << "' has dimension " << entityDim;
+                       << boundary_entity.getName() << "' has dimension " << entityDim);
         }
 
         if (isBoundary) {
             if( ! m_mesh->isPartOfTheMeshEntities(volume_entity.getId()) ){
-                CFEM_ERROR << volume_entity.getName() << " is not part of the mesh.";
+                CFEM_THROW(volume_entity.getName() << " is not part of the mesh.");
             }
             if( volume_entity.getDimension() != meshDim) {
-                CFEM_ERROR << "The body must have the same dimension as the mesh (" << meshDim << ").";
+                CFEM_THROW("The body must have the same dimension as the mesh (" << meshDim << ").");
             }
         }
 
         if (expr->getDimension() != 3) {
-            CFEM_ERROR << "computeFlux: The expression must be a 3D vector. "
-                       << "Got dimension " << expr->getDimension();
+            CFEM_THROW("computeFlux: The expression must be a 3D vector. "
+                       << "Got dimension " << expr->getDimension());
         }
     
         auto fluxExpr = sym::dot(expr, sym::geometric_normal());
@@ -211,8 +211,8 @@ namespace cfem
             if (!targets[i].first) continue;
 
             if (targets[i].first->getDimension() != 1) {
-                CFEM_ERROR << "FunctionIntegrator only accepts scalar expressions. "
-                           << "Please pass each component separately.";
+                CFEM_THROW( "FunctionIntegrator only accepts scalar expressions. "
+                           << "Please pass each component separately.");
             }
 
             targets[i].first->prepare();
@@ -408,8 +408,8 @@ namespace cfem
             if (!targets[i].first) continue;
 
             if (targets[i].first->getDimension() != 1) {
-                CFEM_ERROR << "FunctionIntegrator only accepts scalar expressions. "
-                           << "Please pass each component separately.";
+                CFEM_THROW( "FunctionIntegrator only accepts scalar expressions. "
+                           << "Please pass each component separately.");
             }
 
             targets[i].first->prepare();

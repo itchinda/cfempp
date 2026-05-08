@@ -31,4 +31,6 @@ target_link_libraries(unit_tests
         cfem_numerical_integration
 )
 
+target_compile_definitions(unit_tests PRIVATE CFEM_TESTING)
+
 gtest_discover_tests(unit_tests)

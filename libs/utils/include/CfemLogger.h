@@ -20,27 +20,43 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <stdexcept>
+#include <atomic>
+#include <vector>
+#include "ContractException.h" // Intégration de tes contrats
 
 namespace cfem {
 
 /**
- * @brief Custom exception for CFEM errors
+ * @brief État global des erreurs (Lock-Free / HPC-Ready)
  */
-class CfemException : public std::runtime_error {
+class ErrorManager {
 public:
-    explicit CfemException(const std::string& msg) : std::runtime_error(msg) {}
+    static ErrorManager& instance() {
+        static ErrorManager inst;
+        return inst;
+    }
+
+    void addWarning() noexcept { warnings_.fetch_add(1, std::memory_order_relaxed); }
+    void addError() noexcept   { errors_.fetch_add(1, std::memory_order_relaxed); }
+
+    bool hasErrors() const noexcept { return errors_.load(std::memory_order_acquire) > 0; }
+    uint32_t errorCount() const noexcept { return errors_.load(std::memory_order_relaxed); }
+
+    void clear() noexcept {
+        errors_.store(0);
+        warnings_.store(0);
+    }
+
+private:
+    ErrorManager() = default;
+    std::atomic<uint32_t> errors_{0};
+    std::atomic<uint32_t> warnings_{0};
 };
 
-enum class LogLevel { Info, Warning, Error };
+enum class LogLevel { Info, Warning, Error, Fatal };
 
 class Logger {
 public:
-    static Logger& getInstance() {
-        static Logger instance;
-        return instance;
-    }
-
     struct LogStream {
         std::stringstream ss;
         LogLevel level;
@@ -49,64 +65,59 @@ public:
 
         LogStream(LogLevel l, const char* f, int ln) : level(l), file(f), line(ln) {}
 
-        /**
-         * @brief Destructor handles printing and throwing exceptions for Error level
-         */
-        ~LogStream() noexcept(false) { // Note: noexcept(false) allows throwing from destructor
-            std::string prefix;
-            std::string color;
-            bool showMetadata = false;
-#ifndef NDEBUG
-            showMetadata = true;
-#endif
+        ~LogStream() {
+            std::string msg = ss.str();
+            const char* color = "";
+            const char* prefix = "";
 
             switch (level) {
-                case LogLevel::Info:
-                    prefix = "[INFO] ";
-                    color = "\033[1;32m"; // Green
-                    showMetadata = false;
+                case LogLevel::Info:    
+                    prefix = "[INFO] ";    
+                    color = "\033[32m"; 
                     break;
-                case LogLevel::Warning:
-                    prefix = "[WARNING] ";
-                    color = "\033[1;33m"; // Yellow
-                    break;
-                case LogLevel::Error:
+                case LogLevel::Warning: 
+                    prefix = "[WARN] "; 
+                    color = "\033[33m"; 
+                    ErrorManager::instance().addWarning(); break;
+                case LogLevel::Error:   
                     prefix = "[ERROR] ";
-                    color = "\033[1;31m"; // Red
-                    break;
+                    color = "\033[31m"; 
+                    ErrorManager::instance().addError(); break;
+                case LogLevel::Fatal:   
+                    prefix = "[FATAL] ";
+                    color = "\033[1;31m"; break;
             }
-            
-            // Output the message
-            std::cerr << color << prefix << "\033[0m" << ss.str();
-            
-            if (showMetadata) {
+
+            std::cerr << color << prefix << "\033[0m" << msg;
+#ifndef NDEBUG
+            if (level != LogLevel::Info) 
                 std::cerr << " (" << file << ":" << line << ")";
-            }
-            
+#endif
             std::cerr << std::endl;
 
-            if (level == LogLevel::Error) {
-                throw CfemException(ss.str());
-            }
+            if (level == LogLevel::Fatal) std::abort(); 
         }
 
-        template <typename T>
-        LogStream& operator<<(const T& msg) {
-            ss << msg;
-            return *this;
-        }
+        template<typename T>
+        LogStream& operator<<(const T& v) { ss << v; return *this; }
     };
 
-    LogStream build(LogLevel level, const char* file, int line) {
-        return LogStream(level, file, line);
-    }
-
-private:
-    Logger() = default;
+    static LogStream build(LogLevel l, const char* f, int ln) { return LogStream(l, f, ln); }
 };
 
 } // namespace cfem
 
-#define CFEM_INFO  cfem::Logger::getInstance().build(cfem::LogLevel::Info, __FILE__, __LINE__)
-#define CFEM_WARN  cfem::Logger::getInstance().build(cfem::LogLevel::Warning, __FILE__, __LINE__)
-#define CFEM_ERROR cfem::Logger::getInstance().build(cfem::LogLevel::Error, __FILE__, __LINE__)
+// --- Macros de Logging (Non-bloquant pour Error/Warning)
+#define CFEM_INFO  cfem::Logger::build(cfem::LogLevel::Info, __FILE__, __LINE__)
+#define CFEM_WARN  cfem::Logger::build(cfem::LogLevel::Warning, __FILE__, __LINE__)
+#define CFEM_ERROR cfem::Logger::build(cfem::LogLevel::Error, __FILE__, __LINE__)
+#define CFEM_FATAL cfem::Logger::build(cfem::LogLevel::Fatal, __FILE__, __LINE__)
+
+#define CFEM_THROW(msg) \
+    do { \
+        std::ostringstream ss_; \
+        ss_ << msg; \
+        cfem::ErrorManager::instance().addError(); \
+        std::string tmp_msg = ss_.str(); \
+        throw cfem::ContractException(__FILE__, __LINE__, "CFEM_THROW", "Runtime Error", tmp_msg.c_str()); \
+    } while(0)
