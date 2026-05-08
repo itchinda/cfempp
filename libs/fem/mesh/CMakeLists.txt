@@ -23,4 +23,5 @@ target_include_directories(cfem_mesh
 
 target_link_libraries(cfem_mesh
     PUBLIC  cfem_utils
+            cfem_openmp_interface
 )

@@ -48,6 +48,7 @@ namespace cfem
      * is effectively zero.
      */
     constexpr CfemReal ZERO_TOLERANCE = 1e-14;
+    constexpr CfemReal ZERO_TOLERANCE_SQ = 1e-28;
     inline constexpr CfemReal pi = static_cast<CfemReal>(3.141592653589793238462643383279502884L);
 
     /**

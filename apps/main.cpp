@@ -53,7 +53,7 @@ static char help[] = "CFEM Example: Field projection on a quadratic mesh.\n\n";
 
 int main(int argc, char **argv)
 {
-    //omp_set_num_threads(1);
+    // omp_set_num_threads(4);
     Environment::initialize(argc, argv, help);
     {
         #define CFEM_USE_DYNAMIC_SPACE_CACHE

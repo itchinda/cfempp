@@ -51,7 +51,7 @@ namespace cfem::sym
 
             for (int i = 0; i < 3; ++i) {
                 if (!m_components[i] || m_components[i]->getDimension() != 1) {
-                    CFEM_ERROR << "VectorExpression component " << i << " must be a valid scalar expression. Got dim = " << m_components[i]->getDimension();
+                    CFEM_THROW("VectorExpression component " << i << " must be a valid scalar expression. Got dim = " << m_components[i]->getDimension() );
                 }
             }
 

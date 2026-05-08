@@ -35,4 +35,5 @@ target_link_libraries(cfem_expressions
         ${MPFR_LIB}
         ${MPC_LIB}
         # ${LLVM_SYSTEM_LIBS}
+	cfem_openmp_interface
 )

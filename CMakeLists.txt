@@ -133,6 +133,16 @@ if(OpenMP_CXX_FOUND)
     message(STATUS "Found OpenMP")
 endif()
 
+if(OpenMP_CXX_FOUND)
+    message(STATUS "Found OpenMP: ${OpenMP_CXX_FLAGS}")
+
+    add_library(cfem_openmp_interface INTERFACE)
+
+    target_link_libraries(cfem_openmp_interface INTERFACE OpenMP::OpenMP_CXX)
+
+    target_compile_definitions(cfem_openmp_interface INTERFACE WITH_OPENMP)
+endif()
+
 # ------------------------------------------------------------
 # Modular Libraries & Applications
 # ------------------------------------------------------------

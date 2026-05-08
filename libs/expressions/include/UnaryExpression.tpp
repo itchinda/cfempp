@@ -31,7 +31,7 @@ namespace cfem::sym
         // --- Dimension Logic & Validation ---
         if (m_op == MathOp::Transpose || m_op == MathOp::Trace ) {
             if (m_dimIn != 9) {
-                CFEM_ERROR << "Transpose/Trace are only defined for dim 9 tensors.";
+                CFEM_THROW("Transpose/Trace are only defined for dim 9 tensors.");
             }
         }
 
@@ -143,7 +143,7 @@ namespace cfem::sym
                 for(int i=0; i<m_dimOut; ++i) out[i] = std::riemann_zeta(in_buf[i]);
                 break;
             default:
-                CFEM_ERROR << "Unsupported math operation.";
+                CFEM_THROW("Unsupported math operation.");
                 break;
         if (needsBookmark) {
             ctx.releaseToBookmark(bookmark); 
