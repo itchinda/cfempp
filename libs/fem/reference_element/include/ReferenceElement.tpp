@@ -54,7 +54,7 @@ namespace cfem
                                                  const ShapeInfo &shape,
                                                  MappingInfo &out) const
     {
-        const int n = m_numNodes;
+        const CfemInt n = m_numNodes;
         const bool wantPhysicalPosition = hasFlag(requestedFields, ShapeEvaluationFlags::PhysicalPosition);
         const bool wantJacobian  = hasFlag(requestedFields, ShapeEvaluationFlags::Jacobian);
         const bool wantGradients = hasFlag(requestedFields, ShapeEvaluationFlags::Gradient);
@@ -67,7 +67,7 @@ namespace cfem
 
         if (wantPhysicalPosition){
             out.physicalPosition = {0, 0, 0};
-            for (int i = 0; i < n; ++i){
+            for (CfemInt i = 0; i < n; ++i){
                 out.physicalPosition += physicalNodesCoords[i] * shape.values[i];
             }
         }
@@ -94,9 +94,9 @@ namespace cfem
                                                   const DynamicVector<Vector3D> &physicalNodesCoords,
                                                   MappingInfo &out) const
     {
-        const int n = static_cast<int>(shape.gradients.size()); 
+        const CfemInt n = static_cast<CfemInt>(shape.gradients.size()); 
         CFEM_ASSERT(n>0, "Shape Gradient Info must be ready prior to calling computeJacobian" );
-        const int dim = m_dimension; // Idéalement, transformez dimension() en variable membre à l'avenir.
+        const CfemInt dim = m_dimension; // Idéalement, transformez dimension() en variable membre à l'avenir.
 
         // OPTIMISATION MAJEURE : Accumulation dans les registres CPU.
         // On initialise 9 doubles locaux. Le compilateur les placera dans les registres xmm/ymm.
@@ -104,7 +104,7 @@ namespace cfem
         CfemReal j10 = 0.0, j11 = 0.0, j12 = 0.0;
         CfemReal j20 = 0.0, j21 = 0.0, j22 = 0.0;
 
-        for (int i = 0; i < n; ++i)
+        for (CfemInt i = 0; i < n; ++i)
         {
             const Vector3D &X = physicalNodesCoords[i];
             const Vector3D &gradN = shape.gradients[i];
@@ -122,6 +122,7 @@ namespace cfem
         if (dim == 3)
         {
             out.detJ = det(out.jacobian);
+            CFEM_ASSERT(std::abs(out.detJ) > ZERO_TOLERANCE, "Degenerate Jacobian detected");
             out.invJacobian = inverse(out.jacobian, out.detJ);
         }
         else if (dim == 2)
@@ -134,9 +135,9 @@ namespace cfem
             CfemReal detG = g11 * g22 - g12 * g12;
             out.detJ = std::sqrt(std::max(0.0, detG)); 
 
-            CFEM_ASSERT(!NumericPolicy::areEqual(out.detJ, 0.0), "Degenerate 2D mapping detected");
+            CFEM_ASSERT(std::abs(out.detJ) > ZERO_TOLERANCE, "Degenerate Jacobian detected");
             CfemReal invDetG = 1.0 / detG;
-            for (int i = 0; i < 3; ++i)
+            for (CfemInt i = 0; i < 3; ++i)
             {
                 out.invJacobian(0, i) = (g22 * out.jacobian(i, 0) - g12 * out.jacobian(i, 1)) * invDetG;
                 out.invJacobian(1, i) = (g11 * out.jacobian(i, 1) - g12 * out.jacobian(i, 0)) * invDetG;
@@ -148,7 +149,7 @@ namespace cfem
             CfemReal g11 = j00*j00 + j10*j10 + j20*j20;
             out.detJ = std::sqrt(g11); 
             CfemReal invG11 = 1.0 / g11;
-            for (int i = 0; i < 3; ++i)
+            for (CfemInt i = 0; i < 3; ++i)
             {
                 out.invJacobian(i, 0) = out.jacobian(i, 0) * invG11;
                 out.invJacobian(i, 1) = 0.0;
@@ -161,7 +162,7 @@ namespace cfem
     inline void ReferenceElement::computePhysicalGradients(const ShapeInfo &shape,
                                                            MappingInfo &out) const
     {
-        const int n = static_cast<int>(shape.gradients.size());
+        const CfemInt n = static_cast<int>(shape.gradients.size());
         
         // Cache de la transposée de l'inverse du Jacobien dans des variables locales.
         // J^{-T} appliqué au vecteur local.
@@ -169,7 +170,7 @@ namespace cfem
         const CfemReal i10 = out.invJacobian(1,0), i11 = out.invJacobian(1,1), i12 = out.invJacobian(1,2);
         const CfemReal i20 = out.invJacobian(2,0), i21 = out.invJacobian(2,1), i22 = out.invJacobian(2,2);
 
-        for (int a = 0; a < n; ++a)
+        for (CfemInt a = 0; a < n; ++a)
         {
             const Vector3D& gRef = shape.gradients[a];
             
@@ -183,16 +184,16 @@ namespace cfem
                                                       const ShapeInfo &shape,
                                                       MappingInfo &out) const
     {
-        const int n = static_cast<int>(shape.hessians.size());
+        const CfemInt n = static_cast<int>(shape.hessians.size());
 
-        // 1. Calcul de la courbure géométrique (Hessienne de la transformation)
+        // Calcul de la courbure géométrique (Hessienne de la transformation)
         // On utilise des variables locales pour accumuler les 6 composantes indépendantes (xx, yy, zz, xy, xz, yz)
         // pour chaque direction (X, Y, Z).
         CfemReal hX_xx = 0, hX_yy = 0, hX_zz = 0, hX_xy = 0, hX_xz = 0, hX_yz = 0;
         CfemReal hY_xx = 0, hY_yy = 0, hY_zz = 0, hY_xy = 0, hY_xz = 0, hY_yz = 0;
         CfemReal hZ_xx = 0, hZ_yy = 0, hZ_zz = 0, hZ_xy = 0, hZ_xz = 0, hZ_yz = 0;
 
-        for (int a = 0; a < n; ++a)
+        for (CfemInt a = 0; a < n; ++a)
         {
             const auto &hRef = shape.hessians[a];
             const auto &pos  = physicalNodesCoords[a];
@@ -207,13 +208,12 @@ namespace cfem
             hZ_xy += hRef.xy() * pos.z; hZ_xz += hRef.xz() * pos.z; hZ_yz += hRef.yz() * pos.z;
         }
 
-        // 2. Préparation des coefficients de l'inverse du Jacobien (Registres)
         const CfemReal i00 = out.invJacobian(0,0), i01 = out.invJacobian(0,1), i02 = out.invJacobian(0,2);
         const CfemReal i10 = out.invJacobian(1,0), i11 = out.invJacobian(1,1), i12 = out.invJacobian(1,2);
         const CfemReal i20 = out.invJacobian(2,0), i21 = out.invJacobian(2,1), i22 = out.invJacobian(2,2);
 
         // Helper lambda pour le calcul de chaque composante p,q
-        auto computeComp = [&](int p, int q, CfemReal r_xx, CfemReal r_yy, CfemReal r_zz, 
+        auto computeComp = [&](CfemInt p, CfemInt q, CfemReal r_xx, CfemReal r_yy, CfemReal r_zz, 
                                              CfemReal r_xy, CfemReal r_xz, CfemReal r_yz) {
             // Puisque R est symétrique : R01=R10, R02=R20, R12=R21
             // Termes diagonaux de R : i=j
@@ -227,8 +227,8 @@ namespace cfem
             return res;
         };
 
-        // 3. Transformation vers l'espace physique
-        for (int a = 0; a < n; ++a)
+        // Transformation vers l'espace physique
+        for (CfemInt a = 0; a < n; ++a)
         {
             const auto &hRef = shape.hessians[a];
             const CfemReal dNdx = out.dNdx(a);
@@ -244,13 +244,11 @@ namespace cfem
             CfemReal r_xz = hRef.xz() - (dNdx * hX_xz + dNdy * hY_xz + dNdz * hZ_xz);
             CfemReal r_yz = hRef.yz() - (dNdx * hX_yz + dNdy * hY_yz + dNdz * hZ_yz);
             
-            // Transformation de congruence optimisée (équivalent à J^-T * R * J^-1) 
+            // Transformation de congruence (équivalent à J^-T * R * J^-1) 
             // Pour une matrice symétrique R, la composante (p,q) de J^-T R J^-1 est:
             // H_phys_pq = sum_i sum_j (invJ_ip * R_ij * invJ_jq)
             auto& hPhys = out.physicalShapeHessians[a];
             
-            // On ne calcule que la partie triangulaire supérieure (SymTensorO2)
-
             hPhys.xx() = computeComp(0, 0, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
             hPhys.yy() = computeComp(1, 1, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
             hPhys.zz() = computeComp(2, 2, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
@@ -290,9 +288,8 @@ namespace cfem
         }
         else 
         {
-            // Dimension 3 (Volume). La normale n'est pas définie à l'intérieur.
+            // Dimension 3 (Volume). Geometric normal undefined inside a 3D cell.
             out.normal = Vector3D(0.0, 0.0, 0.0);
-            // CFEM_ERROR << "Geometric normal undefined inside a 3D cell.";
         }
     }
     // ----------------------------------------------------------------------
@@ -300,13 +297,13 @@ namespace cfem
     template <typename T>
     inline T ReferenceElement::interpolate(const ShapeInfo &shape, const DynamicVector<T> &nodalValues) const
     {
-        const int n = m_numNodes;
+        const CfemInt n = m_numNodes;
         CFEM_ASSERT(shape.values.size() >= n, "ShapeInfo not evaluated for this element type");
         CFEM_ASSERT(nodalValues.size() == n, "Nodal values size mismatch");
 
         T result{}; // T must have a default constructor that initialize the field with 0.
 
-        for (int i = 0; i < n; ++i)
+        for (CfemInt i = 0; i < n; ++i)
         {
             result += nodalValues[i] * shape.values[i];
         }
@@ -316,12 +313,12 @@ namespace cfem
     inline Vector3D ReferenceElement::interpolateGradient(const MappingInfo &map,
                                                           const DynamicVector<CfemReal> &nodalValues) const
     {
-        const int n = m_numNodes;
+        const CfemInt n = m_numNodes;
         CFEM_ASSERT(map.physicalShapeGradients.size() >= n, "MappingInfo gradients not computed");
         CFEM_ASSERT(nodalValues.size() == n, "Nodal values size mismatch");
 
         Vector3D grad{0, 0, 0};
-        for (int i = 0; i < n; ++i)
+        for (CfemInt i = 0; i < n; ++i)
         {
             grad += map.physicalShapeGradients[i] * nodalValues[i];
         }
@@ -331,13 +328,13 @@ namespace cfem
     inline SymTensorO2 ReferenceElement::interpolateHessian(const MappingInfo &map,
                                                             const DynamicVector<CfemReal> &nodalValues) const
     {
-        const int n = m_numNodes;
+        const CfemInt n = m_numNodes;
         CFEM_ASSERT(map.physicalShapeHessians.size() >= n, "MappingInfo hessians not computed");
         CFEM_ASSERT(nodalValues.size() == n, "Nodal values size mismatch");
 
         SymTensorO2 hess;
         hess.setZero();
-        for (int i = 0; i < n; ++i)
+        for (CfemInt i = 0; i < n; ++i)
         {
             hess += map.physicalShapeHessians[i] * nodalValues[i];
         }

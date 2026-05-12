@@ -42,7 +42,7 @@ namespace cfem
     template <typename Func>
     requires (!std::is_base_of_v<sym::CfemExpression, std::decay_t<Func>> && 
               !std::is_convertible_v<std::decay_t<Func>, std::shared_ptr<const sym::CfemExpression>>)
-    void FEField::project(const Func& func)
+    void FEField::interpolate(const Func& func)
     {
         CFEM_INFO << "Projecting functional lambda/constant into field '" << getName() << "'";
 
@@ -54,7 +54,7 @@ namespace cfem
         constexpr bool is_constant = std::is_arithmetic_v<std::decay_t<Func>>;
         constexpr bool is_callable = std::is_invocable_v<Func, Vector3D>;
         static_assert(is_constant || is_callable, 
-            "FEField::project requires either a numeric constant or a callable taking a Vector3D.");
+            "FEField::interpolate requires either a numeric constant or a callable taking a Vector3D.");
 
         // MPI Ownership Range
         CfemInt low, high;

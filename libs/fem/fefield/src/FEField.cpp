@@ -238,12 +238,12 @@ namespace cfem
     }
 
     /**
-     * @brief Projects a symbolic expression onto the FE Space (L2 Projection / Interpolation).
+     * @brief Interpolates a symbolic expression onto the FE Space.
      * This handles the parallel MPI assembly and OpenMP node-visiting logic.
      */
-    void FEField::project(const sym::CfemExpression &recipe)
+    void FEField::interpolate(const sym::CfemExpression &recipe)
     {
-        CFEM_INFO << "projecting field into " << getName();
+        CFEM_INFO << "interpolating field into " << getName();
 
         
         recipe.prepare();

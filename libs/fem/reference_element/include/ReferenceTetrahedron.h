@@ -74,7 +74,7 @@ namespace cfem {
         }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const int n = 4;
+            const CfemInt n = 4;
             if (out.values.size() != n) out.setup(n);
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
                 out.hessians.assign(n, SymTensorO2());
@@ -103,11 +103,11 @@ namespace cfem {
             out.validFlags = requested;
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override{
             return cfem::reference_elem::utils::projectFacetRefCoordToTetraRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
 
-        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
             return cfem::reference_elem::utils::tet4_face_nodes[iFace];
         }
     };
@@ -129,7 +129,7 @@ namespace cfem {
         }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const int n = 10;
+            const CfemInt n = 10;
             if (out.values.size() != n) out.setup(n);
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
                 out.hessians.assign(n, SymTensorO2());
@@ -165,9 +165,9 @@ namespace cfem {
             }
 
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                for (int i = 0; i < n; ++i) out.hessians[i].setZero();
+                for (CfemInt i = 0; i < n; ++i) out.hessians[i].setZero();
 
-                // --- Sommets ---
+                // Sommets
                 // N0 = L0(2L0-1) avec L0 = 1-x-y-z. 
                 // d2N0/dx2 = d2N0/dy2 = d2N0/dz2 = 4 | d2N0/dxdy = d2N0/dxdz = d2N0/dydz = 4
                 out.hessians[0].setTo(4.0);
@@ -175,7 +175,7 @@ namespace cfem {
                 out.hessians[2].yy() = 4.0;
                 out.hessians[3].zz() = 4.0;
 
-                // --- Milieux d'arêtes ---
+                // Milieux d'arêtes
                 // N4 = 4*L0*L1 = 4*(1-x-y-z)*x = 4x - 4x^2 - 4xy - 4xz
                 out.hessians[4].xx() = -8.0; 
                 out.hessians[4].xy() = -4.0;
@@ -203,11 +203,11 @@ namespace cfem {
             out.validFlags = requested;
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override{
             return cfem::reference_elem::utils::projectFacetRefCoordToTetraRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
 
-        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
             return cfem::reference_elem::utils::tet10_face_nodes[iFace];
         }
     };
@@ -222,7 +222,7 @@ namespace cfem {
         }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const int n = 5;
+            const CfemInt n = 5;
             if (out.values.size() != n) out.setup(n);
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
                 out.hessians.assign(n, SymTensorO2());
@@ -268,7 +268,7 @@ namespace cfem {
                 out.hessians[4].xx() = d2b_dxx; out.hessians[4].yy() = d2b_dyy; out.hessians[4].zz() = d2b_dzz;
                 out.hessians[4].xy() = d2b_dxy; out.hessians[4].xz() = d2b_dxz; out.hessians[4].yz() = d2b_dyz;
 
-                for (int i = 0; i < 4; ++i) {
+                for (CfemInt i = 0; i < 4; ++i) {
                     out.hessians[i].xx() = -d2b_dxx / 4.0; out.hessians[i].yy() = -d2b_dyy / 4.0; out.hessians[i].zz() = -d2b_dzz / 4.0;
                     out.hessians[i].xy() = -d2b_dxy / 4.0; out.hessians[i].xz() = -d2b_dxz / 4.0; out.hessians[i].yz() = -d2b_dyz / 4.0;
                 }
@@ -276,11 +276,11 @@ namespace cfem {
             out.validFlags = requested;
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override {
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
             return cfem::reference_elem::utils::projectFacetRefCoordToTetraRefCoord(localFacetId, xiFacet);
         }
 
-        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
             return cfem::reference_elem::utils::tet4_face_nodes[iFace];
         }
     };
@@ -297,7 +297,7 @@ class P0ReferenceTetrahedron : public ReferenceElement {
         }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const int n = 1;
+            const CfemInt n = 1;
             if (out.values.size() != n) out.setup(n);
 
             // Valeur constante N0 = 1.0
@@ -319,11 +319,11 @@ class P0ReferenceTetrahedron : public ReferenceElement {
             out.validFlags = requested;
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override {
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
             return cfem::reference_elem::utils::projectFacetRefCoordToTetraRefCoord(localFacetId, xiFacet);
         }
 
-        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
             return cfem::reference_elem::utils::tet1_face_nodes[iFace];
         }
     };

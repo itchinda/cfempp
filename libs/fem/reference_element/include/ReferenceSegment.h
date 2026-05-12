@@ -58,7 +58,7 @@ namespace cfem {
         }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const int n = 2;
+            const CfemInt n = 2;
             if (out.values.size() != n) out.setup(n);
 
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
@@ -83,11 +83,11 @@ namespace cfem {
             out.validFlags = requested;
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override{
             return cfem::reference_elem::utils::projectFacetRefCoordToSegmentRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
 
-        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
             return cfem::reference_elem::utils::line_face_nodes[iFace];
         }
     };
@@ -105,7 +105,7 @@ namespace cfem {
         }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const int n = 3;
+            const CfemInt n = 3;
             if (out.values.size() != n) out.setup(n);
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
                 out.hessians.assign(n, SymTensorO2());
@@ -134,11 +134,11 @@ namespace cfem {
             out.validFlags = requested;
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override{
             return cfem::reference_elem::utils::projectFacetRefCoordToSegmentRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
 
-        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
             return cfem::reference_elem::utils::line_face_nodes[iFace];
         }
     };
@@ -155,7 +155,7 @@ namespace cfem {
         }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const int n = 1;
+            const CfemInt n = 1;
             if (out.values.size() != n) out.setup(n);
 
             // Valeur constante N0 = 1
@@ -177,11 +177,11 @@ namespace cfem {
             out.validFlags = requested;
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override {
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
             return cfem::reference_elem::utils::projectFacetRefCoordToSegmentRefCoord(localFacetId, xiFacet);
         }
 
-        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
             return cfem::reference_elem::utils::line1_face_nodes[iFace];
         }
     };

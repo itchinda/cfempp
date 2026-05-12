@@ -47,20 +47,25 @@ namespace cfem
      * determining if a point lies on an element face or if a Jacobian determinant
      * is effectively zero.
      */
-    constexpr CfemReal ZERO_TOLERANCE = 1e-14;
-    constexpr CfemReal ZERO_TOLERANCE_SQ = 1e-28;
-    inline constexpr CfemReal pi = static_cast<CfemReal>(3.141592653589793238462643383279502884L);
+    inline constexpr CfemReal ZERO_TOLERANCE    = 1e-14;
+    inline constexpr CfemReal ZERO_TOLERANCE_SQ = 1e-28;
+    inline constexpr CfemReal CFEM_PI     = 3.14159265358979323846;
+    inline constexpr CfemReal CFEM_PI_1_2 = 1.57079632679489661923;
+    inline constexpr CfemReal CFEM_PI_1_3 = 1.04719755119659774615;
+    inline constexpr CfemReal CFEM_PI_2_3 = 2.09439510239319549231;
 
     /**
      * @brief The smallest representable difference for the @ref CfemReal type.
-     * * Provides the theoretical lower bound of precision for the current
+     * 
+     * Provides the theoretical lower bound of precision for the current
      * floating-point precision (float or double). Useful for scaling tolerances.
      */
     constexpr CfemReal MACHINE_EPSILON = std::numeric_limits<CfemReal>::epsilon();
 
     /**
      * @brief Internal identifier representing the global simulation universe.
-     * * This ID is used to tag entities or regions that belong to the overall 
+     * 
+     * This ID is used to tag entities or regions that belong to the overall 
      * domain background, typically used when an entity is not associated with 
      * a specific subdomain or physical material.
      */
@@ -83,16 +88,14 @@ namespace cfem
         static constexpr CfemReal absolute_tol =
             1e2 * std::numeric_limits<CfemReal>::epsilon();
 
-        static bool isZero(CfemReal value, CfemReal scale = 1.0)
+        static bool isZero(CfemReal value, CfemReal scale = 1.0) noexcept
         {
-            return std::abs(value) <=
-                   relative_tol * scale + absolute_tol;
+            return std::abs(value) <= relative_tol * scale + absolute_tol;
         }
 
-        static bool areEqual(CfemReal a, CfemReal b, CfemReal scale = 1.0)
+        static bool areEqual(CfemReal a, CfemReal b, CfemReal scale = 1.0) noexcept
         {
-            return std::abs(a - b) <=
-                   relative_tol * scale + absolute_tol;
+            return std::abs(a - b) <= relative_tol * scale + absolute_tol;
         }
     };
 

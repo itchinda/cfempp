@@ -25,11 +25,11 @@ using namespace cfem;
  * @brief Unit tests for the FixedMatrix template class.
  */
 
-const double TOL = cfem::ZERO_TOLERANCE;
+const CfemReal TOL = cfem::ZERO_TOLERANCE;
 
 TEST(FixedMatrixTest, ConstructionAndAccess) {
     // Initializer list construction
-    FixedMatrix<double, 2, 2> mat = {1.0, 2.0, 
+    FixedMatrix<CfemReal, 2, 2> mat = {1.0, 2.0, 
                                       3.0, 4.0};
     
     EXPECT_EQ(mat.rows(), 2);
@@ -44,7 +44,7 @@ TEST(FixedMatrixTest, ConstructionAndAccess) {
 }
 
 TEST(FixedMatrixTest, BasicOperations) {
-    FixedMatrix<double, 3, 3> I;
+    FixedMatrix<CfemReal, 3, 3> I;
     I.setIdentity();
     
     for(int i = 0; i < 3; ++i) {
@@ -54,14 +54,14 @@ TEST(FixedMatrixTest, BasicOperations) {
         }
     }
 
-    FixedMatrix<double, 2, 2> zero;
+    FixedMatrix<CfemReal, 2, 2> zero;
     zero.setZero();
     EXPECT_DOUBLE_EQ(zero(1,0), 0.0);
 }
 
 TEST(FixedMatrixTest, Arithmetic) {
-    FixedMatrix<double, 2, 2> A = {1, 1, 1, 1};
-    FixedMatrix<double, 2, 2> B = {2, 2, 2, 2};
+    FixedMatrix<CfemReal, 2, 2> A = {1, 1, 1, 1};
+    FixedMatrix<CfemReal, 2, 2> B = {2, 2, 2, 2};
 
     // Addition & Subtraction
     auto C = A + B;
@@ -80,18 +80,18 @@ TEST(FixedMatrixTest, Arithmetic) {
 
 TEST(FixedMatrixTest, Multiplication) {
     // Matrix-Vector Product
-    FixedMatrix<double, 2, 3> A = {1, 2, 3, 
+    FixedMatrix<CfemReal, 2, 3> A = {1, 2, 3, 
                                     4, 5, 6};
-    FixedVector<double, 3> v = {1, 0, 2}; // 1*{1,4} + 0*{2,5} + 2*{3,6} = {7, 16}
+    FixedVector<CfemReal, 3> v = {1, 0, 2}; // 1*{1,4} + 0*{2,5} + 2*{3,6} = {7, 16}
     
     auto resV = A * v;
     EXPECT_DOUBLE_EQ(resV[0], 7.0);
     EXPECT_DOUBLE_EQ(resV[1], 16.0);
 
     // Matrix-Matrix Product
-    FixedMatrix<double, 2, 2> M1 = {1, 2, 
+    FixedMatrix<CfemReal, 2, 2> M1 = {1, 2, 
                                      3, 4};
-    FixedMatrix<double, 2, 2> M2 = {5, 6, 
+    FixedMatrix<CfemReal, 2, 2> M2 = {5, 6, 
                                      7, 8};
     // [1*5+2*7, 1*6+2*8] = [19, 22]
     // [3*5+4*7, 3*6+4*8] = [43, 50]
@@ -100,8 +100,47 @@ TEST(FixedMatrixTest, Multiplication) {
     EXPECT_DOUBLE_EQ(M3(1,1), 50.0);
 }
 
+TEST(FixedMatrixTest, InPlaceArithmetic)
+{
+    FixedMatrix<CfemReal, 2, 2> A = {1,2,3,4};
+
+    A += FixedMatrix<CfemReal,2,2>{1,1,1,1};
+    EXPECT_DOUBLE_EQ(A(0,0), 2.0);
+    EXPECT_DOUBLE_EQ(A(1,1), 5.0);
+
+    A -= FixedMatrix<CfemReal,2,2>{1,1,1,1};
+    EXPECT_DOUBLE_EQ(A(0,0), 1.0);
+    EXPECT_DOUBLE_EQ(A(1,1), 4.0);
+
+    A *= 2.0;
+    EXPECT_DOUBLE_EQ(A(0,1), 4.0);
+
+    A /= 2.0;
+    EXPECT_DOUBLE_EQ(A(1,0), 3.0);
+}
+
+TEST(FixedMatrixTest, IdentityMultiplication)
+{
+    FixedMatrix<CfemReal,3,3> I;
+    I.setIdentity();
+
+    FixedMatrix<CfemReal,3,3> A = {
+        1,2,3, 4,5,6, 7,8,9
+    };
+
+    auto R1 = I * A;
+    auto R2 = A * I;
+
+    for(int i=0;i<3;++i)
+        for(int j=0;j<3;++j)
+        {
+            EXPECT_DOUBLE_EQ(R1(i,j), A(i,j));
+            EXPECT_DOUBLE_EQ(R2(i,j), A(i,j));
+        }
+}
+
 TEST(FixedMatrixTest, Transpose) {
-    FixedMatrix<double, 2, 3> A = {1, 2, 3, 
+    FixedMatrix<CfemReal, 2, 3> A = {1, 2, 3, 
                                     4, 5, 6};
     auto AT = A.transpose();
     
@@ -111,16 +150,130 @@ TEST(FixedMatrixTest, Transpose) {
     EXPECT_DOUBLE_EQ(AT(1,1), 5.0);
 }
 
+TEST(FixedMatrixTest, DoubleTranspose)
+{
+    FixedMatrix<CfemReal,2,3> A = {
+        1,2,3, 4,5,6
+    };
+
+    auto ATT = A.transpose().transpose();
+    for(int i=0;i<2;++i)
+        for(int j=0;j<3;++j)
+            EXPECT_DOUBLE_EQ(ATT(i,j), A(i,j));
+}
+
+TEST(FixedMatrixTest, FrobeniusNorm)
+{
+    FixedMatrix<CfemReal,2,2> A = { 1,2, 3,4 };
+
+    CfemReal expected = std::sqrt(1+4+9+16);
+    EXPECT_NEAR(A.frobeniusNorm(), expected, TOL);
+}
+
+TEST(FixedMatrixTest, Inverse3x3)
+{
+    FixedMatrix<CfemReal,3,3> A = {
+        4,7,2, 3,6,1, 2,5,1
+    };
+
+    auto invA = inverse(A);
+    auto I = A * invA;
+    for(int i=0;i<3;++i) {
+        for(int j=0;j<3;++j) {
+            if(i==j)
+                EXPECT_NEAR(I(i,j), 1.0, 1e-10);
+            else
+                EXPECT_NEAR(I(i,j), 0.0, 1e-10);
+        }
+    }
+}
+
 TEST(FixedMatrixTest, JacobianTools) {
     // 2x2 Determinant
-    FixedMatrix<double, 2, 2> m2 = {4, 7, 
+    FixedMatrix<CfemReal, 2, 2> m2 = {4, 7, 
                                      2, 6};
     EXPECT_NEAR(det(m2), 10.0, TOL); // 24 - 14
 
     // 3x3 Determinant
-    FixedMatrix<double, 3, 3> m3 = {1, 2, 3, 
+    FixedMatrix<CfemReal, 3, 3> m3 = {1, 2, 3, 
                                      0, 4, 5, 
                                      1, 0, 6};
     // 1*(24-0) - 2*(0-5) + 3*(0-4) = 24 + 10 - 12 = 22
     EXPECT_NEAR(det(m3), 22.0, TOL);
+}
+
+TEST(FixedMatrixTest, SolveLinearSystem)
+{
+    FixedMatrix<CfemReal,3,3> A = {
+        3,2,-1,
+        2,-2,4,
+        -1,0.5,-1
+    };
+
+    FixedVector<CfemReal,3> b = {1,-2,0};
+    FixedVector<CfemReal,3> x;
+
+    solve(A,b,x);
+
+    EXPECT_NEAR(x[0], 1.0, 1e-10);
+    EXPECT_NEAR(x[1], -2.0, 1e-10);
+    EXPECT_NEAR(x[2], -2.0, 1e-10);
+}
+
+TEST(FixedMatrixTest, SolveRequiresPivoting)
+{
+    FixedMatrix<CfemReal,2,2> A = { 0,1,  1,1 };
+
+    FixedVector<CfemReal,2> b = {1,2};
+    FixedVector<CfemReal,2> x;
+
+    solve(A,b,x);
+
+    EXPECT_NEAR(x[0], 1.0, 1e-12);
+    EXPECT_NEAR(x[1], 1.0, 1e-12);
+}
+
+TEST(FixedMatrixTest, OuterProduct)
+{
+    FixedVector<CfemReal,3> a = {1,2,3};
+    FixedVector<CfemReal,3> b = {4,5,6};
+
+    auto M = outerProduct(a,b);
+
+    EXPECT_DOUBLE_EQ(M(0,0), 4.0);
+    EXPECT_DOUBLE_EQ(M(1,2), 12.0);
+    EXPECT_DOUBLE_EQ(M(2,1), 15.0);
+}
+
+TEST(FixedMatrixTest, BlockExtraction)
+{
+    FixedMatrix<CfemReal,4,4> A = {
+        1,2,3,4,
+        5,6,7,8,
+        9,10,11,12,
+        13,14,15,16
+    };
+
+    auto B = A.block<2,2>(1,1);
+
+    EXPECT_DOUBLE_EQ(B(0,0), 6.0);
+    EXPECT_DOUBLE_EQ(B(0,1), 7.0);
+    EXPECT_DOUBLE_EQ(B(1,0), 10.0);
+    EXPECT_DOUBLE_EQ(B(1,1), 11.0);
+}
+
+TEST(FixedMatrixTest, NearSingularSolve)
+{
+    FixedMatrix<CfemReal,2,2> A = {
+        1,1,
+        1,1.000000001
+    };
+
+    FixedVector<CfemReal,2> b = {2,2.000000001};
+    FixedVector<CfemReal,2> x;
+
+    solve(A,b,x);
+
+    EXPECT_NEAR(x[0],1.0,1e-6);
+    EXPECT_NEAR(x[1],1.0,1e-6);
 }

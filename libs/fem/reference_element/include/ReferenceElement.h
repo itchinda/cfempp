@@ -54,7 +54,7 @@ struct ShapeInfo {
      * @param numNodes Number of nodes in the element.
      * @param includeHessians If true, allocates memory for Hessian tensors.
      */
-    void setup(int numNodes, bool includeHessians = false) {
+    void setup(CfemInt numNodes, bool includeHessians = false) {
         if (values.size() != static_cast<size_t>(numNodes)) {
             values.resize(numNodes);
             gradients.resize(numNodes);
@@ -90,7 +90,7 @@ struct MappingInfo {
      * @param numNodes Number of nodes in the element.
      * @param includeHessians Whether to allocate the Hessian buffer.
      */
-    void setup(int numNodes, bool includeHessians = false) {
+    void setup(CfemInt numNodes, bool includeHessians = false) {
         if (physicalShapeGradients.size() != static_cast<size_t>(numNodes)) {
             physicalShapeGradients.resize(numNodes);
         }
@@ -101,17 +101,17 @@ struct MappingInfo {
     }
 
     // Quick accessors for physical gradients
-    inline CfemReal dNdx(int i) const { return physicalShapeGradients[i].x; }
-    inline CfemReal dNdy(int i) const { return physicalShapeGradients[i].y; }
-    inline CfemReal dNdz(int i) const { return physicalShapeGradients[i].z; }
+    inline CfemReal dNdx(CfemInt i) const { return physicalShapeGradients[i].x; }
+    inline CfemReal dNdy(CfemInt i) const { return physicalShapeGradients[i].y; }
+    inline CfemReal dNdz(CfemInt i) const { return physicalShapeGradients[i].z; }
 
     // Quick accessors for physical Hessians (components)
-    inline CfemReal d2Ndxdx(int nodeIdx) const { return physicalShapeHessians[nodeIdx].xx(); }
-    inline CfemReal d2Ndydy(int nodeIdx) const { return physicalShapeHessians[nodeIdx].yy(); }
-    inline CfemReal d2Ndzdz(int nodeIdx) const { return physicalShapeHessians[nodeIdx].zz(); }
-    inline CfemReal d2Ndydz(int nodeIdx) const { return physicalShapeHessians[nodeIdx].yz(); }
-    inline CfemReal d2Ndxdz(int nodeIdx) const { return physicalShapeHessians[nodeIdx].xz(); }
-    inline CfemReal d2Ndxdy(int nodeIdx) const { return physicalShapeHessians[nodeIdx].xy(); }
+    inline CfemReal d2Ndxdx(CfemInt nodeIdx) const { return physicalShapeHessians[nodeIdx].xx(); }
+    inline CfemReal d2Ndydy(CfemInt nodeIdx) const { return physicalShapeHessians[nodeIdx].yy(); }
+    inline CfemReal d2Ndzdz(CfemInt nodeIdx) const { return physicalShapeHessians[nodeIdx].zz(); }
+    inline CfemReal d2Ndydz(CfemInt nodeIdx) const { return physicalShapeHessians[nodeIdx].yz(); }
+    inline CfemReal d2Ndxdz(CfemInt nodeIdx) const { return physicalShapeHessians[nodeIdx].xz(); }
+    inline CfemReal d2Ndxdy(CfemInt nodeIdx) const { return physicalShapeHessians[nodeIdx].xy(); }
 
     void computePhysicalGradientsOnly(const ShapeInfo& fieldShape) {
         // Le fait de charger dans des variables locales (registres) 
@@ -148,7 +148,7 @@ public:
 
     CfemInt dimension() const { return m_dimension; };
     CfemInt getNumNodes() const { return m_numNodes; };
-    virtual std::span<const CfemInt> getFaceNodes(int iFace) const = 0;
+    virtual std::span<const CfemInt> getFaceNodes(CfemInt iFace) const = 0;
     /**
      * @brief Evaluates shape functions and their local derivatives at point xi.
      * @param xi Target point in reference space.
@@ -159,7 +159,7 @@ public:
                           ShapeEvaluationFlags requested, 
                           ShapeInfo& out) const = 0;
                           
-    virtual Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const = 0;
+    virtual Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const = 0;
     /**
      * @brief Returns the coordinates of the nodes in the reference space. 
      */
@@ -170,7 +170,7 @@ public:
 
     /**
      * @brief Computes the full geometric mapping at a given point xi.
-     * @param xi Target point in reference space.
+     * @param xi Target poCfemInt in reference space.
      * @param physicalNodesCoords Actual physical coordinates of the element's nodes.
      * @param requestedFields Bitmask of physical fields required (Gradients, Hessians).
      * @param shape Work buffer for reference shape functions.
