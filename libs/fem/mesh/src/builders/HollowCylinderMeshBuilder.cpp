@@ -75,11 +75,11 @@ namespace cfem
             for (int r = 0; r <= num_rings; ++r)
             {
                 CfemReal current_r = r_in + r * dr;
-                int num_points = std::max(6, static_cast<int>(std::round(2.0 * cfem::pi * current_r / h)));
+                int num_points = std::max(6, static_cast<int>(std::round(2.0 * CFEM_PI * current_r / h)));
 
                 for (int i = 0; i < num_points; ++i)
                 {
-                    CfemReal theta = (2.0 * cfem::pi * i) / num_points;
+                    CfemReal theta = (2.0 * CFEM_PI * i) / num_points;
                     CfemReal x = current_r * std::cos(theta);
                     CfemReal y = current_r * std::sin(theta);
                     grid_nodes[k][r].push_back(mesh.addVertex(x, y, z));

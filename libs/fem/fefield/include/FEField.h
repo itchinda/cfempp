@@ -102,16 +102,16 @@ namespace cfem
         void evaluateGradientWithoutCachedMapping(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const;
         void evaluateGradientWithCachedMapping(CfemInt cellId, const MappingInfo& mapping, std::span<CfemReal> out) const;
 
-        void project(const sym::CfemExpression& recipe);
-        void project(std::shared_ptr<const sym::CfemExpression> recipe) {
-            if (recipe) project(*recipe);
-            else CFEM_ERROR << "project requires a valid CfemExpression object.";
+        void interpolate(const sym::CfemExpression& recipe);
+        void interpolate(std::shared_ptr<const sym::CfemExpression> recipe) {
+            if (recipe) interpolate(*recipe);
+            else CFEM_ERROR << "interpolate requires a valid CfemExpression object.";
         }
 
         template <typename Func>
         requires (!std::is_base_of_v<sym::CfemExpression, std::decay_t<Func>> && 
                   !std::is_convertible_v<std::decay_t<Func>, std::shared_ptr<const sym::CfemExpression>>)
-        void project(const Func& func);
+        void interpolate(const Func& func);
 
         sym::ExpressionType getType() const override { return sym::ExpressionType::FEField; }
         std::string toString() const override { return "FEField::" + m_name; }

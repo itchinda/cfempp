@@ -159,7 +159,7 @@ TEST_F(FEFieldTest, CG_Scalar_P1_Exactness)
 {
     auto f = FEField::create("f", m_V_scalar_p1);
     auto analytical = scalar(2.0 * x + y - 0.5 * z);
-    f->project(analytical);
+    f->interpolate(analytical);
 
     CfemReal l2, h1;
     FunctionIntegrator(m_mesh).L2Norm(f - analytical, &l2, &h1);
@@ -171,21 +171,21 @@ TEST_F(FEFieldTest, CG_Vector_P1_Exactness)
 {
     auto velocity = FEField::create("Velocity", m_V_vector_p1);
     auto analytical = vector(1.5 * x, -2.0 * y, 0.5 * z);
-    velocity->project(analytical);
+    velocity->interpolate(analytical);
 
     CfemReal l2Norm, h1SemiNorm;
     FunctionIntegrator integrator(m_mesh, IntegrationSchemeParams{});
     integrator.L2Norm(velocity - analytical, &l2Norm, &h1SemiNorm);
 
-    EXPECT_NEAR(l2Norm, 0.0, 1e-12) << "P1 GC Vector L2 projection failed.";
-    EXPECT_NEAR(h1SemiNorm, 0.0, 1e-11) << "P1 CG Vector H1 projection failed.";
+    EXPECT_NEAR(l2Norm, 0.0, 1e-12) << "P1 GC Vector L2 interpolation failed.";
+    EXPECT_NEAR(h1SemiNorm, 0.0, 1e-11) << "P1 CG Vector H1 interpolation failed.";
 }
 
 TEST_F(FEFieldTest, CG_Scalar_P2_Exactness) 
 {
     auto f = FEField::create("f", m_V_scalar_p2);
     auto analytical = scalar(x*x + y*z + 3.0);
-    f->project(analytical);
+    f->interpolate(analytical);
 
     CfemReal l2, h1;
     FunctionIntegrator(m_mesh).L2Norm(f - analytical, &l2, &h1);
@@ -197,7 +197,7 @@ TEST_F(FEFieldTest, CG_Vector_P2_Lambda_OpenMP)
 {
     auto u = FEField::create("u", m_V_vector_p2);
     // Test avec une lambda complexe pour stress-tester OpenMP et le mapping P2
-    u->project([](const Vector3D& p) -> std::array<CfemReal, 3> {
+    u->interpolate([](const Vector3D& p) -> std::array<CfemReal, 3> {
         return { p.x*p.x, p.x*p.y, p.x*p.z };
     });
 
@@ -212,7 +212,7 @@ TEST_F(FEFieldTest, DG_Scalar_P0_Constant)
 {
     auto f = FEField::create("f", m_V_dg_scalar_p0);
     auto analytical = 3.14159;
-    f->project(analytical);
+    f->interpolate(analytical);
 
     CfemReal l2;
     FunctionIntegrator(m_mesh).L2Norm(f - analytical, &l2, nullptr);
@@ -223,7 +223,7 @@ TEST_F(FEFieldTest, DG_Vector_P0_Constant)
 {
     auto u = FEField::create("u", m_V_dg_vector_p0);
     auto analytical = vector(1.0, 2.0, 3.0);
-    u->project(analytical);
+    u->interpolate(analytical);
 
     CfemReal l2;
     FunctionIntegrator(m_mesh).L2Norm(u - analytical, &l2, nullptr);
@@ -234,7 +234,7 @@ TEST_F(FEFieldTest, DG_Scalar_P1_Exactness)
 {
     auto f = FEField::create("f", m_V_dg_scalar_p1);
     auto analytical = scalar(0.5 * x + y);
-    f->project(analytical);
+    f->interpolate(analytical);
 
     CfemReal l2, h1;
     FunctionIntegrator(m_mesh).L2Norm(f - analytical, &l2, &h1);
@@ -245,7 +245,7 @@ TEST_F(FEFieldTest, DG_Scalar_P1_Exactness)
 TEST_F(FEFieldTest, DG_Vector_P1_Lambda) 
 {
     auto u = FEField::create("u", m_V_dg_vector_p1);
-    u->project([](const Vector3D& p) -> std::array<CfemReal, 3> {
+    u->interpolate([](const Vector3D& p) -> std::array<CfemReal, 3> {
         return { p.x + 1.0, p.y - 2.0, p.z };
     });
 
@@ -259,7 +259,7 @@ TEST_F(FEFieldTest, DG_Scalar_P2_Exactness)
 {
     auto f = FEField::create("f", m_V_dg_scalar_p2);
     auto analytical = scalar(x*x + y*y + z*z);
-    f->project(analytical);
+    f->interpolate(analytical);
 
     CfemReal l2, h1;
     FunctionIntegrator(m_mesh).L2Norm(f - analytical, &l2, &h1);
@@ -270,7 +270,7 @@ TEST_F(FEFieldTest, DG_Vector_P2_Exactness)
 {
     auto u = FEField::create("u", m_V_dg_vector_p2);
     auto analytical = vector(x*x, y*y, z*z);
-    u->project(analytical);
+    u->interpolate(analytical);
 
     CfemReal l2, h1;
     FunctionIntegrator(m_mesh).L2Norm(u - analytical, &l2, &h1);
@@ -287,7 +287,7 @@ TEST_F(FEFieldTest, GradientEvaluation_P2_CG)
     auto analytical = scalar(x*x + 2.0*y*y);
     auto analytical_grad = vector(2.0*x, 4.0*y, 0.0);
     
-    f->project(analytical);
+    f->interpolate(analytical);
 
     // L'intégrateur H1 semi-norm calcule ||grad(f) - grad(analytique)||
     CfemReal h1 = sqrt( FunctionIntegrator(m_mesh).computeIntegral(mag_sqr( grad(f - analytical) ) ) );
@@ -327,11 +327,11 @@ TEST_F(FEFieldTest, DGScalarP0Projection)
     auto density = FEField::create("Density", m_V_dg_scalar_p0);
     auto analytical = 1050.0; // e.g., density of a fluid
     
-    density->project(analytical);
+    density->interpolate(analytical);
 
     CfemReal l2Norm = 1.0;
     FunctionIntegrator integrator(m_mesh, IntegrationSchemeParams{});
     integrator.L2Norm(density - analytical, &l2Norm, nullptr);
 
-    EXPECT_NEAR(l2Norm, 0.0, 1e-12) << "P0 DG L2 projection error is too high. Check cell-center mapping.";
+    EXPECT_NEAR(l2Norm, 0.0, 1e-12) << "P0 DG interpolation L2-error is too high. Check cell-center mapping.";
 }

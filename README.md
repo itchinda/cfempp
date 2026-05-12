@@ -86,7 +86,7 @@ mpiexec -n 4 ./tests/unit_tests
 ```
 
 ## C++ API Example: Field Projection
-The following example demonstrates how to generate a tetrahedral mesh, project a symbolic JIT-compiled velocity field, calculate numerical errors (L2/H1 norms), and export the results for ParaView.
+The following example demonstrates how to generate a tetrahedral mesh, interpolate a symbolic JIT-compiled velocity field, calculate numerical errors (L2/H1 norms), and export the results for ParaView.
 
 ```c++
 #include "cfemutils.h"
@@ -116,8 +116,8 @@ int main(int argc, char **argv) {
     auto u = FEField::create("u", V);
         
     // JIT-compiled Symbolic Definition
-    auto analytical_u = vector(sin(2 * pi * x), cos(2 * pi * y), sin(pi * x * y * z));
-    u->project(analytical_u);
+    auto analytical_u = vector(sin(2 * CFEM_PI * x), cos(2 * CFEM_PI * y), sin(CFEM_PI * x * y * z));
+    u->interpolate(analytical_u);
 
     // Error Analysis (Clean syntax, no explicit scheme params needed)
     CfemReal l2Norm_U, h1SemiNorm_U;

@@ -34,10 +34,22 @@ set(ENV{PKG_CONFIG_PATH} "${PETSC_PATH}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
 
 find_package(PkgConfig REQUIRED)
 
-pkg_get_variable(PETSC_CXX PkgConfig::PETSC cxxcompiler)
-if(PETSC_CXX)
-    set(CMAKE_CXX_COMPILER ${PETSC_CXX})
-    message(STATUS "Forcing CXX Compiler from PETSc: ${PETSC_CXX}")
+pkg_get_variable(PETSC_CXX_RAW petsc cxxcompiler)
+pkg_get_variable(PETSC_PREFIX petsc prefix) 
+if(PETSC_CXX_RAW)
+    find_program(PETSC_CXX_ABS 
+        NAMES ${PETSC_CXX_RAW}
+        HINTS 
+            "${PETSC_PREFIX}/bin"
+            "${PETSC_DIR}/${TARGET_PETSC_ARCH}/bin"
+    )
+
+    if(PETSC_CXX_ABS)
+        set(CMAKE_CXX_COMPILER ${PETSC_CXX_ABS})
+        message(STATUS "SUCCESS: Forcing CXX Compiler from PETSc: ${PETSC_CXX_ABS}")
+    else()
+        message(FATAL_ERROR "Impossible de trouver le chemin absolu pour ${PETSC_CXX_RAW}.")
+    endif()
 endif()
 
 # ------------------------------------------------------------
@@ -52,7 +64,7 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # Flags spécifiques
 # set(CMAKE_CXX_FLAGS_ASAN "-O1 -g -fsanitize=address -fno-omit-frame-pointer" CACHE STRING "For intense debug/segmentation fault/ illegal memory acces")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -ffp-contract=fast -fno-math-errno -DNDEBUG -DTEUCHOS_DEBUG_OFF" CACHE STRING "Flags for pure performance (HPC)" FORCE)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fopenmp-simd -march=native -ffp-contract=fast -fno-math-errno -DNDEBUG -DTEUCHOS_DEBUG_OFF" CACHE STRING "Flags for pure performance (HPC)" FORCE)
 
 if(TARGET_PETSC_ARCH STREQUAL "${OS_PREFIX}-c-debug")
     set(APP_PROJECT_NAME cfem_app_dev)

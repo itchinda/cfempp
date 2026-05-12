@@ -65,7 +65,7 @@ TEST_F(FunctionIntegratorTest, SurfaceIntegralConstant) {
     EXPECT_NEAR(area, 4.0, TOL);
 }
 
-// 3. Validation de la projection et de la norme L2 (Cas Polynomial P2)
+// 3. Validation de l'interpolation et de la norme L2 (Cas Polynomial P2)
 TEST_F(FunctionIntegratorTest, L2NormP2Projection) {
     auto Q = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);
     auto p = Trial(Q, "p");
@@ -73,7 +73,7 @@ TEST_F(FunctionIntegratorTest, L2NormP2Projection) {
     // Une fonction quadratique doit être représentée EXACTEMENT en P2
     auto analytical = scalar(x * x + y * y + z * z);
     
-    p->project(analytical);
+    p->interpolate(analytical);
 
     CfemReal l2Err = 1.0, h1Err = 1.0;
     integrator->L2Norm(p - analytical, &l2Err, &h1Err);
@@ -90,7 +90,7 @@ TEST_F(FunctionIntegratorTest, L2NormP2Projection) {
 
 //     // u = [x, y, z] -> div(u) = 1 + 1 + 1 = 3
 //     auto analytical_u = vector(x, y, z);
-//     u->project(analytical_u);
+//     u->interpolate(analytical_u);
 
 //     // Intégrale de div(u) sur le volume
 //     // Théorème de la divergence : int(div(u)) = int(u . n) sur la surface
@@ -119,7 +119,7 @@ TEST_F(FunctionIntegratorTest, SurfaceGradientError) {
     auto p = Trial(Q, "p2");
     
     auto analytical = scalar(x * x + y * z + y * y - z * z); 
-    p->project(analytical);
+    p->interpolate(analytical);
     
     // Sur la face x=1, grad(x * x + y * z - z * z) = [2x, z, 2z] = [2, 2y + z, y - 2z]
     // Intégrale sur la face = 88/3
@@ -156,7 +156,7 @@ TEST_F(SurfaceManifoldTest, ComputeFluxOnSphere) {
                                 y * y + z * z + y + z,
                                 x * x + z * z + x + z);
 
-    u->project(analytical_u);
+    u->interpolate(analytical_u);
 
     IntegrationSchemeParams params{};
     FunctionIntegrator integrator(mesh, params);
@@ -180,7 +180,7 @@ TEST_F(SurfaceManifoldTest, SurfaceGradientError) {
 
     // Champ scalaire analytique : exp(x*y*z)
     auto analytical_p = scalar(exp(x * y * z));
-    p->project(analytical_p);
+    p->interpolate(analytical_p);
 
     IntegrationSchemeParams params{};
     FunctionIntegrator integrator(mesh, params);

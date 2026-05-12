@@ -65,7 +65,7 @@ namespace cfem {
         }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const int n = 4;
+            const CfemInt n = 4;
             if (out.values.size() != n) out.setup(n);
             
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
@@ -79,7 +79,7 @@ namespace cfem {
             const CfemReal sx[4] = {-1, 1, 1, -1};
             const CfemReal sy[4] = {-1, -1, 1, 1};
 
-            for (int i = 0; i < n; ++i) {
+            for (CfemInt i = 0; i < n; ++i) {
                 if ( hasFlag(requested, ShapeEvaluationFlags::Value)) {
                     out.values[i] = 0.25 * (1.0 + sx[i] * x) * (1.0 + sy[i] * y);
                 }
@@ -100,11 +100,11 @@ namespace cfem {
             out.validFlags = requested;
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override{
             return cfem::reference_elem::utils::projectFacetRefCoordToQuadRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
 
-        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
             return cfem::reference_elem::utils::quad4_face_nodes[iFace];
         }
     };
@@ -134,7 +134,7 @@ class Q2ReferenceQuad : public ReferenceElement {
         }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const int n = 9;
+            const CfemInt n = 9;
             if (out.values.size() != n) out.setup(n);
             
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
@@ -158,15 +158,15 @@ class Q2ReferenceQuad : public ReferenceElement {
 
             // Mapping (i,j) -> index global m_nodes
             // i=r index (0:-1, 1:0, 2:1), j=s index (0:-1, 1:0, 2:1)
-            static const int map[3][3] = {
+            static const CfemInt map[3][3] = {
                 {0, 7, 3}, // r = -1.0
                 {4, 8, 6}, // r =  0.0
                 {1, 5, 2}  // r =  1.0
             };
 
-            for (int i = 0; i < 3; ++i) {
-                for (int j = 0; j < 3; ++j) {
-                    int idx = map[i][j];
+            for (CfemInt i = 0; i < 3; ++i) {
+                for (CfemInt j = 0; j < 3; ++j) {
+                    CfemInt idx = map[i][j];
 
                     if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
                         out.values[idx] = fr[i] * fs[j];
@@ -189,11 +189,11 @@ class Q2ReferenceQuad : public ReferenceElement {
             out.validFlags = requested;
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override{
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override{
             return cfem::reference_elem::utils::projectFacetRefCoordToQuadRefCoord(localFacetId, xiFacet); // Make the compiler happy
         }
 
-        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
             return cfem::reference_elem::utils::quad9_face_nodes[iFace];
         }
     };
@@ -210,7 +210,7 @@ class Q2ReferenceQuad : public ReferenceElement {
         }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const int n = 5;
+            const CfemInt n = 5;
             if (out.values.size() != n) out.setup(n);
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n)
                 out.hessians.assign(n, SymTensorO2());
@@ -231,7 +231,7 @@ class Q2ReferenceQuad : public ReferenceElement {
 
             // 2. Fonctions des Sommets (0-3) corrigées par -B/4
             const CfemReal sx[4] = {-1, 1, 1, -1}, sy[4] = {-1, -1, 1, 1};
-            for (int i = 0; i < 4; ++i) {
+            for (CfemInt i = 0; i < 4; ++i) {
                 if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
                     CfemReal Q1 = 0.25 * (1.0 + sx[i]*x) * (1.0 + sy[i]*y);
                     out.values[i] = Q1 - 0.25 * B;
@@ -256,10 +256,10 @@ class Q2ReferenceQuad : public ReferenceElement {
             out.validFlags = requested;
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override {
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
             return reference_elem::utils::projectFacetRefCoordToQuadRefCoord(localFacetId, xiFacet);
         }
-        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
             return reference_elem::utils::quad4_face_nodes[iFace];
         }
     };
@@ -275,7 +275,7 @@ class Q0ReferenceQuad : public ReferenceElement {
         }
 
         void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const int n = 1;
+            const CfemInt n = 1;
             if (out.values.size() != n) out.setup(n);
 
             // Valeur constante N0 = 1.0
@@ -297,11 +297,11 @@ class Q0ReferenceQuad : public ReferenceElement {
             out.validFlags = requested;
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(int localFacetId, const Vector3D& xiFacet) const override {
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
             return cfem::reference_elem::utils::projectFacetRefCoordToQuadRefCoord(localFacetId, xiFacet);
         }
 
-        std::span<const CfemInt> getFaceNodes(int iFace) const override {
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
             return cfem::reference_elem::utils::quad1_face_nodes[iFace];
         }
     };
