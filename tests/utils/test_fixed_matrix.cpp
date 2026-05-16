@@ -47,8 +47,8 @@ TEST(FixedMatrixTest, BasicOperations) {
     FixedMatrix<CfemReal, 3, 3> I;
     I.setIdentity();
     
-    for(int i = 0; i < 3; ++i) {
-        for(int j = 0; j < 3; ++j) {
+    for(CfemInt i = 0; i < 3; ++i) {
+        for(CfemInt j = 0; j < 3; ++j) {
             if(i == j) EXPECT_DOUBLE_EQ(I(i,j), 1.0);
             else       EXPECT_DOUBLE_EQ(I(i,j), 0.0);
         }
@@ -131,8 +131,8 @@ TEST(FixedMatrixTest, IdentityMultiplication)
     auto R1 = I * A;
     auto R2 = A * I;
 
-    for(int i=0;i<3;++i)
-        for(int j=0;j<3;++j)
+    for(CfemInt i=0;i<3;++i)
+        for(CfemInt j=0;j<3;++j)
         {
             EXPECT_DOUBLE_EQ(R1(i,j), A(i,j));
             EXPECT_DOUBLE_EQ(R2(i,j), A(i,j));
@@ -157,8 +157,8 @@ TEST(FixedMatrixTest, DoubleTranspose)
     };
 
     auto ATT = A.transpose().transpose();
-    for(int i=0;i<2;++i)
-        for(int j=0;j<3;++j)
+    for(CfemInt i=0;i<2;++i)
+        for(CfemInt j=0;j<3;++j)
             EXPECT_DOUBLE_EQ(ATT(i,j), A(i,j));
 }
 
@@ -178,8 +178,8 @@ TEST(FixedMatrixTest, Inverse3x3)
 
     auto invA = inverse(A);
     auto I = A * invA;
-    for(int i=0;i<3;++i) {
-        for(int j=0;j<3;++j) {
+    for(CfemInt i=0;i<3;++i) {
+        for(CfemInt j=0;j<3;++j) {
             if(i==j)
                 EXPECT_NEAR(I(i,j), 1.0, 1e-10);
             else

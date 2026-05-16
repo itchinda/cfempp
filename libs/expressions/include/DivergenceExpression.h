@@ -58,7 +58,7 @@ namespace cfem::sym
         DivergenceExpression(std::shared_ptr<const CfemExpression> expr)
             : m_expr(std::move(expr))
         {
-            m_dimIn = m_expr->getDimension();
+            m_dimIn = m_expr->getNumComponents();
             
             if (m_dimIn == 1) {
                 CFEM_THROW("Divergence cannot be applied to a scalar field: " << m_expr->toString());
@@ -75,7 +75,7 @@ namespace cfem::sym
             m_dz = m_expr->diff(2);
         }
 
-        CfemInt getDimension() const override { return m_dimOut; }
+        CfemInt getNumComponents() const override { return m_dimOut; }
         bool isPointwise() const override { return m_expr->isPointwise(); }
         bool dependsOnFEField() const override { return m_expr->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_expr->dependsOnShape(); }

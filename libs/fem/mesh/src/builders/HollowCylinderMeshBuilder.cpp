@@ -43,7 +43,7 @@ namespace cfem
             CFEM_ERROR << "HollowCylinderMeshBuilder requires r_in > 0.";
         mesh.clear();
         mesh.setOrder(MeshOrder::Linear);
-        mesh.setDimension(3);
+        mesh.setTopologicalDimension(3);
 
         // Normalize axis
         CfemReal axis_len = std::sqrt(axis.x * axis.x + axis.y * axis.y + axis.z * axis.z);
@@ -55,10 +55,10 @@ namespace cfem
 
         // 1. Layer Structure Calculation
         CfemReal thickness = r_out - r_in;
-        int num_rings = std::max(1, static_cast<int>(std::round(thickness / h)));
+        CfemInt num_rings = std::max(1, static_cast<int>(std::round(thickness / h)));
         CfemReal dr = thickness / num_rings;
 
-        int nz = std::max(1, static_cast<int>(std::round(height / h)));
+        CfemInt nz = std::max(1, static_cast<int>(std::round(height / h)));
         CfemReal dz = height / nz;
 
         // BUILD AT ORIGIN: Center is assumed (0,0,0) for generation
@@ -67,17 +67,17 @@ namespace cfem
         std::vector<std::vector<std::vector<CfemInt>>> grid_nodes(nz + 1);
 
         // 2. Vertex Generation (At Origin)
-        for (int k = 0; k <= nz; ++k)
+        for (CfemInt k = 0; k <= nz; ++k)
         {
             grid_nodes[k].resize(num_rings + 1);
             CfemReal z = z_min + k * dz;
 
-            for (int r = 0; r <= num_rings; ++r)
+            for (CfemInt r = 0; r <= num_rings; ++r)
             {
                 CfemReal current_r = r_in + r * dr;
-                int num_points = std::max(6, static_cast<int>(std::round(2.0 * CFEM_PI * current_r / h)));
+                CfemInt num_points = std::max(6, static_cast<int>(std::round(2.0 * CFEM_PI * current_r / h)));
 
-                for (int i = 0; i < num_points; ++i)
+                for (CfemInt i = 0; i < num_points; ++i)
                 {
                     CfemReal theta = (2.0 * CFEM_PI * i) / num_points;
                     CfemReal x = current_r * std::cos(theta);
@@ -124,9 +124,9 @@ namespace cfem
         };
 
         // 4. Element Connectivity Generation (Unchanged)
-        for (int k = 0; k < nz; ++k)
+        for (CfemInt k = 0; k < nz; ++k)
         {
-            for (int r = 0; r < num_rings; ++r)
+            for (CfemInt r = 0; r < num_rings; ++r)
             {
                 const auto &in_b = grid_nodes[k][r];
                 const auto &out_b = grid_nodes[k][r + 1];

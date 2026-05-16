@@ -37,13 +37,13 @@ namespace cfem::sym {
                               std::span<CfemReal> out, EvalContext &ctx) const override {
 
             m_base->evaluate(cellId, xi, out, ctx);
-            CfemInt dim = m_base->getDimension();
+            CfemInt dim = m_base->getNumComponents();
             for (CfemInt i = 0; i < dim; ++i) {
                 out[i] *= m_coeff; 
             }
         }
 
-        CfemInt getDimension() const override { return m_base->getDimension(); }
+        CfemInt getNumComponents() const override { return m_base->getNumComponents(); }
 
         bool isContinuous() const override {
             return  m_base->isContinuous();

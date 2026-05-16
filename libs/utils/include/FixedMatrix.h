@@ -271,6 +271,38 @@ namespace cfem
         }
 
         /**
+         * @brief Computes the trace of the square matrix.
+         * @return The trace of the FixedMatrix.
+         */
+        [[nodiscard]] constexpr T trace() const noexcept
+        {
+            CFEM_STATIC_ASSERT(R == C, "FixedMatrix::trace() is only defined for square matrices.");
+            
+            T res = T{};
+            for (CfemInt i = 0; i < R; ++i)
+            {
+                res += data[i * C + i];
+            }
+            return res;
+        }
+
+        /**
+         * @brief Compute the double contraction product A:B
+         * * @param B The other matrix.
+         * @return The scalar result of the double dot product.
+         */
+        [[nodiscard]] constexpr T doubleDot(const FixedMatrix<T, R, C>& B) const noexcept
+        {
+            T res = T{};
+            
+            for (CfemInt i = 0; i < R * C; ++i)
+            {
+                res += data[i] * B.data[i];
+            }
+            return res;
+        }
+
+        /**
          * @brief Frobenius norm of the matrix.
          */
         [[nodiscard]] constexpr T frobeniusNorm() const noexcept
@@ -396,10 +428,10 @@ namespace cfem
      * @return Inverse matrix.
      */
     template <typename T>
-    [[nodiscard]] constexpr inline FixedMatrix<T, 3, 3> inverse(const FixedMatrix<T, 3, 3>& m, T determinant) noexcept
+    [[nodiscard]] constexpr inline FixedMatrix<T, 3, 3> inverse(const FixedMatrix<T, 3, 3>& m, T determinant)
     {
-        if (std::abs(determinant) < cfem::ZERO_TOLERANCE)
-            CFEM_WARN << "Singular 3x3 matrix/Jacobian detected.";
+        CFEM_ASSERT(std::abs(determinant) > cfem::ZERO_TOLERANCE, "Singular 3x3 matrix/Jacobian detected.");
+
         FixedMatrix<T, 3, 3> res;
         T invDet = T(1.0) / determinant;
 
@@ -434,7 +466,7 @@ namespace cfem
      * @return Inverse matrix.
      */
     template <typename T>
-    [[nodiscard]] constexpr inline FixedMatrix<T, 3, 3> inverse(const FixedMatrix<T, 3, 3> &m) noexcept
+    [[nodiscard]] constexpr inline FixedMatrix<T, 3, 3> inverse(const FixedMatrix<T, 3, 3> &m)
     {
         return inverse(m,  det(m));
     }

@@ -69,7 +69,7 @@ namespace cfem {
             if (out.values.size() != n) out.setup(n);
             
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
-                out.hessians.assign(n, SymTensorO2());
+                out.hessians.assign(n, SymTensor3D());
             }
 
             const CfemReal x = xi.x;
@@ -138,7 +138,7 @@ class Q2ReferenceQuad : public ReferenceElement {
             if (out.values.size() != n) out.setup(n);
             
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
-                out.hessians.assign(n, SymTensorO2());
+                out.hessians.assign(n, SymTensor3D());
             }
 
             const CfemReal r = xi.x;
@@ -213,7 +213,7 @@ class Q2ReferenceQuad : public ReferenceElement {
             const CfemInt n = 5;
             if (out.values.size() != n) out.setup(n);
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n)
-                out.hessians.assign(n, SymTensorO2());
+                out.hessians.assign(n, SymTensor3D());
 
             const CfemReal x = xi.x, y = xi.y;
             
@@ -221,7 +221,7 @@ class Q2ReferenceQuad : public ReferenceElement {
             const CfemReal bx = 1.0 - x*x, by = 1.0 - y*y;
             const CfemReal B = bx * by;
             const Vector3D gradB = {-2.0*x*by, -2.0*y*bx, 0.0};
-            SymTensorO2 hessB;
+            SymTensor3D hessB;
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
                 hessB.setZero();
                 hessB.xx() = -2.0 * by;
@@ -290,7 +290,7 @@ class Q0ReferenceQuad : public ReferenceElement {
 
             // Hessien nul
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                if (out.hessians.size() != n) out.hessians.assign(n, SymTensorO2());
+                if (out.hessians.size() != n) out.hessians.assign(n, SymTensor3D());
                 out.hessians[0].setZero();
             }
 

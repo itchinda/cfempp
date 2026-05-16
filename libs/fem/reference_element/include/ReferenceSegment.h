@@ -62,7 +62,7 @@ namespace cfem {
             if (out.values.size() != n) out.setup(n);
 
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
-                out.hessians.assign(n, SymTensorO2());
+                out.hessians.assign(n, SymTensor3D());
             }
 
             const CfemReal x = xi.x;
@@ -108,7 +108,7 @@ namespace cfem {
             const CfemInt n = 3;
             if (out.values.size() != n) out.setup(n);
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
-                out.hessians.assign(n, SymTensorO2());
+                out.hessians.assign(n, SymTensor3D());
             }
 
             const CfemReal x = xi.x;
@@ -170,7 +170,7 @@ namespace cfem {
 
             // Hessien nul
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                if (out.hessians.size() != n) out.hessians.assign(n, SymTensorO2());
+                if (out.hessians.size() != n) out.hessians.assign(n, SymTensor3D());
                 out.hessians[0].setZero();
             }
 

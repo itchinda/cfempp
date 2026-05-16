@@ -20,7 +20,7 @@
 
 #include "cfemutils.h"
 #include "Vector3D.h"
-#include "TensorO2.h"
+#include "Tensor3D.h"
 #include "EvalContext.h"
 #include "CfemExpression.h"
 #include "ZeroExpression.h"
@@ -52,7 +52,7 @@ namespace cfem::sym
             : m_value({val.x, val.y, val.z}) 
         {}
         
-        ConstantExpression(const TensorO2& val)
+        ConstantExpression(const Tensor3D& val)
             : m_value({val(0,0), val(0,1), val(0,2),
                        val(1,0), val(1,1), val(1,2),
                        val(2,0), val(1,2), val(2,2)}) 
@@ -62,7 +62,7 @@ namespace cfem::sym
             : m_value(dim, val)
         {}
 
-        int getDimension() const override { return m_value.size(); }
+        CfemInt getNumComponents() const override { return m_value.size(); }
         bool isPointwise() const override { return true; }
         bool isConstant() const override {return true; }
         bool isZero() const override {
@@ -79,7 +79,7 @@ namespace cfem::sym
         }
 
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override {
-            return std::make_shared<ZeroExpression>(this->getDimension());
+            return std::make_shared<ZeroExpression>(this->getNumComponents());
         }
 
         std::shared_ptr<const CfemExpression> div() const override;
@@ -92,10 +92,10 @@ namespace cfem::sym
     private:
         std::vector<CfemReal> m_value;  //!
         std::shared_ptr<const CfemExpression> createGradient() const override {
-            return std::make_shared<ZeroExpression>(getDimension() * 3);
+            return std::make_shared<ZeroExpression>(getNumComponents() * 3);
         }
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override{
-            return std::make_shared<ZeroExpression>(getDimension());
+            return std::make_shared<ZeroExpression>(getNumComponents());
         }
 
     };

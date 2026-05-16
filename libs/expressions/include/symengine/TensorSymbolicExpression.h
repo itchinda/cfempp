@@ -47,13 +47,13 @@ namespace cfem::sym
             std::shared_ptr<const ScalarSymbolicExpression> dyx, std::shared_ptr<const ScalarSymbolicExpression> dyy, std::shared_ptr<const ScalarSymbolicExpression> dyz,
             std::shared_ptr<const ScalarSymbolicExpression> dzx, std::shared_ptr<const ScalarSymbolicExpression> dzy, std::shared_ptr<const ScalarSymbolicExpression> dzz);
 
-        CfemInt getDimension() const override { return 9; }
+        CfemInt getNumComponents() const override { return 9; }
         bool isPointwise() const override { return true; }
 
         void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
         {
             CFEM_ASSERT(out.size() >= 9, "TensorSymbolicExpression: 'out' span is too small!");
-            for (int i = 0; i < 9; ++i) m_components[i]->evaluate(cellId, xi, out.subspan(i, 1), ctx);
+            for (CfemInt i = 0; i < 9; ++i) m_components[i]->evaluate(cellId, xi, out.subspan(i, 1), ctx);
         }
 
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override;

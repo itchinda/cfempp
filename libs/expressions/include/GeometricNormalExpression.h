@@ -49,7 +49,7 @@ namespace cfem::sym
          * @brief Returns the output dimension of the expression.
          * @return Always 3 for the normal vector components.
          */
-        CfemInt getDimension() const override { 
+        CfemInt getNumComponents() const override { 
             return 3; 
         }
 

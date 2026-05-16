@@ -46,7 +46,7 @@ namespace cfem {
     {
         mesh.clear();
         mesh.setOrder(MeshOrder::Linear);
-        mesh.setDimension(2); // Surface 2D dans l'espace 3D
+        mesh.setTopologicalDimension(2); // Surface 2D dans l'espace 3D
 
         // Ajout des 12 sommets de base (normalisés et projetés)
         auto addProjectedVertex = [&](CfemReal x, CfemReal y, CfemReal z) {
@@ -74,7 +74,7 @@ namespace cfem {
         // Calcul du nombre de subdivisions
         // L'arête initiale de l'icosaèdre est d'environ 1.05 * radius. 
         // Chaque subdivision divise l'arête par 2.
-        int subdivisions = 0;
+        CfemInt subdivisions = 0;
         CfemReal current_h = 1.05 * radius;
         while (current_h > h) { 
             current_h /= 2.0;
@@ -98,7 +98,7 @@ namespace cfem {
             return new_id;
         };
 
-        for (int s = 0; s < subdivisions; ++s) {
+        for (CfemInt s = 0; s < subdivisions; ++s) {
             std::vector<std::vector<CfemInt>> next_faces;
             next_faces.reserve(faces.size() * 4); 
             midpoint_cache.reserve(faces.size() * 3);

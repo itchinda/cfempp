@@ -50,14 +50,14 @@ namespace cfem::sym
             m_components[2] = std::move(expr_z);
 
             for (int i = 0; i < 3; ++i) {
-                if (!m_components[i] || m_components[i]->getDimension() != 1) {
-                    CFEM_THROW("VectorExpression component " << i << " must be a valid scalar expression. Got dim = " << m_components[i]->getDimension() );
+                if (!m_components[i] || m_components[i]->getNumComponents() != 1) {
+                    CFEM_THROW("VectorExpression component " << i << " must be a valid scalar expression. Got dim = " << m_components[i]->getNumComponents() );
                 }
             }
 
         }
 
-        CfemInt getDimension() const override { return 3; }
+        CfemInt getNumComponents() const override { return 3; }
 
         bool isPointwise() const override{
             return m_components[0]->isPointwise() && m_components[1]->isPointwise() && m_components[2]->isPointwise();

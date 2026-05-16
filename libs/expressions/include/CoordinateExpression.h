@@ -64,7 +64,7 @@ namespace cfem::sym
             out[0] = globalX[m_dimIndex];
         }
 
-        CfemInt getDimension() const override { return 1;}
+        CfemInt getNumComponents() const override { return 1;}
         CfemInt getIndex() const { return m_dimIndex; }
         
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override {

@@ -73,7 +73,7 @@ namespace cfem::sym
             else if constexpr (std::is_same_v<ResultType, Vector3D>) {
                 out[0] = result.x; out[1] = result.y; out[2] = result.z;
             }
-            else if constexpr (std::is_same_v<ResultType, TensorO2>) {
+            else if constexpr (std::is_same_v<ResultType, Tensor3D>) {
                 const CfemReal* data = result.data;
                 for(int i = 0; i < 9; ++i) out[i] = data[i];
             }

@@ -18,14 +18,14 @@
 
 #include <gtest/gtest.h>
 #include "cfemutils.h"
-#include "TensorO2.h"
+#include "Tensor3D.h"
 
 using namespace cfem;
 
 const CfemReal TOL = 1e-12;
 
-TEST(SymTensorO2Test, InitializationAndIdentity) {
-    auto I = SymTensorO2::Identity();
+TEST(SymTensor3DTest, InitializationAndIdentity) {
+    auto I = SymTensor3D::Identity();
     EXPECT_DOUBLE_EQ(I[0], 1.0);
     EXPECT_DOUBLE_EQ(I[1], 1.0);
     EXPECT_DOUBLE_EQ(I[2], 1.0);
@@ -35,12 +35,12 @@ TEST(SymTensorO2Test, InitializationAndIdentity) {
     EXPECT_DOUBLE_EQ(I.mean(), 1.0);
 }
 
-TEST(SymTensorO2Test, Arithmetic) {
-    SymTensorO2 A = {1, 2, 3, 4, 5, 6};
-    SymTensorO2 B = {6, 5, 4, 3, 2, 1};
+TEST(SymTensor3DTest, Arithmetic) {
+    SymTensor3D A = {1, 2, 3, 4, 5, 6};
+    SymTensor3D B = {6, 5, 4, 3, 2, 1};
     
     auto C = A + B;
-    for(int i=0; i<6; ++i) EXPECT_DOUBLE_EQ(C[i], 7.0);
+    for(CfemInt i=0; i<6; ++i) EXPECT_DOUBLE_EQ(C[i], 7.0);
     
     auto D = A * 2.0;
     EXPECT_DOUBLE_EQ(D[5], 12.0);
@@ -52,9 +52,9 @@ TEST(SymTensorO2Test, Arithmetic) {
     EXPECT_DOUBLE_EQ(F[0], -1.0);
 }
 
-TEST(SymTensorO2Test, TractionVector) {
+TEST(SymTensor3DTest, TractionVector) {
     // Pure shear stress sigma_xy = 50
-    SymTensorO2 sigma = {0, 0, 0, 0, 0, 50.0};
+    SymTensor3D sigma = {0, 0, 0, 0, 0, 50.0};
     // Normal in X direction
     Vector3D n = {1.0, 0.0, 0.0};
     
@@ -65,14 +65,14 @@ TEST(SymTensorO2Test, TractionVector) {
     EXPECT_NEAR(t.z, 0.0, TOL);
 }
 
-TEST(SymTensorO2Test, InvariantsAndPhysics) {
+TEST(SymTensor3DTest, InvariantsAndPhysics) {
     // Example: Pure hydrostatic pressure
-    SymTensorO2 pressure = {100, 100, 100, 0, 0, 0};
+    SymTensor3D pressure = {100, 100, 100, 0, 0, 0};
     EXPECT_DOUBLE_EQ(pressure.mean(), 100.0);
     EXPECT_NEAR(pressure.vonMises(), 0.0, TOL);
     
     // Example: Pure uniaxial tension in Z
-    SymTensorO2 tension = {0, 0, 100, 0, 0, 0};
+    SymTensor3D tension = {0, 0, 100, 0, 0, 0};
     // For uniaxial tension, Von Mises stress == tension value
     EXPECT_NEAR(tension.vonMises(), 100.0, TOL);
     
@@ -80,8 +80,8 @@ TEST(SymTensorO2Test, InvariantsAndPhysics) {
     EXPECT_NEAR(tension.J2(), 10000.0/3.0, TOL);
 }
 
-TEST(SymTensorO2Test, DeviatoricSplit) {
-    SymTensorO2 A = {10, 20, 30, 1, 2, 3};
+TEST(SymTensor3DTest, DeviatoricSplit) {
+    SymTensor3D A = {10, 20, 30, 1, 2, 3};
     auto s = A.deviator();
     
     // The trace of any deviatoric tensor must be zero
@@ -93,7 +93,7 @@ TEST(SymTensorO2Test, DeviatoricSplit) {
 }
 
 
-class SkewSymTensorO2Test : public ::testing::Test {
+class SkewSymTensor3DTest : public ::testing::Test {
 protected:
     void SetUp() override {
     }
@@ -102,11 +102,11 @@ protected:
 // ========================================================================
 // Accessors and Skew-symmetry validation
 // ========================================================================
-TEST_F(SkewSymTensorO2Test, AccessAndSignReversal) {
-    SkewSymTensorO2 W;
-    W.data[idSSTO2::xy] =  1.5;
-    W.data[idSSTO2::xz] = -2.0;
-    W.data[idSSTO2::yz] =  3.1;
+TEST_F(SkewSymTensor3DTest, AccessAndSignReversal) {
+    SkewSymTensor3D W;
+    W.xy() =  1.5;
+    W.xz() = -2.0;
+    W.yz() =  3.1;
 
     // Strictly null diag
     EXPECT_DOUBLE_EQ(W(0, 0), 0.0);
@@ -127,7 +127,7 @@ TEST_F(SkewSymTensorO2Test, AccessAndSignReversal) {
 // ========================================================================
 // Axial vector (w) and conversion
 // ========================================================================
-TEST_F(SkewSymTensorO2Test, AxialVectorConversion) {
+TEST_F(SkewSymTensor3DTest, AxialVectorConversion) {
     // Axial vector w = [w_x, w_y, w_z]
     FixedVector<CfemReal, 3> w_in;
     w_in[0] =  4.0;
@@ -135,13 +135,13 @@ TEST_F(SkewSymTensorO2Test, AxialVectorConversion) {
     w_in[2] =  6.0;
 
     // Conversion Vector -> Tensor
-    SkewSymTensorO2 W = SkewSymTensorO2::fromAxialVector(w_in);
+    SkewSymTensor3D W = SkewSymTensor3D::fromAxialVector(w_in);
 
     // Conversion check W * v = w x v
     // W_xy = -w_z, W_xz = w_y, W_yz = -w_x
-    EXPECT_DOUBLE_EQ(W.data[idSSTO2::xy], -6.0);
-    EXPECT_DOUBLE_EQ(W.data[idSSTO2::xz], -5.0);
-    EXPECT_DOUBLE_EQ(W.data[idSSTO2::yz], -4.0);
+    EXPECT_DOUBLE_EQ(W.xy(), -6.0);
+    EXPECT_DOUBLE_EQ(W.xz(), -5.0);
+    EXPECT_DOUBLE_EQ(W.yz(), -4.0);
 
     // Inverse conversion Tensor -> Vector
     FixedVector<CfemReal, 3> w_out = W.axialVector();
@@ -154,27 +154,27 @@ TEST_F(SkewSymTensorO2Test, AxialVectorConversion) {
 // ========================================================================
 // Transpose
 // ========================================================================
-TEST_F(SkewSymTensorO2Test, Transpose) {
-    SkewSymTensorO2 W;
-    W.data[idSSTO2::xy] = 1.0;
-    W.data[idSSTO2::xz] = 2.0;
-    W.data[idSSTO2::yz] = 3.0;
+TEST_F(SkewSymTensor3DTest, Transpose) {
+    SkewSymTensor3D W;
+    W.xy() = 1.0;
+    W.xz() = 2.0;
+    W.yz() = 3.0;
 
-    SkewSymTensorO2 WT = W.transpose();
+    SkewSymTensor3D WT = W.transpose();
 
     // W^T = -W (skew-symmetric)
-    EXPECT_DOUBLE_EQ(WT.data[idSSTO2::xy], -1.0);
-    EXPECT_DOUBLE_EQ(WT.data[idSSTO2::xz], -2.0);
-    EXPECT_DOUBLE_EQ(WT.data[idSSTO2::yz], -3.0);
+    EXPECT_DOUBLE_EQ(WT.xy(), -1.0);
+    EXPECT_DOUBLE_EQ(WT.xz(), -2.0);
+    EXPECT_DOUBLE_EQ(WT.yz(), -3.0);
 }
 
 // ========================================================================
 // Math properties (Determinant et and eigen values)
 // ========================================================================
-TEST_F(SkewSymTensorO2Test, MathProperties) {
+TEST_F(SkewSymTensor3DTest, MathProperties) {
     FixedVector<CfemReal, 3> w;
     w[0] = 3.0; w[1] = 4.0; w[2] = 0.0; // Norme = 5.0
-    SkewSymTensorO2 W = SkewSymTensorO2::fromAxialVector(w);
+    SkewSymTensor3D W = SkewSymTensor3D::fromAxialVector(w);
 
     EXPECT_DOUBLE_EQ(det(W), 0.0);
 
@@ -185,15 +185,15 @@ TEST_F(SkewSymTensorO2Test, MathProperties) {
 // ========================================================================
 //  Exponential (Rodrigues' formula)
 // ========================================================================
-TEST_F(SkewSymTensorO2Test, ExponentialRotationZ) {
+TEST_F(SkewSymTensor3DTest, ExponentialRotationZ) {
     // 90 degree (PI/2) rotation around the Z-axis
     FixedVector<CfemReal, 3> w;
     w[0] = 0.0;
     w[1] = 0.0;
     w[2] = CFEM_PI / 2.0; 
 
-    SkewSymTensorO2 W = SkewSymTensorO2::fromAxialVector(w);
-    TensorO2 R = W.exp();
+    SkewSymTensor3D W = SkewSymTensor3D::fromAxialVector(w);
+    Tensor3D R = W.exp();
 
     /* Rotation matrix 90 degree around Z-axis :
        [  0  -1   0 ]
@@ -213,15 +213,15 @@ TEST_F(SkewSymTensorO2Test, ExponentialRotationZ) {
     EXPECT_NEAR(R(2, 2),  1.0, TOL);
 }
 
-TEST_F(SkewSymTensorO2Test, ExponentialSmallAngleLimit) {
+TEST_F(SkewSymTensor3DTest, ExponentialSmallAngleLimit) {
     // Taylor expansion test for small angle (theta < 1e-14)
     FixedVector<CfemReal, 3> w;
     w[0] = 1e-15; // Too small angles
     w[1] = 0.0;
     w[2] = 0.0;
 
-    SkewSymTensorO2 W = SkewSymTensorO2::fromAxialVector(w);
-    TensorO2 R = W.exp();
+    SkewSymTensor3D W = SkewSymTensor3D::fromAxialVector(w);
+    Tensor3D R = W.exp();
 
     // R must be equal to I + W
     EXPECT_NEAR(R(0, 0), 1.0, TOL);

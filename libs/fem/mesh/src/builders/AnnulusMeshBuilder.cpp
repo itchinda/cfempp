@@ -33,24 +33,24 @@ namespace cfem
                       const AnnulusBoundaryNames &names)
     {
         mesh.clear();
-        mesh.setDimension(2);
+        mesh.setTopologicalDimension(2);
         mesh.setOrder(MeshOrder::Linear);
 
         // 1. Calcul des subdivisions radiales
         CfemReal thickness = r_out - r_in;
-        int num_rings = static_cast<int>(std::round(thickness / h));
+        CfemInt num_rings = static_cast<int>(std::round(thickness / h));
         if (num_rings < 1) num_rings = 1;
         CfemReal dr = thickness / num_rings;
 
         std::vector<std::vector<CfemInt>> ring_nodes(num_rings + 1);
 
         // 2. Génération des Sommets
-        for (int j = 0; j <= num_rings; ++j) {
+        for (CfemInt j = 0; j <= num_rings; ++j) {
             CfemReal current_r = r_in + j * dr;
-            int num_points = static_cast<int>(std::round(2.0 * M_PI * current_r / h));
+            CfemInt num_points = static_cast<int>(std::round(2.0 * M_PI * current_r / h));
             if (num_points < 8) num_points = 8; 
 
-            for (int i = 0; i < num_points; ++i) {
+            for (CfemInt i = 0; i < num_points; ++i) {
                 CfemReal theta = (2.0 * M_PI * i) / num_points;
                 CfemReal x = center.x + current_r * std::cos(theta);
                 CfemReal y = center.y + current_r * std::sin(theta);
@@ -68,7 +68,7 @@ namespace cfem
             }
         };
 
-        for (int j = 0; j < num_rings; ++j) {
+        for (CfemInt j = 0; j < num_rings; ++j) {
             const auto &inner = ring_nodes[j], &outer = ring_nodes[j+1];
             size_t n_in = inner.size(), n_out = outer.size(), k = 0;
             for (size_t i = 0; i < n_in; ++i) {
@@ -108,20 +108,20 @@ namespace cfem
 
         // Map inverse pour identification rapide : vertex_id -> ring_index
         std::unordered_map<CfemInt, int> nodeToRing;
-        for(int j=0; j < ring_nodes.size(); ++j)
+        for(CfemInt j=0; j < ring_nodes.size(); ++j)
             for(auto vid : ring_nodes[j]) nodeToRing[vid] = j;
 
         auto *sysBoundary = mesh.getEntity(cfem::SYS_BOUNDARY_ID);
         if (!sysBoundary) return;
 
-        int lastRing = ring_nodes.size() - 1;
+        CfemInt lastRing = ring_nodes.size() - 1;
 
         for (auto f_idx : sysBoundary->getFacetIds()) {
             auto fv = mesh.getFacetConnectivity(f_idx);
             bool isInner = true, isOuter = true;
 
             for (auto vid : fv) {
-                int ring = nodeToRing[vid];
+                CfemInt ring = nodeToRing[vid];
                 if (ring != 0) isInner = false;
                 if (ring != lastRing) isOuter = false;
             }

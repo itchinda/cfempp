@@ -212,7 +212,7 @@ namespace cfem::sym
         
         if (m_dimIn == 9) {
             // Result is a Vector (Row-wise Divergence)
-            auto row_sum = [&](int i, int j, int k) {
+            auto row_sum = [&](CfemInt i, CfemInt j, CfemInt k) {
                 auto tx = smart_mul(extractComponent(f_prime, i), extractComponent(dx, i));
                 auto ty = smart_mul(extractComponent(f_prime, j), extractComponent(dy, j));
                 auto tz = smart_mul(extractComponent(f_prime, k), extractComponent(dz, k));

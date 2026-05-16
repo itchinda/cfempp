@@ -70,7 +70,7 @@ namespace cfem
         const Vec& petscVec = m_data.getRaw();
         
         // Obtenir le nombre de processus MPI
-        int mpi_size;
+        CfemInt mpi_size;
         MPI_Comm_size(PETSC_COMM_WORLD, &mpi_size);
 
         if (mpi_size == 1) 
@@ -119,6 +119,112 @@ namespace cfem
         return m_localValues[globalIdx];
     }
 
+    CfemReal FEField::getScalarFieldAtNode(CfemInt meshNodeId) const
+    {
+        CFEM_ASSERT(m_space->getFieldType() == FieldType::Scalar, "");
+
+        CfemReal scalar = getAtNode(meshNodeId, 0);
+
+        return scalar;
+    }
+
+    Vector2D FEField::get2DVectorFieldAtNode    (CfemInt meshNodeId) const
+    {
+        CFEM_ASSERT(m_space->getFieldType() == FieldType::Vector2D, "" );
+
+        Vector2D vector;
+        vector.x = getAtNode(meshNodeId, 0);
+        vector.y = getAtNode(meshNodeId, 1);
+
+        return vector;
+
+    }
+
+    Tensor2D FEField::get2DTensorFieldAtNode (CfemInt meshNodeId) const
+    {
+        CFEM_ASSERT(m_space->getFieldType() == FieldType::Tensor2D, "" );
+
+        Tensor2D tensor;
+        tensor.data[Tensor2D::idx_xx] = getAtNode(meshNodeId, Tensor2D::idx_xx);
+        tensor.data[Tensor2D::idx_xy] = getAtNode(meshNodeId, Tensor2D::idx_xy);
+        tensor.data[Tensor2D::idx_yx] = getAtNode(meshNodeId, Tensor2D::idx_yx);
+        tensor.data[Tensor2D::idx_yy] = getAtNode(meshNodeId, Tensor2D::idx_yy);
+
+        return tensor;
+
+    }
+
+    SymTensor2D FEField::get2DSymTensorFieldAtNode (CfemInt meshNodeId) const
+    {
+        CFEM_ASSERT(m_space->getFieldType() == FieldType::SymTensor2D, "" );
+
+        SymTensor2D tensor;
+        tensor.data[SymTensor2D::idx_xx] = getAtNode(meshNodeId, SymTensor2D::idx_xx);
+        tensor.data[SymTensor2D::idx_xy] = getAtNode(meshNodeId, SymTensor2D::idx_xy);
+        tensor.data[SymTensor2D::idx_yy] = getAtNode(meshNodeId, SymTensor2D::idx_yy);
+
+        return tensor;
+    }
+
+
+    Vector3D FEField::get3DVectorFieldAtNode(CfemInt meshNodeId) const
+    {
+        CFEM_ASSERT(m_space->getFieldType() == FieldType::Vector3D, "" );
+
+        Vector3D vector;
+        vector.x = getAtNode(meshNodeId, 0);
+        vector.y = getAtNode(meshNodeId, 1);
+        vector.z = getAtNode(meshNodeId, 2);
+
+        return vector;
+    }
+
+    Tensor3D FEField::get3DTensorFieldAtNode(CfemInt meshNodeId) const
+    {
+        CFEM_ASSERT(m_space->getFieldType() == FieldType::Tensor3D, "" );
+
+        Tensor3D tensor;
+        tensor.data[Tensor3D::idx_xx] = getAtNode(meshNodeId, Tensor3D::idx_xx);
+        tensor.data[Tensor3D::idx_xy] = getAtNode(meshNodeId, Tensor3D::idx_xy);
+        tensor.data[Tensor3D::idx_xz] = getAtNode(meshNodeId, Tensor3D::idx_xz);
+        tensor.data[Tensor3D::idx_yx] = getAtNode(meshNodeId, Tensor3D::idx_yx);
+        tensor.data[Tensor3D::idx_yy] = getAtNode(meshNodeId, Tensor3D::idx_yy);
+        tensor.data[Tensor3D::idx_yz] = getAtNode(meshNodeId, Tensor3D::idx_yz);
+        tensor.data[Tensor3D::idx_zx] = getAtNode(meshNodeId, Tensor3D::idx_zx);
+        tensor.data[Tensor3D::idx_zy] = getAtNode(meshNodeId, Tensor3D::idx_zy);
+        tensor.data[Tensor3D::idx_zz] = getAtNode(meshNodeId, Tensor3D::idx_zz);
+
+        return tensor;
+    }
+
+    SymTensor3D FEField::get3DSymTensorFieldAtNode(CfemInt meshNodeId) const
+    {
+        CFEM_ASSERT(m_space->getFieldType() == FieldType::SymTensor3D, "" );
+
+        SymTensor3D tensor;
+        tensor.data[SymTensor3D::idx_xx] = getAtNode(meshNodeId, SymTensor3D::idx_xx); 
+        tensor.data[SymTensor3D::idx_yy] = getAtNode(meshNodeId, SymTensor3D::idx_yy); 
+        tensor.data[SymTensor3D::idx_zz] = getAtNode(meshNodeId, SymTensor3D::idx_zz); 
+        tensor.data[SymTensor3D::idx_yz] = getAtNode(meshNodeId, SymTensor3D::idx_yz); 
+        tensor.data[SymTensor3D::idx_xz] = getAtNode(meshNodeId, SymTensor3D::idx_xz); 
+        tensor.data[SymTensor3D::idx_xy] = getAtNode(meshNodeId, SymTensor3D::idx_xy); 
+
+        return tensor;
+    }
+
+    SkewSymTensor3D FEField::get3DSkewSymTensorFieldAtNode(CfemInt meshNodeId) const
+    {
+        CFEM_ASSERT(m_space->getFieldType() == FieldType::SkewSymTensor3D, "");
+
+        SkewSymTensor3D tensor;
+        tensor.data[SkewSymTensor3D::idx_yz] = getAtNode(meshNodeId, SkewSymTensor3D::idx_yz); 
+        tensor.data[SkewSymTensor3D::idx_xz] = getAtNode(meshNodeId, SkewSymTensor3D::idx_xz); 
+        tensor.data[SkewSymTensor3D::idx_xy] = getAtNode(meshNodeId, SkewSymTensor3D::idx_xy);
+
+        return tensor;
+
+    }
+
     /**
      * @brief Standard value evaluation at a local coordinate xi within a cell.
      */
@@ -137,16 +243,16 @@ namespace cfem
      */
     void FEField::evaluateWithShape(CfemInt cellId, const ShapeInfo &shape, std::span<CfemReal> out) const
     {
-        int nComp = this->getDimension();
+        CfemInt nComp = this->getNumComponents();
         std::fill_n(out.data(), nComp, 0.0);
         
         const auto &shapeValues = shape.values;
-        int nNodes = static_cast<int>(shapeValues.size());
+        CfemInt nNodes = static_cast<int>(shapeValues.size());
 
-        for (int i = 0; i < nNodes; ++i)
+        for (CfemInt i = 0; i < nNodes; ++i)
         {
             CfemReal s = shapeValues[i];
-            for (int c = 0; c < nComp; ++c)
+            for (CfemInt c = 0; c < nComp; ++c)
             {
                 // Request the global index from the space abstraction
                 CfemInt globalDofIdx = m_space->getGlobalDofIdx(cellId, i, c);
@@ -180,7 +286,7 @@ namespace cfem
 
         m_space->getMesh()->getCellVerticesCoords(cellId, ctx.scratchCoords);
         
-        int expectedNodes = refEl.getNumNodes();
+        CfemInt expectedNodes = refEl.getNumNodes();
         if (ctx.scratchCoords.size() > (size_t)expectedNodes) {
             ctx.scratchCoords.resize(expectedNodes);
         }
@@ -196,17 +302,17 @@ namespace cfem
      */
     void FEField::evaluateGradientWithCachedMapping(CfemInt cellId, const MappingInfo &mapping, std::span<CfemReal> out) const
     {
-        int nComp = this->getDimension();
+        CfemInt nComp = this->getNumComponents();
         
         std::fill_n(out.data(), nComp * 3, 0.0);
 
         const auto &grads = mapping.physicalShapeGradients;
-        int nNodes = static_cast<int>(grads.size());
+        CfemInt nNodes = static_cast<int>(grads.size());
 
-        for (int i = 0; i < nNodes; ++i)
+        for (CfemInt i = 0; i < nNodes; ++i)
         {
             const Vector3D &g = grads[i];
-            for (int c = 0; c < nComp; ++c)
+            for (CfemInt c = 0; c < nComp; ++c)
             {
                 CfemInt globalDofIdx = m_space->getGlobalDofIdx(cellId, i, c);
                 if (globalDofIdx != -1)
@@ -250,7 +356,7 @@ namespace cfem
 
         const auto& mesh = m_space->getMesh();
         Vec& petscVec = m_data.getRaw();
-        int dim = this->getDimension();
+        CfemInt dim = this->getNumComponents();
 
         const auto recipeFlags = recipe.requiredShapeFlags();
 
@@ -280,7 +386,7 @@ namespace cfem
 
                 mesh->getCellVerticesCoords(cellId, evctx.scratchCoords);
 
-                for (int i = 0; i < (int)refEl.getNumNodes(); ++i)
+                for (CfemInt i = 0; i < (int)refEl.getNumNodes(); ++i)
                 {
                     // Get the position ID for locking/visiting logic
                     CfemInt posId = m_space->getPositionId(cellId, i);
@@ -310,7 +416,7 @@ namespace cfem
                     recipe.evaluate(cellId, xi, valSpan, evctx);
 
                     // Map calculated values to the global algebraic vector
-                    for (int d = 0; d < dim; ++d)
+                    for (CfemInt d = 0; d < dim; ++d)
                     {
                         CfemInt globalDofIdx = m_space->getGlobalDofIdx(cellId, i, d);
 

@@ -32,6 +32,11 @@
 #include <set>
 #include <span>
 
+#include "Vector2D.h"
+#include "Vector3D.h"
+#include "Tensor2D.h"
+#include "Tensor3D.h"
+
 namespace cfem
 {
     class FEField : public sym::TrialFunction, public FESpaceObserver 
@@ -41,7 +46,7 @@ namespace cfem
         PetscVector m_data;
         mutable std::vector<CfemReal> m_localValues;
 
-        mutable int m_boundIndex = -1;
+        mutable CfemInt m_boundIndex = -1;
 
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override {
             CFEM_ERROR << "Time derivative of a FEField is not yet implemented.";
@@ -90,11 +95,21 @@ namespace cfem
         void prepare() const override { updateLocalBuffer(); }
         void evaluate(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext& ctx ) const override;
         
-        // --- Data Management ---
+        // Data Management
         void updateOnSpaceChange() override { reallocate(); }
         void reallocate();
         void updateLocalBuffer() const;
         CfemReal getAtNode(CfemInt meshNodeId, CfemInt component = 0) const;
+
+        CfemReal        getScalarFieldAtNode         (CfemInt meshNodeId) const;
+        Vector2D        get2DVectorFieldAtNode       (CfemInt meshNodeId) const;
+        Tensor2D        get2DTensorFieldAtNode       (CfemInt meshNodeId) const;
+        SymTensor2D     get2DSymTensorFieldAtNode    (CfemInt meshNodeId) const;
+        Vector3D        get3DVectorFieldAtNode       (CfemInt meshNodeId) const;
+        Tensor3D        get3DTensorFieldAtNode       (CfemInt meshNodeId) const;
+        SymTensor3D     get3DSymTensorFieldAtNode    (CfemInt meshNodeId) const;
+        SkewSymTensor3D get3DSkewSymTensorFieldAtNode(CfemInt meshNodeId) const;
+
         CfemReal getAt(CfemInt globalDofIdx, CfemInt component) const;
         void evaluateWithoutShape(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext &ctx) const;
         void evaluateWithShape(CfemInt cellId, const ShapeInfo& shape, std::span<CfemReal> out) const;

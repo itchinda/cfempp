@@ -61,7 +61,7 @@ namespace cfem{
                                 const cfem::Vector3D &ending_point)
     {
         mesh.setOrder(MeshOrder::Linear);
-        mesh.setDimension(1);
+        mesh.setTopologicalDimension(1);
 
         for (CfemInt i = 0; i <= num_divisions; ++i)
         {
@@ -70,7 +70,7 @@ namespace cfem{
             mesh.addVertex(p.x, p.y, p.z);
         }
 
-        for (int i = 0; i < num_divisions; ++i)
+        for (CfemInt i = 0; i < num_divisions; ++i)
         {
             mesh.addCell(CellType::LINE2, {(CfemInt)i, (CfemInt)i + 1});
         }

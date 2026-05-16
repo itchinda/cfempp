@@ -47,8 +47,8 @@ template <typename T>
 class DynamicMatrix {
 private:
     std::vector<T> m_data;
-    int m_rows = 0;
-    int m_cols = 0;
+    CfemInt m_rows = 0;
+    CfemInt m_cols = 0;
 
 public:
     // --- Constructors ---
@@ -64,13 +64,13 @@ public:
      * @param c Number of columns.
      * @param init Initial value for all elements.
      */
-    DynamicMatrix(int r, int c, T init = static_cast<T>(0)) 
+    DynamicMatrix(CfemInt r, CfemInt c, T init = static_cast<T>(0)) 
         : m_rows(r), m_cols(c), m_data(static_cast<size_t>(r * c), init) {}
 
     /** 
      * @brief Initializer list constructor (row-major). 
      */
-    DynamicMatrix(int r, int c, std::initializer_list<T> list) 
+    DynamicMatrix(CfemInt r, CfemInt c, std::initializer_list<T> list) 
         : m_rows(r), m_cols(c), m_data(list) {
         CFEM_ASSERT(m_data.size() == static_cast<size_t>(r * c));
     }
@@ -78,7 +78,7 @@ public:
     /**
      * @brief Conversion constructor from FixedMatrix.
      */
-    template <int R, int C>
+    template <CfemInt R, CfemInt C>
     DynamicMatrix(const FixedMatrix<T, R, C>& fixed) 
         : m_rows(R), m_cols(C), m_data(std::begin(fixed.data), std::end(fixed.data)) {}
 
@@ -104,8 +104,8 @@ public:
     DynamicMatrix(const DynamicMatrix& other) = default;
     DynamicMatrix& operator=(const DynamicMatrix& other) = default;
 
-    inline int rows() const noexcept { return m_rows; }
-    inline int cols() const noexcept { return m_cols; }
+    inline CfemInt rows() const noexcept { return m_rows; }
+    inline CfemInt cols() const noexcept { return m_cols; }
 
     void clear() {
         m_data.clear();
@@ -116,13 +116,13 @@ public:
     /** 
      * @brief Resizes the matrix. Note: data might be lost during resize.
      */
-    void resize(int r, int c) {
+    void resize(CfemInt r, CfemInt c) {
         m_rows = r;
         m_cols = c;
         m_data.resize(static_cast<size_t>(r * c));
     }
 
-    void reserve(int r, int c) { 
+    void reserve(CfemInt r, CfemInt c) { 
         m_data.reserve(static_cast<size_t>(r * c)); 
     }
 
@@ -132,7 +132,7 @@ public:
      * @param cols Nombre de colonnes
      * @param value Valeur d'initialisation (par défaut 0)
      */
-    void assign(int rows, int cols, const T& value = T()) {
+    void assign(CfemInt rows, CfemInt cols, const T& value = T()) {
         m_rows = rows;
         m_cols = cols;
         m_data.assign(rows * cols, value);
@@ -150,7 +150,7 @@ public:
     void setIdentity() {
         CFEM_ASSERT(m_rows == m_cols);
         setZero();
-        for (int i = 0; i < m_rows; ++i) (*this)(i, i) = static_cast<T>(1);
+        for (CfemInt i = 0; i < m_rows; ++i) (*this)(i, i) = static_cast<T>(1);
     }
 
     T* data() noexcept { return m_data.data(); }
@@ -172,7 +172,7 @@ public:
     /**
      * @brief Element access (read-write). 
      */
-    inline T& operator()(int r, int c) {
+    inline T& operator()(CfemInt r, CfemInt c) {
         CFEM_ASSERT(r >= 0 && r < m_rows && c >= 0 && c < m_cols);
         return m_data[static_cast<size_t>(r * m_cols + c)];
     }
@@ -180,7 +180,7 @@ public:
     /** 
      * @brief Element access (read-only). 
      */
-    inline const T& operator()(int r, int c) const {
+    inline const T& operator()(CfemInt r, CfemInt c) const {
         CFEM_ASSERT(r >= 0 && r < m_rows && c >= 0 && c < m_cols);
         return m_data[static_cast<size_t>(r * m_cols + c)];
     }
@@ -250,8 +250,8 @@ public:
      */
     DynamicMatrix transpose() const {
         DynamicMatrix res(m_cols, m_rows);
-        for (int i = 0; i < m_rows; ++i)
-            for (int j = 0; j < m_cols; ++j)
+        for (CfemInt i = 0; i < m_rows; ++i)
+            for (CfemInt j = 0; j < m_cols; ++j)
                 res(j, i) = (*this)(i, j);
         return res;
     }
@@ -266,9 +266,9 @@ template <typename T>
 inline DynamicVector<T> operator*(const DynamicMatrix<T>& A, const DynamicVector<T>& x) {
     CFEM_ASSERT(A.cols() == x.size());
     DynamicVector<T> res(A.rows());
-    for (int i = 0; i < A.rows(); ++i) {
+    for (CfemInt i = 0; i < A.rows(); ++i) {
         T sum = 0;
-        for (int j = 0; j < A.cols(); ++j) {
+        for (CfemInt j = 0; j < A.cols(); ++j) {
             sum += A(i, j) * x[j];
         }
         res[i] = sum;
@@ -289,10 +289,10 @@ inline DynamicMatrix<T> operator*(const DynamicMatrix<T>& A, const DynamicMatrix
     CFEM_ASSERT(A.cols() == B.rows());
     DynamicMatrix<T> res(A.rows(), B.cols());
     res.setZero();
-    for (int i = 0; i < A.rows(); ++i) {
-        for (int k = 0; k < A.cols(); ++k) {
+    for (CfemInt i = 0; i < A.rows(); ++i) {
+        for (CfemInt k = 0; k < A.cols(); ++k) {
             T val = A(i, k);
-            for (int j = 0; j < B.cols(); ++j) {
+            for (CfemInt j = 0; j < B.cols(); ++j) {
                 res(i, j) += val * B(k, j);
             }
         }
@@ -314,9 +314,9 @@ inline DynamicMatrix<T> operator*(T scalar, const DynamicMatrix<T>& m) {
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const DynamicMatrix<T>& m) {
     os << "[size=" << m.rows() << "x" << m.cols() << "]\n";
-    for (int i = 0; i < m.rows(); ++i) {
+    for (CfemInt i = 0; i < m.rows(); ++i) {
         os << "| ";
-        for (int j = 0; j < m.cols(); ++j) {
+        for (CfemInt j = 0; j < m.cols(); ++j) {
             os << m(i, j) << (j == m.cols() - 1 ? "" : ", ");
         }
         os << " |\n";

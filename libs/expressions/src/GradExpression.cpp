@@ -53,11 +53,11 @@ namespace cfem::sym
         //     const bool isTrial = (type == ExpressionType::Trial);
         //     const auto* shape = isTrial ? ctx.trialShape : ctx.testShape;
         //     const auto* map   = isTrial ? ctx.trialMapping : ctx.testMapping;
-        //     const int dof     = isTrial ? ctx.trialDof : ctx.testDof;
+        //     const CfemInt dof     = isTrial ? ctx.trialDof : ctx.testDof;
 
-        //     const int numNodes = shape->values.size();
-        //     const int comp = dof / numNodes;
-        //     const int node = dof % numNodes;
+        //     const CfemInt numNodes = shape->values.size();
+        //     const CfemInt comp = dof / numNodes;
+        //     const CfemInt node = dof % numNodes;
 
         //     const auto& g = map->physicalShapeGradients[node];
 

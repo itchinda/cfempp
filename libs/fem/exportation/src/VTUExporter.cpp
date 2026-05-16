@@ -54,9 +54,9 @@ namespace cfem
         out << "</DataArray>\n</Points>\n";
 
         out << "<Cells>\n<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n";
-        for (int c : geo.connectivity) out << c << " ";
+        for (CfemInt c : geo.connectivity) out << c << " ";
         out << "\n</DataArray>\n<DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n";
-        for (int o : geo.offsets) out << o << "\n";
+        for (CfemInt o : geo.offsets) out << o << "\n";
         out << "</DataArray>\n<DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n";
         for (auto t : geo.types) out << static_cast<int>(t) << "\n";
         out << "</DataArray>\n</Cells>\n";
@@ -64,10 +64,10 @@ namespace cfem
         if (!fields.empty() || !data.nodeMasks.empty()) {
             out << "<PointData>\n";
             for (size_t i = 0; i < fields.size(); ++i) {
-                int dim = fields[i].expr->getDimension();
+                CfemInt dim = fields[i].expr->getNumComponents();
                 out << "<DataArray type=\"Float64\" Name=\"" << fields[i].name << "\" NumberOfComponents=\"" << dim << "\" format=\"ascii\">\n";
                 for (size_t v = 0; v < geo.numActiveVerts; ++v) {
-                    for (int d = 0; d < dim; ++d) out << data.fields[i][v * dim + d] << " ";
+                    for (CfemInt d = 0; d < dim; ++d) out << data.fields[i][v * dim + d] << " ";
                     out << "\n";
                 }
                 out << "</DataArray>\n";
@@ -145,7 +145,7 @@ namespace cfem
             out << "<PointData>\n";
             for (size_t i = 0; i < fields.size(); ++i) {
                 out << "<DataArray type=\"Float64\" Name=\"" << fields[i].name 
-                    << "\" NumberOfComponents=\"" << fields[i].expr->getDimension() 
+                    << "\" NumberOfComponents=\"" << fields[i].expr->getNumComponents() 
                     << "\" format=\"appended\" offset=\"" << fieldOffs[i] << "\"/>\n";
             }
             for (size_t i = 0; i < data.nodeMasks.size(); ++i) {
@@ -194,9 +194,9 @@ namespace cfem
         out << "</DataArray>\n</Points>\n";
 
         out << "<Cells>\n<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n";
-        for (int c : geo.connectivity) out << c << " ";
+        for (CfemInt c : geo.connectivity) out << c << " ";
         out << "\n</DataArray>\n<DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n";
-        for (int o : geo.offsets) out << o << "\n";
+        for (CfemInt o : geo.offsets) out << o << "\n";
         out << "</DataArray>\n<DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n";
         for (auto t : geo.types) out << static_cast<int>(t) << "\n";
         out << "</DataArray>\n</Cells>\n";
@@ -205,10 +205,10 @@ namespace cfem
         if (!fields.empty() || !data.nodeMasks.empty()) {
             out << "<PointData>\n";
             for (size_t i = 0; i < fields.size(); ++i) {
-                int dim = fields[i].expr->getDimension();
+                CfemInt dim = fields[i].expr->getNumComponents();
                 out << "<DataArray type=\"Float64\" Name=\"" << fields[i].name << "\" NumberOfComponents=\"" << dim << "\" format=\"ascii\">\n";
                 for (size_t v = 0; v < geo.numActiveVerts; ++v) {
-                    for (int d = 0; d < dim; ++d) out << data.fields[i][v * dim + d] << " ";
+                    for (CfemInt d = 0; d < dim; ++d) out << data.fields[i][v * dim + d] << " ";
                     out << "\n";
                 }
                 out << "</DataArray>\n";
@@ -290,7 +290,7 @@ namespace cfem
             out << "<PointData>\n";
             for (size_t i = 0; i < fields.size(); ++i){
                 out << "<DataArray type=\"Float64\" Name=\"" << fields[i].name 
-                    << "\" NumberOfComponents=\"" << fields[i].expr->getDimension() 
+                    << "\" NumberOfComponents=\"" << fields[i].expr->getNumComponents() 
                     << "\" format=\"appended\" offset=\"" << fieldOffs[i] 
                     << "\"/>\n";
             }

@@ -50,7 +50,7 @@ protected:
     }
 
     // Petite fonction helper pour accéder proprement aux composantes de Vector3D
-    CfemReal getComp(const Vector3D& v, int dim) {
+    CfemReal getComp(const Vector3D& v, CfemInt dim) {
         if (dim == 0) return v.x;
         if (dim == 1) return v.y;
         return v.z;
@@ -95,7 +95,7 @@ protected:
 TEST_P(ReferenceElementTest, KroneckerDeltaProperty) {
     ReferenceElement* el = GetParam();
     const auto& nodes = el->referenceNodes();
-    int n = el->getNumNodes();
+    CfemInt n = el->getNumNodes();
 
     for (CfemInt j = 0; j < n; ++j) {
         el->evaluate(nodes[j], ShapeEvaluationFlags::Value, info);
@@ -109,7 +109,7 @@ TEST_P(ReferenceElementTest, KroneckerDeltaProperty) {
 
 TEST_P(ReferenceElementTest, PartitionOfUnity) {
     ReferenceElement* el = GetParam();
-    int dim = el->dimension();
+    CfemInt dim = el->dimension();
     
     DynamicVector<Vector3D> test_points = getTestPointsForDim(dim);
 
@@ -156,8 +156,8 @@ TEST_P(ReferenceElementTest, HessianFullConsistency) {
     const CfemReal h_tol = 1e-7;
 
     ReferenceElement* el = GetParam();
-    const int n = el->getNumNodes();
-    const int dim = el->dimension();
+    const CfemInt n = el->getNumNodes();
+    const CfemInt dim = el->dimension();
     
     // Réutilisation de tes test_points robustes
     DynamicVector<Vector3D> test_points = getTestPointsForDim(dim); 
@@ -211,7 +211,7 @@ TEST_F(MappingTest, QuadPlanarMapping) {
     // ou traiter le cas 2D séparément.
     
     // Si on simule une épaisseur ou un élément 3D "aplati" :
-    for(int i=0; i<4; ++i) coords[i].z = 0.0; 
+    for(CfemInt i=0; i<4; ++i) coords[i].z = 0.0; 
     
     // Ici on teste surtout la cohérence des gradients dN/dx et dN/dy
     
@@ -219,7 +219,7 @@ TEST_F(MappingTest, QuadPlanarMapping) {
     quad.computeMapping(xi, coords, lRequestedFields, shape, map);
     
     // dN/dz doit être nul car l'élément est dans le plan XY
-    for(int i=0; i<4; ++i) {
+    for(CfemInt i=0; i<4; ++i) {
         EXPECT_NEAR(map.dNdz(i), 0.0, tol);
     }
 }
@@ -278,7 +278,7 @@ TEST_F(MappingTest, P2TriangleCurvedHessians) {
     EXPECT_GT(map.detJ, 0.0) << "Jacobian determinant should be positive";
 
     bool hasNonZeroHessian = false;
-    for (int i=0; i<6; ++i) {
+    for (CfemInt i=0; i<6; ++i) {
         const auto& H = map.physicalShapeHessians[i];
 
         if (std::abs(H.xx()) > 1e-5 || std::abs(H.yy()) > 1e-5 || std::abs(H.zz()) > 1e-5 ||
@@ -290,7 +290,7 @@ TEST_F(MappingTest, P2TriangleCurvedHessians) {
     EXPECT_TRUE(hasNonZeroHessian) << "Curvature should generate non-zero physical Hessians";
 
     // Check that the gradient components are reasonable (not NaN)
-    for (int i=0; i<6; ++i) {
+    for (CfemInt i=0; i<6; ++i) {
         EXPECT_FALSE(std::isnan(map.physicalShapeGradients[i].x));
         EXPECT_FALSE(std::isnan(map.physicalShapeGradients[i].y));
         EXPECT_FALSE(std::isnan(map.physicalShapeGradients[i].z));
@@ -343,7 +343,7 @@ TEST_F(MappingTest, PhysicalGradientSumIsZero) {
     quad.computeMapping(xi, coords, req, shape, map);
 
     Vector3D sumGrad{0.0, 0.0, 0.0};
-    for (int i=0; i<4; ++i) sumGrad += map.physicalShapeGradients[i];
+    for (CfemInt i=0; i<4; ++i) sumGrad += map.physicalShapeGradients[i];
 
     EXPECT_NEAR(sumGrad.x, 0.0, tol);
     EXPECT_NEAR(sumGrad.y, 0.0, tol);
@@ -361,14 +361,14 @@ TEST_F(MappingTest, JacobianInverseCheck) {
     ShapeEvaluationFlags req = ShapeEvaluationFlags::Jacobian;
     hex.computeMapping(xi, coords, req, shape, map);
 
-    TensorO2 identity;
+    Tensor3D identity;
     identity.setZero();
-    for (int i=0; i<3; ++i) identity(i,i) = 1.0;
+    for (CfemInt i=0; i<3; ++i) identity(i,i) = 1.0;
 
-    TensorO2 check = map.jacobian * map.invJacobian;
+    Tensor3D check = map.jacobian * map.invJacobian;
 
-    for (int i=0; i<3; ++i)
-        for (int j=0; j<3; ++j)
+    for (CfemInt i=0; i<3; ++i)
+        for (CfemInt j=0; j<3; ++j)
             EXPECT_NEAR(check(i,j), identity(i,j), tol);
 }
 
@@ -395,7 +395,7 @@ TEST_F(MappingTest, JacobianInverseCheck) {
 //     EXPECT_GT(map.detJ, 0.0);
 
 //     bool hasNonZeroHessian = false;
-//     for (int i=0; i<10; ++i) {
+//     for (CfemInt i=0; i<10; ++i) {
 //         const auto& H = map.physicalShapeHessians[i];
 //         if (std::abs(H.xx())>1e-5 || std::abs(H.yy())>1e-5 || std::abs(H.zz())>1e-5 ||
 //             std::abs(H.xy())>1e-5 || std::abs(H.xz())>1e-5 || std::abs(H.yz())>1e-5) {
@@ -413,13 +413,13 @@ TEST_F(MappingTest, JacobianInverseCheck) {
  */
 TEST_F(MappingTest, P2TetraCurvedHessians) {
     P2ReferenceTetrahedron tet; // Assuming you have this implemented (10 nodes)
-    const int n = tet.getNumNodes();
+    const CfemInt n = tet.getNumNodes();
     DynamicVector<Vector3D> coords(n);
 
     // 1. Define a curved physical geometry
     // We start with a standard P2 tet and "push" the mid-side nodes to create curvature
     const auto& refNodes = tet.referenceNodes();
-    for(int i = 0; i < n; ++i) {
+    for(CfemInt i = 0; i < n; ++i) {
         coords[i] = refNodes[i];
         
         // Apply a quadratic distortion: x_phys = xi + a * xi^2
@@ -437,25 +437,25 @@ TEST_F(MappingTest, P2TetraCurvedHessians) {
     ASSERT_NO_THROW(tet.computeMapping(xi, coords, req, shape, map));
 
     //  VALIDATION: The Partition of Unity for Hessians: The sum of physical Hessians must be exactly zero.
-    SymTensorO2 hessianSum;
+    SymTensor3D hessianSum;
     hessianSum.setZero();
-    for (int i = 0; i < n; ++i) {
+    for (CfemInt i = 0; i < n; ++i) {
         hessianSum += map.physicalShapeHessians[i];
     }
 
-    for (int i = 0; i < 6; ++i) {
+    for (CfemInt i = 0; i < 6; ++i) {
         EXPECT_NEAR(hessianSum[i], 0.0, 1e-12) 
             << "Physical Hessian sum (Partition of Unity) failed at component " << i;
     }
 
     // Linear Field Reproduction: If we interpolate the field u = x_phys + y_phys + z_phys, the second derivative (Hessian) should be zero.
-    SymTensorO2 fieldHessian;
+    SymTensor3D fieldHessian;
     fieldHessian.setZero();
-    for (int i = 0; i < n; ++i) {
+    for (CfemInt i = 0; i < n; ++i) {
         fieldHessian += map.physicalShapeHessians[i] * (coords[i].x + coords[i].y + coords[i].z);
     }
 
-    for (int i = 0; i < 6; ++i) {
+    for (CfemInt i = 0; i < 6; ++i) {
         EXPECT_NEAR(fieldHessian[i], 0.0, 1e-11) 
             << "Curvature cancellation failed! Component " << i 
             << " did not account for geometric Hessian correctly.";
@@ -464,7 +464,7 @@ TEST_F(MappingTest, P2TetraCurvedHessians) {
 
 TEST_F(MappingTest, P2TetraQuadraticFieldReproduction) {
     P2ReferenceTetrahedron tet;
-    const int n = tet.getNumNodes();
+    const CfemInt n = tet.getNumNodes();
     DynamicVector<Vector3D> coords(n);
 
     const auto& refNodes = tet.referenceNodes();
@@ -472,7 +472,7 @@ TEST_F(MappingTest, P2TetraQuadraticFieldReproduction) {
     // Create a distorted element using a linear (affine) transformation.
     // This ensures a constant Jacobian, allowing the P2 element to 
     // perfectly reproduce quadratic fields without mapping-induced rational errors.
-    for (int i = 0; i < n; ++i) {
+    for (CfemInt i = 0; i < n; ++i) {
         coords[i].x = 1.1 * refNodes[i].x + 0.2 * refNodes[i].y;
         coords[i].y = 0.9 * refNodes[i].y - 0.1 * refNodes[i].z;
         coords[i].z = 1.05 * refNodes[i].z + 0.05 * refNodes[i].x;
@@ -489,9 +489,9 @@ TEST_F(MappingTest, P2TetraQuadraticFieldReproduction) {
     };
 
     // Accumulate the physical Hessian of the interpolated field
-    SymTensorO2 interpInHessian;
+    SymTensor3D interpInHessian;
     interpInHessian.setZero();
-    for (int i = 0; i < n; ++i) {
+    for (CfemInt i = 0; i < n; ++i) {
         interpInHessian += map.physicalShapeHessians[i] * fieldFunc(coords[i]);
     }
 
@@ -528,12 +528,12 @@ TEST_F(MappingTest, DegenerateTetrahedron) {
 
 TEST_F(MappingTest, P2TetraInterpolationSuite) {
     P2ReferenceTetrahedron tet;
-    const int n = tet.getNumNodes();
+    const CfemInt n = tet.getNumNodes();
     
     // 1. Setup Physical Coordinates (Distorted but Affine for exactness)
     DynamicVector<Vector3D> coords(n);
     const auto& refNodes = tet.referenceNodes();
-    for(int i = 0; i < n; ++i) {
+    for(CfemInt i = 0; i < n; ++i) {
         coords[i].x = 1.2 * refNodes[i].x + 0.1 * refNodes[i].y;
         coords[i].y = 0.9 * refNodes[i].y;
         coords[i].z = 1.1 * refNodes[i].z + 0.05 * refNodes[i].x;
@@ -542,7 +542,7 @@ TEST_F(MappingTest, P2TetraInterpolationSuite) {
     // 2. Define Nodal Values for Scalar Field (u = x + y) and Vector Field (v = [x, y, z])
     DynamicVector<CfemReal> scalarNodalValues(n);
     DynamicVector<Vector3D> vectorNodalValues(n);
-    for(int i = 0; i < n; ++i) {
+    for(CfemInt i = 0; i < n; ++i) {
         scalarNodalValues[i] = coords[i].x + coords[i].y;
         vectorNodalValues[i] = coords[i]; // Identity field: v(x) = x
     }

@@ -64,7 +64,7 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # Flags spécifiques
 # set(CMAKE_CXX_FLAGS_ASAN "-O1 -g -fsanitize=address -fno-omit-frame-pointer" CACHE STRING "For intense debug/segmentation fault/ illegal memory acces")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fopenmp-simd -march=native -ffp-contract=fast -fno-math-errno -DNDEBUG -DTEUCHOS_DEBUG_OFF" CACHE STRING "Flags for pure performance (HPC)" FORCE)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto -fopenmp-simd -march=native -ffp-contract=fast -fno-math-errno -DNDEBUG -DTEUCHOS_DEBUG_OFF" CACHE STRING "Flags for pure performance (HPC)" FORCE)
 
 if(TARGET_PETSC_ARCH STREQUAL "${OS_PREFIX}-c-debug")
     set(APP_PROJECT_NAME cfem_app_dev)

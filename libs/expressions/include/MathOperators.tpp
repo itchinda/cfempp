@@ -113,7 +113,7 @@ namespace cfem::sym {
     }
 
     template <typename Func>
-    requires std::is_invocable_r_v<TensorO2, Func, const Vector3D&>
+    requires std::is_invocable_r_v<Tensor3D, Func, const Vector3D&>
     inline std::shared_ptr<const CfemExpression> tensor(
                                                     Func&& f,
                                                     std::shared_ptr<const CfemExpression> gradient)
@@ -122,7 +122,7 @@ namespace cfem::sym {
     }
 
     template <typename Func>
-    requires std::is_invocable_r_v<TensorO2, Func, const Vector3D&, CfemReal>
+    requires std::is_invocable_r_v<Tensor3D, Func, const Vector3D&, CfemReal>
     inline std::shared_ptr<const CfemExpression> tensor(
                                                     Func&& f,
                                                     std::shared_ptr<const CfemExpression> gradient,

@@ -27,7 +27,7 @@ namespace cfem {
 std::vector<CfemInt> MeshConformityChecker::getCanonicalFaceKey(const LocalFace& local_face) {
     std::vector<CfemInt> key;
     key.reserve(local_face.size);
-    for (int i = 0; i < local_face.size; ++i) {
+    for (CfemInt i = 0; i < local_face.size; ++i) {
         key.push_back(local_face.v[i]);
     }
     // Sorting allows us to match faces regardless of node ordering/orientation
@@ -94,8 +94,8 @@ ConformityReport MeshConformityChecker::check(const Mesh& mesh, bool check_geome
         }
 
         // Tally local faces for Manifold check
-        int local_faces_count = Cell::getFaceCount(cell.type);
-        for (int f_idx = 0; f_idx < local_faces_count; ++f_idx) {
+        CfemInt local_faces_count = Cell::getFaceCount(cell.type);
+        for (CfemInt f_idx = 0; f_idx < local_faces_count; ++f_idx) {
             LocalFace lf = mesh.getLocalFaceData(c_id, f_idx);
             face_usage_count[getCanonicalFaceKey(lf)]++;
         }

@@ -38,7 +38,7 @@
  * @param global_rows Total number of rows across all processors.
  *************************************************************************************** */
 
- PetscMatrix::PetscMatrix(int local_rows, int global_rows) {
+ PetscMatrix::PetscMatrix(CfemInt local_rows, CfemInt global_rows) {
     cfem::Environment::ensureInitialized();
     CFEM_PRECONDITION(global_rows>=0);
     PETSC_CHECK(MatCreate(PETSC_COMM_WORLD, &m_Matrix));
@@ -123,7 +123,7 @@ void PetscMatrix::preallocate(PetscInt d_nz, PetscInt o_nz) {
  * @param value The scalar value to insert.
  * @param mode Either INSERT_VALUES or ADD_VALUES.
  *************************************************************************************** */
-void PetscMatrix::setValue(int row, int col, PetscScalar value, InsertMode mode) {
+void PetscMatrix::setValue(CfemInt row, CfemInt col, PetscScalar value, InsertMode mode) {
     PETSC_CHECK(MatSetValue(m_Matrix, row, col, value, mode));
 }
 

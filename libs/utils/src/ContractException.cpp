@@ -26,7 +26,7 @@ namespace cfem
 // ============================================================================
 
 ContractException::ContractException(const char* file,
-                                     int line,
+                                     CfemInt line,
                                      const char* expr,
                                      const char* kind,
                                      const char* msg)
@@ -56,7 +56,7 @@ const char* ContractException::what() const noexcept {
 // ============================================================================
 
 AssertionException::AssertionException(const char*  file,
-                                       int line,
+                                       CfemInt line,
                                        const char*  expr,
                                        const char* msg)
     : ContractException(file, line, expr,"Assertion", msg)
@@ -64,7 +64,7 @@ AssertionException::AssertionException(const char*  file,
 
 
 PreconditionException::PreconditionException(const char* file,
-                                             int line,
+                                             CfemInt line,
                                              const char* expr,
                                              const char* msg)
     : ContractException(file, line, expr, "Precondition", msg)
@@ -72,7 +72,7 @@ PreconditionException::PreconditionException(const char* file,
 
 
 PostconditionException::PostconditionException(const char* file,
-                                               int line,
+                                               CfemInt line,
                                                const char* expr,
                                                const char* msg)
     : ContractException(file, line, expr,"Postcondition", msg)
@@ -80,7 +80,7 @@ PostconditionException::PostconditionException(const char* file,
 
 
 InvariantException::InvariantException(const char*  file,
-                                       int line,
+                                       CfemInt line,
                                        const char*  expr,
                                        const char* msg)
     : ContractException(file, line, expr, "Invariant", msg)

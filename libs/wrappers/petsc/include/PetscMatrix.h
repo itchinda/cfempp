@@ -33,6 +33,8 @@
 #include <petscmat.h>
 #include <utility>
 
+#include "cfemutils.h"
+
 static constexpr PetscInt DEFAULT_D_NZ = 10;
 static constexpr PetscInt DEFAULT_O_NZ = 10;
 
@@ -63,7 +65,7 @@ static constexpr PetscInt DEFAULT_O_NZ = 10;
 
 class PetscMatrix {
 public:
-    explicit PetscMatrix(int local_rows, int global_rows);
+    explicit PetscMatrix(CfemInt local_rows, CfemInt global_rows);
     ~PetscMatrix();
 
     PetscMatrix(const PetscMatrix&) = delete;
@@ -74,7 +76,7 @@ public:
 
     Mat&       getRaw();
     const Mat& getRaw() const;
-    void setValue(int row, int col, PetscScalar value, InsertMode mode = INSERT_VALUES);
+    void setValue(CfemInt row, CfemInt col, PetscScalar value, InsertMode mode = INSERT_VALUES);
     void assemble();
 
     /// Preallocate AIJ storage

@@ -46,7 +46,7 @@ namespace cfem{
  *       (local residuals, shape function values, etc.) where stack allocation
  *       and compile-time size checking are critical for performance.
  */
-template <typename T, int N>
+template <typename T, CfemInt N>
 struct FixedVector {
     
     /*! 
@@ -66,7 +66,7 @@ struct FixedVector {
      */
     FixedVector(std::initializer_list<T> list) {        
         CFEM_ASSERT(list.size() == N);
-        int i = 0;
+        CfemInt i = 0;
         for (auto it = list.begin(); it != list.end() && i < N; ++it, ++i) {
             data[i] = *it;
         }
@@ -101,7 +101,7 @@ struct FixedVector {
      * @param i Index of the element (0-indexed).
      * @return Reference to the i-th element.
      */
-    inline T& operator[](int i) {
+    inline T& operator[](CfemInt i) {
         CFEM_ASSERT(i >= 0 && i < N);
         return data[i];
     }
@@ -111,7 +111,7 @@ struct FixedVector {
      * @param i Index of the element (0-indexed).
      * @return Constant reference to the i-th element.
      */
-    inline const T& operator[](int i) const {
+    inline const T& operator[](CfemInt i) const {
         CFEM_ASSERT(i >= 0 && i < N);
         return data[i];
     }
@@ -120,13 +120,13 @@ struct FixedVector {
      * @brief Returns the fixed size of the vector. 
      * @return Dimension N.
      */
-    static constexpr int size() noexcept { return N; }
+    static constexpr CfemInt size() noexcept { return N; }
 
     /*! 
      * @brief Resets all components to zero.
      */
     void setZero() {
-        for (int i = 0; i < N; ++i) data[i] = static_cast<T>(0);
+        for (CfemInt i = 0; i < N; ++i) data[i] = static_cast<T>(0);
     }
 
     // --- Arithmetic Operators ---
@@ -136,7 +136,7 @@ struct FixedVector {
      */
     FixedVector operator+(const FixedVector& other) const {
         FixedVector result;
-        for (int i = 0; i < N; ++i) result.data[i] = data[i] + other.data[i];
+        for (CfemInt i = 0; i < N; ++i) result.data[i] = data[i] + other.data[i];
         return result;
     }
 
@@ -145,7 +145,7 @@ struct FixedVector {
      */
     FixedVector operator-(const FixedVector& other) const {
         FixedVector result;
-        for (int i = 0; i < N; ++i) result.data[i] = data[i] - other.data[i];
+        for (CfemInt i = 0; i < N; ++i) result.data[i] = data[i] - other.data[i];
         return result;
     }
 
@@ -154,7 +154,7 @@ struct FixedVector {
      */
     FixedVector operator*(T scalar) const {
         FixedVector result;
-        for (int i = 0; i < N; ++i) result.data[i] = data[i] * scalar;
+        for (CfemInt i = 0; i < N; ++i) result.data[i] = data[i] * scalar;
         return result;
     }
 
@@ -165,7 +165,7 @@ struct FixedVector {
     FixedVector operator/(T scalar) const {
         CFEM_ASSERT(std::abs(scalar) > cfem::ZERO_TOLERANCE);
         FixedVector result;
-        for (int i = 0; i < N; ++i) result.data[i] = data[i] / scalar;
+        for (CfemInt i = 0; i < N; ++i) result.data[i] = data[i] / scalar;
         return result;
     }
 
@@ -173,7 +173,7 @@ struct FixedVector {
      * @brief In-place addition. 
      */
     FixedVector& operator+=(const FixedVector& other) {
-        for (int i = 0; i < N; ++i) data[i] += other.data[i];
+        for (CfemInt i = 0; i < N; ++i) data[i] += other.data[i];
         return *this;
     }
 
@@ -181,7 +181,7 @@ struct FixedVector {
      * @brief In-place subtraction. 
      */
     FixedVector& operator-=(const FixedVector& other) {
-        for (int i = 0; i < N; ++i) data[i] -= other.data[i];
+        for (CfemInt i = 0; i < N; ++i) data[i] -= other.data[i];
         return *this;
     }
 
@@ -189,7 +189,7 @@ struct FixedVector {
      * @brief In-place scalar multiplication. 
      */
     FixedVector& operator*=(T scalar) {
-        for (int i = 0; i < N; ++i) data[i] *= scalar;
+        for (CfemInt i = 0; i < N; ++i) data[i] *= scalar;
         return *this;
     }
 
@@ -198,7 +198,7 @@ struct FixedVector {
      */
     FixedVector& operator/=(T scalar) {
         CFEM_ASSERT(std::abs(scalar) > cfem::ZERO_TOLERANCE);
-        for (int i = 0; i < N; ++i) data[i] /= scalar;
+        for (CfemInt i = 0; i < N; ++i) data[i] /= scalar;
         return *this;
     }
 
@@ -211,7 +211,7 @@ struct FixedVector {
      */
     T dot(const FixedVector<T, N>& other) const {
         T result = 0;
-        for (int i = 0; i < N; ++i) result += data[i] * other.data[i];
+        for (CfemInt i = 0; i < N; ++i) result += data[i] * other.data[i];
         return result;
     }
 
@@ -235,7 +235,7 @@ struct FixedVector {
  * @brief Left-side scalar multiplication. 
  * @relates FixedVector
  */
-template <typename T, int N>
+template <typename T, CfemInt N>
 inline FixedVector<T, N> operator*(T scalar, const FixedVector<T, N>& v) {
     return v * scalar;
 }
@@ -244,10 +244,10 @@ inline FixedVector<T, N> operator*(T scalar, const FixedVector<T, N>& v) {
  * @brief Formats the vector for standard output. 
  * @relates FixedVector
  */
-template <typename T, int N>
+template <typename T, CfemInt N>
 inline std::ostream& operator<<(std::ostream& os, const FixedVector<T, N>& v) {
     os << "(";
-    for (int i = 0; i < N; ++i) {
+    for (CfemInt i = 0; i < N; ++i) {
         os << v[i] << (i == N - 1 ? "" : ", ");
     }
     os << ")";

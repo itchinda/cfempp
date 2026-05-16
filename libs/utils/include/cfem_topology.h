@@ -33,8 +33,7 @@ enum class MeshOrder{ None, Linear = 1, Quadratic = 2};
 struct Vertex
 {
     cfem::Vector3D coords;
-    //std::vector<CfemInt> connected_cells;
-    int tag_list_id = -1;
+    CfemInt tag_list_id = -1;
 
     const CfemInt* connected_cells_ptr = nullptr;
     CfemInt num_connected_cells = 0;
@@ -73,7 +72,7 @@ struct Vertex
     struct Cell {
         CfemInt id{-1};
         CellType type;
-        int tag_list_id{-1};
+        CfemInt tag_list_id{-1};
 
         size_t offset{0};
         size_t node_count{0};
@@ -199,7 +198,7 @@ struct Vertex
             return cellFacetMapping[idx];
         }
 
-        inline static CellType getFacetType(CellType type, int localFacetId) {
+        inline static CellType getFacetType(CellType type, CfemInt localFacetId) {
             auto facetTypes = getFacetTypes(type);
             
             if (facetTypes.empty()) return CellType::NODE; 

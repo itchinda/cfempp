@@ -34,17 +34,14 @@ namespace cfem
     {
         const bool wantHessians = hasFlag(requestedFields, ShapeEvaluationFlags::Hessian);
         
-        // 1. On prépare uniquement l'objet shape (qui est non-const ici)
+        // On prépare uniquement l'objet shape (qui est non-const ici)
         shape.setup(m_numNodes, wantHessians);
 
         if (shape.shapeMustBeUpdated) {
-            // Reference gradients are strictly required to build the Jacobian
-            // ShapeEvaluationFlags internalFields = requestedFields | ShapeEvaluationFlags::Gradient;
             evaluate(xi, requestedFields, shape);
         }
 
-        // 2. Délégation à la version const de la fonction !
-        // On cast 'shape' en référence const pour forcer le compilateur à utiliser la 2ème fonction
+        // Force the use of the optimized const_cast version
         computeMapping(xi, physicalNodesCoords, requestedFields, static_cast<const ShapeInfo&>(shape), out);
     }
 
@@ -96,7 +93,7 @@ namespace cfem
     {
         const CfemInt n = static_cast<CfemInt>(shape.gradients.size()); 
         CFEM_ASSERT(n>0, "Shape Gradient Info must be ready prior to calling computeJacobian" );
-        const CfemInt dim = m_dimension; // Idéalement, transformez dimension() en variable membre à l'avenir.
+        const CfemInt dim = m_dimension;
 
         // OPTIMISATION MAJEURE : Accumulation dans les registres CPU.
         // On initialise 9 doubles locaux. Le compilateur les placera dans les registres xmm/ymm.
@@ -127,7 +124,7 @@ namespace cfem
         }
         else if (dim == 2)
         {
-            // Vecteurs tangents
+            // tangent vectors
             CfemReal g11 = j00*j00 + j10*j10 + j20*j20;
             CfemReal g22 = j01*j01 + j11*j11 + j21*j21;
             CfemReal g12 = j00*j01 + j10*j11 + j20*j21;
@@ -325,14 +322,14 @@ namespace cfem
         return grad;
     }
 
-    inline SymTensorO2 ReferenceElement::interpolateHessian(const MappingInfo &map,
+    inline SymTensor3D ReferenceElement::interpolateHessian(const MappingInfo &map,
                                                             const DynamicVector<CfemReal> &nodalValues) const
     {
         const CfemInt n = m_numNodes;
         CFEM_ASSERT(map.physicalShapeHessians.size() >= n, "MappingInfo hessians not computed");
         CFEM_ASSERT(nodalValues.size() == n, "Nodal values size mismatch");
 
-        SymTensorO2 hess;
+        SymTensor3D hess;
         hess.setZero();
         for (CfemInt i = 0; i < n; ++i)
         {

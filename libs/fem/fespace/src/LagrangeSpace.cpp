@@ -29,10 +29,10 @@ namespace cfem {
      * @brief Constructor for the Continuous Lagrange Finite Element Space.
      * @param mesh Shared pointer to the underlying mesh.
      * @param order Polynomial order (P1 or P2).
-     * @param dimension Number of components per node (1 for scalars, 2 or 3 for vectors).
+     * @param field_type The field type (Scalar, Vector2d/3d Tensor2d/3d etc.).
      */
-    LagrangeSpace::LagrangeSpace(ConstructorToken, std::shared_ptr<Mesh> mesh, Order order, int dimension)
-        : FESpace(mesh, order, Continuity::CG, dimension) 
+    LagrangeSpace::LagrangeSpace(ConstructorToken, std::shared_ptr<Mesh> mesh, Order order, FieldType field_type)
+        : FESpace(mesh, order, Continuity::CG, field_type) 
     {
         if (m_order == Order::P0){
             CFEM_ERROR << "Invalid Order: LagrangeSpace is designed for C0-continuity and requires at least Order::P1. "
@@ -59,9 +59,6 @@ namespace cfem {
     std::shared_ptr<LagrangeSpace> LagrangeSpace::create(std::shared_ptr<Mesh> mesh, 
                                                  Order order, 
                                                  FieldType field_type) {
-        int dim = 1;
-        if (field_type == FieldType::Vector3D) dim = 3;
-        else if (field_type == FieldType::Vector2D) dim = 2;
 
         if (order == Order::P0) {
             CFEM_ERROR << "LagrangeSpace Error: P0 is a discontinuous space and is not supported by LagrangeSpace. "
@@ -74,8 +71,7 @@ namespace cfem {
         }
 
         // Instantiation & Initialization
-        auto space = std::make_shared<LagrangeSpace>(ConstructorToken{}, mesh, order, dim);
-        // space->initReferenceElements();
+        auto space = std::make_shared<LagrangeSpace>(ConstructorToken{}, mesh, order, field_type);
         
         // Connect mesh updates to this space
         mesh->addObserver(space);
@@ -91,7 +87,7 @@ namespace cfem {
  * @brief Determines the number of active nodes per cell based on the space order.
  * This filters higher-order nodes if the space is only P1.
  */
-int LagrangeSpace::getNodesPerCell(CellType type) const {
+CfemInt LagrangeSpace::getNodesPerCell(CellType type) const {
     if (m_order == Order::P1) {
         switch (type) {
             case CellType::LINE2:  case CellType::LINE3:   return 2;
@@ -136,12 +132,12 @@ void LagrangeSpace::enumerateDofs() {
     const CfemInt numMeshNodes = static_cast<CfemInt>(m_mesh->getNumVertices());
     const CfemInt numCells = static_cast<CfemInt>(m_mesh->getNumCells());
     
-    // 1. Initialisation des tables de correspondance
+    // Initialisation des tables de correspondance
     m_nodeToLocalIdx.assign(numMeshNodes, -1);
     
     CfemInt counter = 0;
 
-    // 2. PREMIER PASSAGE : Énumération des nœuds du maillage (Partagés)
+    // PREMIER PASSAGE : Énumération des nœuds du maillage (Partagés)
     // On ne boucle que sur les sommets qui appartiennent physiquement au maillage
     // Pour l'élément Mini, ce sont les 8 premiers nœuds (HEX8) ou 4 (TET4).
     for (CfemInt c = 0; c < numCells; ++c) {
@@ -150,7 +146,7 @@ void LagrangeSpace::enumerateDofs() {
         
         // On détermine combien de nœuds de la connectivité du maillage on doit utiliser
         // Pour Order::Mini sur HEX8, nodesInMesh = 8, même si getNodesPerCell() renvoie 9.
-        int nodesInMesh = 0;
+        CfemInt nodesInMesh = 0;
         if (m_order == Order::P1) nodesInMesh = getNodesPerCell(cell.type);
         else if (m_order == Order::Mini) {
             // Le Mini utilise les sommets linéaires du maillage + 1 bulle interne
@@ -164,7 +160,7 @@ void LagrangeSpace::enumerateDofs() {
         }
         else if (m_order == Order::P2) nodesInMesh = getNodesPerCell(cell.type);
 
-        for (int n = 0; n < nodesInMesh; ++n) {
+        for (CfemInt n = 0; n < nodesInMesh; ++n) {
             CfemInt vId = cell_ids[n];
             if (m_nodeToLocalIdx[vId] == -1) {
                 m_nodeToLocalIdx[vId] = counter++;
@@ -185,7 +181,7 @@ void LagrangeSpace::enumerateDofs() {
     }
 
     m_numActiveNodes = counter; // Sommets uniques + Bulles uniques
-    m_totalDofs = m_numActiveNodes * m_dimension;
+    m_totalDofs = m_numActiveNodes * m_numComponents;
 
     // 4. Construction de la table inverse (Local -> Mesh)
     // Note : Les bulles n'ont pas de correspondance directe avec un sommet du maillage
@@ -198,7 +194,7 @@ void LagrangeSpace::enumerateDofs() {
     }
 }
 
-CfemInt LagrangeSpace::getPositionId(CfemInt cellId, int localNodeIdx) const {
+CfemInt LagrangeSpace::getPositionId(CfemInt cellId, CfemInt localNodeIdx) const {
     const auto& cell = m_mesh->getCell(cellId);
     const auto& connectivity = m_mesh->getCellConnectivity(cellId);
 
@@ -215,14 +211,14 @@ CfemInt LagrangeSpace::getPositionId(CfemInt cellId, int localNodeIdx) const {
     return -1;
 }
 
-CfemInt LagrangeSpace::getGlobalDofIdx(CfemInt cellId, int localNodeIdx, int component) const {
+CfemInt LagrangeSpace::getGlobalDofIdx(CfemInt cellId, CfemInt localNodeIdx, CfemInt component) const {
     CfemInt posId = getPositionId(cellId, localNodeIdx);
     if (posId == -1) return -1;
     // BLOCK-WISE ORDERING: [Comp 0 Nodes][Comp 1 Nodes]...[Comp N Nodes]
     return posId + (component * m_numActiveNodes);
 }
 
-CfemInt LagrangeSpace::getGlobalDofFromMeshNode(CfemInt meshNodeId, int component) const {
+CfemInt LagrangeSpace::getGlobalDofFromMeshNode(CfemInt meshNodeId, CfemInt component) const {
     CfemInt posId = m_nodeToLocalIdx[meshNodeId];
     if (posId == -1) return -1;
     return posId + (component * m_numActiveNodes);
@@ -230,20 +226,20 @@ CfemInt LagrangeSpace::getGlobalDofFromMeshNode(CfemInt meshNodeId, int componen
 
 // --- ELEMENT INTERFACE ---
 
-int LagrangeSpace::getDofsPerCell(CfemInt cellId) const {
-    return getNodesPerCell(m_mesh->getCell(cellId).type) * m_dimension;
+CfemInt LagrangeSpace::getDofsPerCell(CfemInt cellId) const {
+    return getNodesPerCell(m_mesh->getCell(cellId).type) * m_numComponents;
 }
 
 void LagrangeSpace::getElementDofs(CfemInt cellId, std::vector<CfemInt>& globalIndices) const {
     const auto& cell = m_mesh->getCell(cellId);
-    int nodesInCell = getNodesPerCell(cell.type);
+    CfemInt nodesInCell = getNodesPerCell(cell.type);
     const auto& cell_ids = m_mesh->getCellConnectivity(cellId);
     
-    globalIndices.resize(nodesInCell * m_dimension);
+    globalIndices.resize(nodesInCell * m_numComponents);
 
-    for (int n = 0; n < nodesInCell; ++n) {
+    for (CfemInt n = 0; n < nodesInCell; ++n) {
         CfemInt nodeIdx = m_nodeToLocalIdx[cell_ids[n]];
-        for (int d = 0; d < m_dimension; ++d) {
+        for (CfemInt d = 0; d < m_numComponents; ++d) {
             // Fill with block-wise indices: node first, then component blocks
             globalIndices[n + d * nodesInCell] = nodeIdx + (d * m_numActiveNodes);
         }
@@ -298,29 +294,29 @@ void LagrangeSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
             const auto& cell = m_mesh->getCell(cellId);
             const auto& cell_ids = m_mesh->getCellConnectivity(cellId);
 
-            int nInCell = getNodesPerCell(cell.type);
-            for (int n = 0; n < nInCell; ++n) {
+            CfemInt nInCell = getNodesPerCell(cell.type);
+            for (CfemInt n = 0; n < nInCell; ++n) {
                 neighborNodes.insert(m_nodeToLocalIdx[cell_ids[n]]);
             }
         }
 
         // Each component in the block has the same number of neighbors * dimensions
-        CfemInt rowNNZ = static_cast<CfemInt>(neighborNodes.size()) * m_dimension;
+        CfemInt rowNNZ = static_cast<CfemInt>(neighborNodes.size()) * m_numComponents;
 
-        for (int d = 0; d < m_dimension; ++d) {
+        for (CfemInt d = 0; d < m_numComponents; ++d) {
             nnz[nodeIdx + (d * m_numActiveNodes)] = rowNNZ;
         }
     }
 }
 
-void LagrangeSpace::getEntityDofs(int internalEntityId, std::vector<CfemInt>& boundaryDofs) const {
+void LagrangeSpace::getEntityDofs(CfemInt internalEntityId, std::vector<CfemInt>& boundaryDofs) const {
     boundaryDofs.clear();
     const auto& boundaryNodes = m_mesh->getEntityConst(internalEntityId).getVertexIds();
 
     for (CfemInt vId : boundaryNodes) {
         CfemInt nodeIdx = m_nodeToLocalIdx[vId];
         if (nodeIdx != -1) {
-            for (int d = 0; d < m_dimension; ++d) {
+            for (CfemInt d = 0; d < m_numComponents; ++d) {
                 boundaryDofs.push_back(nodeIdx + (d * m_numActiveNodes));
             }
         }

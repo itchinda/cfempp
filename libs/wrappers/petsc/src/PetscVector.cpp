@@ -38,7 +38,7 @@
  * @param local_size Number of local elements on this MPI rank
  * @param global_size Total number of elements across all MPI ranks
  *************************************************************************************** */
-PetscVector::PetscVector(int local_size, int global_size) {
+PetscVector::PetscVector(CfemInt local_size, CfemInt global_size) {
     cfem::Environment::ensureInitialized();
     PETSC_CHECK(VecCreate(PETSC_COMM_WORLD, &m_Vec));
     PETSC_CHECK(VecSetSizes(m_Vec, local_size, global_size));
@@ -89,7 +89,7 @@ PetscVector& PetscVector::operator=(PetscVector&& other) noexcept {
  * @param val Value to set
  * @param mode INSERT_VALUES or ADD_VALUES
  *************************************************************************************** */
-void PetscVector::setValue(int i, PetscScalar val, InsertMode mode) {
+void PetscVector::setValue(CfemInt i, PetscScalar val, InsertMode mode) {
     PETSC_CHECK(VecSetValue(m_Vec, i, val, mode));
 }
 

@@ -20,7 +20,7 @@
 
 #include "cfemutils.h"
 #include "Vector3D.h"
-#include "TensorO2.h"
+#include "Tensor3D.h"
 #include "CfemExpression.h"
 #include "EvalContext.h"
 #include <span>
@@ -52,7 +52,7 @@ namespace cfem::sym
                          std::shared_ptr<const CfemExpression> rhs,
                          MathOp op);
 
-        CfemInt getDimension() const override { return m_dimOut; }
+        CfemInt getNumComponents() const override { return m_dimOut; }
 
         void prepare() const override
         {

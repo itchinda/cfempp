@@ -71,7 +71,7 @@ namespace cfem {
         Vector3D currentXi = {-1e9, -1e9, -1e9}; /**< Local/Reference coordinates. */
 
         // --- Multi-Space Cache (O(1) Access) ---
-        static constexpr int MAX_CACHED_SPACES  = 16; /**< Maximum number of FE spaces allowed in a single variational term (e.g., for multi-physics). */
+        static constexpr CfemInt MAX_CACHED_SPACES  = 16; /**< Maximum number of FE spaces allowed in a single variational term (e.g., for multi-physics). */
 
         /**
          * @name Space Data Cache
@@ -170,7 +170,7 @@ namespace cfem {
          * @param index The ID assigned by the Integrator before the assembly loop.
          * @return A reference to the SpaceDataEntry (O(1)).
          */
-        inline const SpaceDataEntry& getSpaceData(int index) const 
+        inline const SpaceDataEntry& getSpaceData(CfemInt index) const 
         {
         #ifdef CFEM_USE_DYNAMIC_SPACE_CACHE
             CFEM_ASSERT(index >= 0 && index < static_cast<int>(m_spaceDataCache.size()),
@@ -192,7 +192,7 @@ namespace cfem {
          * @note Typically called before evaluating terms at a new integration point.
          * @warning Pointers must remain valid for the duration of the evaluation.
          */
-        inline void setSpaceData(int index, const ShapeInfo* shape, const MappingInfo* mapping) 
+        inline void setSpaceData(CfemInt index, const ShapeInfo* shape, const MappingInfo* mapping) 
         {
             CFEM_ASSERT(index >= 0, "Negative space index");
 
@@ -215,7 +215,7 @@ namespace cfem {
          * @return Pointer to MappingInfo.
          * @pre index is valid and mapping has been set.
          */
-        inline const MappingInfo* getMapping(int index) const 
+        inline const MappingInfo* getMapping(CfemInt index) const 
         {
         #ifdef CFEM_USE_DYNAMIC_SPACE_CACHE
             CFEM_ASSERT(index >= 0 && index < static_cast<int>(m_spaceDataCache.size()),

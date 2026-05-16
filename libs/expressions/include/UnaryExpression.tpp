@@ -26,7 +26,7 @@ namespace cfem::sym
     inline UnaryExpression::UnaryExpression(std::shared_ptr<const CfemExpression> expr, MathOp op)
             : m_expr(std::move(expr)), m_op(op) 
     {
-        m_dimIn = m_expr->getDimension();
+        m_dimIn = m_expr->getNumComponents();
 
         // --- Dimension Logic & Validation ---
         if (m_op == MathOp::Transpose || m_op == MathOp::Trace ) {

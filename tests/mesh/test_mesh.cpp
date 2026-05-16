@@ -55,7 +55,7 @@ protected:
 TEST_F(MeshSystemTest, Tri3ConnectivityCheck)
 {
     mesh = Mesh::create();
-    mesh->setDimension(2);
+    mesh->setTopologicalDimension(2);
     mesh->setOrder(MeshOrder::Linear);
     mesh->setReferenceNormal({0, 0, 1});
 
@@ -84,7 +84,7 @@ TEST_F(MeshSystemTest, Tri3ConnectivityCheck)
 TEST_F(MeshSystemTest, Tri6ConnectivityCheck)
 {
     mesh = Mesh::create();
-    mesh->setDimension(2);
+    mesh->setTopologicalDimension(2);
     mesh->setOrder(MeshOrder::Quadratic);
     mesh->setReferenceNormal({0, 0, 1});
 
@@ -116,7 +116,7 @@ TEST_F(MeshSystemTest, Tri6ConnectivityCheck)
 TEST_F(MeshSystemTest, Quad4ConnectivityCheck)
 {
     mesh = Mesh::create();
-    mesh->setDimension(2);
+    mesh->setTopologicalDimension(2);
     mesh->setOrder(MeshOrder::Linear);
     mesh->setReferenceNormal({0, 0, 1});
 
@@ -144,7 +144,7 @@ TEST_F(MeshSystemTest, Quad4ConnectivityCheck)
 TEST_F(MeshSystemTest, Quad9ConnectivityCheck)
 {
     mesh = Mesh::create();
-    mesh->setDimension(2);
+    mesh->setTopologicalDimension(2);
     mesh->setOrder(MeshOrder::Quadratic);
     mesh->setReferenceNormal({0, 0, 1});
 
@@ -180,7 +180,7 @@ TEST_F(MeshSystemTest, Hex27ConnectivityCheck)
 {
     mesh = Mesh::create();
 
-    mesh->setDimension(3);
+    mesh->setTopologicalDimension(3);
     mesh->setOrder(MeshOrder::Quadratic);
     // --- 1. Create the physical vertices in perfect VTK HEX27 order ---
     // Corners (0-7)
@@ -293,7 +293,7 @@ TEST_F(MeshSystemTest, CrissCrossTopologyTest)
 
     EXPECT_EQ(mesh->getNumCells(), 4);
     EXPECT_EQ(mesh->getNumVertices(), 5); // 4 corners + 1 center
-    for (int i = 0; i < 4; ++i)
+    for (CfemInt i = 0; i < 4; ++i)
     {
         EXPECT_EQ(mesh->getCell(i).type, CellType::TRI3);
     }
@@ -344,7 +344,7 @@ TEST_F(MeshSystemTest, LaplacianSmoothingConvergence)
 {
     // Manually create a single QUAD4 with a distorted center node
     mesh = Mesh::create();
-    mesh->setDimension(2);
+    mesh->setTopologicalDimension(2);
     mesh->setOrder(MeshOrder::Linear);
     CfemInt v0 = mesh->addVertex(0, 0, 0);
     CfemInt v1 = mesh->addVertex(2, 0, 0);
@@ -397,7 +397,7 @@ TEST(MeshTest, InverseConnectivityCSRValidation)
 {
     auto mesh = Mesh::create();
 
-    mesh->setDimension(2);
+    mesh->setTopologicalDimension(2);
     mesh->setOrder(MeshOrder::Linear);
 
     mesh->addVertex(0.0, 0.0, 0.0); // ID 0
@@ -441,7 +441,7 @@ TEST(MeshTopologyTest, BuildFacetsConnectivity)
 {
     auto mesh = Mesh::create();
 
-    mesh->setDimension(2);
+    mesh->setTopologicalDimension(2);
     mesh->setOrder(MeshOrder::Linear);
 
     mesh->addVertex(0.0, 0.0, 0.0); // ID 0
@@ -462,8 +462,8 @@ TEST(MeshTopologyTest, BuildFacetsConnectivity)
     // 3. Verification
     EXPECT_EQ(facets.size(), 8);
 
-    int internalCount = 0;
-    int boundaryCount = 0;
+    CfemInt internalCount = 0;
+    CfemInt boundaryCount = 0;
     bool sharedEdgeFound = false;
 
     for (const auto &f : facets)

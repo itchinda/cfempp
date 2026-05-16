@@ -99,7 +99,7 @@ namespace cfem::sym
     std::shared_ptr<const CfemExpression> operator+(std::shared_ptr<const CfemExpression> lhs, 
                                                     std::shared_ptr<const CfemExpression> rhs)
     {
-        if (lhs->getDimension() != rhs->getDimension())
+        if (lhs->getNumComponents() != rhs->getNumComponents())
             CFEM_ERROR << "Dimension mismatch in operator << ";
 
         if (lhs->isZero()) return rhs;
@@ -151,8 +151,8 @@ namespace cfem::sym
     std::shared_ptr<const CfemExpression> operator*(std::shared_ptr<const CfemExpression> lhs, 
                                                     std::shared_ptr<const CfemExpression> rhs) 
     {
-        CfemInt dimL = lhs->getDimension();
-        CfemInt dimR = rhs->getDimension();
+        CfemInt dimL = lhs->getNumComponents();
+        CfemInt dimR = rhs->getNumComponents();
 
         CfemInt outDim = std::max(dimL, dimR);
 
@@ -223,8 +223,8 @@ namespace cfem::sym
     std::shared_ptr<const CfemExpression> operator/(std::shared_ptr<const CfemExpression> lhs, 
                                                     std::shared_ptr<const CfemExpression> rhs) 
     {
-        CfemInt dimL = lhs->getDimension();
-        CfemInt dimR = rhs->getDimension();
+        CfemInt dimL = lhs->getNumComponents();
+        CfemInt dimR = rhs->getNumComponents();
 
         if (dimL != dimR && dimR != 1) {
             CFEM_ERROR << "Invalid operator/: Divisor must be a scalar or match numerator dimension. Got " 
@@ -264,12 +264,12 @@ namespace cfem::sym
     }
 
     std::shared_ptr<const CfemExpression> identityO2TensorExpr(){
-        return std::make_shared<const ConstantExpression>(IdentityTensor());
+        return std::make_shared<const ConstantExpression>(IdentityTensor3D());
     }
 
 
     std::shared_ptr<const CfemExpression> transpose(std::shared_ptr<const CfemExpression> u) {
-        if (u->getDimension() != 9) CFEM_ERROR << "`transpose()` expects a second order tensor argument."; 
+        if (u->getNumComponents() != 9) CFEM_ERROR << "`transpose()` expects a second order tensor argument."; 
         if (u->isZero()) return u;
 
         if (u->isConstant()) {
@@ -287,7 +287,7 @@ namespace cfem::sym
 
 
     std::shared_ptr<const CfemExpression> trace(std::shared_ptr<const CfemExpression> u){
-        if (u->getDimension() != 9) CFEM_ERROR << "`trace()` expects a second order tensor argument."; 
+        if (u->getNumComponents() != 9) CFEM_ERROR << "`trace()` expects a second order tensor argument."; 
         if (u->isZero()) return std::make_shared<ZeroExpression>(0.0);
 
         if (u->isConstant()) {
@@ -303,8 +303,8 @@ namespace cfem::sym
     std::shared_ptr<const CfemExpression> dot(std::shared_ptr<const CfemExpression> lhs, 
                                                      std::shared_ptr<const CfemExpression> rhs)
     {
-        CfemInt dimL = lhs->getDimension();
-        CfemInt dimR = rhs->getDimension();
+        CfemInt dimL = lhs->getNumComponents();
+        CfemInt dimR = rhs->getNumComponents();
 
         // Détermination de la dimension de sortie
         CfemInt outDim = 1; 
@@ -329,16 +329,16 @@ namespace cfem::sym
                     res[0] = vL[0]*vR[0] + vL[1]*vR[1] + vL[2]*vR[2];
                 }
                 else if (dimL == 9 && dimR == 3) { // Tenseur * Vecteur
-                    for (int i = 0; i < 3; ++i)
+                    for (CfemInt i = 0; i < 3; ++i)
                         res[i] = vL[i*3+0]*vR[0] + vL[i*3+1]*vR[1] + vL[i*3+2]*vR[2];
                 }
                 else if (dimL == 3 && dimR == 9) { // Vecteur * Tenseur
-                    for (int j = 0; j < 3; ++j)
+                    for (CfemInt j = 0; j < 3; ++j)
                         res[j] = vL[0]*vR[0+j] + vL[1]*vR[3+j] + vL[2]*vR[6+j];
                 }
                 else if (dimL == 9 && dimR == 9) { // MatMul
-                    for (int i = 0; i < 3; ++i) {
-                        for (int j = 0; j < 3; ++j) {
+                    for (CfemInt i = 0; i < 3; ++i) {
+                        for (CfemInt j = 0; j < 3; ++j) {
                             res[i*3+j] = vL[i*3+0]*vR[0*3+j] + vL[i*3+1]*vR[1*3+j] + vL[i*3+2]*vR[2*3+j];
                         }
                     }
@@ -349,7 +349,7 @@ namespace cfem::sym
     std::shared_ptr<const CfemExpression> inner(std::shared_ptr<const CfemExpression> lhs, 
                                                 std::shared_ptr<const CfemExpression> rhs) 
     {
-        if (lhs->getDimension() != 9 || rhs->getDimension() != 9) {
+        if (lhs->getNumComponents() != 9 || rhs->getNumComponents() != 9) {
             CFEM_ERROR << "inner() product (double contraction) requires two dim 9 tensors.";
         }
 
@@ -358,7 +358,7 @@ namespace cfem::sym
         return foldBinary(lhs, rhs, MathOp::Inner, 1, 
             [](const auto& vL, const auto& vR, auto& res) {
                 CfemReal sum = 0;
-                for(int i = 0; i < 9; ++i) sum += vL[i] * vR[i];
+                for(CfemInt i = 0; i < 9; ++i) sum += vL[i] * vR[i];
                 res[0] = sum;
             });
     }
@@ -366,7 +366,7 @@ namespace cfem::sym
     std::shared_ptr<const CfemExpression> cross(std::shared_ptr<const CfemExpression> lhs, 
                                                 std::shared_ptr<const CfemExpression> rhs)
     {
-        if (lhs->getDimension() != 3 || rhs->getDimension() != 3) {
+        if (lhs->getNumComponents() != 3 || rhs->getNumComponents() != 3) {
             CFEM_ERROR << "cross() product is only defined for dim 3 vectors.";
         }
 
@@ -383,7 +383,7 @@ namespace cfem::sym
     std::shared_ptr<const CfemExpression> outer(std::shared_ptr<const CfemExpression> lhs, 
                                                 std::shared_ptr<const CfemExpression> rhs)
     {
-        if (lhs->getDimension() != 3 || rhs->getDimension() != 3) {
+        if (lhs->getNumComponents() != 3 || rhs->getNumComponents() != 3) {
             CFEM_ERROR << "outer() product is only defined for dim 3 vectors.";
         }
 
@@ -391,8 +391,8 @@ namespace cfem::sym
 
         return foldBinary(lhs, rhs, MathOp::Outer, 9, 
             [](const auto& vL, const auto& vR, auto& res) {
-                for (int i = 0; i < 3; ++i) {
-                    for (int j = 0; j < 3; ++j) {
+                for (CfemInt i = 0; i < 3; ++i) {
+                    for (CfemInt j = 0; j < 3; ++j) {
                         res[i*3+j] = vL[i]*vR[j];
                     }
                 }
@@ -402,8 +402,8 @@ namespace cfem::sym
     std::shared_ptr<const CfemExpression> atan2(std::shared_ptr<const CfemExpression> y, 
                                                 std::shared_ptr<const CfemExpression> x)
     {
-        CfemInt dimY = y->getDimension();
-        CfemInt dimX = x->getDimension();
+        CfemInt dimY = y->getNumComponents();
+        CfemInt dimX = x->getNumComponents();
 
         // Détermination de la dimension (autorise le mix Scalaire/Vecteur)
         if (dimY != dimX && dimY != 1 && dimX != 1) {
@@ -430,8 +430,8 @@ namespace cfem::sym
     std::shared_ptr<const CfemExpression> pow(std::shared_ptr<const CfemExpression> base, 
                                               std::shared_ptr<const CfemExpression> exp)
     {
-        CfemInt dimBase = base->getDimension();
-        CfemInt dimExp  = exp->getDimension();
+        CfemInt dimBase = base->getNumComponents();
+        CfemInt dimExp  = exp->getNumComponents();
 
         if (dimBase != dimExp && dimBase != 1 && dimExp != 1) {
             CFEM_ERROR << "Invalid dimensions for pow(): " << std::to_string(dimBase) << " ^ " << std::to_string(dimExp);
@@ -467,7 +467,7 @@ namespace cfem::sym
 
     // Fonction utilitaire pour générer un tenseur/vecteur de "1.0"
     std::shared_ptr<const CfemExpression> makeOnesLike(std::shared_ptr<const CfemExpression> u) {
-        return std::make_shared<ConstantExpression>(std::vector<CfemReal>(u->getDimension(), 1.0));
+        return std::make_shared<ConstantExpression>(std::vector<CfemReal>(u->getNumComponents(), 1.0));
     }
 
     
@@ -617,14 +617,14 @@ namespace cfem::sym
         return std::make_shared<const ConstantExpression>(v);
     }
 
-    std::shared_ptr<const CfemExpression> constant(const TensorO2& t)
+    std::shared_ptr<const CfemExpression> constant(const Tensor3D& t)
     {
         return std::make_shared<const ConstantExpression>(t);
     }
 
     std::shared_ptr<const CfemExpression> vector(std::shared_ptr<const CfemExpression> expr)
     {
-        if (expr->getDimension() != 3 ) CFEM_ERROR << "expr must be a vector (dimesion 3) expression.";
+        if (expr->getNumComponents() != 3 ) CFEM_ERROR << "expr must be a vector (dimesion 3) expression.";
         return expr;
     }
 
@@ -632,7 +632,7 @@ namespace cfem::sym
                                                  std::shared_ptr<const CfemExpression> expr_y,
                                                  std::shared_ptr<const CfemExpression> expr_z)
     {
-        if (expr_x->getDimension() != 1 || expr_y->getDimension() != 1 || expr_z->getDimension() != 1 )
+        if (expr_x->getNumComponents() != 1 || expr_y->getNumComponents() != 1 || expr_z->getNumComponents() != 1 )
             CFEM_ERROR << "expr_x, expr_y and expr_z must be scalar (dimesion 1) expressions.";
 
         return std::make_shared<const VectorExpression>(expr_x, expr_y, expr_z);
@@ -640,7 +640,7 @@ namespace cfem::sym
 
     std::shared_ptr<const CfemExpression> tensor(std::shared_ptr<const CfemExpression> expr)
     {
-        if (expr->getDimension() != 9 ) CFEM_ERROR << "expr must be a scalar expression.";
+        if (expr->getNumComponents() != 9 ) CFEM_ERROR << "expr must be a scalar expression.";
         return expr;
     }
 
@@ -741,7 +741,7 @@ namespace cfem::sym
             return vector(scalar(r0), scalar(r1), scalar(r2));
         }
 
-        CfemInt dim = e->getDimension();
+        CfemInt dim = e->getNumComponents();
 
         // --- Divergence of a Vector (Dim 3) -> Returns a Scalar ---
         if (dim == 3) {
@@ -784,7 +784,7 @@ namespace cfem::sym
 
     std::shared_ptr<const CfemExpression> scalar(std::shared_ptr<const CfemExpression> expr)
     {
-        if (expr->getDimension() != 1 ) CFEM_ERROR << "expr must be a scalar (dimension 1) expression.";
+        if (expr->getNumComponents() != 1 ) CFEM_ERROR << "expr must be a scalar (dimension 1) expression.";
         return expr;
     }
 
@@ -815,7 +815,7 @@ namespace cfem::sym
         auto normale = (normal == nullptr) ? geometric_normal() : normal;
         auto P = identity() - outer(normale, normale); // Projector
         
-        if (expr->getDimension() == 1) return P * grad(expr);
+        if (expr->getNumComponents() == 1) return P * grad(expr);
         else return grad(expr) * P;
     }
 
@@ -862,7 +862,7 @@ namespace cfem::sym
 
 namespace cfem::sym::utils {
 
-    inline std::shared_ptr<const CfemExpression> extractComponent(std::shared_ptr<const CfemExpression> expr, int idx) {
+    inline std::shared_ptr<const CfemExpression> extractComponent(std::shared_ptr<const CfemExpression> expr, CfemInt idx) {
         if (!expr) return nullptr;
 
         // Direct Access (The "Leaf" nodes or explicit containers)
@@ -881,11 +881,11 @@ namespace cfem::sym::utils {
             MathOp op = v->getOp();
             // Handle Transpose: Swap index based on 3x3 flattening
             if (op == MathOp::Transpose) {
-                static const int t_map[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
+                static const CfemInt t_map[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
                 return extractComponent(v->getInner(), t_map[idx]);
             }
             // Pointwise (Sin, Cos, Exp, etc.): Apply op to the extracted component
-            if (v->getDimension() > 1) {
+            if (v->getNumComponents() > 1) {
                 return std::make_shared<const UnaryExpression>(extractComponent(v->getInner(), idx), op);
             }
             return v; // Already a scalar
@@ -902,11 +902,11 @@ namespace cfem::sym::utils {
             }
             
             if (op == MathOp::Mul) {
-                if (lhs->getDimension() == 1) return lhs * extractComponent(rhs, idx);
-                if (rhs->getDimension() == 1) return extractComponent(lhs, idx) * rhs;
+                if (lhs->getNumComponents() == 1) return lhs * extractComponent(rhs, idx);
+                if (rhs->getNumComponents() == 1) return extractComponent(lhs, idx) * rhs;
             }
 
-            if (op == MathOp::Div && rhs->getDimension() == 1) {
+            if (op == MathOp::Div && rhs->getNumComponents() == 1) {
                 return extractComponent(lhs, idx) / rhs;
             }
 

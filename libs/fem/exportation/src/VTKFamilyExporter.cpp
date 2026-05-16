@@ -62,7 +62,7 @@ namespace cfem
     {
         ExtractedGeometry geo;
         const MeshEntity& entity = m_mesh.getEntityConst(entityId);
-        bool isVolume = (entity.getDimension() == m_mesh.getDimension());
+        bool isVolume = (entity.getTopologicalDimension() == m_mesh.getTopologicalDimension());
         
         geo.pActiveElements = isVolume ? &entity.getCellIds() : &entity.getFacetIds();
         geo.numActiveCells = geo.pActiveElements->size();
@@ -70,7 +70,7 @@ namespace cfem
         geo.globalToLocal.assign(m_mesh.getNumVertices(), -1);
         geo.localToGlobal.reserve(geo.numActiveCells * 4); 
 
-        int runningOffset = 0;
+        CfemInt runningOffset = 0;
 
         for (CfemInt elemId : *geo.pActiveElements) {
             const auto& conn = isVolume ? m_mesh.getCellConnectivity(elemId) : m_mesh.getFacetConnectivity(elemId);
@@ -105,7 +105,7 @@ namespace cfem
     {
         ExtractedGeometry geo;
         const MeshEntity& entity = m_mesh.getEntityConst(entityId);
-        bool isVolume = (entity.getDimension() == m_mesh.getDimension());
+        bool isVolume = (entity.getTopologicalDimension() == m_mesh.getTopologicalDimension());
         
         geo.pActiveElements = isVolume ? &entity.getCellIds() : &entity.getFacetIds();
         geo.numActiveCells = geo.pActiveElements->size();
@@ -120,7 +120,7 @@ namespace cfem
         geo.connectivity.resize(totalDgPoints);
         geo.localToGlobal.resize(totalDgPoints); // We map each duplicated node back to its global ID
 
-        int ptIdx = 0;
+        CfemInt ptIdx = 0;
         for (CfemInt elemId : *geo.pActiveElements) {
             const auto& conn = isVolume ? m_mesh.getCellConnectivity(elemId) : m_mesh.getFacetConnectivity(elemId);
             for (auto gId : conn) {
@@ -145,8 +145,8 @@ namespace cfem
     {
         EvaluatedData data;
         const MeshEntity& entity = m_mesh.getEntityConst(entityId);
-        bool isVolume = (entity.getDimension() == m_mesh.getDimension());
-        bool isFacet  = (entity.getDimension() == m_mesh.getDimension() - 1);
+        bool isVolume = (entity.getTopologicalDimension() == m_mesh.getTopologicalDimension());
+        bool isFacet  = (entity.getTopologicalDimension() == m_mesh.getTopologicalDimension() - 1);
 
         size_t numEntries = entries.size();
         ShapeEvaluationFlags fieldFlags = ShapeEvaluationFlags::None;
@@ -156,7 +156,7 @@ namespace cfem
         for (size_t i = 0; i < numEntries; ++i) {
             entries[i].expr->prepare();
             fieldFlags |= entries[i].expr->requiredShapeFlags();
-            data.fields[i].resize(geo.numActiveVerts * entries[i].expr->getDimension(), 0.0);
+            data.fields[i].resize(geo.numActiveVerts * entries[i].expr->getNumComponents(), 0.0);
         }
 
         // FIX: O(1) Cache using unordered_map
@@ -184,7 +184,7 @@ namespace cfem
         DynamicVector<Vector3D> physCoordsElem, physCoordsParent;
         std::vector<uint8_t> computed(geo.numActiveVerts, 0);
 
-        int ptIdx = 0;
+        CfemInt ptIdx = 0;
         for (CfemInt elemId : *geo.pActiveElements) {
             CfemInt parentCellId = elemId;
             const std::vector<CfemInt>* localFaceConnectivity = nullptr;
@@ -230,7 +230,7 @@ namespace cfem
                 ctx.geometricMapping = &mapParent;
 
                 for (size_t i = 0; i < numEntries; ++i) {
-                    int dim = entries[i].expr->getDimension();
+                    CfemInt dim = entries[i].expr->getNumComponents();
                     std::span<CfemReal> outSpan(&data.fields[i][evalIdx * dim], dim);
                     entries[i].expr->evaluate(parentCellId, parentCache.refEl->referenceNodes()[parentNodeIdx], outSpan, ctx);
                 }
@@ -275,7 +275,7 @@ namespace cfem
             else          for (CfemInt fId : ent.getFacetIds()) isEntityFacet[fId] = 1;
 
             std::vector<float> mask(geo.numActiveCells, 0.0f);
-            int idx = 0;
+            CfemInt idx = 0;
             for (CfemInt elemId : *geo.pActiveElements) {
                 if ((isVolume && isEntityCell[elemId]) || (!isVolume && isEntityFacet[elemId])) mask[idx] = 1.0f;
                 idx++;

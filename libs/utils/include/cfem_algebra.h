@@ -21,10 +21,13 @@
 
 #include "cfemutils.h" 
 
-#include "Vector3D.h"
 #include "FixedVector.h"
 #include "FixedMatrix.h"
 
-#include "TensorO2.h"
+#include "Vector2D.h"
+#include "Vector3D.h"
+
+#include "Tensor2D.h"
+#include "Tensor3D.h"
 
 #endif

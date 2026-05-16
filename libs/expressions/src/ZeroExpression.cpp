@@ -36,7 +36,7 @@ namespace cfem::sym
     }
 
     std::string ZeroExpression::toString() const { 
-        CfemInt dim = getDimension();
+        CfemInt dim = getNumComponents();
         if (dim==1) return "0";
         
         std::ostringstream out;

@@ -32,8 +32,8 @@ using namespace cfem;
 
 struct QuadratureTestParams {
     CellType cellType;
-    int numPoints;
-    int maxDegree;         // Degré max de polynôme à tester
+    CfemInt numPoints;
+    CfemInt maxDegree;         // Degré max de polynôme à tester
     CfemReal expectedVol;
     std::string label;
 };
@@ -43,10 +43,10 @@ protected:
     /**
      * @brief Calcule l'intégrale analytique de x^a * y^b * z^c sur l'élément de référence.
      */
-    CfemReal getAnalyticIntegral(CellType type, int a, int b, int c) {
+    CfemReal getAnalyticIntegral(CellType type, CfemInt a, CfemInt b, CfemInt c) {
         if (type == CellType::LINE2 || type == CellType::QUAD4 || type == CellType::HEX8) {
             // Intégrale sur [-1, 1]^n : produit de (x^(a+1)/(a+1)) entre -1 et 1
-            auto integrate1D = [](int p) {
+            auto integrate1D = [](CfemInt p) {
                 return (p % 2 != 0) ? 0.0 : 2.0 / (p + 1.0);
             };
             CfemReal res = integrate1D(a);
@@ -57,9 +57,9 @@ protected:
         else if (type == CellType::TRI3 || type == CellType::TET4) {
             // Formule magique pour les simplexes sur [0, 1] : a!b!c! / (a+b+c+dim)! * dim! * Vol
             // Pour un triangle (dim 2) : a!b! / (a+b+2)!
-            auto fact = [](int n) {
+            auto fact = [](CfemInt n) {
                 CfemReal res = 1.0;
-                for (int i = 2; i <= n; ++i) res *= i;
+                for (CfemInt i = 2; i <= n; ++i) res *= i;
                 return res;
             };
             if (type == CellType::TRI3) return fact(a) * fact(b) / fact(a + b + 2);
@@ -67,9 +67,9 @@ protected:
         }
         else if (type == CellType::PRISM6 || type == CellType::PRISM18) {
             // Le prisme est un produit Triangle(x,y) [0,1] x Segment(z) [-1,1]
-            auto fact = [](int n) {
+            auto fact = [](CfemInt n) {
                 CfemReal res = 1.0;
-                for (int i = 2; i <= n; ++i) res *= i;
+                for (CfemInt i = 2; i <= n; ++i) res *= i;
                 return res;
             };
             
@@ -96,10 +96,10 @@ TEST_P(QuadratureAccuracyTest, PolynomialIntegration) {
     EXPECT_NEAR(computedVol, params.expectedVol, 1e-13) << "Volume incorrect pour " << params.label;
 
     // 2. Test des polynômes jusqu'au degré max d'exactitude
-    for (int d = 1; d <= params.maxDegree; ++d) {
-        for (int a = 0; a <= d; ++a) {
-            for (int b = 0; b <= (d - a); ++b) {
-                int c = d - a - b;
+    for (CfemInt d = 1; d <= params.maxDegree; ++d) {
+        for (CfemInt a = 0; a <= d; ++a) {
+            for (CfemInt b = 0; b <= (d - a); ++b) {
+                CfemInt c = d - a - b;
                 if (params.cellType == CellType::LINE2 && (b > 0 || c > 0)) continue;
                 if ((params.cellType == CellType::TRI3 || params.cellType == CellType::QUAD4) && c > 0) continue;
 

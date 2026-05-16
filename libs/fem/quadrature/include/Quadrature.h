@@ -120,9 +120,9 @@ public:
 
     
 
-    static QuadratureRule getQuadRule(int nPoints1D);
+    static QuadratureRule getQuadRule(CfemInt nPoints1D);
 
-    static QuadratureRule getHexRule(int nPoints1D);
+    static QuadratureRule getHexRule(CfemInt nPoints1D);
 
     static QuadratureRule getPrismRule(TriangleRule triRule, GaussLegendre1DRule element1DRule);
 
@@ -199,7 +199,7 @@ public:
      * @param pointCount The number of points requested (must match a factory enum).
      * @return const reference to the cached QuadratureRule.
      */
-    const QuadratureRule& getRule(CellType type, int pointCount) {
+    const QuadratureRule& getRule(CellType type, CfemInt pointCount) {
         auto key = std::make_pair(type, pointCount);
         
         auto it = m_cache.find(key);
@@ -215,7 +215,7 @@ private:
     using Key = std::pair<CellType,int>;
     std::map<Key, QuadratureRule> m_cache;
 
-    QuadratureRule fetchFromFactory(CellType type, int count);
+    QuadratureRule fetchFromFactory(CellType type, CfemInt count);
 
 };
 
@@ -223,17 +223,17 @@ private:
  * @brief Configuration for quadrature orders per element type.
  */
 struct IntegrationSchemeParams {
-    int NumIntgPt1DElem    = 3;   /// 5th order accuracy
-    int NumIntgPtTriElem   = 6;   /// 4th order accuracy
-    int NumIntgPtQuadElem  = 9;   /// 5th order accuracy
-    int NumIntgPtTetElem   = 11;  /// 4th order accuracy
-    int NumIntgPtPrismElem = 18;  /// 4th order accuracy
-    int NumIntgPtHexElem   = 27;  /// 5th order accuracy
+    CfemInt NumIntgPt1DElem    = 3;   /// 5th order accuracy
+    CfemInt NumIntgPtTriElem   = 6;   /// 4th order accuracy
+    CfemInt NumIntgPtQuadElem  = 9;   /// 5th order accuracy
+    CfemInt NumIntgPtTetElem   = 11;  /// 4th order accuracy
+    CfemInt NumIntgPtPrismElem = 18;  /// 4th order accuracy
+    CfemInt NumIntgPtHexElem   = 27;  /// 5th order accuracy
 
     /**
      * @brief Helper to get the order for a specific element type.
      */
-    int getNumIntgPt(CellType type) const {
+    CfemInt getNumIntgPt(CellType type) const {
         switch (type) {
             case CellType::LINE2:  
             case CellType::LINE3: return NumIntgPt1DElem;

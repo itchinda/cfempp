@@ -39,7 +39,7 @@ TEST_F(GmshHexTest, UniverseAndOrderDetection) {
     mesh = Mesh::loadFromGmsh(filename);
     ASSERT_TRUE(mesh);
 
-    EXPECT_EQ(mesh->getDimension(), 3);
+    EXPECT_EQ(mesh->getTopologicalDimension(), 3);
     EXPECT_EQ(mesh->getOrder(), MeshOrder::Quadratic);
 
     MeshEntity* universe = mesh->getEntity(cfem::UNIVERSE_ID);

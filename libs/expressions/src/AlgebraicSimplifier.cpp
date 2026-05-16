@@ -82,7 +82,7 @@ namespace cfem::sym
             return a == b;
         if (a.get() == b.get())
             return true; // Fastest check
-        if (a->getDimension() != b->getDimension())
+        if (a->getNumComponents() != b->getNumComponents())
             return false;
 
         auto cA = std::dynamic_pointer_cast<const ConstantExpression>(a);
@@ -112,7 +112,7 @@ namespace cfem::sym
         auto vB = std::dynamic_pointer_cast<const VectorSymbolicExpression>(b);
         if (vA && vB)
         {
-            for (int i = 0; i < 3; ++i)
+            for (CfemInt i = 0; i < 3; ++i)
             {
                 if (!isIdentical(vA->getComponent(i), vB->getComponent(i)))
                     return false;

@@ -183,8 +183,8 @@ namespace cfem::sym
     inline std::shared_ptr<const CfemExpression> operator op (CfemReal lhs, std::shared_ptr<const CfemExpression> rhs) { return converter::to_expr(lhs) op rhs; } \
     inline std::shared_ptr<const CfemExpression> operator op (std::shared_ptr<const CfemExpression> lhs, const Vector3D& rhs) { return lhs op converter::to_expr(rhs); } \
     inline std::shared_ptr<const CfemExpression> operator op (const Vector3D& lhs, std::shared_ptr<const CfemExpression> rhs) { return converter::to_expr(lhs) op rhs; } \
-    inline std::shared_ptr<const CfemExpression> operator op (std::shared_ptr<const CfemExpression> lhs, const TensorO2& rhs) { return lhs op converter::to_expr(rhs); } \
-    inline std::shared_ptr<const CfemExpression> operator op (const TensorO2& lhs, std::shared_ptr<const CfemExpression> rhs) { return converter::to_expr(lhs) op rhs; }
+    inline std::shared_ptr<const CfemExpression> operator op (std::shared_ptr<const CfemExpression> lhs, const Tensor3D& rhs) { return lhs op converter::to_expr(rhs); } \
+    inline std::shared_ptr<const CfemExpression> operator op (const Tensor3D& lhs, std::shared_ptr<const CfemExpression> rhs) { return converter::to_expr(lhs) op rhs; }
 
     CFEM_BINARY_OP_OVERLOADS(+)
     CFEM_BINARY_OP_OVERLOADS(-)
@@ -330,11 +330,11 @@ namespace cfem::sym
 
     /**
      * @brief Wrap a pure spatial matrix lambda f(X) as a CfemExpression.
-     * @param f Lambda returning a 2nd-order tensor (TensorO2) from a Vector3D.
+     * @param f Lambda returning a 2nd-order tensor (Tensor3D) from a Vector3D.
      * @param gradient (Optional) Expression of the 3rd-order gradient tensor (dimension 27).
      */
     template <typename Func>
-    requires std::is_invocable_r_v<TensorO2, Func, const Vector3D&>
+    requires std::is_invocable_r_v<Tensor3D, Func, const Vector3D&>
     inline std::shared_ptr<const CfemExpression> tensor(
                                                     Func&& f,
                                                     std::shared_ptr<const CfemExpression> gradient = nullptr
@@ -342,12 +342,12 @@ namespace cfem::sym
 
     /**
      * @brief Wrap a spatio-temporal matrix lambda f(X, t) as a CfemExpression.
-     * @param f Lambda returning a TensorO2 from a Vector3D and a timestamp.
+     * @param f Lambda returning a Tensor3D from a Vector3D and a timestamp.
      * @param gradient (Optional) Expression of the 3rd-order gradient tensor (dimension 27).
      * @param timeDeriv (Optional) Expression of the matrix time derivative (dimension 9).
      */
     template <typename Func>
-    requires std::is_invocable_r_v<TensorO2, Func, const Vector3D&, CfemReal>
+    requires std::is_invocable_r_v<Tensor3D, Func, const Vector3D&, CfemReal>
     inline std::shared_ptr<const CfemExpression> tensor(
                                                     Func&& f,
                                                     std::shared_ptr<const CfemExpression> gradient,
@@ -402,7 +402,7 @@ namespace cfem::sym
     /** 
      * @brief Generates a constant vector expression.
      */
-    std::shared_ptr<const CfemExpression> constant(const TensorO2& constantTensor);
+    std::shared_ptr<const CfemExpression> constant(const Tensor3D& constantTensor);
     /** @} */
 
     /**
