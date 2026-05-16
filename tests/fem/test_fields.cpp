@@ -19,7 +19,7 @@
 #include <gtest/gtest.h>
 #include "cfemutils.h"
 #include "Vector3D.h"
-#include "TensorO2.h"
+#include "Tensor3D.h"
 #include "MathOperators.h"
 
 using namespace cfem;
@@ -39,13 +39,13 @@ protected:
 
     // Helper to evaluate at testPoint and return a full vector
     std::vector<CfemReal> evaluateFull(std::shared_ptr<const CfemExpression> expr) {
-        std::vector<CfemReal> out(expr->getDimension(), 0.0);
+        std::vector<CfemReal> out(expr->getNumComponents(), 0.0);
         expr->evaluate(testCellId, {0,0,0}, out, ctx);
         return out;
     }
     
     // Quick single-component fetcher
-    CfemReal quickEval(std::shared_ptr<const CfemExpression> expr, int comp = 0) {
+    CfemReal quickEval(std::shared_ptr<const CfemExpression> expr, CfemInt comp = 0) {
         return evaluateFull(expr)[comp];
     }
 };
@@ -109,7 +109,7 @@ TEST_F(AdvancedExpressionTest, DeepGradientTree) {
     // grad(h) = [2xy, x^2, 3z^2]
     auto gh = grad(h);
     
-    EXPECT_EQ(gh->getDimension(), 3);
+    EXPECT_EQ(gh->getNumComponents(), 3);
     auto res = evaluateFull(gh);
     
     EXPECT_DOUBLE_EQ(res[0], 2.0 * testPoint.x * testPoint.y); // 2 * 1 * 2 = 4
@@ -119,7 +119,7 @@ TEST_F(AdvancedExpressionTest, DeepGradientTree) {
 
 #ifndef NDEBUG
     TEST_F(AdvancedExpressionTest, SpanBufferOverflowProtection) {
-        auto t = tensor([](const Vector3D&){ return TensorO2(); }); // Dim = 9
+        auto t = tensor([](const Vector3D&){ return Tensor3D(); }); // Dim = 9
 
         // Create a span that is purposefully too small (size 3 instead of 9)
         std::vector<CfemReal> tiny_buffer(3, 0.0);
@@ -141,20 +141,20 @@ TEST_F(AdvancedExpressionTest, InvalidGradientDimensionAssertion) {
 }
 
 TEST_F(AdvancedExpressionTest, TensorRowMajorMapping) {
-    // We want to ensure that LambdaExpression maps a 3x3 TensorO2 to a 9-element 
+    // We want to ensure that LambdaExpression maps a 3x3 Tensor3D to a 9-element 
     // span in the exact order the DomainIntegrator expects (usually row-major).
-    auto analytical_grad_u = tensor([](const Vector3D& X) -> TensorO2 {
+    auto analytical_grad_u = tensor([](const Vector3D& X) -> Tensor3D {
         // T = [ 1, 2, 3 ]
         //     [ 4, 5, 6 ]
         //     [ 7, 8, 9 ]
-        return TensorO2({1., 2., 3., 4., 5., 6., 7., 8., 9.});
+        return Tensor3D({1., 2., 3., 4., 5., 6., 7., 8., 9.});
     });
 
     auto res = evaluateFull(analytical_grad_u);
     ASSERT_EQ(res.size(), 9);
     
     // Check linear memory layout
-    for(int i = 0; i < 9; ++i) {
+    for(CfemInt i = 0; i < 9; ++i) {
         EXPECT_DOUBLE_EQ(res[i], static_cast<double>(i + 1));
     }
 }

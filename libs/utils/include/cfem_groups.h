@@ -46,3 +46,8 @@
  * @defgroup Expressions Symbolic Expressions
  * @brief Utilities for handling symbolic expressions in CFEM++.
  */
+
+/**
+ * @defgroup tensor3d_operators Tensor algebra operators
+ * @brief Matrix-matrix tensor products and algebraic operations.
+ */

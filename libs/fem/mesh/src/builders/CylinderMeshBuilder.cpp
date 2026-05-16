@@ -40,14 +40,14 @@ namespace cfem
     {
         mesh.clear();
         mesh.setOrder(MeshOrder::Linear);
-        mesh.setDimension(3);
+        mesh.setTopologicalDimension(3);
 
         // ------------------------
         // 1. Layer Structure
         // ------------------------
-        int num_rings = std::max(1, static_cast<int>(std::round(radius / h)));
+        CfemInt num_rings = std::max(1, static_cast<int>(std::round(radius / h)));
         CfemReal dr = radius / num_rings;
-        int nz = std::max(1, static_cast<int>(std::round(height / h)));
+        CfemInt nz = std::max(1, static_cast<int>(std::round(height / h)));
         CfemReal dz = height / nz;
         CfemReal z_min = -height * 0.5; // generate around origin
 
@@ -56,18 +56,18 @@ namespace cfem
         // ------------------------
         // 2. Vertex Generation
         // ------------------------
-        for (int k = 0; k <= nz; ++k) {
+        for (CfemInt k = 0; k <= nz; ++k) {
             grid_nodes[k].resize(num_rings + 1);
             CfemReal z = z_min + k * dz;
 
             // Center node
             grid_nodes[k][0].push_back(mesh.addVertex(0.0, 0.0, z));
 
-            for (int r = 1; r <= num_rings; ++r) {
+            for (CfemInt r = 1; r <= num_rings; ++r) {
                 CfemReal current_r = r * dr;
-                int num_points = std::max(3, static_cast<int>(std::round(2.0 * CFEM_PI * current_r / h)));
+                CfemInt num_points = std::max(3, static_cast<int>(std::round(2.0 * CFEM_PI * current_r / h)));
 
-                for (int i = 0; i < num_points; ++i) {
+                for (CfemInt i = 0; i < num_points; ++i) {
                     CfemReal theta = (2.0 * CFEM_PI * i) / num_points;
                     CfemReal x = current_r * std::cos(theta);
                     CfemReal y = current_r * std::sin(theta);
@@ -102,7 +102,7 @@ namespace cfem
         // ------------------------
         // 4. Connectivity
         // ------------------------
-        for (int k = 0; k < nz; ++k) {
+        for (CfemInt k = 0; k < nz; ++k) {
             const auto& bot_center = grid_nodes[k][0][0];
             const auto& top_center = grid_nodes[k+1][0][0];
             const auto& bot_r1 = grid_nodes[k][1];
@@ -116,7 +116,7 @@ namespace cfem
             }
 
             // Outer rings
-            for (int r = 1; r < num_rings; ++r) {
+            for (CfemInt r = 1; r < num_rings; ++r) {
                 const auto& in_b = grid_nodes[k][r];   const auto& out_b = grid_nodes[k][r+1];
                 const auto& in_t = grid_nodes[k+1][r]; const auto& out_t = grid_nodes[k+1][r+1];
                 size_t n_in = in_b.size(), n_out = out_b.size(), j = 0;

@@ -83,7 +83,7 @@ struct VectorHash {
 /**
  * @brief Permutation table for Gmsh HEX27 to CFEM internal ordering.
  */
-static const int GMSH_TO_CFEM_HEX27[] = {
+static const CfemInt GMSH_TO_CFEM_HEX27[] = {
         0, 1, 2, 3, 4, 5, 6, 7, 8,   // 0-8 (No change)
         11, 13, 9,                   // 9-11 
         16, 18, 19, 17,              // 12-15 
@@ -100,8 +100,8 @@ public:
      * @brief Raw data structure for transient element storage during parsing.
      */
     struct GMSHElemData {
-        int type;           ///< Gmsh element type ID
-        int entityTag;      ///< Associated Gmsh entity tag
+        CfemInt type;           ///< Gmsh element type ID
+        CfemInt entityTag;      ///< Associated Gmsh entity tag
         std::vector<int> gmshNodeIds; ///< Raw Gmsh node IDs
     };
 

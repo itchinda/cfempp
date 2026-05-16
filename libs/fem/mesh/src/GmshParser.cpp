@@ -26,7 +26,7 @@ namespace cfem{
 /**
  * @brief Maps Gmsh element type IDs to CFEM internal CellType.
  */
-inline static CellType mapGmshType(int t) {
+inline static CellType mapGmshType(CfemInt t) {
     switch (t) {
         case 1: return CellType::LINE2; case 8:  return CellType::LINE3;
         case 2: return CellType::TRI3;  case 9:  return CellType::TRI6;
@@ -44,9 +44,9 @@ inline static CellType mapGmshType(int t) {
  * @brief Get the Nodes Per Type object
  * 
  * @param t 
- * @return int 
+ * @return CfemInt 
  */
-inline static int getNodesPerType(int t) {
+inline static CfemInt getNodesPerType(CfemInt t) {
     switch (t) {
         case 1: return 2; case 8: return 3;
         case 2: return 3; case 9: return 6;
@@ -65,9 +65,9 @@ inline static int getNodesPerType(int t) {
  * @brief Get the Dim From Gmsh Type object
  * 
  * @param t GMSH Type 
- * @return int 
+ * @return CfemInt 
  */
-inline static int getDimFromGmshType(int t) {
+inline static CfemInt getDimFromGmshType(CfemInt t) {
     if (t == 1 || t == 8) return 1;
     if (t == 2 || t == 3 || t == 9 || t == 10) return 2;
     if (t == 4 || t == 5 || t == 11 || t == 12) return 3;
@@ -79,7 +79,7 @@ inline static int getDimFromGmshType(int t) {
  * @brief Returns the number of corner (geometric) nodes for a given type.
  * This is the core of the robust boundary matching logic.
  */
-inline static int getNumMainCorners(CellType type) {
+inline static CfemInt getNumMainCorners(CellType type) {
     switch (type) {
         
         case CellType::LINE2:
@@ -135,9 +135,9 @@ inline static void consumeFooter(std::ifstream &f, const std::string &footer) {
   * @param names (dimension, tag) pairs to their string names
   */
 void GmshParser::parsePhysicalNames(std::ifstream& f, std::map<std::pair<int, int>, std::string>& names) {
-    int count; f >> count;
-    for (int i = 0; i < count; ++i) {
-        int dim, tag; std::string name;
+    CfemInt count; f >> count;
+    for (CfemInt i = 0; i < count; ++i) {
+        CfemInt dim, tag; std::string name;
         f >> dim >> tag >> name;
         if (name.front() == '"') name = name.substr(1, name.size() - 2);
         names[{dim, tag}] = name;
@@ -157,9 +157,9 @@ void GmshParser::parsePhysicalNames(std::ifstream& f, std::map<std::pair<int, in
  */
 void GmshParser::parseEntities(std::ifstream& f, std::map<int, std::map<int, std::vector<int>>>& entMap) {
     size_t counts[4]; f >> counts[0] >> counts[1] >> counts[2] >> counts[3];
-    for (int dim = 0; dim < 4; ++dim) {
+    for (CfemInt dim = 0; dim < 4; ++dim) {
         for (size_t i = 0; i < counts[dim]; ++i) {
-            int tag; double x, y, z; 
+            CfemInt tag; double x, y, z; 
             f >> tag >> x >> y >> z;
             if (dim > 0) {
                 double X, Y, Z; 
@@ -167,14 +167,14 @@ void GmshParser::parseEntities(std::ifstream& f, std::map<int, std::map<int, std
             }
             size_t nPhys; f >> nPhys;
             for (size_t p = 0; p < nPhys; ++p) {
-                int pTag; 
+                CfemInt pTag; 
                 f >> pTag;
                 entMap[dim][tag].push_back(pTag);
             }
             if (dim > 0) {
                 size_t nBound; f >> nBound;
                 for (size_t b = 0; b < nBound; ++b) { 
-                    int bTag; 
+                    CfemInt bTag; 
                     f >> bTag; 
                 }
             }
@@ -194,10 +194,10 @@ void GmshParser::parseEntities(std::ifstream& f, std::map<int, std::map<int, std
 void GmshParser::parseNodes(std::ifstream& f, const std::shared_ptr<Mesh>& mesh, std::map<int, int>& nodeMap) {
     size_t nBlocks, totalNodes, minT, maxT;
     f >> nBlocks >> totalNodes >> minT >> maxT;
-    int idx = (int)mesh->getNumVertices();
+    CfemInt idx = (int)mesh->getNumVertices();
     mesh->m_vertices.reserve(idx + totalNodes);
     for (size_t b = 0; b < nBlocks; ++b) {
-        int d, t, p; 
+        CfemInt d, t, p; 
         size_t n; 
         f >> d >> t >> p >> n;
         std::vector<int> tags(n);
@@ -227,15 +227,15 @@ void GmshParser::parseElements(std::ifstream& f, std::vector<GMSHElemData>& raw,
     f >> nBlocks >> totalElems >> minT >> maxT;
     raw.reserve(raw.size() + totalElems);
     for (size_t b = 0; b < nBlocks; ++b) {
-        int d, t, type; 
+        CfemInt d, t, type; 
         size_t n; 
         f >> d >> t >> type >> n;
         if (d > maxDim) maxDim = d;
         for (size_t i = 0; i < n; ++i) {
-            int tag; f >> tag;
-            int nN = getNodesPerType(type);
+            CfemInt tag; f >> tag;
+            CfemInt nN = getNodesPerType(type);
             std::vector<int> v(nN);
-            for (int j = 0; j < nN; ++j) {
+            for (CfemInt j = 0; j < nN; ++j) {
                 f >> v[j];
             }
             raw.push_back({type, t, v});
@@ -262,7 +262,7 @@ std::shared_ptr<Mesh> GmshParser::load(const std::string &filename, std::optiona
     std::map<int, std::map<int, std::vector<int>>> entityToPhysical;
     std::map<int, int> nodeIndexMap;
     std::vector<GMSHElemData> rawElements;
-    int maxDim = 0;
+    CfemInt maxDim = 0;
 
     // 1. Parse Sequential Sections
     std::string line;
@@ -272,7 +272,7 @@ std::shared_ptr<Mesh> GmshParser::load(const std::string &filename, std::optiona
         else if (line.find("$Nodes") != std::string::npos) parseNodes(file, mesh, nodeIndexMap);
         else if (line.find("$Elements") != std::string::npos) parseElements(file, rawElements, maxDim);
     }
-    mesh->setDimension(maxDim);
+    mesh->setTopologicalDimension(maxDim);
 
     // 2. Map Physical Groups to Internal IDs
     std::map<std::pair<int, int>, int> gmshToInternal;
@@ -309,7 +309,7 @@ std::shared_ptr<Mesh> GmshParser::load(const std::string &filename, std::optiona
     if (!universeFound) CFEM_ERROR << "Physical entity 'Universe' not found in .msh file.";
 
     // Helper to find Physical Groups associated with a Gmsh Entity
-    auto getPhysicalTags = [&](int entityTag, int dim) -> std::vector<int> {
+    auto getPhysicalTags = [&](CfemInt entityTag, CfemInt dim) -> std::vector<int> {
         if (entityToPhysical[dim].count(entityTag) == 0) return {};
         return entityToPhysical[dim][entityTag];
     };
@@ -317,7 +317,7 @@ std::shared_ptr<Mesh> GmshParser::load(const std::string &filename, std::optiona
     // Helper to get a unique ID for a combination of physical tags (for tag_list_id)
     std::vector<std::vector<int>> tagGroups;
     std::map<std::vector<int>, int> comboToId;
-    auto getTagGroupId = [&](int entityTag, int dim) -> int {
+    auto getTagGroupId = [&](CfemInt entityTag, CfemInt dim) -> CfemInt {
         std::vector<int> pTags = getPhysicalTags(entityTag, dim);
         if (pTags.empty()) return -1;
         std::sort(pTags.begin(), pTags.end());
@@ -349,7 +349,7 @@ std::shared_ptr<Mesh> GmshParser::load(const std::string &filename, std::optiona
     std::map<CfemInt, std::vector<int>> cornerToBoundaryGroups;
 
     for (const auto &e : rawElements) {
-        int dim = getDimFromGmshType(e.type);
+        CfemInt dim = getDimFromGmshType(e.type);
         
         // --- VOLUME ELEMENTS (The actual m_cells) ---
         if (dim == maxDim) {
@@ -362,14 +362,14 @@ std::shared_ptr<Mesh> GmshParser::load(const std::string &filename, std::optiona
             // Map Gmsh Node IDs to internal vertex indices
             std::vector<CfemInt> vids;
             vids.reserve(e.gmshNodeIds.size());
-            for (int gid : e.gmshNodeIds) vids.push_back(nodeIndexMap.at(gid));
+            for (CfemInt gid : e.gmshNodeIds) vids.push_back(nodeIndexMap.at(gid));
 
             // Permutation Correction (Specific to CFEM internal node numbering)
             if (cfem_cell_type == CellType::TET10) {
                 std::swap(vids[8], vids[9]);
             } else if (cfem_cell_type == CellType::HEX27) {
                 std::vector<CfemInt> v_orig = vids;
-                for (int i = 0; i < 27; ++i) vids[i] = v_orig[GMSH_TO_CFEM_HEX27[i]];
+                for (CfemInt i = 0; i < 27; ++i) vids[i] = v_orig[GMSH_TO_CFEM_HEX27[i]];
             }
 
             // Add only volume elements to the core mesh structure
@@ -380,12 +380,12 @@ std::shared_ptr<Mesh> GmshParser::load(const std::string &filename, std::optiona
         } 
         // --- BOUNDARY ELEMENTS (Used for Tagging Facets later) ---
         else if (dim == maxDim - 1) {
-            int gId = getTagGroupId(e.entityTag, dim);
+            CfemInt gId = getTagGroupId(e.entityTag, dim);
             if (gId == -1) continue;
 
             // Harvest corner nodes to identify which boundary entity this belongs to
-            int numCorners = getNumMainCorners(mapGmshType(e.type));
-            for (int i = 0; i < numCorners; ++i) {
+            CfemInt numCorners = getNumMainCorners(mapGmshType(e.type));
+            for (CfemInt i = 0; i < numCorners; ++i) {
                 cornerToBoundaryGroups[nodeIndexMap.at(e.gmshNodeIds[i])].push_back(gId);
             }
         }
@@ -397,10 +397,10 @@ std::shared_ptr<Mesh> GmshParser::load(const std::string &filename, std::optiona
     mesh->setTagGroups(tagGroups);
 
     // 6. DISTRIBUTE ELEMENTS TO ENTITIES (Boundary Names)
-    auto distribute = [&](int gId, CfemInt elementIdx, int dimElem, std::span<const CfemInt> v_ids) {
+    auto distribute = [&](CfemInt gId, CfemInt elementIdx, CfemInt dimElem, std::span<const CfemInt> v_ids) {
         if (gId < 0) return;
-        for (int pTagGmsh : tagGroups[gId]) {
-            int internalId = gmshToInternal[{dimElem, pTagGmsh}];
+        for (CfemInt pTagGmsh : tagGroups[gId]) {
+            CfemInt internalId = gmshToInternal[{dimElem, pTagGmsh}];
             MeshEntity *ent = mesh->getEntity(internalId);
             
             if (dimElem == maxDim) ent->addCell(elementIdx);
@@ -421,14 +421,14 @@ std::shared_ptr<Mesh> GmshParser::load(const std::string &filename, std::optiona
         if (!f.isBoundary()) continue;
 
         auto f_vids = mesh->getFacetConnectivity(f.id);
-        int numCorners = getNumMainCorners(f.type);
+        CfemInt numCorners = getNumMainCorners(f.type);
         CfemInt v0 = f_vids[0];
         
         auto it = cornerToBoundaryGroups.find(v0);
         if (it != cornerToBoundaryGroups.end()) {
-            for (int gId : it->second) {
+            for (CfemInt gId : it->second) {
                 bool allMatch = true;
-                for (int j = 1; j < numCorners; ++j) {
+                for (CfemInt j = 1; j < numCorners; ++j) {
                     const auto& others = cornerToBoundaryGroups[f_vids[j]];
                     if (std::find(others.begin(), others.end(), gId) == others.end()) {
                         allMatch = false; 

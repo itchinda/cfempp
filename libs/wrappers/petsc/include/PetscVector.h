@@ -32,6 +32,8 @@
 
 #include <petscvec.h>
 
+#include "cfemutils.h"
+
 
 /** **************************************************************************************
  * @class PetscVector
@@ -53,7 +55,7 @@
 
 class PetscVector {
 public:
-    PetscVector(int local_size, int global_size);
+    PetscVector(CfemInt local_size, CfemInt global_size);
     ~PetscVector();
 
     PetscVector(PetscVector&& other) noexcept;
@@ -66,7 +68,7 @@ public:
     Vec&       getRaw()       { return m_Vec; }
     const Vec& getRaw() const { return m_Vec; }
     
-    void setValue(int i, PetscScalar val, InsertMode mode = INSERT_VALUES);
+    void setValue(CfemInt i, PetscScalar val, InsertMode mode = INSERT_VALUES);
     void assemble();
 
     // Helpful math wrappers

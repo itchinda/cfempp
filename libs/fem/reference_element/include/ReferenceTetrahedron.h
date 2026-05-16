@@ -77,7 +77,7 @@ namespace cfem {
             const CfemInt n = 4;
             if (out.values.size() != n) out.setup(n);
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
-                out.hessians.assign(n, SymTensorO2());
+                out.hessians.assign(n, SymTensor3D());
             }
 
             const CfemReal L1 = xi.x;
@@ -132,7 +132,7 @@ namespace cfem {
             const CfemInt n = 10;
             if (out.values.size() != n) out.setup(n);
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
-                out.hessians.assign(n, SymTensorO2());
+                out.hessians.assign(n, SymTensor3D());
             }
 
             const CfemReal L1 = xi.x;
@@ -225,7 +225,7 @@ namespace cfem {
             const CfemInt n = 5;
             if (out.values.size() != n) out.setup(n);
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
-                out.hessians.assign(n, SymTensorO2());
+                out.hessians.assign(n, SymTensor3D());
             }
 
             const CfemReal x = xi.x, y = xi.y, z = xi.z;
@@ -312,7 +312,7 @@ class P0ReferenceTetrahedron : public ReferenceElement {
 
             // Hessien nul
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                if (out.hessians.size() != n) out.hessians.assign(n, SymTensorO2());
+                if (out.hessians.size() != n) out.hessians.assign(n, SymTensor3D());
                 out.hessians[0].setZero();
             }
 

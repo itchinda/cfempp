@@ -43,7 +43,7 @@ namespace cfem::sym
             std::shared_ptr<const CfemExpression> dz
         );
 
-        CfemInt getDimension() const override { return 3; }
+        CfemInt getNumComponents() const override { return 3; }
         bool isPointwise() const override { return true; }
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override;
         std::shared_ptr<const CfemExpression> div() const override;
@@ -55,7 +55,7 @@ namespace cfem::sym
             m_components[2]->evaluate(cellId, xi, out.subspan(2, 1), ctx);
         }
 
-        inline std::shared_ptr<const ScalarSymbolicExpression> getComponent(int i) const
+        inline std::shared_ptr<const ScalarSymbolicExpression> getComponent(CfemInt i) const
         {
             CFEM_ASSERT(i < 3 && i >= 0, "Index out of bounds.");
             return m_components[i];

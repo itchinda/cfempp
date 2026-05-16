@@ -38,7 +38,7 @@ namespace EntityOps {
                              const std::string& new_name) 
     {
         CFEM_ASSERT(&a.getMesh()== &mesh && &b.getMesh()== &mesh, "EntityOps::Union Error: Entities must belong to the same parent mesh.");
-        CfemInt new_dim = std::max(a.getDimension(), b.getDimension());
+        CfemInt new_dim = std::max(a.getTopologicalDimension(), b.getTopologicalDimension());
         CfemInt new_id = mesh.createEntity(new_name, new_dim);
 
         MeshEntity* result = mesh.getEntity(new_id); // Assuming this getter exists

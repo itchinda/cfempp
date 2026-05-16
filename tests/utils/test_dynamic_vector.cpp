@@ -26,7 +26,7 @@ TEST(DynamicVectorTest, ConstructorAndSize) {
     DynamicVector<double> v(5, 1.23);
     
     EXPECT_EQ(v.size(), 5);
-    for (int i = 0; i < v.size(); ++i) {
+    for (CfemInt i = 0; i < v.size(); ++i) {
         EXPECT_DOUBLE_EQ(v[i], 1.23);
     }
 }

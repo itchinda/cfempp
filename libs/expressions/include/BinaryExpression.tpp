@@ -48,23 +48,23 @@ namespace cfem::sym
         switch (m_op)
         {
             case MathOp::Add:{
-                for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] + spanR[i];
+                for (CfemInt i = 0; i < m_dimOut; ++i) out[i] = spanL[i] + spanR[i];
                 break;
             }
             case MathOp::Sub:{
-                for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] - spanR[i];
+                for (CfemInt i = 0; i < m_dimOut; ++i) out[i] = spanL[i] - spanR[i];
                 break;
             }
             case MathOp::Mul: {
                 if (m_dimL == 1) { // Scalaire * (Scalaire ou Vecteur ou Tenseur)
-                    for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[0] * spanR[i];
+                    for (CfemInt i = 0; i < m_dimOut; ++i) out[i] = spanL[0] * spanR[i];
                 }
                 else if (m_dimR == 1) { // (Vecteur ou Tenseur) * Scalaire
-                    for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] * spanR[0];
+                    for (CfemInt i = 0; i < m_dimOut; ++i) out[i] = spanL[i] * spanR[0];
                 }
                 else if (m_dimL == 9 && m_dimR == 9) { // TENSEUR * TENSEUR (MatMul)
-                    for (int i = 0; i < 3; ++i) {
-                        for (int j = 0; j < 3; ++j) {
+                    for (CfemInt i = 0; i < 3; ++i) {
+                        for (CfemInt j = 0; j < 3; ++j) {
                             out[i * 3 + j] = spanL[i * 3 + 0] * spanR[0 * 3 + j] +
                                              spanL[i * 3 + 1] * spanR[1 * 3 + j] +
                                              spanL[i * 3 + 2] * spanR[2 * 3 + j];
@@ -77,15 +77,15 @@ namespace cfem::sym
                     out[2] = spanL[6]*spanR[0] + spanL[7]*spanR[1] + spanL[8]*spanR[2];
                 }
                 else { // Par défaut : Multiplication élément par élément (Hadamard)
-                    for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] * spanR[i];
+                    for (CfemInt i = 0; i < m_dimOut; ++i) out[i] = spanL[i] * spanR[i];
                 }
                 break;
             }
             case MathOp::Div:{
                 if (m_dimR == 1) // (Vecteur ou Tenseur) / Scalaire
-                    for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] / spanR[0];
+                    for (CfemInt i = 0; i < m_dimOut; ++i) out[i] = spanL[i] / spanR[0];
                 else // Division élément par élément
-                    for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] / spanR[i];
+                    for (CfemInt i = 0; i < m_dimOut; ++i) out[i] = spanL[i] / spanR[i];
                 break;
             }
             case MathOp::Dot:{ 
@@ -103,8 +103,8 @@ namespace cfem::sym
                     out[2] = spanL[0]*spanR[2] + spanL[1]*spanR[5] + spanL[2]*spanR[8];
                 }
                 else if (m_dimL == 9 && m_dimR == 9) { // Tenseur . Tenseur -> Tenseur (MatMul)
-                    for (int i = 0; i < 3; ++i) {
-                        for (int j = 0; j < 3; ++j) {
+                    for (CfemInt i = 0; i < 3; ++i) {
+                        for (CfemInt j = 0; j < 3; ++j) {
                             out[i*3 + j] = spanL[i*3 + 0] * spanR[0*3 + j] +
                                         spanL[i*3 + 1] * spanR[1*3 + j] +
                                         spanL[i*3 + 2] * spanR[2*3 + j];
@@ -112,16 +112,16 @@ namespace cfem::sym
                     }
                 }
                 else if (m_dimL == 1) { // Scalaire . (Vecteur/Tenseur)
-                    for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[0] * spanR[i];
+                    for (CfemInt i = 0; i < m_dimOut; ++i) out[i] = spanL[0] * spanR[i];
                 }
                 else if (m_dimR == 1) { // (Vecteur/Tenseur) . Scalaire
-                    for (int i = 0; i < m_dimOut; ++i) out[i] = spanL[i] * spanR[0];
+                    for (CfemInt i = 0; i < m_dimOut; ++i) out[i] = spanL[i] * spanR[0];
                 }
                 break;
             }
             case MathOp::Inner: { // Double contraction sigma : epsilon -> Scalaire
                 CfemReal sum = 0.0;
-                for (int i = 0; i < 9; ++i) sum += spanL[i] * spanR[i];
+                for (CfemInt i = 0; i < 9; ++i) sum += spanL[i] * spanR[i];
                 out[0] = sum;
                 break;
             }
@@ -134,26 +134,26 @@ namespace cfem::sym
             case MathOp::Outer:
                 // spanL = [a0, a1, a2], spanR = [b0, b1, b2]
                 // out = [a0*b0, a0*b1, a0*b2, a1*b0, a1*b1, a1*b2, a2*b0, a2*b1, a2*b2]
-                for (int i = 0; i < 3; ++i) {
-                    for (int j = 0; j < 3; ++j) {
+                for (CfemInt i = 0; i < 3; ++i) {
+                    for (CfemInt j = 0; j < 3; ++j) {
                         out[i * 3 + j] = spanL[i] * spanR[j];
                     }
                 }
                 break;
             case MathOp::Pow:{
-                for (int i = 0; i < m_dimOut; ++i) out[i] = std::pow(spanL[i], spanR[i]);
+                for (CfemInt i = 0; i < m_dimOut; ++i) out[i] = std::pow(spanL[i], spanR[i]);
                 break;
             }
             case MathOp::Max:{
-                for (int i = 0; i < m_dimOut; ++i) out[i] = std::max(spanL[i], spanR[i]);
+                for (CfemInt i = 0; i < m_dimOut; ++i) out[i] = std::max(spanL[i], spanR[i]);
                 break;
             }
             case MathOp::Min:{
-                for (int i = 0; i < m_dimOut; ++i) out[i] = std::min(spanL[i], spanR[i]);
+                for (CfemInt i = 0; i < m_dimOut; ++i) out[i] = std::min(spanL[i], spanR[i]);
                 break;
             }
             case MathOp::Atan2:{
-                for (int i = 0; i < m_dimOut; ++i) out[i] = std::atan2(spanL[i], spanR[i]);
+                for (CfemInt i = 0; i < m_dimOut; ++i) out[i] = std::atan2(spanL[i], spanR[i]);
                 break;
             }
             default:
@@ -165,7 +165,7 @@ namespace cfem::sym
         }
     }
 
-    inline int getPrecedence(MathOp op)
+    inline CfemInt getPrecedence(MathOp op)
     {
         switch (op)
         {

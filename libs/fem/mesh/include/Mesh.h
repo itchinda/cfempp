@@ -62,7 +62,7 @@
 #include "GmshParser.h"
 
 
-constexpr int MAX_CELL_TYPES {static_cast<int>(cfem::CellType::COUNT)};
+constexpr CfemInt MAX_CELL_TYPES {static_cast<int>(cfem::CellType::COUNT)};
 namespace cfem{
     class QuadMeshBuilder;
     class LineMeshBuilder;
@@ -74,7 +74,7 @@ namespace cfem{
 
 struct TagGroup {
     std::vector<int> gmsh_tags;
-    int internal_id;
+    CfemInt internal_id;
 };
 
 /**
@@ -82,11 +82,11 @@ struct TagGroup {
  */
 struct LocalFace {
     CfemInt v[9]; // Capacity for QUAD9 nodes
-    int size = 0;
+    CfemInt size = 0;
     CellType type = CellType::NODE;
 
     bool contains(CfemInt v_id) const {
-        for (int i = 0; i < size; ++i) if (v[i] == v_id) return true;
+        for (CfemInt i = 0; i < size; ++i) if (v[i] == v_id) return true;
         return false;
     }
     
@@ -95,7 +95,7 @@ struct LocalFace {
         if (size != other.size) return false;
         // Since nodes in facets are usually few, this nested loop is faster 
         // than sorting for 8 million elements.
-        for (int i = 0; i < size; ++i) {
+        for (CfemInt i = 0; i < size; ++i) {
             if (!other.contains(v[i])) return false;
         }
         return true;
@@ -176,7 +176,7 @@ private:
 
 public:
     explicit Mesh(ConstructorToken);
-    explicit Mesh(ConstructorToken, CfemInt p_meshDim, MeshOrder p_meshOrder);
+    explicit Mesh(ConstructorToken, CfemInt p_topologicalDimension, MeshOrder p_meshOrder);
 
     Mesh(const Mesh&) = delete;
     Mesh& operator=(const Mesh&) = delete;
@@ -243,7 +243,9 @@ public:
     void buildMesh();
     void compactVertices();
 
-    CfemInt getDimension() const { return m_meshDim; }
+    CfemInt getTopologicalDimension() const {return m_topologicalDimension; }
+    CfemInt getSpatialDimension() const { return m_spatialDim; }
+
     MeshOrder getOrder() const { return m_meshOrder; }
     CfemInt getOrderInt() const { return static_cast<CfemInt>(m_meshOrder); }
     bool isQuadratic() const { return (m_meshOrder == MeshOrder::Quadratic); }
@@ -322,13 +324,13 @@ public:
     }
 
     const std::vector<Vertex>& getVertices() const { return m_vertices; }
-    const std::vector<Cell>&   getCells()   const { return m_cells; }
-    const std::vector<Facet>&  getFacets()  const { return m_facets; }
+    const std::vector<Cell>&   getCells()    const { return m_cells; }
+    const std::vector<Facet>&  getFacets()   const { return m_facets; }
     const std::vector<std::unique_ptr<MeshEntity>>&  getEntities()  const { return m_entities; }
-    std::vector<std::unique_ptr<MeshEntity>>&  getEntities() { return m_entities; }
+    std::vector<std::unique_ptr<MeshEntity>>&        getEntities() { return m_entities; }
 
     void setOrder(MeshOrder newOrder);
-    void setDimension(int newDim);
+    void setTopologicalDimension(CfemInt newDim);
     void setReferenceNormal(const cfem::Vector3D& norm);
     void clearReferenceNormal();
 
@@ -337,7 +339,6 @@ public:
     MeshEntity& createInternalEntity(CfemInt id,
                                      const std::string& name,
                                      CfemInt dim);
-
 
     MeshEntity* getEntity(const std::string& name);
     MeshEntity* getEntity(CfemInt id);
@@ -360,7 +361,6 @@ public:
     // HELPERS
     template<typename T>
     CfemReal computeCellMeasure(CellType type, const T& v_ids) const;
-    //CfemReal computeCellMeasure(CellType type, const auto& v_ids) const; 
     CfemReal compute2NodesLineLength(CfemInt p_idx0, CfemInt p_idx1) const;
     CfemReal computeSigned3NodesTriangleArea(CfemInt p_idx0, CfemInt p_idx1, CfemInt p_idx2) const;
     CfemReal computeSigned4NodesTetraVolume(CfemInt p_idx0, CfemInt p_idx1, CfemInt p_idx2, CfemInt p_idx3) const;
@@ -384,7 +384,7 @@ public:
     
     
     void setTagGroups(const std::vector<std::vector<int>>& groups) { m_tagGroups = groups; }
-    const std::vector<int>& getPhysicalTags(int groupId) const { return m_tagGroups.at(groupId); }
+    const std::vector<int>& getPhysicalTags(CfemInt groupId) const { return m_tagGroups.at(groupId); }
 
     void relaxMesh(CfemInt iterations, CfemReal lambda = 0.4);
 
@@ -665,9 +665,10 @@ struct TJunctionBoundaryNames
 
     static void projectBoundaryMidNodes(Mesh &mesh, const cfem::Vector3D &center, CfemReal radius);
 
-    LocalFace getLocalFaceData(CfemInt cell_id, int face_idx) const;
+    LocalFace getLocalFaceData(CfemInt cell_id, CfemInt face_idx) const;
 private:
-    CfemInt m_meshDim {0};
+    CfemInt m_topologicalDimension {0};
+    CfemInt m_spatialDim {3};
     MeshOrder m_meshOrder {MeshOrder::None};
 
     std::vector<Vertex> m_vertices;
@@ -707,8 +708,8 @@ private:
     std::map<CellType, size_t> m_invertedCellCounts;
 
     void checkInvariant() const{
-        CFEM_INVARIANT(m_meshDim >= 0 && m_meshDim <= 3);
-        if (m_meshDim==0 || m_meshOrder == MeshOrder::None){
+        CFEM_INVARIANT(m_topologicalDimension >= 0 && m_topologicalDimension <= 3);
+        if (m_topologicalDimension==0 || m_meshOrder == MeshOrder::None){
             CFEM_INVARIANT(m_cells.empty() && m_facets.empty());
         }
     }
@@ -732,7 +733,7 @@ private:
     CfemReal computeTetQuality(const std::span<const CfemInt>& v) const;
     CfemReal computePrismQuality(const std::span<const CfemInt>& v) const;
 
-    int findLocalFaceIndex(CfemInt cell_id, const LocalFace& target) const;
+    CfemInt findLocalFaceIndex(CfemInt cell_id, const LocalFace& target) const;
 
     std::set<std::string> m_globalFieldRegistry;
 

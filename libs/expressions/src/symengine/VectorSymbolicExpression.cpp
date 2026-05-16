@@ -55,7 +55,7 @@ namespace cfem::sym
 
     std::shared_ptr<const CfemExpression> VectorSymbolicExpression::createGradient() const {
         std::shared_ptr<const ScalarSymbolicExpression> comps[9];
-        for(int i=0; i<3; ++i) {
+        for(CfemInt i=0; i<3; ++i) {
             comps[i*3 + 0] = m_components[i]->diff(sym::x_rcp);
             comps[i*3 + 1] = m_components[i]->diff(sym::y_rcp);
             comps[i*3 + 2] = m_components[i]->diff(sym::z_rcp);

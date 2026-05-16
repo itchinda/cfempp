@@ -70,7 +70,7 @@ namespace cfem
         return {};
     }
 
-    inline QuadratureRule QuadratureFactory::getQuadRule(int nPoints1D) {
+    inline QuadratureRule QuadratureFactory::getQuadRule(CfemInt nPoints1D) {
         QuadratureRule rule;
         QuadratureRule base;
 
@@ -143,7 +143,7 @@ namespace cfem
         return rule;
     }
 
-    inline QuadratureRule QuadratureFactory::getHexRule(int nPoints1D) {
+    inline QuadratureRule QuadratureFactory::getHexRule(CfemInt nPoints1D) {
         QuadratureRule rule;
         QuadratureRule base;
 
@@ -629,7 +629,7 @@ namespace cfem
     /** 
      * @brief Internal routing to the factory based on cell geometry. 
      */
-    inline QuadratureRule IntegrationScheme::fetchFromFactory(CellType type, int count) {
+    inline QuadratureRule IntegrationScheme::fetchFromFactory(CellType type, CfemInt count) {
         switch(type) {
             case CellType::LINE2: 
             case CellType::LINE3: 

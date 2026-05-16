@@ -59,14 +59,14 @@ namespace cfem::sym
             m_components[8] = std::move(expr_zz);
 
             for (int i = 0; i < 9; ++i) {
-                if (!m_components[i] || m_components[i]->getDimension() != 1) {
+                if (!m_components[i] || m_components[i]->getNumComponents() != 1) {
                     CFEM_THROW("TensorExpression component " + std::to_string(i) + " must be a valid scalar expression.");
                 }
             }
 
         }
 
-        CfemInt getDimension() const override { return 9; }
+        CfemInt getNumComponents() const override { return 9; }
 
         bool isPointwise() const override{
             return m_components[0]->isPointwise() && m_components[1]->isPointwise() && m_components[2]->isPointwise() &&

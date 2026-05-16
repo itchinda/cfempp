@@ -45,10 +45,10 @@ namespace cfem
     {
         mesh.clear();
         mesh.setOrder(MeshOrder::Linear);
-        mesh.setDimension(2);
+        mesh.setTopologicalDimension(2);
 
         // 1. Layer Structure
-        int num_rings = static_cast<int>(std::round(radius / h));
+        CfemInt num_rings = static_cast<int>(std::round(radius / h));
         if (num_rings < 1) num_rings = 1;
         CfemReal dr = radius / num_rings;
 
@@ -61,12 +61,12 @@ namespace cfem
         // 3. Vertex generation
         ring_nodes[0].push_back(mesh.addVertex(center.x, center.y, center.z)); // center
 
-        for (int r = 1; r <= num_rings; ++r) {
+        for (CfemInt r = 1; r <= num_rings; ++r) {
             CfemReal current_r = r * dr;
-            int num_points = static_cast<int>(std::round(2.0 * M_PI * current_r / h));
+            CfemInt num_points = static_cast<int>(std::round(2.0 * M_PI * current_r / h));
             if (num_points < 3) num_points = 3;
 
-            for (int i = 0; i < num_points; ++i) {
+            for (CfemInt i = 0; i < num_points; ++i) {
                 CfemReal theta = (2.0 * M_PI * i) / num_points;
                 cfem::Vector3D pos = center + u * (current_r * std::cos(theta)) + v * (current_r * std::sin(theta));
                 ring_nodes[r].push_back(mesh.addVertex(pos.x, pos.y, pos.z));
@@ -99,7 +99,7 @@ namespace cfem
         }
 
         // 6. Tessellation for outer rings
-        for (int r = 1; r < num_rings; ++r) {
+        for (CfemInt r = 1; r < num_rings; ++r) {
             const auto& inner = ring_nodes[r];
             const auto& outer = ring_nodes[r+1];
 

@@ -136,8 +136,8 @@ namespace cfem
             CFEM_THROW(boundary_entity.getName() << " is not part of the mesh.");
         }
 
-        CfemInt entityDim = boundary_entity.getDimension();
-        CfemInt meshDim   = m_mesh->getDimension();
+        CfemInt entityDim = boundary_entity.getTopologicalDimension();
+        CfemInt meshDim   = m_mesh->getTopologicalDimension();
         
         bool isBoundary = (entityDim == meshDim - 1);
         bool isManifoldSurface = (entityDim == 2 && meshDim == 2);
@@ -152,14 +152,14 @@ namespace cfem
             if( ! m_mesh->isPartOfTheMeshEntities(volume_entity.getId()) ){
                 CFEM_THROW(volume_entity.getName() << " is not part of the mesh.");
             }
-            if( volume_entity.getDimension() != meshDim) {
+            if( volume_entity.getTopologicalDimension() != meshDim) {
                 CFEM_THROW("The body must have the same dimension as the mesh (" << meshDim << ").");
             }
         }
 
-        if (expr->getDimension() != 3) {
+        if (expr->getNumComponents() != 3) {
             CFEM_THROW("computeFlux: The expression must be a 3D vector. "
-                       << "Got dimension " << expr->getDimension());
+                       << "Got dimension " << expr->getNumComponents());
         }
     
         auto fluxExpr = sym::dot(expr, sym::geometric_normal());
@@ -185,8 +185,8 @@ namespace cfem
             return;
         }
 
-        const CfemInt meshDim = m_mesh->getDimension();
-        const CfemInt entityDim = entity.getDimension();
+        const CfemInt meshDim = m_mesh->getTopologicalDimension();
+        const CfemInt entityDim = entity.getTopologicalDimension();
 
         if (entityDim == meshDim) integrate(targets, entity);
         else if (entityDim == meshDim - 1) integrateBoundary(targets, entity, volume);
@@ -210,7 +210,7 @@ namespace cfem
         for (size_t i = 0; i < targets.size(); ++i) {
             if (!targets[i].first) continue;
 
-            if (targets[i].first->getDimension() != 1) {
+            if (targets[i].first->getNumComponents() != 1) {
                 CFEM_THROW( "FunctionIntegrator only accepts scalar expressions. "
                            << "Please pass each component separately.");
             }
@@ -227,7 +227,7 @@ namespace cfem
 
         std::map<const FESpace*, int> spaceToId;
         std::vector<std::shared_ptr<const FESpace>> idToSpace;
-        int nextId = 0;
+        CfemInt nextId = 0;
         for (const auto& sp : requiredSpaces) {
             spaceToId[sp.get()] = nextId++;
             idToSpace.push_back(sp);
@@ -248,7 +248,7 @@ namespace cfem
         // 2. QUADRATURE ET CACHING DE REFERENCE (Read-Only)
         // ============================================================
         struct SpaceCache {
-            int contextIndex;
+            CfemInt contextIndex;
             std::vector<ShapeInfo> shapes;
         };
 
@@ -262,7 +262,7 @@ namespace cfem
 
         for (CellType cell_type : m_mesh->getCellTypesPresent())
         {
-            int idx = static_cast<int>(cell_type);
+            CfemInt idx = static_cast<int>(cell_type);
             const auto &quad = scheme.getRule(cell_type, m_schemes_params.getNumIntgPt(cell_type));
             const auto &lQuadPts = quad.getPoints();
 
@@ -323,7 +323,7 @@ namespace cfem
 
                     mapGeo.setup(refElGeo->getNumNodes());
                     for (size_t sIdx = 0; sIdx < idToSpace.size(); ++sIdx) {
-                        int nNodesSpace = static_cast<int>(cache->spaceCaches[sIdx].shapes[0].values.size());
+                        CfemInt nNodesSpace = static_cast<int>(cache->spaceCaches[sIdx].shapes[0].values.size());
                         spaceMappings[sIdx].setup(nNodesSpace);
                     }
                 }
@@ -407,7 +407,7 @@ namespace cfem
         for (size_t i = 0; i < targets.size(); ++i) {
             if (!targets[i].first) continue;
 
-            if (targets[i].first->getDimension() != 1) {
+            if (targets[i].first->getNumComponents() != 1) {
                 CFEM_THROW( "FunctionIntegrator only accepts scalar expressions. "
                            << "Please pass each component separately.");
             }
@@ -423,7 +423,7 @@ namespace cfem
 
         std::map<const FESpace*, int> spaceToId;
         std::vector<std::shared_ptr<const FESpace>> idToSpace;
-        int nextId = 0;
+        CfemInt nextId = 0;
         for (const auto& sp : requiredSpaces) {
             spaceToId[sp.get()] = nextId++;
             idToSpace.push_back(sp);
@@ -439,7 +439,7 @@ namespace cfem
         IntegrationScheme scheme;
 
         struct BoundarySpaceCache {
-            int contextIndex; 
+            CfemInt contextIndex; 
             std::vector<ShapeInfo> shapes; 
         };
         
@@ -456,13 +456,13 @@ namespace cfem
 
         for (CellType cType : m_mesh->getCellTypesPresent()) 
         {
-            int cIdx = static_cast<int>(cType);
+            CfemInt cIdx = static_cast<int>(cType);
             CfemInt numFaces = Cell::getFaceCount(cType); 
             parentFaceCache[cIdx].resize(numFaces);
 
             const auto& refElParentGeo = ReferenceElementFactory::getReferenceElement( cType, geoOrder );
 
-            for (int f_local = 0; f_local < numFaces; ++f_local) 
+            for (CfemInt f_local = 0; f_local < numFaces; ++f_local) 
             {
                 CellType fType = Cell::getFacetType(cType, f_local);
                 const auto &refElFacetGeo = ReferenceElementFactory::getReferenceElement(fType, geoOrder);
@@ -523,7 +523,7 @@ namespace cfem
                 const auto &facet = m_mesh->getFacet(fid);
 
                 CfemInt parentId = -1;
-                int localFacetId = -1; 
+                CfemInt localFacetId = -1; 
                 
                 if (facet.left_cell != -1 && volume.containsCell(facet.left_cell)) {
                     parentId = facet.left_cell;

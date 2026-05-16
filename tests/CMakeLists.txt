@@ -16,6 +16,9 @@ add_executable(unit_tests
     utils/test_fixed_vector.cpp
     utils/test_fixed_matrix.cpp
     utils/test_sym_tensor_o2.cpp
+    utils/tensors/test_tensor_addition.cpp
+    utils/tensors/test_tensor_product.cpp
+    utils/tensors/test_tensor_substraction.cpp
 )
 
 target_link_libraries(unit_tests

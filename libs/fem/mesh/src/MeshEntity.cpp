@@ -27,7 +27,7 @@ namespace cfem
     MeshEntity::MeshEntity(const Mesh *mesh,
                            CfemInt id,
                            const std::string &name,
-                           CfemInt dim) : m_mesh(mesh), m_id(id), m_name(name), m_dim(dim)
+                           CfemInt dim) : m_mesh(mesh), m_id(id), m_name(name), m_topologicalDimension(dim)
     {}
 
     std::string MeshEntity::getEntityFormat(bool include_Ids) const
@@ -35,7 +35,7 @@ namespace cfem
         std::stringstream ss;
         ss << "------------------------------------------\n";
         ss << "ENTITY INFO: " << m_name << " (ID: " << m_id << ")\n";
-        ss << "Dimension:   " << m_dim << "\n";
+        ss << "Dimension:   " << m_topologicalDimension << "\n";
         ss << "------------------------------------------\n";
 
         ss << "$Nodes\n";

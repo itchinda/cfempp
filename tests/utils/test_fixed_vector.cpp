@@ -30,7 +30,7 @@ const double TOL = cfem::ZERO_TOLERANCE;
 TEST(FixedVectorTest, ConstructionAndInitialization) {
     // Default constructor
     FixedVector<double, 4> v1;
-    for (int i = 0; i < 4; ++i) {
+    for (CfemInt i = 0; i < 4; ++i) {
         EXPECT_NEAR(v1[i], 0.0, TOL);
     }
 

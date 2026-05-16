@@ -21,7 +21,7 @@
 #include "cfemutils.h"
 #include "EvalContext.h"
 #include "Vector3D.h"
-#include "TensorO2.h"
+#include "Tensor3D.h"
 #include "FESpace.h"
 #include <set>
 #include <span>
@@ -87,7 +87,7 @@ namespace cfem::sym
     public:
         virtual ~CfemExpression() = default;
 
-        virtual CfemInt getDimension() const = 0;
+        virtual CfemInt  getNumComponents() const = 0;
         virtual ExpressionType getType() const = 0;
 
         virtual void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const = 0;

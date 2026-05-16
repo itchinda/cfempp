@@ -52,7 +52,7 @@ namespace cfem::sym::models {
          * @param eps The symmetric strain tensor @f$ \mathbf{\varepsilon} @f$.
          */
         std::shared_ptr<const CfemExpression> stress(std::shared_ptr<const CfemExpression> eps) const {
-            CFEM_ASSERT(eps && eps->getDimension() == 9, "`eps` must be a second order tensor." );
+            CFEM_ASSERT(eps && eps->getNumComponents() == 9, "`eps` must be a second order tensor." );
             auto I = identityO2TensorExpr(); // Assuming 3D
             return 2.0 * m_mu * eps + m_lambda * trace(eps) * I;
         }
@@ -64,7 +64,7 @@ namespace cfem::sym::models {
          */
         std::shared_ptr<const CfemExpression> gateauDerivative( std::shared_ptr<const CfemExpression> de) const 
         {
-            CFEM_ASSERT(de && de->getDimension() == 9, "`de` must be a second order tensor." );
+            CFEM_ASSERT(de && de->getNumComponents() == 9, "`de` must be a second order tensor." );
             auto I = identityO2TensorExpr();
             return 2.0 * m_mu * de + m_lambda * trace(de) * I;
         }
@@ -92,7 +92,7 @@ namespace cfem::sym::models {
          * @return std::shared_ptr<const CfemExpression> PK1 stress tensor expression.
          */
         std::shared_ptr<const CfemExpression> firstPiolaStress(std::shared_ptr<const CfemExpression> F) const {
-            CFEM_ASSERT(F && F->getDimension() == 9, "Deformation gradient F must be valid.");
+            CFEM_ASSERT(F && F->getNumComponents() == 9, "Deformation gradient F must be valid.");
 
             auto J = det(F);
             auto FinvT = transpose(inv(F));

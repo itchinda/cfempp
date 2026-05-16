@@ -75,7 +75,7 @@ namespace cfem::sym
 
         virtual ~LambdaExpressionBase() override = default;
 
-        CfemInt getDimension() const override { return m_dimension; }
+        CfemInt getNumComponents() const override { return m_dimension; }
         ExpressionType getType() const override { return ExpressionType::Lambda; }
 
         bool isPointwise() const override {  return true; }

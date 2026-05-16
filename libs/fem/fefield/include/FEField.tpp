@@ -48,9 +48,9 @@ namespace cfem
 
         const auto& mesh = m_space->getMesh();
         Vec& petscVec = m_data.getRaw();
-        int dim = this->getDimension();
+        CfemInt nComp = this->getNumComponents();
 
-        // 1. Compile-time type analysis of the input
+        // Compile-time type analysis of the input
         constexpr bool is_constant = std::is_arithmetic_v<std::decay_t<Func>>;
         constexpr bool is_callable = std::is_invocable_v<Func, Vector3D>;
         static_assert(is_constant || is_callable, 
@@ -91,7 +91,7 @@ namespace cfem
                     {
                         // --- FAST PATH: Constant Value ---
                         // No geometry mapping needed. Just apply the constant to the DOFs.
-                        for (int d = 0; d < dim; ++d)
+                        for (CfemInt d = 0; d < nComp; ++d)
                         {
                             CfemInt globalIdx = m_space->getGlobalDofIdx(cellId, i, d);
                             if (globalIdx >= low && globalIdx < high) 
@@ -121,7 +121,7 @@ namespace cfem
                         constexpr bool returns_scalar = std::is_arithmetic_v<LocalResultType>;
 
                         // Global Assembly (Local Buffer)
-                        for (int d = 0; d < dim; ++d)
+                        for (CfemInt d = 0; d < nComp; ++d)
                         {
                             CfemInt globalIdx = m_space->getGlobalDofIdx(cellId, i, d);
                             if (globalIdx >= low && globalIdx < high) 

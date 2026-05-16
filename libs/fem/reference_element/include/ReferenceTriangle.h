@@ -75,7 +75,7 @@ namespace cfem {
             }
 
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
-                out.hessians.assign(n, SymTensorO2());
+                out.hessians.assign(n, SymTensor3D());
             }
 
             // N0 = 1 - xi - eta, N1 = xi, N2 = eta
@@ -131,7 +131,7 @@ namespace cfem {
             if (out.values.size() != n) out.setup(n);
             
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
-                out.hessians.assign(n, SymTensorO2());
+                out.hessians.assign(n, SymTensor3D());
             }
 
             const CfemReal L1 = xi.x;
@@ -199,7 +199,7 @@ namespace cfem {
             const CfemInt n = 4;
             if (out.values.size() != n) out.setup(n);
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
-                out.hessians.assign(n, SymTensorO2());
+                out.hessians.assign(n, SymTensor3D());
             }
 
             const CfemReal x = xi.x;
@@ -288,7 +288,7 @@ namespace cfem {
             }
 
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                if (out.hessians.size() != n) out.hessians.assign(n, SymTensorO2());
+                if (out.hessians.size() != n) out.hessians.assign(n, SymTensor3D());
                 out.hessians[0].setZero();
             }
 

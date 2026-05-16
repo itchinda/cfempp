@@ -60,7 +60,7 @@ public:
      * @param size Number of elements.
      * @param init Initial value for all elements (default 0).
      */
-    explicit DynamicVector(int size, T init = T{}) 
+    explicit DynamicVector(CfemInt size, T init = T{}) 
         : m_data(static_cast<size_t>(size), init) {}
 
     /*!
@@ -72,10 +72,10 @@ public:
      * @brief Conversion constructor from FixedVector.
      *        Allows: DynamicVector<double> dv = someFixedVec;
      */
-    template <int N>
+    template <CfemInt N>
     DynamicVector(const FixedVector<T, N>& fixed) {
         m_data.resize(N);
-        for(int i = 0; i < N; ++i) m_data[i] = fixed[i];
+        for(CfemInt i = 0; i < N; ++i) m_data[i] = fixed[i];
     }
 
     // Move Constructor
@@ -96,12 +96,12 @@ public:
     /*! 
      * @brief Returns the number of elements. 
      */
-    inline int size() const noexcept { return static_cast<int>(m_data.size()); }
+    inline CfemInt size() const noexcept { return static_cast<int>(m_data.size()); }
 
     /*! 
      * @brief Resizes the vector. 
      */
-    void resize(int newSize) { m_data.resize(static_cast<size_t>(newSize)); }
+    void resize(CfemInt newSize) { m_data.resize(static_cast<size_t>(newSize)); }
 
     /**
      * @brief Redimensionne le vecteur et initialise tous les éléments.
@@ -119,7 +119,7 @@ public:
 
     T* data() noexcept { return m_data.data(); }
     const T* data() const noexcept { return m_data.data(); }
-    void reserve(int n) { m_data.reserve(static_cast<size_t>(n)); }
+    void reserve(CfemInt n) { m_data.reserve(static_cast<size_t>(n)); }
     void clear() { m_data.clear(); }
 
     size_t capacity() const{
@@ -127,7 +127,7 @@ public:
     }
 
     // Extraire une portion du vecteur
-    DynamicVector getBlock(int start, int size) const {
+    DynamicVector getBlock(CfemInt start, CfemInt size) const {
         CFEM_ASSERT(start + size <= this->size());
         DynamicVector res(size);
         std::copy(m_data.begin() + start, m_data.begin() + start + size, res.m_data.begin());
@@ -151,7 +151,7 @@ public:
     /*! 
      * @brief Access element (read-write).
      */
-    inline T& operator[](int i) {
+    inline T& operator[](CfemInt i) {
         CFEM_ASSERT(i >= 0 && i < size());
         return m_data[static_cast<size_t>(i)];
     }
@@ -159,7 +159,7 @@ public:
     /*! 
      * @brief Access element (read-only). 
      */
-    inline const T& operator[](int i) const {
+    inline const T& operator[](CfemInt i) const {
         CFEM_ASSERT(
             i >= 0 && i < size(),
             (("DynamicVector::operator[]: Index out of bounds. The vector size is "
@@ -177,7 +177,7 @@ public:
     DynamicVector operator+(const DynamicVector& other) const {
         CFEM_ASSERT(size() == other.size());
         DynamicVector res(size());
-        for (int i = 0; i < size(); ++i) res[i] = m_data[i] + other[i];
+        for (CfemInt i = 0; i < size(); ++i) res[i] = m_data[i] + other[i];
         return res;
     }
 
@@ -187,7 +187,7 @@ public:
     DynamicVector operator-(const DynamicVector& other) const {
         CFEM_ASSERT(size() == other.size());
         DynamicVector res(size());
-        for (int i = 0; i < size(); ++i) res[i] = m_data[i] - other[i];
+        for (CfemInt i = 0; i < size(); ++i) res[i] = m_data[i] - other[i];
         return res;
     }
 
@@ -196,7 +196,7 @@ public:
      */
     DynamicVector operator*(T scalar) const {
         DynamicVector res(size());
-        for (int i = 0; i < size(); ++i) res[i] = m_data[i] * scalar;
+        for (CfemInt i = 0; i < size(); ++i) res[i] = m_data[i] * scalar;
         return res;
     }
 
@@ -208,7 +208,7 @@ public:
         CFEM_ASSERT(std::abs(scalar) > cfem::ZERO_TOLERANCE);
         DynamicVector res(size());
         T invScalar = static_cast<T>(1) / scalar;
-        for (int i = 0; i < size(); ++i) res[i] = m_data[i] * invScalar;
+        for (CfemInt i = 0; i < size(); ++i) res[i] = m_data[i] * invScalar;
         return res;
     }
 
@@ -217,7 +217,7 @@ public:
      */
     DynamicVector& operator+=(const DynamicVector& other) {
         CFEM_ASSERT(size() == other.size());
-        for (int i = 0; i < size(); ++i) m_data[i] += other[i];
+        for (CfemInt i = 0; i < size(); ++i) m_data[i] += other[i];
         return *this;
     }
 
@@ -226,7 +226,7 @@ public:
      */
     DynamicVector& operator-=(const DynamicVector& other) {
         CFEM_ASSERT(size() == other.size());
-        for (int i = 0; i < size(); ++i) m_data[i] -= other[i];
+        for (CfemInt i = 0; i < size(); ++i) m_data[i] -= other[i];
         return *this;
     }
 
@@ -256,7 +256,7 @@ public:
     T dot(const DynamicVector& other) const {
         CFEM_ASSERT(size() == other.size());
         T result = 0;
-        for (int i = 0; i < size(); ++i) result += m_data[i] * other[i];
+        for (CfemInt i = 0; i < size(); ++i) result += m_data[i] * other[i];
         return result;
     }
 
@@ -298,7 +298,7 @@ inline DynamicVector<T> operator*(T scalar, const DynamicVector<T>& v) {
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const DynamicVector<T>& v) {
     os << "[size=" << v.size() << "](";
-    for (int i = 0; i < v.size(); ++i) {
+    for (CfemInt i = 0; i < v.size(); ++i) {
         os << v[i] << (i == v.size() - 1 ? "" : ", ");
     }
     os << ")";

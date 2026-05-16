@@ -67,7 +67,7 @@ namespace cfem
     {
         mesh.clear();
         mesh.setOrder(MeshOrder::Linear);
-        mesh.setDimension(3);
+        mesh.setTopologicalDimension(3);
         CfemInt nx = subDiv.nx;
         CfemInt ny = subDiv.ny;
         CfemInt nz = subDiv.nz;
@@ -76,8 +76,8 @@ namespace cfem
         mesh.m_vertices.reserve(totalVertices);
         std::vector<CfemInt> gridIds(totalVertices);
 
-        // int cellMultiplier = (elemType == BlockElementType::Hexahedron) ? 1 : 6;
-        int cellMultiplier = (elemType == BlockElementType::Hexahedron) ? 1 : 5;
+        // CfemInt cellMultiplier = (elemType == BlockElementType::Hexahedron) ? 1 : 6;
+        CfemInt cellMultiplier = (elemType == BlockElementType::Hexahedron) ? 1 : 5;
         if (elemType == BlockElementType::Edge) cellMultiplier = 2;
 
         mesh.m_cells.reserve(nx * ny * nz * cellMultiplier);
@@ -226,8 +226,8 @@ namespace cfem
         CfemInt zmaxId = mesh.createEntity(names.zmax, 2);
 
         // Compute strides for structured indexing
-        int nx1 = nx + 1;
-        int ny1 = ny + 1;
+        CfemInt nx1 = nx + 1;
+        CfemInt ny1 = ny + 1;
 
         // Build inverse map: vertex_id -> linear index in structured grid
         std::vector<int> invGrid(mesh.getNumVertices(), -1);
@@ -250,13 +250,13 @@ namespace cfem
 
             for (CfemInt vid : fv)
             {
-                int idx = invGrid[vid];
+                CfemInt idx = invGrid[vid];
                 if (idx == -1)
                     continue; // Should not happen
 
-                int i = idx % nx1;
-                int j = (idx / nx1) % ny1;
-                int k = idx / (nx1 * ny1);
+                CfemInt i = idx % nx1;
+                CfemInt j = (idx / nx1) % ny1;
+                CfemInt k = idx / (nx1 * ny1);
 
                 if (i != 0)
                     onXmin = false;
@@ -316,7 +316,7 @@ inline void BlockMeshBuilder::build_omp(
 {
     mesh.clear();
     mesh.setOrder(MeshOrder::Linear);
-    mesh.setDimension(3);
+    mesh.setTopologicalDimension(3);
 
     CfemInt nx = subDiv.nx;
     CfemInt ny = subDiv.ny;
@@ -357,9 +357,9 @@ inline void BlockMeshBuilder::build_omp(
     // -------------------------------
     // 2. Cells (Data-Oriented Design)
     // -------------------------------
-    int cellMultiplier = (elemType == BlockElementType::Hexahedron) ? 1 :
+    CfemInt cellMultiplier = (elemType == BlockElementType::Hexahedron) ? 1 :
                          (elemType == BlockElementType::Edge) ? 2 : 5;
-    int nodesPerCell = (elemType == BlockElementType::Hexahedron) ? 8 :
+    CfemInt nodesPerCell = (elemType == BlockElementType::Hexahedron) ? 8 :
                        (elemType == BlockElementType::Edge) ? 6 : 4;
 
     CfemInt totalCells = nx * ny * nz * cellMultiplier;
@@ -375,8 +375,8 @@ inline void BlockMeshBuilder::build_omp(
     for (CfemInt k = 0; k < nz; ++k) {
         for (CfemInt j = 0; j < ny; ++j) {
             for (CfemInt i = 0; i < nx; ++i) {
-                int baseCellId = (k * ny * nx + j * nx + i) * cellMultiplier;
-                int bIdx = baseCellId * nodesPerCell;
+                CfemInt baseCellId = (k * ny * nx + j * nx + i) * cellMultiplier;
+                CfemInt bIdx = baseCellId * nodesPerCell;
 
                 CfemInt v0 = gridIdx(i, j, k);
                 CfemInt v1 = gridIdx(i + 1, j, k);
@@ -433,7 +433,7 @@ inline void BlockMeshBuilder::build_omp(
     // Insertion séquentielle ultra-rapide avec un buffer réutilisé (zéro allocation dynamique ici !)
     std::vector<CfemInt> tempBuffer(nodesPerCell);
     for (CfemInt c = 0; c < totalCells; ++c) {
-        for (int n = 0; n < nodesPerCell; ++n) {
+        for (CfemInt n = 0; n < nodesPerCell; ++n) {
             tempBuffer[n] = bigCellBlock[c * nodesPerCell + n];
         }
         mesh.addCell(cType, tempBuffer);
@@ -493,11 +493,11 @@ void BlockMeshBuilder::applyBoundaryTags_omp(
             bool onXmin = true, onXmax = true, onYmin = true, onYmax = true, onZmin = true, onZmax = true;
             for (CfemInt vid : fv)
             {
-                int vIdx = invGrid[vid];
+                CfemInt vIdx = invGrid[vid];
                 if (vIdx == -1) continue;
-                int i = vIdx % nx1;
-                int j = (vIdx / nx1) % ny1;
-                int k = vIdx / (nx1 * ny1);
+                CfemInt i = vIdx % nx1;
+                CfemInt j = (vIdx / nx1) % ny1;
+                CfemInt k = vIdx / (nx1 * ny1);
 
                 if (i != 0) onXmin = false;
                 if (i != nx) onXmax = false;

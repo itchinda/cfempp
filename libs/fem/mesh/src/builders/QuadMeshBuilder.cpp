@@ -88,14 +88,14 @@ namespace cfem
     {
         PROFILE_SCOPE("QuadMeshBuilder::build");
         mesh.clear();
-        mesh.setDimension(2);
+        mesh.setTopologicalDimension(2);
         mesh.setOrder(MeshOrder::Linear);
 
-        const int nodeRows = subDiv.nx + 1;
-        const int nodeCols = subDiv.ny + 1;
-        const int numQuads = subDiv.nx * subDiv.ny;
+        const CfemInt nodeRows = subDiv.nx + 1;
+        const CfemInt nodeCols = subDiv.ny + 1;
+        const CfemInt numQuads = subDiv.nx * subDiv.ny;
 
-        int totalVertices = nodeRows * nodeCols;
+        CfemInt totalVertices = nodeRows * nodeCols;
         if (elemType == QuadElementType::TriangleCrissCross)
         {
             totalVertices += numQuads; // Add one vertex for the center of every quad
@@ -105,14 +105,14 @@ namespace cfem
         std::vector<CfemInt> gridIds(nodeRows * nodeCols);
         mesh.m_vertices.reserve(totalVertices);
 
-        int cellMultiplier = (elemType == QuadElementType::TriangleCrissCross) ? 4 : 2;
+        CfemInt cellMultiplier = (elemType == QuadElementType::TriangleCrissCross) ? 4 : 2;
         if (elemType == QuadElementType::Quadrilateral)
             cellMultiplier = 1;
         mesh.m_cells.reserve(numQuads * cellMultiplier);
 
         // Optimized Vertex Generation
         // We pre-calculate row vectors to turn bilinear interpolation into simple additions
-        for (int j = 0; j < nodeCols; ++j)
+        for (CfemInt j = 0; j < nodeCols; ++j)
         {
             double v = static_cast<double>(j) / subDiv.ny;
             // Points along the side edges at height v
@@ -120,7 +120,7 @@ namespace cfem
             cfem::Vector3D rightP = corners.vertices[1] * (1.0 - v) + corners.vertices[2] * v;
             cfem::Vector3D rowVec = rightP - leftP;
 
-            for (int i = 0; i < nodeRows; ++i)
+            for (CfemInt i = 0; i < nodeRows; ++i)
             {
                 double u = static_cast<double>(i) / subDiv.nx;
                 cfem::Vector3D p = leftP + rowVec * u;
@@ -132,9 +132,9 @@ namespace cfem
         // This allows the CPU to stay in a tight, predictable loop for 8 million iterations
         auto generateCells = [&](auto func)
         {
-            for (int j = 0; j < subDiv.ny; ++j)
+            for (CfemInt j = 0; j < subDiv.ny; ++j)
             {
-                for (int i = 0; i < subDiv.nx; ++i)
+                for (CfemInt i = 0; i < subDiv.nx; ++i)
                 {
                     CfemInt v0 = gridIds[j * nodeRows + i];
                     CfemInt v1 = gridIds[j * nodeRows + (i + 1)];
@@ -180,7 +180,7 @@ namespace cfem
             break;
         }
 
-        // 4. Finalize
+        // Finalize
         mesh.buildMesh();
 
         if (order == MeshOrder::Quadratic)
@@ -219,7 +219,7 @@ namespace cfem
         CfemInt ymaxId = mesh.createEntity(names.ymax, 1);
         CfemInt xminId = mesh.createEntity(names.xmin, 1);
 
-        int nodeRows = nx + 1;
+        CfemInt nodeRows = nx + 1;
 
         // OPTIMIZATION: Create an inverse map once to avoid std::find
         // vertex_id -> linear_index_in_grid
@@ -245,7 +245,7 @@ namespace cfem
 
             for (CfemInt vid : fv)
             {
-                int idx = invGrid[vid];
+                CfemInt idx = invGrid[vid];
                 if (idx == -1) continue; // Should not happen in a valid grid
 
                 CfemInt i = idx % nodeRows;

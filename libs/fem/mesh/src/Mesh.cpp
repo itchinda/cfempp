@@ -44,10 +44,10 @@ namespace cfem
         CFEM_CHECK_INVARIANTS();
     }
 
-    Mesh::Mesh(ConstructorToken lTok, CfemInt p_meshDim, MeshOrder p_meshOrder) : m_meshDim(p_meshDim), m_meshOrder(p_meshOrder)
+    Mesh::Mesh(ConstructorToken lTok, CfemInt p_topologicalDimension, MeshOrder p_meshOrder) : m_topologicalDimension(p_topologicalDimension), m_meshOrder(p_meshOrder)
     {
-        CFEM_PRECONDITION(p_meshDim >= 1 && p_meshDim <= 3);
-        CFEM_POSTCONDITION(m_meshDim == p_meshDim);
+        CFEM_PRECONDITION(p_topologicalDimension >= 1 && p_topologicalDimension <= 3);
+        CFEM_POSTCONDITION(m_topologicalDimension == p_topologicalDimension);
         CFEM_POSTCONDITION(m_meshOrder == p_meshOrder);
 
         m_cellCountPerType.fill(0);
@@ -149,7 +149,7 @@ namespace cfem
         ++m_cellCountPerType[static_cast<size_t>(type)];
 
         // Manage unique element types
-        int typeIdx = static_cast<int>(type);
+        CfemInt typeIdx = static_cast<int>(type);
         if (!m_cellTypeFlags.test(typeIdx))
         {
             m_cellTypeFlags.set(typeIdx);
@@ -161,7 +161,7 @@ namespace cfem
         
         for (CellType fType : facetTypes)
         {
-            int fTypeIdx = static_cast<int>(fType);
+            CfemInt fTypeIdx = static_cast<int>(fType);
             
             // Si ce type de facette n'a pas encore été rencontré dans tout le maillage
             if (!m_facetTypeFlags.test(fTypeIdx))
@@ -226,10 +226,10 @@ namespace cfem
         }
 
         CfemInt cellDim = getDimFromType(type);
-        if (cellDim != m_meshDim)
+        if (cellDim != m_topologicalDimension)
         {
             CFEM_ERROR << "Cannot add a " << std::to_string(cellDim) << "D element (" <<
-                       Cell::cellTypeToString(type) << ") to a " << std::to_string(m_meshDim) << "D mesh.";
+                       Cell::cellTypeToString(type) << ") to a " << std::to_string(m_topologicalDimension) << "D mesh.";
         }
 
         if (v_ids.size() != getNodeCountPerCell(type))
@@ -324,18 +324,18 @@ namespace cfem
                 break;
             case CellType::PRISM6:
             case CellType::HEX8:{
-                int half = getNodeCountPerCell(type) / 2;
-                for(int i=0; i<half; ++i) std::swap(vids[i], vids[i+half]);
+                CfemInt half = getNodeCountPerCell(type) / 2;
+                for(CfemInt i=0; i<half; ++i) std::swap(vids[i], vids[i+half]);
                 break;
             }
             case CellType::HEX27:{
                 // Swap Corners: Bottom (0-3) with Top (4-7)
-                for (int i = 0; i < 4; ++i) {
+                for (CfemInt i = 0; i < 4; ++i) {
                     std::swap(vids[i], vids[i + 4]);
                 }
 
                 // Swap Horizontal Edges: Bottom (8-11) with Top (12-15)
-                for (int i = 8; i < 12; ++i) {
+                for (CfemInt i = 8; i < 12; ++i) {
                     std::swap(vids[i], vids[i + 4]);
                 }
 
@@ -348,10 +348,10 @@ namespace cfem
             }
             case CellType::PRISM18: {
                 // Swap Corners: Bottom (0,1,2) with Top (3,4,5)
-                for (int i = 0; i < 3; ++i) std::swap(vids[i], vids[i + 3]);
+                for (CfemInt i = 0; i < 3; ++i) std::swap(vids[i], vids[i + 3]);
 
                 // Swap Horizontal Edges: Bottom (6,7,8) with Top (9,10,11)
-                for (int i = 6; i < 9; ++i) std::swap(vids[i], vids[i + 3]);
+                for (CfemInt i = 6; i < 9; ++i) std::swap(vids[i], vids[i + 3]);
                 // Vertical edges 12,13,14 and face centers 15,16,17 stay put.
                 break;
             }
@@ -484,15 +484,15 @@ namespace cfem
         {
             auto f_nodes = getFacetConnectivity(f.id);
 
-            auto getLocalFaceIdx = [&](CfemInt cell_id) -> int {
-                int num_faces = Cell::getFaceCount(m_cells[cell_id].type);
-                for (int i = 0; i < num_faces; ++i) {
+            auto getLocalFaceIdx = [&](CfemInt cell_id) -> CfemInt {
+                CfemInt num_faces = Cell::getFaceCount(m_cells[cell_id].type);
+                for (CfemInt i = 0; i < num_faces; ++i) {
                     LocalFace currentLocal = getLocalFaceData(cell_id, i);
                     if (static_cast<size_t>(currentLocal.size) == f_nodes.size()) {
                         bool match = true;
                         for(size_t fn : f_nodes) {
                             bool found = false;
-                            for(int k=0; k < currentLocal.size; ++k) {
+                            for(CfemInt k=0; k < currentLocal.size; ++k) {
                                 if(currentLocal.v[k] == (CfemInt)fn) { found = true; break; }
                             }
                             if(!found) { match = false; break; }
@@ -504,7 +504,7 @@ namespace cfem
             };
 
             // Link Left Cell
-            int localIdxL = getLocalFaceIdx(f.left_cell);
+            CfemInt localIdxL = getLocalFaceIdx(f.left_cell);
             if (localIdxL != -1) {
                 size_t pos = m_neighborOffsets[f.left_cell] + localIdxL;
                 m_allCellNeighbors[pos] = f.right_cell;
@@ -513,7 +513,7 @@ namespace cfem
 
             // Link Right Cell
             if (!f.isBoundary()) {
-                int localIdxR = getLocalFaceIdx(f.right_cell);
+                CfemInt localIdxR = getLocalFaceIdx(f.right_cell);
                 if (localIdxR != -1) {
                     size_t pos = m_neighborOffsets[f.right_cell] + localIdxR;
                     m_allCellNeighbors[pos] = f.left_cell;
@@ -577,9 +577,9 @@ namespace cfem
         // BUILD TOPOLOGY
         for (CfemInt c_id = 0; c_id < static_cast<CfemInt>(m_cells.size()); ++c_id) 
         {
-            const int num_faces = Cell::getFaceCount(m_cells[c_id].type);
+            const CfemInt num_faces = Cell::getFaceCount(m_cells[c_id].type);
             
-            for (int f_idx = 0; f_idx < num_faces; ++f_idx) 
+            for (CfemInt f_idx = 0; f_idx < num_faces; ++f_idx) 
             {
                 if (cell_face_to_facet[c_id * 6 + f_idx] != -1) continue;
 
@@ -589,7 +589,7 @@ namespace cfem
                 CfemInt v_anchor = current_face.v[0];
                 CfemInt min_degree = m_vertices[v_anchor].num_connected_cells;
                 
-                for (int k = 1; k < current_face.size; ++k) {
+                for (CfemInt k = 1; k < current_face.size; ++k) {
                     CfemInt candidate = current_face.v[k];
                     CfemInt degree = m_vertices[candidate].num_connected_cells;
                     if (degree < min_degree) {
@@ -600,15 +600,15 @@ namespace cfem
 
                 const auto& anchor_vert = m_vertices[v_anchor];
                 CfemInt neighbor_id = -1;
-                int neighbor_f_idx = -1;
+                CfemInt neighbor_f_idx = -1;
 
                 for (CfemInt i = 0; i < anchor_vert.num_connected_cells; ++i) 
                 {
                     CfemInt other_c_id = anchor_vert.connected_cells_ptr[i];
                     if (other_c_id == c_id) continue;
 
-                    const int other_num_faces = Cell::getFaceCount(m_cells[other_c_id].type);
-                    for (int j = 0; j < other_num_faces; ++j) {
+                    const CfemInt other_num_faces = Cell::getFaceCount(m_cells[other_c_id].type);
+                    for (CfemInt j = 0; j < other_num_faces; ++j) {
                         LocalFace other_face = getLocalFaceData(other_c_id, j);
                         if (current_face.matches(other_face)) {
                             neighbor_id = other_c_id;
@@ -894,21 +894,21 @@ namespace cfem
      * cells have been added will trigger a fatal assertion, as it would render the 
      * existing topology geometrically invalid.
      *
-     * @param newDim Mesh dimension (1, 2, or 3).
+     * @param newDim Mesh tological dimension (1, 2, or 3).
      *
      * @throws CFEM_ERROR if the mesh already contains elements.
      *
      * @note
      * Changing the dimension after elements have been added would invalidate the topology and is therefore prohibited.
      ***************************************************************************************************************************************/
-    void Mesh::setDimension(int newDim)
+    void Mesh::setTopologicalDimension(CfemInt newDim)
     {
         CFEM_ASSERT(newDim >= 1 || newDim <= 3);
         if (!(this->m_cells.empty()))
         {
             CFEM_ERROR << "ARE YOU TRYING TO SET THE DIMENSION OF A MESH THAT ALREADY CONTAINS ELEMENTS? MAKE SURE THE MESH IS EMPTY.";
         }
-        m_meshDim = newDim;
+        m_topologicalDimension = newDim;
     }
 
     /** ************************************************************************************************************************************
@@ -1010,7 +1010,7 @@ namespace cfem
      *   `MeshConformityChecker` to catch degenerate elements or twisted topologies 
      *   before they crash the solver.
      *
-     * @pre The mesh must possess a defined dimension (`m_meshDim > 0`) and contain 
+     * @pre The mesh must possess a defined dimension (`m_topologicalDimension > 0`) and contain 
      * at least one cell and one vertex.
      * @warning This is a heavy, destructive operation. It will completely overwrite 
      * any existing topological maps, adjacency structures, and system entity lists. 
@@ -1022,7 +1022,7 @@ namespace cfem
      ***************************************************************************************************************************************/
     void Mesh::buildMesh()
     {
-        if (m_cells.empty() || m_vertices.size() == 0 || m_meshDim == 0) {
+        if (m_cells.empty() || m_vertices.size() == 0 || m_topologicalDimension == 0) {
             CFEM_ERROR << "buildMesh failed: Mesh is empty.";
             return;
         }
@@ -1035,10 +1035,10 @@ namespace cfem
 
         // Initialize Core Entities
         MeshEntity* universe = getEntity(cfem::UNIVERSE_ID);
-        if (!universe) universe = &createInternalEntity(cfem::UNIVERSE_ID, "Universe", m_meshDim);
+        if (!universe) universe = &createInternalEntity(cfem::UNIVERSE_ID, "Universe", m_topologicalDimension);
 
         MeshEntity* boundary = getEntity(cfem::SYS_BOUNDARY_ID);
-        if (!boundary) boundary = &createInternalEntity(cfem::SYS_BOUNDARY_ID, "SYS_BOUNDARY", m_meshDim - 1);
+        if (!boundary) boundary = &createInternalEntity(cfem::SYS_BOUNDARY_ID, "SYS_BOUNDARY", m_topologicalDimension - 1);
 
         // Populate Universe
         if (universe->isEmpty()) {
@@ -1234,7 +1234,7 @@ namespace cfem
     {
         std::stringstream ss;
         ss << "\n================ MESH SUMMARY ================" << std::endl;
-        ss << " Dimension: " << getDimension() << "D" << std::endl;
+        ss << " Dimension: " << getTopologicalDimension() << "D" << std::endl;
         ss << " Order:     " << (getOrder() == MeshOrder::Linear ? "Linear" : 
                                 (getOrder() == MeshOrder::Quadratic) ? "Quadratic" : "None") << std::endl;
         ss << " Vertices:  " << getNumVertices() << std::endl;
@@ -1266,7 +1266,7 @@ namespace cfem
         for (const auto &entity : getEntities())
         {
             std::string name = entity->getName();
-            size_t count = (entity->getDimension() == getDimension())
+            size_t count = (entity->getTopologicalDimension() == getTopologicalDimension())
                                ? entity->getNumCells()
                                : entity->getNumFacets();
 
@@ -1340,7 +1340,7 @@ namespace cfem
                 ss << v_id << " ";
             }
 
-            // --- NEW: Print Neighbors ---
+            // Print Neighbors
             ss << "| Neighbors: ";
             auto neighbors = getCellNeighbors(cell.id);
             for (auto n_id : neighbors) {
@@ -1535,7 +1535,7 @@ namespace cfem
         m_cellTypeFlags.reset();
         for (auto &type : m_uniqueCellTypes) {
             type = Cell::getQuadraticEquivalent(type);
-            int typeIdx = static_cast<int>(type);
+            CfemInt typeIdx = static_cast<int>(type);
             if (!m_cellTypeFlags.test(typeIdx)) {
                 m_cellTypeFlags.set(typeIdx);
             }
@@ -1544,7 +1544,7 @@ namespace cfem
         m_facetTypeFlags.reset();
         for (auto &type : m_uniqueFacetTypes) {
             type = Cell::getQuadraticEquivalent(type);
-            int typeIdx = static_cast<int>(type);
+            CfemInt typeIdx = static_cast<int>(type);
             if (!m_facetTypeFlags.test(typeIdx)) {
                 m_facetTypeFlags.set(typeIdx);
             }
@@ -1662,7 +1662,7 @@ namespace cfem
             auto quad_nodes = getCellConnectivity(cell.id);
             
             CellType linearType = Cell::getLinearEquivalent(cell.type);
-            int linearCount = Cell::getNodeCount(linearType);
+            CfemInt linearCount = Cell::getNodeCount(linearType);
 
             cell.offset = newAllCellVertexIds.size();
             cell.node_count = linearCount;
@@ -1868,7 +1868,7 @@ namespace cfem
                 // For an affine transformation, the central node (node 26) must coincide 
                 // exactly with the geometric barycenter of the 8 corner vertices.
                 Vector3D theoreticalBarycenter = Vector3D(0, 0, 0);
-                for (int i = 0; i < 8; ++i) {
+                for (CfemInt i = 0; i < 8; ++i) {
                     theoreticalBarycenter += coords[i];
                 }
                 theoreticalBarycenter = theoreticalBarycenter * 0.125;
@@ -2221,7 +2221,7 @@ namespace cfem
         const double dy = std::abs(bounds.max.y - bounds.min.y);
         const double dz = std::abs(bounds.max.z - bounds.min.z);
 
-        int collapsed = 0;
+        CfemInt collapsed = 0;
         if (dx < ZERO_TOLERANCE) collapsed++;
         if (dy < ZERO_TOLERANCE) collapsed++;
         if (dz < ZERO_TOLERANCE) collapsed++;

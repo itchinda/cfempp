@@ -51,7 +51,7 @@ protected:
      * @brief Direct index to EvalContext::m_spaceDataCache[m_boundIndex].
      * @note Marked as mutable because bind() is often called on const expressions.
      */
-    mutable int m_boundIndex = -1;
+    mutable CfemInt m_boundIndex = -1;
 
     /**
      * @brief Prevents direct gradient calculation on a raw Argument.
@@ -111,7 +111,7 @@ public:
      * @brief Gets the vector dimension of the associated space.
      * @return CfemInt The dimension (1 for scalars, >1 for vectors).
      */
-    virtual CfemInt getDimension() const override { return m_space->getDimension(); }
+    virtual CfemInt getNumComponents() const override { return m_space->getNumComponents(); }
     
     /**
      * @brief Gets the symbolic expression type.
@@ -182,12 +182,12 @@ public:
         const ShapeInfo* shape = data.shape;
 
         CFEM_ASSERT(shape != nullptr, "ShapeInfo is null in EvalContext!");
-        CFEM_ASSERT(out.size() >= m_space->getDimension(), "Output span too small!");
+        CFEM_ASSERT(out.size() >= m_space->getNumComponents(), "Output span too small!");
 
-        const int dim = m_space->getDimension();
+        const CfemInt dim = m_space->getNumComponents();
         // Layout: Interleaved (N0_x, N0_y, N0_z, N1_x, N1_y...)
-        const int node = static_cast<int>(localDofIdx / dim);
-        const int comp = static_cast<int>(localDofIdx % dim);
+        const CfemInt node = static_cast<int>(localDofIdx / dim);
+        const CfemInt comp = static_cast<int>(localDofIdx % dim);
 
         std::fill(out.begin(), out.end(), 0.0);
         out[comp] = shape->values[node];
@@ -203,9 +203,9 @@ public:
         const auto& data = ctx.getSpaceData(m_boundIndex);
         const MappingInfo* mapping = data.mapping;
 
-        const int dim = m_space->getDimension();
-        const int node = static_cast<int>(localDofIdx / dim);
-        const int comp = static_cast<int>(localDofIdx % dim);
+        const CfemInt dim = m_space->getNumComponents();
+        const CfemInt node = static_cast<int>(localDofIdx / dim);
+        const CfemInt comp = static_cast<int>(localDofIdx % dim);
 
         const auto& g = mapping->physicalShapeGradients[node];
 

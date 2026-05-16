@@ -22,7 +22,7 @@ namespace cfem::sym
 {
 
     std::shared_ptr<const CfemExpression> ConstantExpression::div() const {
-        CfemInt dim = getDimension();
+        CfemInt dim = getNumComponents();
             
         switch (dim) {
             case 1:
@@ -38,7 +38,7 @@ namespace cfem::sym
     }
 
     std::string ConstantExpression::toString() const { 
-        CfemInt dim = getDimension();
+        CfemInt dim = getNumComponents();
         if (dim==1) return formatCoefficient(m_value[0]);
 
         std::ostringstream out;

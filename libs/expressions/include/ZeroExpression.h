@@ -48,7 +48,7 @@ namespace cfem::sym
         ZeroExpression (CfemInt dim = 0): m_dim(dim) {
         }
 
-        int getDimension() const override { return m_dim; }
+        int getNumComponents() const override { return m_dim; }
         bool isPointwise() const override { return true; }
         bool isZero() const override { return true; };
         bool isConstant() const override {return true; }
@@ -58,7 +58,7 @@ namespace cfem::sym
         }
 
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override {
-            return std::make_shared<ZeroExpression>(this->getDimension());
+            return std::make_shared<ZeroExpression>(this->getNumComponents());
         }
 
         std::shared_ptr<const CfemExpression> div() const override;

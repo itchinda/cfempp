@@ -56,7 +56,7 @@ namespace cfem::sym
         ScalarSymbolicExpression(const SymEngine::Expression                               &ex, 
                                  const std::vector<SymEngine::RCP<const SymEngine::Symbol>> &vars);
                                  
-        CfemInt getDimension() const override { return 1; }
+        CfemInt getNumComponents() const override { return 1; }
         bool isPointwise() const override { return true; }
 
         const SymEngine::Expression &get_expression() const { return m_expression; }

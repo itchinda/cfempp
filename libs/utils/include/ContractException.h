@@ -25,6 +25,8 @@
 #include <petsc.h>
 #include <regex>
 
+#include "cfemtypes.h"
+
 namespace cfem
 {
 
@@ -78,7 +80,7 @@ public:
      * @param kind       Type of contract (Precondition, Postcondition, etc.)
      */
     ContractException(const char* file,
-                      int line,
+                      CfemInt line,
                       const char* expr,
                       const char* kind,
                       const char* msg = nullptr);
@@ -116,7 +118,7 @@ public:
      * @param msg  Optional custom message providing error clarification
      */
     AssertionException(const char*  file,
-                       int line,
+                       CfemInt line,
                        const char*  expr,
                        const char* msg = nullptr);
 };
@@ -145,7 +147,7 @@ public:
      * @param msg  Optional custom message providing error clarification
      */
     PreconditionException(const char*  file,
-                          int line,
+                          CfemInt line,
                           const char*  expr,
                           const char* msg = nullptr);
 };
@@ -174,7 +176,7 @@ public:
      * @param msg  Optional custom message providing error clarification
      */
     PostconditionException(const char*  file,
-                           int line,
+                           CfemInt line,
                            const char*  expr,
                            const char* msg = nullptr);
 };
@@ -203,7 +205,7 @@ public:
      * @param msg  Optional custom message providing error clarification
      */
     InvariantException(const char*  file,
-                       int line,
+                       CfemInt line,
                        const char*  expr,
                        const char* msg = nullptr);
 };
@@ -211,7 +213,7 @@ public:
 
 class Environment {
 public:
-    static void initialize(int &argc, char **&argv, const char* help = nullptr) {
+    static void initialize(CfemInt &argc, char **&argv, const char* help = nullptr) {
         static Environment manager(argc, argv, help);
         s_initialized = true;
     }
@@ -226,7 +228,7 @@ public:
     }
 
 private:
-    Environment(int &argc, char **&argv, const char* help) {
+    Environment(CfemInt &argc, char **&argv, const char* help) {
         PetscInitialize(&argc, &argv, nullptr, help);
     }
 

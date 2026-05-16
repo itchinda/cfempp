@@ -28,8 +28,8 @@ namespace cfem
 struct QualityReport {
     CfemReal minVolume = std::numeric_limits<CfemReal>::max();
     CfemReal maxVolume = -std::numeric_limits<CfemReal>::max();
-    int invertedCount = 0;
-    int degenerateCount = 0;
+    CfemInt invertedCount = 0;
+    CfemInt degenerateCount = 0;
 };
 
 class MeshQualityTool {

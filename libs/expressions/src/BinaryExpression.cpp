@@ -30,8 +30,8 @@ namespace cfem::sym
     : m_lhs(std::move(lhs)), m_rhs(std::move(rhs)), m_op(op)
     {
         CFEM_ASSERT(m_lhs && m_rhs, "Operands cannot be null.");
-        m_dimL = m_lhs->getDimension();
-        m_dimR = m_rhs->getDimension();
+        m_dimL = m_lhs->getNumComponents();
+        m_dimR = m_rhs->getNumComponents();
 
         // Dimension Logic & Validation
         switch (m_op)

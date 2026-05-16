@@ -178,7 +178,7 @@ namespace cfem
      * @see buildFacets()
      * @see buildAdjacency()
      ***************************************************************************************************************************************/
-    inline LocalFace Mesh::getLocalFaceData(CfemInt cell_id, int face_idx) const
+    inline LocalFace Mesh::getLocalFaceData(CfemInt cell_id, CfemInt face_idx) const
     {
         CFEM_ASSERT(cell_id >= 0 && cell_id < getNumCells());
         const auto &cell = m_cells[cell_id];
@@ -631,17 +631,17 @@ namespace cfem
      * @see getLocalFaceData()
      * @see buildFacets()
      ***************************************************************************************************************************************/
-    inline int Mesh::findLocalFaceIndex(CfemInt cell_id, const LocalFace &target) const
+    inline CfemInt Mesh::findLocalFaceIndex(CfemInt cell_id, const LocalFace &target) const
     {
-        const int n = Cell::getFaceCount(m_cells[cell_id].type);
-        for (int i = 0; i < n; ++i)
+        const CfemInt n = Cell::getFaceCount(m_cells[cell_id].type);
+        for (CfemInt i = 0; i < n; ++i)
         {
             LocalFace other = getLocalFaceData(cell_id, i);
             if (other.size != target.size)
                 continue;
 
             bool match = true;
-            for (int j = 0; j < target.size; ++j)
+            for (CfemInt j = 0; j < target.size; ++j)
             {
                 if (!other.contains(target.v[j]))
                 {
@@ -1130,11 +1130,11 @@ namespace cfem
     {
         auto nodeIndices = getCellConnectivity(elementId);
 
-        const int n = static_cast<int>(nodeIndices.size());
+        const CfemInt n = static_cast<int>(nodeIndices.size());
 
         localCoords.resize(n);
 
-        for (int i = 0; i < n; ++i)
+        for (CfemInt i = 0; i < n; ++i)
         {
             CfemInt globalIdx = nodeIndices[i];
             localCoords[i] = m_vertices[globalIdx].coords;
@@ -1764,7 +1764,7 @@ namespace cfem
         lambda = std::clamp(lambda, 0.1, 0.9);
 
         // 3. Iterations
-        for (int iter = 0; iter < iterations; ++iter)
+        for (CfemInt iter = 0; iter < iterations; ++iter)
         {
 #pragma omp parallel for schedule(static)
             for (long v_id = 0; v_id < (long)numVertices; ++v_id)
@@ -1777,7 +1777,7 @@ namespace cfem
 
                 const auto &vertex = m_vertices[v_id];
                 cfem::Vector3D sum{0, 0, 0};
-                int neighborCount = 0;
+                CfemInt neighborCount = 0;
 
                 // --- THE CSR APPROACH ---
                 // Instead of a set, look at all cells sharing this vertex

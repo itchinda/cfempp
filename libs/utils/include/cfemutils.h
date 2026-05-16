@@ -22,18 +22,14 @@
 #include <petscsys.h>
 #include <vector>
 #include <type_traits>
-#include "ContractException.h"
-#include "CfemLogger.h"
-#include "ChronoManager.h"
 #include <sstream>
 #include <iomanip>
-//#include "numeric_policy.h"
 
-// CFEM TYPES
-using CfemInt = int;
-using CfemIntFlag = uint8_t;
-using CfemReal = double;
-    CFEM_STATIC_ASSERT((std::is_same_v<CfemReal,double>), "SymbolicEvaluator requires CfemReal = double.");
+#include "ContractException.h"
+#include "CfemLogger.h"
+#include "cfemtypes.h"
+#include "ChronoManager.h"
+//#include "numeric_policy.h"
 
 /**
  * @brief Namspace for CFEM++ types and objects
@@ -93,7 +89,7 @@ namespace cfem
             return std::abs(value) <= relative_tol * scale + absolute_tol;
         }
 
-        static bool areEqual(CfemReal a, CfemReal b, CfemReal scale = 1.0) noexcept
+        static constexpr bool areEqual(CfemReal a, CfemReal b, CfemReal scale = 1.0) noexcept
         {
             return std::abs(a - b) <= relative_tol * scale + absolute_tol;
         }

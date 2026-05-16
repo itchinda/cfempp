@@ -22,8 +22,8 @@
 
 namespace cfem {
 
-DGSpace::DGSpace(ConstructorToken, std::shared_ptr<Mesh> mesh, Order order, int dimension)
-    : FESpace(mesh, order, Continuity::DG, dimension) 
+DGSpace::DGSpace(ConstructorToken, std::shared_ptr<Mesh> mesh, Order order, FieldType field_type)
+    : FESpace(mesh, order, Continuity::DG, field_type) 
 {
     if (order == Order::Mini){
         CFEM_ERROR <<  "Mini elements are not supported in DGSpace. "
@@ -47,7 +47,7 @@ std::shared_ptr<DGSpace> DGSpace::create(std::shared_ptr<Mesh> mesh,
     }
 
     // Instantiation & Initialization
-    auto space = std::make_shared<DGSpace>(ConstructorToken{}, mesh, order, static_cast<int>(field_type));
+    auto space = std::make_shared<DGSpace>(ConstructorToken{}, mesh, order, field_type);
     
     // Connect mesh updates to this space
     mesh->addObserver(space);
@@ -74,31 +74,31 @@ void DGSpace::enumerateDofs() {
     }
     m_cellOffsets[numCells] = currentOffset; // Offset total final
     
-    m_totalDofs = currentOffset * m_dimension;
+    m_totalDofs = currentOffset * m_numComponents;
 }
 
-CfemInt DGSpace::getPositionId(CfemInt cellId, int localNodeIdx) const {
+CfemInt DGSpace::getPositionId(CfemInt cellId, CfemInt localNodeIdx) const {
     return m_cellOffsets[cellId] + localNodeIdx;
 }
 
-CfemInt DGSpace::getGlobalDofIdx(CfemInt cellId, int localNodeIdx, int component) const {
+CfemInt DGSpace::getGlobalDofIdx(CfemInt cellId, CfemInt localNodeIdx, CfemInt component) const {
     CfemInt posId = getPositionId(cellId, localNodeIdx);
-    CfemInt numUniqueNodes = m_totalDofs / m_dimension;
+    CfemInt numUniqueNodes = m_totalDofs / m_numComponents;
     
     // Keep the same BLOCK-wise logic: [All Comp 0][All Comp 1]...
     return posId + (component * numUniqueNodes);
 }
 
-int DGSpace::getDofsPerCell(CfemInt cellId) const {
-    return getRefElement(m_mesh->getCell(cellId).type).getNumNodes() * m_dimension;
+CfemInt DGSpace::getDofsPerCell(CfemInt cellId) const {
+    return getRefElement(m_mesh->getCell(cellId).type).getNumNodes() * m_numComponents;
 }
 
 void DGSpace::getElementDofs(CfemInt cellId, std::vector<CfemInt>& globalIndices) const {
-    int nNodes = getRefElement(m_mesh->getCell(cellId).type).getNumNodes();
-    globalIndices.resize(nNodes * m_dimension);
+    CfemInt nNodes = getRefElement(m_mesh->getCell(cellId).type).getNumNodes();
+    globalIndices.resize(nNodes * m_numComponents);
     
-    for (int c = 0; c < m_dimension; ++c) {
-        for (int i = 0; i < nNodes; ++i) {
+    for (CfemInt c = 0; c < m_numComponents; ++c) {
+        for (CfemInt i = 0; i < nNodes; ++i) {
             globalIndices[i + c * nNodes] = getGlobalDofIdx(cellId, i, c);
         }
     }
@@ -119,14 +119,14 @@ void DGSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
         const Cell& cell = m_mesh->getCell(i);
         
         // 1. DOFs de la cellule elle-même
-        int dofsSelf = getDofsPerCell(i);
+        CfemInt dofsSelf = getDofsPerCell(i);
         
         // 2. DOFs des voisins (en parcourant l'adjacence construite par buildAdjacency)
-        int dofsNeighbors = 0;
+        CfemInt dofsNeighbors = 0;
         
         // On utilise directement les pointeurs initialisés par Mesh::buildAdjacency()
         // cell.num_faces correspond au nombre d'entrées dans le bloc CSR pour cette cellule
-        for (int f = 0; f < cell.num_faces; ++f) {
+        for (CfemInt f = 0; f < cell.num_faces; ++f) {
             CfemInt neighborId = cell.neighbor_cells_ptr[f];
             
             // Si neighborId == -1, c'est une condition aux limites (pas de cellule voisine)
@@ -140,9 +140,9 @@ void DGSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
 
         // On remplit le tableau nnz pour chaque composante et chaque noeud local de la cellule
         // Rappel : Notre numérotation est Block-wise [Comp 0][Comp 1]...
-        for (int comp = 0; comp < m_dimension; ++comp) {
-            int nNodes = getRefElement(cell.type).getNumNodes();
-            for (int n = 0; n < nNodes; ++n) {
+        for (CfemInt comp = 0; comp < m_numComponents; ++comp) {
+            CfemInt nNodes = getRefElement(cell.type).getNumNodes();
+            for (CfemInt n = 0; n < nNodes; ++n) {
                 CfemInt globalIdx = getGlobalDofIdx(i, n, comp);
                 nnz[globalIdx] = totalRowNNZ;
             }
@@ -177,7 +177,7 @@ void DGSpace::evaluateGradients(CfemInt cellId, const Vector3D& xi, std::vector<
  * à cette entité, puis on récupère les DOFs de la cellule adjacente (left_cell) 
  * qui sont localisés sur cette face.
  */
-void DGSpace::getEntityDofs(int internalEntityId, std::vector<CfemInt>& entityDofs) const {
+void DGSpace::getEntityDofs(CfemInt internalEntityId, std::vector<CfemInt>& entityDofs) const {
     entityDofs.clear();
 
     // 1. Récupérer toutes les facettes appartenant à cette entité physique
@@ -203,15 +203,15 @@ void DGSpace::getEntityDofs(int internalEntityId, std::vector<CfemInt>& entityDo
         auto facetNodes = m_mesh->getFacetConnectivity(fId);
         
         // On parcourt les faces locales de la cellule pour identifier celle qui correspond à fId
-        for (int iFace = 0; iFace < cell.num_faces; ++iFace) {
+        for (CfemInt iFace = 0; iFace < cell.num_faces; ++iFace) {
             if (cell.facet_ids_ptr[iFace] == fId) {
                 // On a trouvé la face locale correspondante !
                 // On récupère les indices des nœuds locaux de la cellule appartenant à cette face
                 auto localNodesOnFace = refEl.getFaceNodes(iFace);
 
                 // 3. Ajouter les DOFs globaux pour chaque composante
-                for (int comp = 0; comp < m_dimension; ++comp) {
-                    for (int localIdx : localNodesOnFace) {
+                for (CfemInt comp = 0; comp < m_numComponents; ++comp) {
+                    for (CfemInt localIdx : localNodesOnFace) {
                         CfemInt globalIdx = getGlobalDofIdx(cellId, localIdx, comp);
                         dofSet.insert(globalIdx);
                     }

@@ -61,9 +61,9 @@ public:
         std::stringstream ss;
         LogLevel level;
         const char* file;
-        int line;
+        CfemInt line;
 
-        LogStream(LogLevel l, const char* f, int ln) : level(l), file(f), line(ln) {}
+        LogStream(LogLevel l, const char* f, CfemInt ln) : level(l), file(f), line(ln) {}
 
         ~LogStream() {
             std::string msg = ss.str();
@@ -102,7 +102,7 @@ public:
         LogStream& operator<<(const T& v) { ss << v; return *this; }
     };
 
-    static LogStream build(LogLevel l, const char* f, int ln) { return LogStream(l, f, ln); }
+    static LogStream build(LogLevel l, const char* f, CfemInt ln) { return LogStream(l, f, ln); }
 };
 
 } // namespace cfem

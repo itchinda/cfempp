@@ -39,7 +39,7 @@ public:
                         CfemInt dim);
 
     const Mesh& getMesh() const { return *m_mesh; }
-    CfemInt getDimension() const { return m_dim; }
+    CfemInt getTopologicalDimension() const { return m_topologicalDimension; }
     CfemInt getId() const { return m_id; }
     const std::string& getName() const { return m_name; }
 
@@ -65,8 +65,8 @@ public:
         std::sort(m_vertex_ids.begin(), m_vertex_ids.end());
     }
     
-    void setDimension(CfemInt p_dim){
-        m_dim = p_dim;
+    void setDimension(CfemInt p_topologicalDimension){
+        m_topologicalDimension = p_topologicalDimension;
     }
 
     bool containsCell(CfemInt cell_id) const {
@@ -101,7 +101,7 @@ private:
     const Mesh* m_mesh;
     CfemInt m_id;
     std::string m_name;
-    CfemInt m_dim; 
+    CfemInt m_topologicalDimension; 
     std::vector<CfemInt> m_cell_ids;
     std::vector<CfemInt> m_facet_ids;
     std::vector<CfemInt> m_vertex_ids;

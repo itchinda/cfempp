@@ -65,8 +65,8 @@ TEST(DynamicMatrixTest, IdentityAndZero) {
     DynamicMatrix<double> M(3, 3);
     M.setIdentity();
     
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
+    for (CfemInt i = 0; i < 3; ++i) {
+        for (CfemInt j = 0; j < 3; ++j) {
             if (i == j) EXPECT_DOUBLE_EQ(M(i, j), 1.0);
             else        EXPECT_DOUBLE_EQ(M(i, j), 0.0);
         }

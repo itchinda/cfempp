@@ -23,7 +23,7 @@
 #include "Vector3D.h"
 #include "DynamicVector.h"
 #include "DynamicMatrix.h"
-#include "TensorO2.h"
+#include "Tensor3D.h"
 #include "ShapeEvaluationFlags.h"
 
 namespace cfem::reference_elem
@@ -45,7 +45,7 @@ namespace cfem {
 struct ShapeInfo {
     DynamicVector<CfemReal> values;      ///< Shape function values (N_i)
     DynamicVector<Vector3D> gradients;   ///< Local gradients w.r.t reference coordinates (dN_i/dxi)
-    DynamicVector<SymTensorO2> hessians; ///< Local Hessians w.r.t reference coordinates (d2N_i/dxi2)
+    DynamicVector<SymTensor3D> hessians; ///< Local Hessians w.r.t reference coordinates (d2N_i/dxi2)
     bool shapeMustBeUpdated = true;
     ShapeEvaluationFlags  validFlags = ShapeEvaluationFlags::None;
 
@@ -77,13 +77,13 @@ struct ShapeInfo {
  */
 struct MappingInfo {
     Vector3D physicalPosition; ///< The mapped x, y, z coordinates
-    TensorO2 jacobian;         ///< Jacobian matrix (dx/dxi)
-    TensorO2 invJacobian;      ///< Inverse Jacobian matrix (dxi/dx)
+    Tensor3D jacobian;         ///< Jacobian matrix (dx/dxi)
+    Tensor3D invJacobian;      ///< Inverse Jacobian matrix (dxi/dx)
     CfemReal detJ;             ///< Determinant of the Jacobian
     Vector3D normal;
 
     DynamicVector<Vector3D> physicalShapeGradients;   ///< dN_i/dx (Gradients in physical space)
-    DynamicVector<SymTensorO2> physicalShapeHessians; ///< d2N_i/dx2 (Hessians in physical space)
+    DynamicVector<SymTensor3D> physicalShapeHessians; ///< d2N_i/dx2 (Hessians in physical space)
 
     /**
      * @brief Prepares the mapping buffers for a specific element size.
@@ -238,9 +238,9 @@ public:
 
     /**
      * @brief Interpolates the physical Hessian of a scalar field.
-     * @return SymTensorO2 representing the 2nd derivative matrix.
+     * @return SymTensor3D representing the 2nd derivative matrix.
      */
-    SymTensorO2 interpolateHessian(const MappingInfo& map, 
+    SymTensor3D interpolateHessian(const MappingInfo& map, 
                                    const DynamicVector<CfemReal>& nodalValues) const;
 };
 

@@ -27,12 +27,11 @@
  *
  */
 
-#ifndef CFEM_VECTOR3D
-#define CFEM_VECTOR3D
+#pragma once
 
 #include "cfemutils.h"
 #include <cmath>
-#include <sstream>
+#include <ostream>
 #include <algorithm>
 
 namespace cfem
@@ -60,9 +59,16 @@ namespace cfem
         CfemReal y = 0.0; ///< Y-coordinate
         CfemReal z = 0.0; ///< Z-coordinate
 
-        static constexpr int size = 3;
+        static constexpr CfemInt size = 3;
 
-        // --- Basic Arithmetic Operators ---
+        constexpr Vector3D() noexcept = default;
+
+        constexpr Vector3D( CfemReal x_, CfemReal y_, CfemReal z_) noexcept
+            : x(x_), y(y_), z(z_) 
+        {
+        }
+
+        // Basic Arithmetic Operators
 
         /** @brief Vector addition. */
         [[nodiscard]] constexpr Vector3D operator+(const Vector3D &other) const noexcept
@@ -91,14 +97,21 @@ namespace cfem
          * @note If the scalar is near zero (below cfem::ZERO_TOLERANCE), a CFEM_ERROR is logged, 
          * but the division proceeds (which may result in Inf or NaN values).
          */
-        [[nodiscard]] constexpr Vector3D operator/(CfemReal scalar) const
+        [[nodiscard]] inline Vector3D operator/(CfemReal scalar) const noexcept
         {
             if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
                 CFEM_ERROR << "Division by zero in Vector3D operator/";
-            return {x / scalar, y / scalar, z / scalar};
+            
+            CfemReal inv = 1.0 / scalar;
+            return {x * inv, y * inv, z * inv};
         }
 
-        // --- Compound Assignment Operators ---
+        [[nodiscard]] constexpr Vector3D operator-() const noexcept
+        {
+            return {-x, -y, -z};
+        }
+
+        // Compound Assignment Operators
 
         constexpr Vector3D &operator+=(const Vector3D &other) noexcept
         {
@@ -131,6 +144,24 @@ namespace cfem
         }
 
         /**
+         * @brief In-place Scalar division.
+         * @param scalar The denominator.
+         * @note If the scalar is near zero (below cfem::ZERO_TOLERANCE), a CFEM_ERROR is logged, 
+         * but the division proceeds (which may result in Inf or NaN values).
+         */
+        inline Vector3D &operator/=(CfemReal scalar) noexcept
+        {
+            if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
+                CFEM_ERROR << "Division by zero in Vector3D operator/=";
+            
+            CfemReal inv = 1.0 / scalar;
+            x *= inv;
+            y *= inv;
+            z *= inv;
+            return *this;
+        }
+
+        /**
          * @brief Evaluates strict bitwise equality.
          * @param other The vector to compare with.
          * @return True if all components match exactly, false otherwise.
@@ -141,7 +172,7 @@ namespace cfem
             return x == other.x && y == other.y && z == other.z;
         }
 
-        [[nodiscard]] bool operator!=(const Vector3D &other) const noexcept
+        [[nodiscard]] constexpr bool operator!=(const Vector3D &other) const noexcept
         {
             return !(*this == other);
         }
@@ -156,7 +187,7 @@ namespace cfem
          * @param other The vector to compare with.
          * @return True if the vectors are identical within the defined tolerance, false otherwise.
          */
-        [[nodiscard]] bool isApprox(const Vector3D& other) const noexcept {
+        [[nodiscard]] constexpr bool isApprox(const Vector3D& other) const noexcept {
             CfemReal scale_x = std::max(std::abs(x), std::abs(other.x));
             CfemReal scale_y = std::max(std::abs(y), std::abs(other.y));
             CfemReal scale_z = std::max(std::abs(z), std::abs(other.z));
@@ -166,53 +197,35 @@ namespace cfem
                    NumericPolicy::areEqual(z, other.z, scale_z);
         }
 
-        /**
-         * @brief In-place Scalar division.
-         * @param scalar The denominator.
-         * @note If the scalar is near zero (below cfem::ZERO_TOLERANCE), a CFEM_ERROR is logged, 
-         * but the division proceeds (which may result in Inf or NaN values).
-         */
-        Vector3D &operator/=(CfemReal scalar)
-        {
-            if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
-                CFEM_ERROR << "Division by zero in Vector3D operator/=";
-            x /= scalar;
-            y /= scalar;
-            z /= scalar;
-            return *this;
-        }
-
-        // --- Accessors ---
+        // Accessors
 
         /** @brief Read-only access by index (0=x, 1=y, 2=z). */
-        [[nodiscard]] CfemReal operator[](int i) const
+        [[nodiscard]] constexpr CfemReal operator[](CfemInt i) const
         {
-            if (i == 0)
-                return x;
-            if (i == 1)
-                return y;
-            if (i == 2)
-                return z;
-            CFEM_THROW("Index out of bound in Vector3D::operator[] const.");
-            return 0.0;
+            CFEM_ASSERT( 0 <= i && i < 3, "Index out of bound in Vector3D::operator[] const.");
+            return (i == 0) ? x : ((i == 1) ? y : z);
         }
 
         /** 
          * @brief Read-write access by index (0=x, 1=y, 2=z). 
          */
-        CfemReal &operator[](int i)
+        [[nodiscard]] constexpr CfemReal &operator[](CfemInt i)
         {
-            if (i == 0)
-                return x;
-            if (i == 1)
-                return y;
-            if (i == 2)
-                return z;
-            CFEM_THROW("Index out of bound in Vector3D::operator[].");
-            return x;
+            CFEM_ASSERT( 0 <= i && i < 3, "Index out of bound in Vector3D::operator[].");
+            return (i == 0) ? x : ((i == 1) ? y : z);
         }
 
-        // --- Vector Calculus ---
+        [[nodiscard]] constexpr const CfemReal* data() const noexcept
+        {
+            return &x;
+        }
+
+        [[nodiscard]] constexpr CfemReal* data() noexcept
+        {
+            return &x;
+        }
+
+        // Vector Calculus
 
         /** * @brief Computes the dot (inner) product.
          * @return a.x*b.x + a.y*b.y + a.z*b.z
@@ -242,13 +255,13 @@ namespace cfem
         }
 
         /** @brief Returns the squared Euclidean norm (faster than norm()). */
-        [[nodiscard]] constexpr inline CfemReal normSquare() const noexcept
+        [[nodiscard]] constexpr CfemReal normSquare() const noexcept
         {
             return x * x + y * y + z * z;
         }
 
         /** @brief Returns the Euclidean norm (length) of the vector. */
-        [[nodiscard]] inline CfemReal norm() const noexcept
+        [[nodiscard]] CfemReal norm() const noexcept
         {
             return std::sqrt(normSquare());
         }
@@ -257,7 +270,7 @@ namespace cfem
          * @brief Returns a unit vector in the same direction.
          * Returns {0,0,0} if the vector is near-null.
          */
-        [[nodiscard]] inline Vector3D normalized() const
+        [[nodiscard]] Vector3D normalized() const noexcept
         {
             CfemReal n = norm();
             if (n < cfem::ZERO_TOLERANCE)
@@ -265,14 +278,12 @@ namespace cfem
             return (*this) / n;
         }
 
-        inline Vector3D &normalize() noexcept
+        Vector3D &normalize() noexcept
         {
             CfemReal n = norm();
             if (n > cfem::ZERO_TOLERANCE)
             {
-                x /= n;
-                y /= n;
-                z /= n;
+                *this /= n;
             }
             return *this;
         }
@@ -291,7 +302,7 @@ namespace cfem
             return std::sqrt(distanceSquaredTo(other));
         }
 
-        [[nodiscard]] inline bool isClose(const Vector3D &other, CfemReal tol = cfem::ZERO_TOLERANCE) const noexcept
+        [[nodiscard]] constexpr bool isClose(const Vector3D &other, CfemReal tol = cfem::ZERO_TOLERANCE) const noexcept
         {
             return (std::abs(x - other.x) < tol &&
                     std::abs(y - other.y) < tol &&
@@ -302,7 +313,7 @@ namespace cfem
          * @brief Computes the angle (in radians) between this vector and another.
          * Safe against floating point inaccuracies.
          */
-        [[nodiscard]] inline CfemReal angleWith(const Vector3D& other) const {
+        [[nodiscard]] CfemReal angleWith(const Vector3D& other) const {
             return std::acos(cosAngleWith(other));
         }
 
@@ -325,7 +336,7 @@ namespace cfem
          * @param target The vector defining the projection direction.
          * @return The projected Vector3D. Returns {0,0,0} if the target is a null vector.
          */
-        [[nodiscard]] Vector3D projectOnto(const Vector3D& target) const {
+        [[nodiscard]] constexpr Vector3D projectOnto(const Vector3D& target) const {
             CfemReal targetNormSq = target.normSquare();
             if (targetNormSq < cfem::ZERO_TOLERANCE) return {0, 0, 0};
             return target * (this->dot(target) / targetNormSq);
@@ -334,7 +345,7 @@ namespace cfem
         /** 
          * @brief Returns the component of this vector perpendicular to 'target'. 
          */
-        [[nodiscard]] Vector3D perpendicularTo(const Vector3D& target) const {
+        [[nodiscard]] constexpr Vector3D perpendicularTo(const Vector3D& target) const {
             return *this - projectOnto(target);
         }
 
@@ -360,10 +371,10 @@ namespace cfem
         }
     };
 
-    // --- Non-member Helper Functions ---
+    // Non-member Helper Functions
 
     /** @brief Left-side scalar multiplication (e.g., 2.0 * vector). */
-    [[nodiscard]] inline constexpr Vector3D operator*(CfemReal scalar, const Vector3D &p) noexcept
+    [[nodiscard]] constexpr Vector3D operator*(CfemReal scalar, const Vector3D &p) noexcept
     {
         return {p.x * scalar, p.y * scalar, p.z * scalar};
     }
@@ -375,13 +386,13 @@ namespace cfem
     }
 
     /** @brief Functional style dot product. */
-    [[nodiscard]] inline constexpr CfemReal dot(const Vector3D &a, const Vector3D &b) noexcept
+    [[nodiscard]] constexpr CfemReal dot(const Vector3D &a, const Vector3D &b) noexcept
     {
         return a.dot(b);
     }
 
     /** @brief Functional style cross product. */
-    [[nodiscard]] inline constexpr Vector3D cross(const Vector3D &a, const Vector3D &b) noexcept
+    [[nodiscard]] constexpr Vector3D cross(const Vector3D &a, const Vector3D &b) noexcept
     {
         return a.cross(b);
     }
@@ -397,5 +408,3 @@ namespace cfem
     }
 
 } // namespace
-
-#endif // CFEM_VECTOR3D

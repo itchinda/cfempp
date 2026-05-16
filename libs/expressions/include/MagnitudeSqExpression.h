@@ -20,7 +20,7 @@
 
 #include "cfemutils.h"
 #include "Vector3D.h"
-#include "TensorO2.h"
+#include "Tensor3D.h"
 #include "CfemExpression.h"
 #include "EvalContext.h"
 #include <span>
@@ -45,12 +45,12 @@ namespace cfem::sym
 
     public:
         explicit MagnitudeSqExpression(std::shared_ptr<const CfemExpression> expr)
-            : m_innerDim(expr->getDimension()), m_expr(std::move(expr))
+            : m_innerDim(expr->getNumComponents()), m_expr(std::move(expr))
         {
             if (!m_expr) CFEM_ERROR << "MagnitudeSqExpression requires a valid inner expression.";
         }
 
-        CfemInt getDimension() const override { return 1; }
+        CfemInt getNumComponents() const override { return 1; }
 
         bool isContinuous() const override {
             return  m_expr->isContinuous();

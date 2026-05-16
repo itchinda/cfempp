@@ -48,19 +48,19 @@ namespace cfem {
     {
         mesh.clear();
         mesh.setOrder(MeshOrder::Linear);
-        mesh.setDimension(3);
+        mesh.setTopologicalDimension(3);
 
         CfemInt n = static_cast<CfemInt>(std::ceil((2.0 * radius) / h));
         if (n < 1)
             n = 1;
 
-        int nx = n;
-        int ny = n;
-        int nz = n;
+        CfemInt nx = n;
+        CfemInt ny = n;
+        CfemInt nz = n;
 
         std::vector<CfemInt> ids((nx + 1) * (ny + 1) * (nz + 1));
 
-        auto idx = [&](int i, int j, int k)
+        auto idx = [&](CfemInt i, CfemInt j, CfemInt k)
         {
             return k * (nx + 1) * (ny + 1) + j * (nx + 1) + i;
         };
@@ -68,15 +68,15 @@ namespace cfem {
         /*----------------------------
         1. Cube → Ball mapping
         -----------------------------*/
-        for (int k = 0; k <= nz; ++k)
+        for (CfemInt k = 0; k <= nz; ++k)
         {
             CfemReal zeta = -1.0 + 2.0 * k / nz;
 
-            for (int j = 0; j <= ny; ++j)
+            for (CfemInt j = 0; j <= ny; ++j)
             {
                 CfemReal eta = -1.0 + 2.0 * j / ny;
 
-                for (int i = 0; i <= nx; ++i)
+                for (CfemInt i = 0; i <= nx; ++i)
                 {
                     CfemReal xi = -1.0 + 2.0 * i / nx;
                     CfemReal x = xi * std::sqrt(
@@ -99,11 +99,11 @@ namespace cfem {
         /*----------------------------
         2. Cells
         -----------------------------*/
-        for (int k = 0; k < nz; ++k)
+        for (CfemInt k = 0; k < nz; ++k)
         {
-            for (int j = 0; j < ny; ++j)
+            for (CfemInt j = 0; j < ny; ++j)
             {
-                for (int i = 0; i < nx; ++i)
+                for (CfemInt i = 0; i < nx; ++i)
                 {
 
                     CfemInt v0 = ids[idx(i, j, k)];
@@ -183,13 +183,13 @@ namespace cfem {
 //     SolidSphereElementType type)
 // {
 //     mesh.clear();
-//     mesh.setDimension(3);
+//     mesh.setTopologicalDimension(3);
 //     mesh.setOrder(MeshOrder::Linear);
 
-//     const int N = std::max(2, (int)std::ceil(2.0 * radius / h));
+//     const CfemInt N = std::max(2, (int)std::ceil(2.0 * radius / h));
 //     const CfemReal dx = 2.0 * radius / N;
 
-//     auto index = [&](int i,int j,int k){
+//     auto index = [&](CfemInt i,CfemInt j,CfemInt k){
 //         return i + (N+1)*(j + (N+1)*k);
 //     };
 
@@ -198,9 +198,9 @@ namespace cfem {
 //     // --------------------------------------------------
 //     // 1. Génération des sommets
 //     // --------------------------------------------------
-//     for (int k = 0; k <= N; ++k)
-//     for (int j = 0; j <= N; ++j)
-//     for (int i = 0; i <= N; ++i)
+//     for (CfemInt k = 0; k <= N; ++k)
+//     for (CfemInt j = 0; j <= N; ++j)
+//     for (CfemInt i = 0; i <= N; ++i)
 //     {
 //         cfem::Vector3D p;
 //         p.x = -radius + i * dx;
@@ -224,9 +224,9 @@ namespace cfem {
 //     // --------------------------------------------------
 //     // 2. Construction des cellules
 //     // --------------------------------------------------
-//     for (int k = 0; k < N; ++k)
-//     for (int j = 0; j < N; ++j)
-//     for (int i = 0; i < N; ++i)
+//     for (CfemInt k = 0; k < N; ++k)
+//     for (CfemInt j = 0; j < N; ++j)
+//     for (CfemInt i = 0; i < N; ++i)
 //     {
 //         CfemInt v[8] = {
 //             vid[index(i  ,j  ,k  )],
@@ -241,11 +241,10 @@ namespace cfem {
 
 //         // centre du cube
 //         cfem::Vector3D c(0,0,0);
-//         for(int m=0;m<8;m++)
+//         for(CfemInt m=0;m<8;m++)
 //             c += mesh.getVertex(v[m]).coords;
 //         c /= 8.0;
 
-//         // ✔️ garder seulement si majoritairement dans la sphère
 //         if ((c - center).norm() > radius)
 //             continue;
 

@@ -51,13 +51,13 @@ namespace cfem
         }
 
         // --- CELLS ---
-        int totalConnSize = geo.connectivity.size() + geo.numActiveCells;
+        CfemInt totalConnSize = geo.connectivity.size() + geo.numActiveCells;
         out << "\nCELLS " << geo.numActiveCells << " " << totalConnSize << "\n";
         for (size_t i = 0; i < geo.numActiveCells; ++i) {
-            int start = (i == 0) ? 0 : geo.offsets[i-1];
-            int end = geo.offsets[i];
+            CfemInt start = (i == 0) ? 0 : geo.offsets[i-1];
+            CfemInt end = geo.offsets[i];
             out << (end - start);
-            for (int j = start; j < end; ++j) out << " " << geo.connectivity[j];
+            for (CfemInt j = start; j < end; ++j) out << " " << geo.connectivity[j];
             out << "\n";
         }
 
@@ -68,7 +68,7 @@ namespace cfem
         if (!fields.empty() || !data.nodeMasks.empty()) {
             out << "\nPOINT_DATA " << geo.numActiveVerts << "\n";
             for (size_t i = 0; i < fields.size(); ++i) {
-                int dim = fields[i].expr->getDimension();
+                CfemInt dim = fields[i].expr->getNumComponents();
                 if (dim == 1) {
                     out << "SCALARS " << fields[i].name << " double 1\nLOOKUP_TABLE default\n";
                     for (size_t v = 0; v < geo.numActiveVerts; ++v) out << data.fields[i][v] << "\n";
@@ -135,15 +135,15 @@ namespace cfem
         out << "\n";
 
         // --- CELLS ---
-        int totalConnSize = geo.connectivity.size() + geo.numActiveCells;
+        CfemInt totalConnSize = geo.connectivity.size() + geo.numActiveCells;
         out << "CELLS " << geo.numActiveCells << " " << totalConnSize << "\n";
         std::vector<int> cellBuffer;
         cellBuffer.reserve(totalConnSize);
         for (size_t i = 0; i < geo.numActiveCells; ++i) {
-            int start = (i == 0) ? 0 : geo.offsets[i-1];
-            int end = geo.offsets[i];
+            CfemInt start = (i == 0) ? 0 : geo.offsets[i-1];
+            CfemInt end = geo.offsets[i];
             cellBuffer.push_back(end - start);
-            for (int j = start; j < end; ++j) cellBuffer.push_back(geo.connectivity[j]);
+            for (CfemInt j = start; j < end; ++j) cellBuffer.push_back(geo.connectivity[j]);
         }
         writeBigEndian(cellBuffer.data(), cellBuffer.size());
         out << "\n";
@@ -157,7 +157,7 @@ namespace cfem
         if (!fields.empty() || !data.nodeMasks.empty()) {
             out << "POINT_DATA " << geo.numActiveVerts << "\n";
             for (size_t i = 0; i < fields.size(); ++i) {
-                int dim = fields[i].expr->getDimension();
+                CfemInt dim = fields[i].expr->getNumComponents();
                 if (dim == 1) {
                     out << "SCALARS " << fields[i].name << " double 1\nLOOKUP_TABLE default\n";
                     writeBigEndian(data.fields[i].data(), data.fields[i].size());
@@ -223,13 +223,13 @@ namespace cfem
         }
 
         // --- CELLS ---
-        int totalConnSize = geo.connectivity.size() + geo.numActiveCells;
+        CfemInt totalConnSize = geo.connectivity.size() + geo.numActiveCells;
         out << "\nCELLS " << geo.numActiveCells << " " << totalConnSize << "\n";
         for (size_t i = 0; i < geo.numActiveCells; ++i) {
-            int start = (i == 0) ? 0 : geo.offsets[i-1];
-            int end = geo.offsets[i];
+            CfemInt start = (i == 0) ? 0 : geo.offsets[i-1];
+            CfemInt end = geo.offsets[i];
             out << (end - start);
-            for (int j = start; j < end; ++j) out << " " << geo.connectivity[j];
+            for (CfemInt j = start; j < end; ++j) out << " " << geo.connectivity[j];
             out << "\n";
         }
 
@@ -240,7 +240,7 @@ namespace cfem
         if (!fields.empty() || !data.nodeMasks.empty()) {
             out << "\nPOINT_DATA " << geo.numActiveVerts << "\n";
             for (size_t i = 0; i < fields.size(); ++i) {
-                int dim = fields[i].expr->getDimension();
+                CfemInt dim = fields[i].expr->getNumComponents();
                 if (dim == 1) {
                     out << "SCALARS " << fields[i].name << " double 1\nLOOKUP_TABLE default\n";
                     for (size_t v = 0; v < geo.numActiveVerts; ++v) out << data.fields[i][v] << "\n";
@@ -302,15 +302,15 @@ namespace cfem
         out << "\n";
 
         // --- CELLS ---
-        int totalConnSize = geo.connectivity.size() + geo.numActiveCells;
+        CfemInt totalConnSize = geo.connectivity.size() + geo.numActiveCells;
         out << "CELLS " << geo.numActiveCells << " " << totalConnSize << "\n";
         std::vector<int> cellBuffer;
         cellBuffer.reserve(totalConnSize);
         for (size_t i = 0; i < geo.numActiveCells; ++i) {
-            int start = (i == 0) ? 0 : geo.offsets[i-1];
-            int end = geo.offsets[i];
+            CfemInt start = (i == 0) ? 0 : geo.offsets[i-1];
+            CfemInt end = geo.offsets[i];
             cellBuffer.push_back(end - start);
-            for (int j = start; j < end; ++j) cellBuffer.push_back(geo.connectivity[j]);
+            for (CfemInt j = start; j < end; ++j) cellBuffer.push_back(geo.connectivity[j]);
         }
         writeBigEndian(cellBuffer.data(), cellBuffer.size());
         out << "\n";
@@ -324,7 +324,7 @@ namespace cfem
         if (!fields.empty() || !data.nodeMasks.empty()) {
             out << "POINT_DATA " << geo.numActiveVerts << "\n";
             for (size_t i = 0; i < fields.size(); ++i) {
-                int dim = fields[i].expr->getDimension();
+                CfemInt dim = fields[i].expr->getNumComponents();
                 if (dim == 1) {
                     out << "SCALARS " << fields[i].name << " double 1\nLOOKUP_TABLE default\n";
                     writeBigEndian(data.fields[i].data(), data.fields[i].size());

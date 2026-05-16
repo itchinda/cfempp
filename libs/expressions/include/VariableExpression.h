@@ -20,7 +20,7 @@
 
 #include "cfemutils.h"
 #include "Vector3D.h"
-#include "TensorO2.h"
+#include "Tensor3D.h"
 #include "CfemExpression.h"
 #include "ZeroExpression.h"
 #include "EvalContext.h"
@@ -93,7 +93,7 @@ namespace cfem::sym
          * Useful for assigning numerical schemes like (U - U_old) / dt.
          */
         void setTimeDerivative(std::shared_ptr<const CfemExpression> expr) {
-            if (expr && expr->getDimension() != m_dim) {
+            if (expr && expr->getNumComponents() != m_dim) {
                 CFEM_ERROR << "VariableExpression::setTimeDerivative: Dimension mismatch.";
             }
             m_timeDerivExpr = std::move(expr);
@@ -104,7 +104,7 @@ namespace cfem::sym
          * Useful for assigning numerical schemes like (U - U_old) / dt.
          */
         void setGradient(std::shared_ptr<const CfemExpression> expr) {
-            if (expr && expr->getDimension() != m_dim * 3) {
+            if (expr && expr->getNumComponents() != m_dim * 3) {
                 CFEM_ERROR << "VariableExpression::setGradient: Dimension mismatch.";
             }
             m_gradExpr = std::move(expr);
@@ -120,7 +120,7 @@ namespace cfem::sym
             if (m_timeDerivExpr) m_timeDerivExpr->bind(spaceToId);
         }
 
-        CfemInt getDimension() const override { return m_dim; }
+        CfemInt getNumComponents() const override { return m_dim; }
         CfemInt precedence() const override{ return 10; }
         std::string toString() const override { return m_name; }
         ExpressionType getType() const override { return ExpressionType::Variable; }

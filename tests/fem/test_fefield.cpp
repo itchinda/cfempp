@@ -89,7 +89,7 @@ TEST_F(FEFieldTest, InitializationAndProperties)
     EXPECT_EQ(tempField->toString(), "FEField::Temperature");
     
     // Check dimensional properties
-    EXPECT_EQ(tempField->getDimension(), 1);
+    EXPECT_EQ(tempField->getNumComponents(), 1);
     
     // Check expression tree properties
     EXPECT_TRUE(tempField->dependsOnFEField());

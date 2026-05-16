@@ -51,7 +51,7 @@ namespace cfem
         if (m_mesh->getNumCells() == 0) {
             CFEM_ERROR << "FESpace Error: Mesh is empty.";
         }
-        if (m_dimension < 1) {
+        if (m_numComponents < 1) {
             CFEM_ERROR << "FESpace Error: Field dimension must be >= 1.";
         }
     }
@@ -91,7 +91,7 @@ namespace cfem
      */
     void FESpace::initReferenceElements() {
         m_refElements.clear();
-        int dim = m_mesh->getDimension();
+        CfemInt dim = m_mesh->getTopologicalDimension();
 
         // Utilisation de la même logique de filtrage que LagrangeSpace
         // Mais adaptée pour supporter les éléments DG (souvent P0 ou P1 discontinu)

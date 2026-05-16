@@ -81,7 +81,7 @@ namespace cfem{
             const CfemInt n = 6;
             if (out.values.size() != n) out.setup(n);
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n)
-                out.hessians.assign(n, SymTensorO2());
+                out.hessians.assign(n, SymTensor3D());
 
             const CfemReal r = xi.x, s = xi.y, t = xi.z;
             
@@ -154,7 +154,7 @@ namespace cfem{
             const CfemInt n = 18;
             if (out.values.size() != n) out.setup(n);
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
-                out.hessians.assign(n, SymTensorO2());
+                out.hessians.assign(n, SymTensor3D());
             }
 
             const CfemReal r = xi.x;
@@ -235,7 +235,7 @@ namespace cfem{
             const CfemInt n = 7;
             if (out.values.size() != n) out.setup(n);
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n)
-                out.hessians.assign(n, SymTensorO2());
+                out.hessians.assign(n, SymTensor3D());
 
             const CfemReal r = xi.x, s = xi.y, t = xi.z;
             const CfemReal L[3] = {1.0 - r - s, r, s};
@@ -248,7 +248,7 @@ namespace cfem{
                             27.0 * r * (1.0 - r - 2.0*s) * zB, 
                             triB * (-2.0 * t) };
             
-            SymTensorO2 hB; hB.setZero();
+            SymTensor3D hB; hB.setZero();
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
                 hB.xx() = -54.0 * s * zB;
                 hB.yy() = -54.0 * r * zB;
@@ -326,7 +326,7 @@ namespace cfem{
             }
 
             if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                if (out.hessians.size() != n) out.hessians.assign(n, SymTensorO2());
+                if (out.hessians.size() != n) out.hessians.assign(n, SymTensor3D());
                 out.hessians[0].setZero();
             }
 

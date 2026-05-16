@@ -43,8 +43,8 @@ namespace cfem::sym {
             m_inner->prepare();
         }
 
-        virtual CfemInt getDimension() const override {
-            return m_inner->getDimension();
+        virtual CfemInt getNumComponents() const override {
+            return m_inner->getNumComponents();
         }
 
         void evaluate(CfemInt cellId, const Vector3D &xi, 
