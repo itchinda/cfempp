@@ -97,10 +97,9 @@ namespace cfem
          * @note If the scalar is near zero (below cfem::ZERO_TOLERANCE), a CFEM_ERROR is logged, 
          * but the division proceeds (which may result in Inf or NaN values).
          */
-        [[nodiscard]] inline Vector3D operator/(CfemReal scalar) const noexcept
+        [[nodiscard]] inline Vector3D operator/(CfemReal scalar) const
         {
-            if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
-                CFEM_ERROR << "Division by zero in Vector3D operator/";
+            CFEM_ASSERT(std::abs(scalar) > ZERO_TOLERANCE, "Division by zero in Vector3D::operator/");
             
             CfemReal inv = 1.0 / scalar;
             return {x * inv, y * inv, z * inv};
@@ -149,10 +148,9 @@ namespace cfem
          * @note If the scalar is near zero (below cfem::ZERO_TOLERANCE), a CFEM_ERROR is logged, 
          * but the division proceeds (which may result in Inf or NaN values).
          */
-        inline Vector3D &operator/=(CfemReal scalar) noexcept
+        inline Vector3D &operator/=(CfemReal scalar)
         {
-            if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
-                CFEM_ERROR << "Division by zero in Vector3D operator/=";
+            CFEM_ASSERT(std::abs(scalar) > ZERO_TOLERANCE, "Division by zero in Vector3D::operator/=");
             
             CfemReal inv = 1.0 / scalar;
             x *= inv;

@@ -39,7 +39,7 @@ class TensorOperatorsTest : public ::testing::Test {
 protected:
     Tensor3D T;
     SymTensor3D S;
-    AxisSymTensor A;
+    AxiSymTensor3D A;
     SkewSymTensor3D W;
 
     void SetUp() override {
@@ -64,7 +64,7 @@ TEST_F(TensorOperatorsTest, Tensor3D_plus_SymTensor3D) {
     ExpectTensorEqMat(res, expected);
 }
 
-TEST_F(TensorOperatorsTest, Tensor3D_plus_AxisSymTensor) {
+TEST_F(TensorOperatorsTest, Tensor3D_plus_AxiSymTensor3D) {
     auto res = T + A;
     Mat3x3 expected = ReferenceAdd(T.toMat3x3(), A.toMat3x3());
     ExpectTensorEqMat(res, expected);
@@ -76,19 +76,19 @@ TEST_F(TensorOperatorsTest, Tensor3D_plus_SkewSymTensor3D) {
     ExpectTensorEqMat(res, expected);
 }
 
-TEST_F(TensorOperatorsTest, AxisSymTensor_plus_Tensor3D) {
+TEST_F(TensorOperatorsTest, AxiSymTensor3D_plus_Tensor3D) {
     auto res = A + T;
     Mat3x3 expected = ReferenceAdd(A.toMat3x3(), T.toMat3x3());
     ExpectTensorEqMat(res, expected);
 }
 
-TEST_F(TensorOperatorsTest, AxisSymTensor_plus_SymTensor3D) {
+TEST_F(TensorOperatorsTest, AxiSymTensor3D_plus_SymTensor3D) {
     auto res = A + S;
     Mat3x3 expected = ReferenceAdd(A.toMat3x3(), S.toMat3x3());
     ExpectTensorEqMat(res, expected);
 }
 
-TEST_F(TensorOperatorsTest, AxisSymTensor_plus_SkewSymTensor3D) {
+TEST_F(TensorOperatorsTest, AxiSymTensor3D_plus_SkewSymTensor3D) {
     auto res = A + W;
     Mat3x3 expected = ReferenceAdd(A.toMat3x3(), W.toMat3x3());
     ExpectTensorEqMat(res, expected);
@@ -106,7 +106,7 @@ TEST_F(TensorOperatorsTest, SymTensor3D_plus_SkewSymTensor3D) {
     ExpectTensorEqMat(res, expected);
 }
 
-TEST_F(TensorOperatorsTest, SymTensor3D_plus_AxisSymTensor) {
+TEST_F(TensorOperatorsTest, SymTensor3D_plus_AxiSymTensor3D) {
     auto res = S + A;
     Mat3x3 expected = ReferenceAdd(S.toMat3x3(), A.toMat3x3());
     ExpectTensorEqMat(res, expected);
@@ -124,7 +124,7 @@ TEST_F(TensorOperatorsTest, SkewSymTensor3D_plus_SymTensor3D) {
     ExpectTensorEqMat(res, expected);
 }
 
-TEST_F(TensorOperatorsTest, SkewSymTensor3D_plus_AxisSymTensor) {
+TEST_F(TensorOperatorsTest, SkewSymTensor3D_plus_AxiSymTensor3D) {
     auto res = W + A;
     Mat3x3 expected = ReferenceAdd(W.toMat3x3(), A.toMat3x3());
     ExpectTensorEqMat(res, expected);

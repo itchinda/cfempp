@@ -37,7 +37,7 @@ namespace cfem {
         SymTensor2D,        // 3  [xx, yy, xy]
         SkewSymTensor3D,    // 3  [yz, xz, xy]
         Tensor2D,           // 4  [xx, xy, yx, yy]
-        AxisSymTensor,      // 4  [xx, yy, zz, xy]
+        AxiSymTensor3D,     // 4  [xx, yy, zz, xy]
         SymTensor3D,        // 6  [xx, yy, zz, yz, xz, xy]
         Tensor3D            // 9  Full 3x3 matrix
     };
@@ -57,7 +57,7 @@ namespace cfem {
             case FieldType::SymTensor2D:     return 3;
             case FieldType::SkewSymTensor3D: return 3;
             case FieldType::Tensor2D:        return 4;
-            case FieldType::AxisSymTensor: return 4;
+            case FieldType::AxiSymTensor3D: return 4;
             case FieldType::SymTensor3D:     return 6;
             case FieldType::Tensor3D:        return 9;
             default: 
@@ -79,13 +79,13 @@ public:
     virtual ~FESpace() = default;
 
     // Basic Accessors
-    CfemInt getNumComponents() const { return m_numComponents; }
-    FieldType getFieldType() const { return m_fieldType; }
-    Order getOrder() const { return m_order; }
-    CfemInt getOrderInt() const { return static_cast<CfemInt>(m_order); }
-    const std::shared_ptr<Mesh>& getMesh() const { return m_mesh; }
+    constexpr CfemInt   getNumComponents()           const noexcept { return m_numComponents; }
+    constexpr FieldType getFieldType()               const noexcept { return m_fieldType; }
+    constexpr Order     getOrder()                   const noexcept { return m_order; }
+    constexpr CfemInt   getOrderInt()                const noexcept { return static_cast<CfemInt>(m_order); }
+    constexpr const std::shared_ptr<Mesh>& getMesh() const noexcept { return m_mesh; }
 
-    Continuity getContinuity() const { return m_continuity; }
+    constexpr Continuity getContinuity() const noexcept { return m_continuity; }
 
     // Geometry & Reference Elements
     const ReferenceElement& getRefElement(CellType type) const;
@@ -173,9 +173,7 @@ public:
 protected:
     FESpace(std::shared_ptr<Mesh> mesh, Order order, Continuity cont, FieldType fieldType)
         : m_mesh(std::move(mesh)), m_order(order), m_continuity(cont), m_fieldType(fieldType), m_numComponents(getComponentCountFromType(fieldType))
-    {
-        initReferenceElements();
-    }
+    { }
 
     std::shared_ptr<Mesh> m_mesh;
     Order m_order;
@@ -189,7 +187,6 @@ protected:
     std::vector<std::weak_ptr<FESpaceObserver>> m_observers;
 
     std::map<CellType, std::unique_ptr<ReferenceElement>> m_refElements;
-    void initReferenceElements();
 
     virtual void validate() const;
 };

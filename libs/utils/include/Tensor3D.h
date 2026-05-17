@@ -81,9 +81,9 @@ namespace cfem
         constexpr CfemReal &zz() noexcept { return data[idx_zz]; }
 
         [[nodiscard]] constexpr Mat3x3 toMat3x3() const noexcept {
-            return {{{xx(), xy(), xz()},
-                     {yx(), yy(), yz()},
-                     {zx(), zy(), zz()}}};
+            return {{{data[idx_xx], data[idx_xy], data[idx_xz]},
+                     {data[idx_yx], data[idx_yy], data[idx_yz]},
+                     {data[idx_zx], data[idx_zy], data[idx_zz]}}};
         }
     };
 
@@ -156,9 +156,9 @@ namespace cfem
         }
 
         [[nodiscard]] constexpr Mat3x3 toMat3x3() const noexcept{
-            return {{{xx(), xy(), xz()},
-                     {xy(), yy(), yz()},
-                     {xz(), yz(), zz()}}};
+            return {{{data[idx_xx], data[idx_xy], data[idx_xz]},
+                     {data[idx_xy], data[idx_yy], data[idx_yz]},
+                     {data[idx_xz], data[idx_yz], data[idx_zz]}}};
         }
 
         /**j;
@@ -233,12 +233,9 @@ namespace cfem
                     data[idx_yz] * scalar, data[idx_xz] * scalar, data[idx_xy] * scalar};
         }
 
-        [[nodiscard]] inline SymTensor3D operator/(CfemReal scalar) const noexcept
+        [[nodiscard]] constexpr SymTensor3D operator/(CfemReal scalar) const
         {
-            if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
-            {
-                CFEM_WARN << "Division by zero in SymTensor3D::operator/";
-            }
+            CFEM_ASSERT(std::abs(scalar) > ZERO_TOLERANCE, "Division by zero in SymTensor3D::operator/");
 
             CfemReal inv = 1.0 / scalar;
             return {data[idx_xx] * inv, data[idx_yy] * inv, data[idx_zz] * inv,
@@ -258,20 +255,21 @@ namespace cfem
         {
             Tensor3D res;
 
-            const CfemReal Axx = xx(), Ayy = yy(), Azz = zz(), Axy = xy(), Axz = xz(), Ayz = yz();
-            const CfemReal Bxx = B.xx(), Byy = B.yy(), Bzz = B.zz(), Bxy = B.xy(), Bxz = B.xz(), Byz = B.yz();
+            const CfemReal Axx = data[idx_xx], Ayy = data[idx_yy], Azz = data[idx_zz], Axy = data[idx_xy], Axz = data[idx_xz], Ayz = data[idx_yz];
+            const CfemReal Bxx = B.data[SymTensor3D::idx_xx], Byy = B.data[SymTensor3D::idx_yy], Bzz = B.data[SymTensor3D::idx_zz];
+            const CfemReal Bxy = B.data[SymTensor3D::idx_xy], Bxz = B.data[SymTensor3D::idx_xz], Byz = B.data[SymTensor3D::idx_yz];
 
-            res.xx() = Axx * Bxx + Axy * Bxy + Axz * Bxz;
-            res.xy() = Axx * Bxy + Axy * Byy + Axz * Byz;
-            res.xz() = Axx * Bxz + Axy * Byz + Axz * Bzz;
+            res.data[Tensor3D::idx_xx] = Axx * Bxx + Axy * Bxy + Axz * Bxz;
+            res.data[Tensor3D::idx_xy] = Axx * Bxy + Axy * Byy + Axz * Byz;
+            res.data[Tensor3D::idx_xz] = Axx * Bxz + Axy * Byz + Axz * Bzz;
 
-            res.yx() = Axy * Bxx + Ayy * Bxy + Ayz * Bxz;
-            res.yy() = Axy * Bxy + Ayy * Byy + Ayz * Byz;
-            res.yz() = Axy * Bxz + Ayy * Byz + Ayz * Bzz;
+            res.data[Tensor3D::idx_yx] = Axy * Bxx + Ayy * Bxy + Ayz * Bxz;
+            res.data[Tensor3D::idx_yy] = Axy * Bxy + Ayy * Byy + Ayz * Byz;
+            res.data[Tensor3D::idx_yz] = Axy * Bxz + Ayy * Byz + Ayz * Bzz;
 
-            res.zx() = Axz * Bxx + Ayz * Bxy + Azz * Bxz;
-            res.zy() = Axz * Bxy + Ayz * Byy + Azz * Byz;
-            res.zz() = Axz * Bxz + Ayz * Byz + Azz * Bzz;
+            res.data[Tensor3D::idx_zx] = Axz * Bxx + Ayz * Bxy + Azz * Bxz;
+            res.data[Tensor3D::idx_zy] = Axz * Bxy + Ayz * Byy + Azz * Byz;
+            res.data[Tensor3D::idx_zz] = Axz * Bxz + Ayz * Byz + Azz * Bzz;
 
             return res;
         }
@@ -309,12 +307,9 @@ namespace cfem
             return *this;
         }
 
-        inline SymTensor3D &operator/=(CfemReal scalar) noexcept
+        constexpr SymTensor3D &operator/=(CfemReal scalar)
         {
-            if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
-            {
-                CFEM_WARN << "Division by zero in SymTensor3D::operator/=";
-            }
+            CFEM_ASSERT(std::abs(scalar) > ZERO_TOLERANCE, "Division by zero in SymTensor3D::operator/=");
 
             CfemReal inv = 1.0 / scalar;
 
@@ -361,34 +356,34 @@ namespace cfem
             // Rappel stockage : [0]=xx, [1]=yy, [2]=zz, [3]=yz, [4]=xz, [5]=xy
             Tensor3D T;
 
-            // Ligne 0 de (*this) : [xx, xy, xz]
-            const CfemReal m00 = M.xx(), m01 = M.xy(), m02 = M.xz();
-            const CfemReal m10 = M.yx(), m11 = M.yy(), m12 = M.yz();
-            const CfemReal m20 = M.zx(), m21 = M.zy(), m22 = M.zz();
+            const CfemReal m00 = M.data[Tensor3D::idx_xx], m01 = M.data[Tensor3D::idx_xy], m02 = M.data[Tensor3D::idx_xz];
+            const CfemReal m10 = M.data[Tensor3D::idx_yx], m11 = M.data[Tensor3D::idx_yy], m12 = M.data[Tensor3D::idx_yz];
+            const CfemReal m20 = M.data[Tensor3D::idx_zx], m21 = M.data[Tensor3D::idx_zy], m22 = M.data[Tensor3D::idx_zz];
 
-            T.xx() = data[idx_xx] * m00 + data[idx_xy] * m10 + data[idx_xz] * m20;
-            T.xy() = data[idx_xx] * m01 + data[idx_xy] * m11 + data[idx_xz] * m21;
-            T.xz() = data[idx_xx] * m02 + data[idx_xy] * m12 + data[idx_xz] * m22;
+            // Ligne 0 de (*this) : [xx, xy, xz]
+            T.data[Tensor3D::idx_xx] = data[idx_xx] * m00 + data[idx_xy] * m10 + data[idx_xz] * m20;
+            T.data[Tensor3D::idx_xy] = data[idx_xx] * m01 + data[idx_xy] * m11 + data[idx_xz] * m21;
+            T.data[Tensor3D::idx_xz] = data[idx_xx] * m02 + data[idx_xy] * m12 + data[idx_xz] * m22;
 
             // Ligne 1 de (*this) : [xy, yy, yz]
-            T.yx() = data[idx_xy] * m00 + data[idx_yy] * m10 + data[idx_yz] * m20;
-            T.yy() = data[idx_xy] * m01 + data[idx_yy] * m11 + data[idx_yz] * m21;
-            T.yz() = data[idx_xy] * m02 + data[idx_yy] * m12 + data[idx_yz] * m22;
+            T.data[Tensor3D::idx_yx] = data[idx_xy] * m00 + data[idx_yy] * m10 + data[idx_yz] * m20;
+            T.data[Tensor3D::idx_yy] = data[idx_xy] * m01 + data[idx_yy] * m11 + data[idx_yz] * m21;
+            T.data[Tensor3D::idx_yz] = data[idx_xy] * m02 + data[idx_yy] * m12 + data[idx_yz] * m22;
 
             // Ligne 2 de (*this) : [xz, yz, zz]
-            T.zx() = data[idx_xz] * m00 + data[idx_yz] * m10 + data[idx_zz] * m20;
-            T.zy() = data[idx_xz] * m01 + data[idx_yz] * m11 + data[idx_zz] * m21;
-            T.zz() = data[idx_xz] * m02 + data[idx_yz] * m12 + data[idx_zz] * m22;
+            T.data[Tensor3D::idx_zx] = data[idx_xz] * m00 + data[idx_yz] * m10 + data[idx_zz] * m20;
+            T.data[Tensor3D::idx_zy] = data[idx_xz] * m01 + data[idx_yz] * m11 + data[idx_zz] * m21;
+            T.data[Tensor3D::idx_zz] = data[idx_xz] * m02 + data[idx_yz] * m12 + data[idx_zz] * m22;
 
             // On calcule res = M^T * T
             // On ne calcule que les 6 composantes symétriques
-            res[0] = m00 * T.xx() + m10 * T.yx() + m20 * T.zx(); // xx
-            res[1] = m01 * T.xy() + m11 * T.yy() + m21 * T.zy(); // yy
-            res[2] = m02 * T.xz() + m12 * T.yz() + m22 * T.zz(); // zz
+            res[0] = m00 * T.data[Tensor3D::idx_xx] + m10 * T.data[Tensor3D::idx_yx] + m20 * T.data[Tensor3D::idx_zx]; // xx
+            res[1] = m01 * T.data[Tensor3D::idx_xy] + m11 * T.data[Tensor3D::idx_yy] + m21 * T.data[Tensor3D::idx_zy]; // yy
+            res[2] = m02 * T.data[Tensor3D::idx_xz] + m12 * T.data[Tensor3D::idx_yz] + m22 * T.data[Tensor3D::idx_zz]; // zz
 
-            res[3] = m01 * T.xz() + m11 * T.yz() + m21 * T.zz(); // yz
-            res[4] = m00 * T.xz() + m10 * T.yz() + m20 * T.zz(); // xz
-            res[5] = m00 * T.xy() + m10 * T.yy() + m20 * T.zy(); // xy
+            res[3] = m01 * T.data[Tensor3D::idx_xz] + m11 * T.data[Tensor3D::idx_yz] + m21 * T.data[Tensor3D::idx_zz]; // yz
+            res[4] = m00 * T.data[Tensor3D::idx_xz] + m10 * T.data[Tensor3D::idx_yz] + m20 * T.data[Tensor3D::idx_zz]; // xz
+            res[5] = m00 * T.data[Tensor3D::idx_xy] + m10 * T.data[Tensor3D::idx_yy] + m20 * T.data[Tensor3D::idx_zy]; // xy
 
             return res;
         }
@@ -471,12 +466,12 @@ namespace cfem
         [[nodiscard]] constexpr CfemReal doubleDot(const Tensor3D& T) const noexcept
         {
             // S : T = S_ij T_ij
-            return data[idx_xx] * T.xx() + 
-                data[idx_yy] * T.yy() + 
-                data[idx_zz] * T.zz() + 
-                data[idx_xy] * (T.xy() + T.yx()) + 
-                data[idx_xz] * (T.xz() + T.zx()) + 
-                data[idx_yz] * (T.yz() + T.zy());
+            return data[idx_xx] * T.data[Tensor3D::idx_xx] + 
+                data[idx_yy] * T.data[Tensor3D::idx_yy] + 
+                data[idx_zz] * T.data[Tensor3D::idx_zz] + 
+                data[idx_xy] *(T.data[Tensor3D::idx_xy] + T.data[Tensor3D::idx_yx]) + 
+                data[idx_xz] *(T.data[Tensor3D::idx_xz] + T.data[Tensor3D::idx_zx]) + 
+                data[idx_yz] *(T.data[Tensor3D::idx_yz] + T.data[Tensor3D::idx_zy]);
         }
 
         [[nodiscard]] constexpr SymTensor3D deviatoric() const noexcept
@@ -500,7 +495,7 @@ namespace cfem
          * @details
          * Commonly used to build tangent constitutive operators.
          */
-        [[nodiscard]] constexpr FixedMatrix<CfemReal, 6, 6> outer(const SymTensor3D& other) const noexcept
+        [[nodiscard]] constexpr FixedMatrix<CfemReal, 6, 6> outer(const SymTensor3D &other) const noexcept
         {
             FixedMatrix<CfemReal, 6, 6> res;
             for(CfemInt i = 0; i < 6; ++i) {
@@ -519,7 +514,7 @@ namespace cfem
      * @brief Symmetric Axisymmetric Tensor (4 components).
      * Components stored as: [xx, yy, zz, xy] (e.g., rr, zz, theta_theta, rz).
      */
-    struct AxisSymTensor
+    struct AxiSymTensor3D
     {
         static constexpr CfemInt idx_xx = 0; 
         static constexpr CfemInt idx_yy = 1;
@@ -534,8 +529,8 @@ namespace cfem
     public:
 
         // Constructors
-        constexpr AxisSymTensor() noexcept = default;
-        constexpr AxisSymTensor(CfemReal xx, CfemReal yy, CfemReal zz, CfemReal xy) noexcept 
+        constexpr AxiSymTensor3D() noexcept = default;
+        constexpr AxiSymTensor3D(CfemReal xx, CfemReal yy, CfemReal zz, CfemReal xy) noexcept 
             : data{xx, yy, zz, xy} {}
 
         // Accessors
@@ -549,57 +544,49 @@ namespace cfem
         constexpr CfemReal &zz() noexcept { return data[idx_zz]; }
         constexpr CfemReal &xy() noexcept { return data[idx_xy]; }
 
-        [[nodiscard]] constexpr SymTensor3D toSymTensor3D() const noexcept
-        {
-            return { xx(), yy(), zz(), 0.0, 0.0, xy() };
-        }
-
         inline operator Tensor3D() const noexcept{
-            return Tensor3D{ xx(), xy(), 0.0, 
-                             xy(), yy(), 0.0,
-                             0.0,  0.0,  zz() };
+            return Tensor3D{ data[idx_xx], data[idx_xy], 0.0, 
+                             data[idx_xy], data[idx_yy], 0.0,
+                             0.0,  0.0,  data[idx_zz] };
         }
 
         inline operator SymTensor3D() const noexcept{
-            CFEM_INFO << "Implicit converter called";
-            return SymTensor3D{ xx(),  yy(), zz(), 0.0, 0.0, xy() };
+            return SymTensor3D{ data[idx_xx],  data[idx_yy], data[idx_zz], 0.0, 0.0, data[idx_xy] };
         }
 
 
         [[nodiscard]] constexpr Mat3x3 toMat3x3() const noexcept{
-            return {{{xx(), xy(), 0.0}, 
-                     {xy(), yy(), 0.0},
-                     {0.0,  0.0,  zz()}}};
+            return {{{data[idx_xx], data[idx_xy], 0.0}, 
+                     {data[idx_xy], data[idx_yy], 0.0},
+                     {0.0,  0.0,  data[idx_zz]}}};
         }
 
-        [[nodiscard]] constexpr AxisSymTensor operator-() const noexcept
+        [[nodiscard]] constexpr AxiSymTensor3D operator-() const noexcept
         {
             return {-data[idx_xx], -data[idx_yy], -data[idx_zz], -data[idx_xy]};
         }
 
-        [[nodiscard]] constexpr AxisSymTensor operator*(CfemReal scalar) const noexcept
+        [[nodiscard]] constexpr AxiSymTensor3D operator*(CfemReal scalar) const noexcept
         {
-            return { xx()*scalar, yy()*scalar, zz()*scalar, xy()*scalar };
+            return { data[idx_xx]*scalar, data[idx_yy]*scalar, data[idx_zz]*scalar, data[idx_xy]*scalar };
         }
 
-        [[nodiscard]] inline AxisSymTensor operator/(CfemReal scalar) const noexcept
+        [[nodiscard]] constexpr AxiSymTensor3D operator/(CfemReal scalar) const
         {
-            if (std::abs(scalar) < ZERO_TOLERANCE){
-                CFEM_WARN << "Division by zero in SymTensor3D::operator/";
-            }
+            CFEM_ASSERT(std::abs(scalar) > ZERO_TOLERANCE, "Division by zero in SymTensor3D::operator/");
 
             const CfemReal inv = 1.0 / scalar;
-            return { xx()*inv, yy()*inv, zz()*inv, xy()*inv };
+            return { data[idx_xx]*inv, data[idx_yy]*inv, data[idx_zz]*inv, data[idx_xy]*inv };
         }
 
-        [[nodiscard]] constexpr AxisSymTensor operator+(const AxisSymTensor& B) const noexcept
+        [[nodiscard]] constexpr AxiSymTensor3D operator+(const AxiSymTensor3D &A) const noexcept
         {
-            return { xx() + B.xx(), yy() + B.yy(), zz() + B.zz(), xy() + B.xy() };
+            return { data[idx_xx] + A.data[AxiSymTensor3D::idx_xx], data[idx_yy] + A.data[AxiSymTensor3D::idx_yy], data[idx_zz] + A.data[AxiSymTensor3D::idx_zz], data[idx_xy] + A.data[AxiSymTensor3D::idx_xy] };
         }
 
-        [[nodiscard]] constexpr AxisSymTensor operator-(const AxisSymTensor& B) const noexcept
+        [[nodiscard]] constexpr AxiSymTensor3D operator-(const AxiSymTensor3D &A) const noexcept
         {
-            return { xx() - B.xx(), yy() - B.yy(), zz() - B.zz(), xy() - B.xy() };
+            return { data[idx_xx] - A.data[AxiSymTensor3D::idx_xx], data[idx_yy] - A.data[AxiSymTensor3D::idx_yy], data[idx_zz] - A.data[AxiSymTensor3D::idx_zz], data[idx_xy] - A.data[AxiSymTensor3D::idx_xy] };
         }
 
         [[nodiscard]] constexpr Vector3D operator*(const Vector3D &v) const noexcept
@@ -611,49 +598,47 @@ namespace cfem
             };
         }
 
-        [[nodiscard]] constexpr Tensor3D operator*(const AxisSymTensor& B) const noexcept
+        [[nodiscard]] constexpr Tensor3D operator*(const AxiSymTensor3D &A) const noexcept
         {
             Tensor3D res;
-            res.xx() = xx()*B.xx() + xy()*B.xy();
-            res.xy() = xx()*B.xy() + xy()*B.yy();
-            res.xz() = 0.0;
+            res.data[Tensor3D::idx_xx] = data[idx_xx]*A.data[AxiSymTensor3D::idx_xx] + data[idx_xy]*A.data[AxiSymTensor3D::idx_xy];
+            res.data[Tensor3D::idx_xy] = data[idx_xx]*A.data[AxiSymTensor3D::idx_xy] + data[idx_xy]*A.data[AxiSymTensor3D::idx_yy];
+            res.data[Tensor3D::idx_xz] = 0.0;
             
-            res.yx() = xy()*B.xx() + yy()*B.xy();
-            res.yy() = xy()*B.xy() + yy()*B.yy();
-            res.yz() = 0.0;
+            res.data[Tensor3D::idx_yx] = data[idx_xy]*A.data[AxiSymTensor3D::idx_xx] + data[idx_yy]*A.data[AxiSymTensor3D::idx_xy];
+            res.data[Tensor3D::idx_yy] = data[idx_xy]*A.data[AxiSymTensor3D::idx_xy] + data[idx_yy]*A.data[AxiSymTensor3D::idx_yy];
+            res.data[Tensor3D::idx_yz] = 0.0;
             
-            res.zx() = 0.0;
-            res.zy() = 0.0;
-            res.zz() = zz()*B.zz();
+            res.data[Tensor3D::idx_zx] = 0.0;
+            res.data[Tensor3D::idx_zy] = 0.0;
+            res.data[Tensor3D::idx_zz] = data[idx_zz]*A.data[AxiSymTensor3D::idx_zz];
             return res;
         }
         
-        constexpr AxisSymTensor& operator+=(const AxisSymTensor& S) noexcept
+        constexpr AxiSymTensor3D& operator+=(const AxiSymTensor3D &A) noexcept
         {
-            data[idx_xx] += S.data[idx_xx]; data[idx_yy] += S.data[idx_yy];
-            data[idx_zz] += S.data[idx_zz]; data[idx_xy] += S.data[idx_xy];
+            data[idx_xx] += A.data[idx_xx]; data[idx_yy] += A.data[idx_yy];
+            data[idx_zz] += A.data[idx_zz]; data[idx_xy] += A.data[idx_xy];
             return *this;
         }
 
-        constexpr AxisSymTensor& operator-=(const AxisSymTensor& S) noexcept
+        constexpr AxiSymTensor3D& operator-=(const AxiSymTensor3D &A) noexcept
         {
-            data[idx_xx] -= S.data[idx_xx]; data[idx_yy] -= S.data[idx_yy];
-            data[idx_zz] -= S.data[idx_zz]; data[idx_xy] -= S.data[idx_xy];
+            data[idx_xx] -= A.data[idx_xx]; data[idx_yy] -= A.data[idx_yy];
+            data[idx_zz] -= A.data[idx_zz]; data[idx_xy] -= A.data[idx_xy];
             return *this;
         }
 
-        constexpr AxisSymTensor& operator*=(CfemReal scalar) noexcept
+        constexpr AxiSymTensor3D& operator*=(CfemReal scalar) noexcept
         {
             data[idx_xx] *= scalar; data[idx_yy] *= scalar;
             data[idx_zz] *= scalar; data[idx_xy] *= scalar;
             return *this;
         }
 
-        constexpr AxisSymTensor& operator/=(CfemReal scalar) noexcept
+        constexpr AxiSymTensor3D& operator/=(CfemReal scalar)
         {
-            if (std::abs(scalar) < ZERO_TOLERANCE){
-                CFEM_WARN << "Division by zero in SymTensor3D::operator/=";
-            }
+            CFEM_ASSERT(std::abs(scalar) > ZERO_TOLERANCE, "Division by zero in AxiSymTensor3D::operator/=");
 
             const CfemReal inv = 1.0 / scalar;
             data[idx_xx] *= inv; data[idx_yy] *= inv;
@@ -672,12 +657,12 @@ namespace cfem
             return data[idx_zz] * (data[idx_xx] * data[idx_yy] - data[idx_xy] * data[idx_xy]);
         }
 
-        [[nodiscard]] constexpr AxisSymTensor transpose() const noexcept
+        [[nodiscard]] constexpr AxiSymTensor3D transpose() const noexcept
         {
             return *this; // Symétrique !
         }
 
-        [[nodiscard]] constexpr AxisSymTensor deviatoric() const noexcept
+        [[nodiscard]] constexpr AxiSymTensor3D deviatoric() const noexcept
         {
             const CfemReal mean_tr = trace() / 3.0;
             return { data[idx_xx] - mean_tr, 
@@ -686,7 +671,7 @@ namespace cfem
                      data[idx_xy] };
         }
 
-        [[nodiscard]] constexpr AxisSymTensor inverse() const noexcept
+        [[nodiscard]] constexpr AxiSymTensor3D inverse() const noexcept
         {
             const CfemReal det_2d = data[idx_xx] * data[idx_yy] - data[idx_xy] * data[idx_xy];
             const CfemReal inv_det_2d = 1.0 / det_2d;
@@ -699,25 +684,25 @@ namespace cfem
         }
 
         // Produit doublement contracté (S : S2) = S_ij S2_ij
-        [[nodiscard]] constexpr CfemReal doubleDot(const AxisSymTensor& S) const noexcept
+        [[nodiscard]] constexpr CfemReal doubleDot(const AxiSymTensor3D &A) const noexcept
         {
-            return data[idx_xx]*S.data[idx_xx] + 
-                   data[idx_yy]*S.data[idx_yy] + 
-                   data[idx_zz]*S.data[idx_zz] + 
-                   2.0 * data[idx_xy]*S.data[idx_xy];
+            return data[idx_xx] * A.data[idx_xx] + 
+                   data[idx_yy] * A.data[idx_yy] + 
+                   data[idx_zz] * A.data[idx_zz] + 
+                   2.0 * data[idx_xy] * A.data[idx_xy];
         }
 
         // Produit doublement contracté (S : T) 
-        [[nodiscard]] constexpr CfemReal doubleDot(const Tensor3D& T) const noexcept
+        [[nodiscard]] constexpr CfemReal doubleDot(const Tensor3D &T) const noexcept
         {
-            return data[idx_xx]*T.xx() + 
-                   data[idx_yy]*T.yy() + 
-                   data[idx_zz]*T.zz() + 
-                   data[idx_xy]*(T.xy() + T.yx());
+            return data[idx_xx]*T.data[Tensor3D::idx_xx] + 
+                   data[idx_yy]*T.data[Tensor3D::idx_yy] + 
+                   data[idx_zz]*T.data[Tensor3D::idx_zz] + 
+                   data[idx_xy]*(T.data[Tensor3D::idx_xy] + T.data[Tensor3D::idx_yx]);
         }
 
         // Produit tensoriel externe S (x) S2 -> Matrice de Voigt 4x4 (souvent K_tangent local)
-        [[nodiscard]] constexpr FixedMatrix<CfemReal, 4, 4> outer(const AxisSymTensor& other) const noexcept
+        [[nodiscard]] constexpr FixedMatrix<CfemReal, 4, 4> outer(const AxiSymTensor3D& other) const noexcept
         {
             FixedMatrix<CfemReal, 4, 4> res;
             for(CfemInt i = 0; i < 4; ++i) {
@@ -827,16 +812,16 @@ namespace cfem
         }
 
         [[nodiscard]] constexpr Mat3x3 toMat3x3() const noexcept {
-            return {{{0.0,   xy(), xz()}, 
-                     {-xy(), 0.0,  yz()},
-                     {-xz(), -yz(), 0.0}}};
+            return {{{0.0,   data[idx_xy], data[idx_xz]}, 
+                     {-data[idx_xy], 0.0,  data[idx_yz]},
+                     {-data[idx_xz], -data[idx_yz], 0.0}}};
         }
         
 
         inline operator Tensor3D() const noexcept{
-            return Tensor3D{ 0.0,   xy(), xz(), 
-                            -xy(),  0.0,  yz(),
-                            -xz(), -yz(), 0.0 };
+            return Tensor3D{ 0.0,   data[idx_xy], data[idx_xz], 
+                            -data[idx_xy],  0.0,  data[idx_yz],
+                            -data[idx_xz], -data[idx_yz], 0.0 };
         }
 
         /** @brief Negate operator */
@@ -897,12 +882,10 @@ namespace cfem
             return {data[idx_yz] * scalar, data[idx_xz] * scalar, data[idx_xy] * scalar};
         }
 
-        [[nodiscard]] inline SkewSymTensor3D operator/(CfemReal scalar) const noexcept
+        [[nodiscard]] constexpr SkewSymTensor3D operator/(CfemReal scalar) const
         {
-            if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
-            {
-                CFEM_ERROR << "Division by zero in SkewSymTensor3D::operator/";
-            }
+            CFEM_ASSERT(std::abs(scalar) > ZERO_TOLERANCE, "Division by zero in SkewSymTensor3D::operator/");
+
             CfemReal inv = 1.0 / scalar;
             return {data[idx_yz] * inv, data[idx_xz] * inv, data[idx_xy] * inv};
         }
@@ -919,23 +902,23 @@ namespace cfem
             };
         }
 
-        [[nodiscard]] constexpr Tensor3D operator*(const SkewSymTensor3D &B) const noexcept
+        [[nodiscard]] constexpr Tensor3D operator*(const SkewSymTensor3D &W) const noexcept
         {
             Tensor3D res;
-            const CfemReal Axy = xy(), Axz = xz(), Ayz = yz();
-            const CfemReal Bxy = B.xy(), Bxz = B.xz(), Byz = B.yz();
+            const CfemReal Axy = data[idx_xy], Axz = data[idx_xz], Ayz = data[idx_yz];
+            const CfemReal Bxy = W.data[SkewSymTensor3D::idx_xy], Bxz = W.data[SkewSymTensor3D::idx_xz], Byz = W.data[SkewSymTensor3D::idx_yz];
 
-            res.xx() = -Axy * Bxy - Axz * Bxz;
-            res.xy() = -Axz * Byz;
-            res.xz() =  Axy * Byz;
+            res.data[Tensor3D::idx_xx] = -Axy * Bxy - Axz * Bxz;
+            res.data[Tensor3D::idx_xy] = -Axz * Byz;
+            res.data[Tensor3D::idx_xz] =  Axy * Byz;
 
-            res.yx() = -Ayz * Bxz;
-            res.yy() = -Axy * Bxy - Ayz * Byz;
-            res.yz() = -Axy * Bxz;
+            res.data[Tensor3D::idx_yx] = -Ayz * Bxz;
+            res.data[Tensor3D::idx_yy] = -Axy * Bxy - Ayz * Byz;
+            res.data[Tensor3D::idx_yz] = -Axy * Bxz;
 
-            res.zx() =  Ayz * Bxy;
-            res.zy() = -Axz * Bxy;
-            res.zz() = -Axz * Bxz - Ayz * Byz;
+            res.data[Tensor3D::idx_zx] =  Ayz * Bxy;
+            res.data[Tensor3D::idx_zy] = -Axz * Bxy;
+            res.data[Tensor3D::idx_zz] = -Axz * Bxz - Ayz * Byz;
 
             return res;
         }
@@ -964,12 +947,9 @@ namespace cfem
             return *this;
         }
 
-        inline SkewSymTensor3D &operator/=(CfemReal scalar) noexcept
+        constexpr SkewSymTensor3D &operator/=(CfemReal scalar)
         {
-            if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
-            {
-                CFEM_ERROR << "Division by zero in SkewSymTensor3D::operator/=";
-            }
+            CFEM_ASSERT(std::abs(scalar) > ZERO_TOLERANCE, "Division by zero in SkewSymTensor3D::operator/=");
 
             CfemReal inv = 1.0/ scalar;
             data[idx_yz] *= inv;
@@ -1006,29 +986,29 @@ namespace cfem
 
             // 1. T = (*this) * M
             Tensor3D T;
-            const CfemReal m00 = M.xx(), m01 = M.xy(), m02 = M.xz();
-            const CfemReal m10 = M.yx(), m11 = M.yy(), m12 = M.yz();
-            const CfemReal m20 = M.zx(), m21 = M.zy(), m22 = M.zz();
+            const CfemReal m00 = M.data[Tensor3D::idx_xx], m01 = M.data[Tensor3D::idx_xy], m02 = M.data[Tensor3D::idx_xz];
+            const CfemReal m10 = M.data[Tensor3D::idx_yx], m11 = M.data[Tensor3D::idx_yy], m12 = M.data[Tensor3D::idx_yz];
+            const CfemReal m20 = M.data[Tensor3D::idx_zx], m21 = M.data[Tensor3D::idx_zy], m22 = M.data[Tensor3D::idx_zz];
 
             // Row 0 of W: [0, xy, xz]
-            T.xx() = data[idx_xy] * m10 + data[idx_xz] * m20;
-            T.xy() = data[idx_xy] * m11 + data[idx_xz] * m21;
-            T.xz() = data[idx_xy] * m12 + data[idx_xz] * m22;
+            T.data[Tensor3D::idx_xx] = data[idx_xy] * m10 + data[idx_xz] * m20;
+            T.data[Tensor3D::idx_xy] = data[idx_xy] * m11 + data[idx_xz] * m21;
+            T.data[Tensor3D::idx_xz] = data[idx_xy] * m12 + data[idx_xz] * m22;
 
             // Row 1 of W: [-xy, 0, yz]
-            T.yx() = -data[idx_xy] * m00 + data[idx_yz] * m20;
-            T.yy() = -data[idx_xy] * m01 + data[idx_yz] * m21;
-            T.yz() = -data[idx_xy] * m02 + data[idx_yz] * m22;
+            T.data[Tensor3D::idx_yx] = -data[idx_xy] * m00 + data[idx_yz] * m20;
+            T.data[Tensor3D::idx_yy] = -data[idx_xy] * m01 + data[idx_yz] * m21;
+            T.data[Tensor3D::idx_yz] = -data[idx_xy] * m02 + data[idx_yz] * m22;
 
             // Row 2 of W: [-xz, -yz, 0]
-            T.zx() = -data[idx_xz] * m00 - data[idx_yz] * m10;
-            T.zy() = -data[idx_xz] * m01 - data[idx_yz] * m11;
-            T.zz() = -data[idx_xz] * m02 - data[idx_yz] * m12;
+            T.data[Tensor3D::idx_zx] = -data[idx_xz] * m00 - data[idx_yz] * m10;
+            T.data[Tensor3D::idx_zy] = -data[idx_xz] * m01 - data[idx_yz] * m11;
+            T.data[Tensor3D::idx_zz] = -data[idx_xz] * m02 - data[idx_yz] * m12;
 
             // 2. res = M^T * T (Only extract the 3 skew components)
-            res.data[idx_yz] = m01 * T.xz() + m11 * T.yz() + m21 * T.zz(); // yz
-            res.data[idx_xz] = m00 * T.xz() + m10 * T.yz() + m20 * T.zz(); // xz
-            res.data[idx_xy] = m00 * T.xy() + m10 * T.yy() + m20 * T.zy(); // xy
+            res.data[idx_yz] = m01 * T.data[Tensor3D::idx_xz] + m11 * T.data[Tensor3D::idx_yz] + m21 * T.data[Tensor3D::idx_zz]; // yz
+            res.data[idx_xz] = m00 * T.data[Tensor3D::idx_xz] + m10 * T.data[Tensor3D::idx_yz] + m20 * T.data[Tensor3D::idx_zz]; // xz
+            res.data[idx_xy] = m00 * T.data[Tensor3D::idx_xy] + m10 * T.data[Tensor3D::idx_yy] + m20 * T.data[Tensor3D::idx_zy]; // xy
 
             return res;
         }
@@ -1156,7 +1136,7 @@ namespace cfem
          */
         [[nodiscard]] inline CfemReal imaginaryEigenvalueMagnitude() const noexcept
         {
-            return std::sqrt( xy()*xy() + xz()*xz() + yz()*yz() );
+            return std::sqrt( data[idx_xy]*data[idx_xy] + data[idx_xz]*data[idx_xz] + data[idx_yz]*data[idx_yz] );
         }
         
     };
@@ -1174,9 +1154,9 @@ namespace cfem
         return W * scalar;
     }
 
-    [[nodiscard]] constexpr AxisSymTensor operator*(CfemReal scalar, const AxisSymTensor &S) noexcept
+    [[nodiscard]] constexpr AxiSymTensor3D operator*(CfemReal scalar, const AxiSymTensor3D &A) noexcept
     {
-        return S * scalar;
+        return A * scalar;
     }
 
     /**
@@ -1190,48 +1170,48 @@ namespace cfem
     [[nodiscard]] constexpr Tensor3D operator*(const Tensor3D &T, const SymTensor3D &S) noexcept
     {
         Tensor3D res;
-        const CfemReal Txx = T.xx(), Txy = T.xy(), Txz = T.xz();
-        const CfemReal Tyx = T.yx(), Tyy = T.yy(), Tyz = T.yz();
-        const CfemReal Tzx = T.zx(), Tzy = T.zy(), Tzz = T.zz();
+        const CfemReal Txx = T.data[Tensor3D::idx_xx], Txy = T.data[Tensor3D::idx_xy], Txz = T.data[Tensor3D::idx_xz];
+        const CfemReal Tyx = T.data[Tensor3D::idx_yx], Tyy = T.data[Tensor3D::idx_yy], Tyz = T.data[Tensor3D::idx_yz];
+        const CfemReal Tzx = T.data[Tensor3D::idx_zx], Tzy = T.data[Tensor3D::idx_zy], Tzz = T.data[Tensor3D::idx_zz];
 
-        const CfemReal Sxx = S.xx(), Syy = S.yy(), Szz = S.zz(), Sxy = S.xy(), Sxz = S.xz(), Syz = S.yz();
+        const CfemReal Sxx = S.data[SymTensor3D::idx_xx], Syy = S.data[SymTensor3D::idx_yy], Szz = S.data[SymTensor3D::idx_zz], Sxy = S.data[SymTensor3D::idx_xy], Sxz = S.data[SymTensor3D::idx_xz], Syz = S.data[SymTensor3D::idx_yz];
 
-        res.xx() = Txx * Sxx + Txy * Sxy + Txz * Sxz;
-        res.xy() = Txx * Sxy + Txy * Syy + Txz * Syz;
-        res.xz() = Txx * Sxz + Txy * Syz + Txz * Szz;
+        res.data[Tensor3D::idx_xx] = Txx * Sxx + Txy * Sxy + Txz * Sxz;
+        res.data[Tensor3D::idx_xy] = Txx * Sxy + Txy * Syy + Txz * Syz;
+        res.data[Tensor3D::idx_xz] = Txx * Sxz + Txy * Syz + Txz * Szz;
 
-        res.yx() = Tyx * Sxx + Tyy * Sxy + Tyz * Sxz;
-        res.yy() = Tyx * Sxy + Tyy * Syy + Tyz * Syz;
-        res.yz() = Tyx * Sxz + Tyy * Syz + Tyz * Szz;
+        res.data[Tensor3D::idx_yx] = Tyx * Sxx + Tyy * Sxy + Tyz * Sxz;
+        res.data[Tensor3D::idx_yy] = Tyx * Sxy + Tyy * Syy + Tyz * Syz;
+        res.data[Tensor3D::idx_yz] = Tyx * Sxz + Tyy * Syz + Tyz * Szz;
 
-        res.zx() = Tzx * Sxx + Tzy * Sxy + Tzz * Sxz;
-        res.zy() = Tzx * Sxy + Tzy * Syy + Tzz * Syz;
-        res.zz() = Tzx * Sxz + Tzy * Syz + Tzz * Szz;
+        res.data[Tensor3D::idx_zx] = Tzx * Sxx + Tzy * Sxy + Tzz * Sxz;
+        res.data[Tensor3D::idx_zy] = Tzx * Sxy + Tzy * Syy + Tzz * Syz;
+        res.data[Tensor3D::idx_zz] = Tzx * Sxz + Tzy * Syz + Tzz * Szz;
 
         return res;
     }
 
-    /** Tensor3D x AxisSymTensor */
-    [[nodiscard]] constexpr Tensor3D operator*(const Tensor3D &T, const AxisSymTensor &S) noexcept
+    /** Tensor3D x AxiSymTensor3D */
+    [[nodiscard]] constexpr Tensor3D operator*(const Tensor3D &T, const AxiSymTensor3D &A) noexcept
     {
         Tensor3D res;
-        const CfemReal Txx = T.xx(), Txy = T.xy(), Txz = T.xz();
-        const CfemReal Tyx = T.yx(), Tyy = T.yy(), Tyz = T.yz();
-        const CfemReal Tzx = T.zx(), Tzy = T.zy(), Tzz = T.zz();
+        const CfemReal Txx = T.data[Tensor3D::idx_xx], Txy = T.data[Tensor3D::idx_xy], Txz = T.data[Tensor3D::idx_xz];
+        const CfemReal Tyx = T.data[Tensor3D::idx_yx], Tyy = T.data[Tensor3D::idx_yy], Tyz = T.data[Tensor3D::idx_yz];
+        const CfemReal Tzx = T.data[Tensor3D::idx_zx], Tzy = T.data[Tensor3D::idx_zy], Tzz = T.data[Tensor3D::idx_zz];
 
-        const CfemReal Sxx = S.xx(), Syy = S.yy(), Szz = S.zz(), Sxy = S.xy();
+        const CfemReal Sxx = A.data[AxiSymTensor3D::idx_xx], Syy = A.data[AxiSymTensor3D::idx_yy], Szz = A.data[AxiSymTensor3D::idx_zz], Sxy = A.data[AxiSymTensor3D::idx_xy];
 
-        res.xx() = Txx * Sxx + Txy * Sxy;
-        res.xy() = Txx * Sxy + Txy * Syy;
-        res.xz() = Txz * Szz;
+        res.data[Tensor3D::idx_xx] = Txx * Sxx + Txy * Sxy;
+        res.data[Tensor3D::idx_xy] = Txx * Sxy + Txy * Syy;
+        res.data[Tensor3D::idx_xz] = Txz * Szz;
         
-        res.yx() = Tyx * Sxx + Tyy * Sxy;
-        res.yy() = Tyx * Sxy + Tyy * Syy;
-        res.yz() = Tyz * Szz;
+        res.data[Tensor3D::idx_yx] = Tyx * Sxx + Tyy * Sxy;
+        res.data[Tensor3D::idx_yy] = Tyx * Sxy + Tyy * Syy;
+        res.data[Tensor3D::idx_yz] = Tyz * Szz;
         
-        res.zx() = Tzx * Sxx + Tzy * Sxy;
-        res.zy() = Tzx * Sxy + Tzy * Syy;
-        res.zz() = Tzz * Szz;
+        res.data[Tensor3D::idx_zx] = Tzx * Sxx + Tzy * Sxy;
+        res.data[Tensor3D::idx_zy] = Tzx * Sxy + Tzy * Syy;
+        res.data[Tensor3D::idx_zz] = Tzz * Szz;
         return res;
     }
 
@@ -1239,89 +1219,89 @@ namespace cfem
     [[nodiscard]] constexpr Tensor3D operator*(const Tensor3D &T, const SkewSymTensor3D &W) noexcept
     {
         Tensor3D res;
-        const CfemReal Txx = T.xx(), Txy = T.xy(), Txz = T.xz();
-        const CfemReal Tyx = T.yx(), Tyy = T.yy(), Tyz = T.yz();
-        const CfemReal Tzx = T.zx(), Tzy = T.zy(), Tzz = T.zz();
+        const CfemReal Txx = T.data[Tensor3D::idx_xx], Txy = T.data[Tensor3D::idx_xy], Txz = T.data[Tensor3D::idx_xz];
+        const CfemReal Tyx = T.data[Tensor3D::idx_yx], Tyy = T.data[Tensor3D::idx_yy], Tyz = T.data[Tensor3D::idx_yz];
+        const CfemReal Tzx = T.data[Tensor3D::idx_zx], Tzy = T.data[Tensor3D::idx_zy], Tzz = T.data[Tensor3D::idx_zz];
 
-        const CfemReal Wxy = W.xy(), Wxz = W.xz(), Wyz = W.yz();
+        const CfemReal Wxy = W.data[SkewSymTensor3D::idx_xy], Wxz = W.data[SkewSymTensor3D::idx_xz], Wyz = W.data[SkewSymTensor3D::idx_yz];
 
-        res.xx() = -Txy * Wxy - Txz * Wxz;
-        res.yx() = -Tyy * Wxy - Tyz * Wxz;
-        res.zx() = -Tzy * Wxy - Tzz * Wxz;
+        res.data[Tensor3D::idx_xx] = -Txy * Wxy - Txz * Wxz;
+        res.data[Tensor3D::idx_yx] = -Tyy * Wxy - Tyz * Wxz;
+        res.data[Tensor3D::idx_zx] = -Tzy * Wxy - Tzz * Wxz;
 
-        res.xy() = Txx * Wxy - Txz * Wyz;
-        res.yy() = Tyx * Wxy - Tyz * Wyz;
-        res.zy() = Tzx * Wxy - Tzz * Wyz;
+        res.data[Tensor3D::idx_xy] = Txx * Wxy - Txz * Wyz;
+        res.data[Tensor3D::idx_yy] = Tyx * Wxy - Tyz * Wyz;
+        res.data[Tensor3D::idx_zy] = Tzx * Wxy - Tzz * Wyz;
 
-        res.xz() = Txx * Wxz + Txy * Wyz;
-        res.yz() = Tyx * Wxz + Tyy * Wyz;
-        res.zz() = Tzx * Wxz + Tzy * Wyz;
+        res.data[Tensor3D::idx_xz] = Txx * Wxz + Txy * Wyz;
+        res.data[Tensor3D::idx_yz] = Tyx * Wxz + Tyy * Wyz;
+        res.data[Tensor3D::idx_zz] = Tzx * Wxz + Tzy * Wyz;
 
         return res;
     }
 
-    /** AxisSymTensor x Tensor3D */
-    [[nodiscard]] constexpr Tensor3D operator*(const AxisSymTensor &S, const Tensor3D &T) noexcept
+    /** AxiSymTensor3D x Tensor3D */
+    [[nodiscard]] constexpr Tensor3D operator*(const AxiSymTensor3D &A, const Tensor3D &T) noexcept
     {
         Tensor3D res;
-        const CfemReal Txx = T.xx(), Txy = T.xy(), Txz = T.xz();
-        const CfemReal Tyx = T.yx(), Tyy = T.yy(), Tyz = T.yz();
-        const CfemReal Tzx = T.zx(), Tzy = T.zy(), Tzz = T.zz();
+        const CfemReal Txx = T.data[Tensor3D::idx_xx], Txy = T.data[Tensor3D::idx_xy], Txz = T.data[Tensor3D::idx_xz];
+        const CfemReal Tyx = T.data[Tensor3D::idx_yx], Tyy = T.data[Tensor3D::idx_yy], Tyz = T.data[Tensor3D::idx_yz];
+        const CfemReal Tzx = T.data[Tensor3D::idx_zx], Tzy = T.data[Tensor3D::idx_zy], Tzz = T.data[Tensor3D::idx_zz];
 
-        const CfemReal Sxx = S.xx(), Syy = S.yy(), Szz = S.zz(), Sxy = S.xy();
+        const CfemReal Sxx = A.data[AxiSymTensor3D::idx_xx], Syy = A.data[AxiSymTensor3D::idx_yy], Szz = A.data[AxiSymTensor3D::idx_zz], Sxy = A.data[AxiSymTensor3D::idx_xy];
 
-        res.xx() = Sxx * Txx + Sxy * Tyx;
-        res.xy() = Sxx * Txy + Sxy * Tyy;
-        res.xz() = Sxx * Txz + Sxy * Tyz;
+        res.data[Tensor3D::idx_xx] = Sxx * Txx + Sxy * Tyx;
+        res.data[Tensor3D::idx_xy] = Sxx * Txy + Sxy * Tyy;
+        res.data[Tensor3D::idx_xz] = Sxx * Txz + Sxy * Tyz;
         
-        res.yx() = Sxy * Txx + Syy * Tyx;
-        res.yy() = Sxy * Txy + Syy * Tyy;
-        res.yz() = Sxy * Txz + Syy * Tyz;
+        res.data[Tensor3D::idx_yx] = Sxy * Txx + Syy * Tyx;
+        res.data[Tensor3D::idx_yy] = Sxy * Txy + Syy * Tyy;
+        res.data[Tensor3D::idx_yz] = Sxy * Txz + Syy * Tyz;
         
-        res.zx() = Szz * Tzx;
-        res.zy() = Szz * Tzy;
-        res.zz() = Szz * Tzz;
+        res.data[Tensor3D::idx_zx] = Szz * Tzx;
+        res.data[Tensor3D::idx_zy] = Szz * Tzy;
+        res.data[Tensor3D::idx_zz] = Szz * Tzz;
         return res;
     }
 
-    /** AxisSymTensor x SymTensor3D */
-    [[nodiscard]] constexpr Tensor3D operator*(const AxisSymTensor& A, const SymTensor3D& S) noexcept
-    {
-        Tensor3D R;
-
-        R.xx() = A.xx()*S.xx() + A.xy()*S.xy();
-        R.xy() = A.xx()*S.xy() + A.xy()*S.yy();
-        R.xz() = A.xx()*S.xz() + A.xy()*S.yz();
-
-        R.yx() = A.xy()*S.xx() + A.yy()*S.xy();
-        R.yy() = A.xy()*S.xy() + A.yy()*S.yy();
-        R.yz() = A.xy()*S.xz() + A.yy()*S.yz();
-
-        R.zx() = A.zz()*S.xz();
-        R.zy() = A.zz()*S.yz();
-        R.zz() = A.zz()*S.zz();
-
-        return R;
-    }
-
-    /** AxisSymTensor x SkewSymTensor3D */
-    [[nodiscard]] constexpr Tensor3D operator*(const AxisSymTensor &S, const SkewSymTensor3D &W) noexcept
+    /** AxiSymTensor3D x SymTensor3D */
+    [[nodiscard]] constexpr Tensor3D operator*(const AxiSymTensor3D &A, const SymTensor3D &S) noexcept
     {
         Tensor3D res;
-        const CfemReal Wxy = W.xy(), Wxz = W.xz(), Wyz = W.yz();
-        const CfemReal Sxx = S.xx(), Syy = S.yy(), Szz = S.zz(), Sxy = S.xy();
 
-        res.xx() =-Sxy * Wxy;
-        res.xy() = Sxx * Wxy;
-        res.xz() = Sxx * Wxz + Sxy * Wyz;
+        res.data[Tensor3D::idx_xx] = A.data[AxiSymTensor3D::idx_xx]*S.data[SymTensor3D::idx_xx] + A.data[AxiSymTensor3D::idx_xy]*S.data[SymTensor3D::idx_xy];
+        res.data[Tensor3D::idx_xy] = A.data[AxiSymTensor3D::idx_xx]*S.data[SymTensor3D::idx_xy] + A.data[AxiSymTensor3D::idx_xy]*S.data[SymTensor3D::idx_yy];
+        res.data[Tensor3D::idx_xz] = A.data[AxiSymTensor3D::idx_xx]*S.data[SymTensor3D::idx_xz] + A.data[AxiSymTensor3D::idx_xy]*S.data[SymTensor3D::idx_yz];
 
-        res.yx() =-Syy * Wxy;
-        res.yy() = Sxy * Wxy;
-        res.yz() = Sxy * Wxz + Syy * Wyz;
+        res.data[Tensor3D::idx_yx] = A.data[AxiSymTensor3D::idx_xy]*S.data[SymTensor3D::idx_xx] + A.data[AxiSymTensor3D::idx_yy]*S.data[SymTensor3D::idx_xy];
+        res.data[Tensor3D::idx_yy] = A.data[AxiSymTensor3D::idx_xy]*S.data[SymTensor3D::idx_xy] + A.data[AxiSymTensor3D::idx_yy]*S.data[SymTensor3D::idx_yy];
+        res.data[Tensor3D::idx_yz] = A.data[AxiSymTensor3D::idx_xy]*S.data[SymTensor3D::idx_xz] + A.data[AxiSymTensor3D::idx_yy]*S.data[SymTensor3D::idx_yz];
 
-        res.zx() =-Szz * Wxz;
-        res.zy() =-Szz * Wyz;
-        res.zz() = 0.0;
+        res.data[Tensor3D::idx_zx] = A.data[AxiSymTensor3D::idx_zz]*S.data[SymTensor3D::idx_xz];
+        res.data[Tensor3D::idx_zy] = A.data[AxiSymTensor3D::idx_zz]*S.data[SymTensor3D::idx_yz];
+        res.data[Tensor3D::idx_zz] = A.data[AxiSymTensor3D::idx_zz]*S.data[SymTensor3D::idx_zz];
+
+        return res;
+    }
+
+    /** AxiSymTensor3D x SkewSymTensor3D */
+    [[nodiscard]] constexpr Tensor3D operator*(const AxiSymTensor3D &A, const SkewSymTensor3D &W) noexcept
+    {
+        Tensor3D res;
+        const CfemReal Wxy = W.data[SkewSymTensor3D::idx_xy], Wxz = W.data[SkewSymTensor3D::idx_xz], Wyz = W.data[SkewSymTensor3D::idx_yz];
+        const CfemReal Sxx = A.data[AxiSymTensor3D::idx_xx], Syy = A.data[AxiSymTensor3D::idx_yy], Szz = A.data[AxiSymTensor3D::idx_zz], Sxy = A.data[AxiSymTensor3D::idx_xy];
+
+        res.data[Tensor3D::idx_xx] =-Sxy * Wxy;
+        res.data[Tensor3D::idx_xy] = Sxx * Wxy;
+        res.data[Tensor3D::idx_xz] = Sxx * Wxz + Sxy * Wyz;
+
+        res.data[Tensor3D::idx_yx] =-Syy * Wxy;
+        res.data[Tensor3D::idx_yy] = Sxy * Wxy;
+        res.data[Tensor3D::idx_yz] = Sxy * Wxz + Syy * Wyz;
+
+        res.data[Tensor3D::idx_zx] =-Szz * Wxz;
+        res.data[Tensor3D::idx_zy] =-Szz * Wyz;
+        res.data[Tensor3D::idx_zz] = 0.0;
 
         return res;
     }
@@ -1330,23 +1310,23 @@ namespace cfem
     [[nodiscard]] constexpr Tensor3D operator*(const SymTensor3D &S, const Tensor3D &T) noexcept
     {
         Tensor3D res;
-        const CfemReal Txx = T.xx(), Txy = T.xy(), Txz = T.xz();
-        const CfemReal Tyx = T.yx(), Tyy = T.yy(), Tyz = T.yz();
-        const CfemReal Tzx = T.zx(), Tzy = T.zy(), Tzz = T.zz();
+        const CfemReal Txx = T.data[Tensor3D::idx_xx], Txy = T.data[Tensor3D::idx_xy], Txz = T.data[Tensor3D::idx_xz];
+        const CfemReal Tyx = T.data[Tensor3D::idx_yx], Tyy = T.data[Tensor3D::idx_yy], Tyz = T.data[Tensor3D::idx_yz];
+        const CfemReal Tzx = T.data[Tensor3D::idx_zx], Tzy = T.data[Tensor3D::idx_zy], Tzz = T.data[Tensor3D::idx_zz];
 
-        const CfemReal Sxx = S.xx(), Syy = S.yy(), Szz = S.zz(), Sxy = S.xy(), Sxz = S.xz(), Syz = S.yz();
+        const CfemReal Sxx = S.data[SymTensor3D::idx_xx], Syy = S.data[SymTensor3D::idx_yy], Szz = S.data[SymTensor3D::idx_zz], Sxy = S.data[SymTensor3D::idx_xy], Sxz = S.data[SymTensor3D::idx_xz], Syz = S.data[SymTensor3D::idx_yz];
 
-        res.xx() = Sxx * Txx + Sxy * Tyx + Sxz * Tzx;
-        res.xy() = Sxx * Txy + Sxy * Tyy + Sxz * Tzy;
-        res.xz() = Sxx * Txz + Sxy * Tyz + Sxz * Tzz;
+        res.data[Tensor3D::idx_xx] = Sxx * Txx + Sxy * Tyx + Sxz * Tzx;
+        res.data[Tensor3D::idx_xy] = Sxx * Txy + Sxy * Tyy + Sxz * Tzy;
+        res.data[Tensor3D::idx_xz] = Sxx * Txz + Sxy * Tyz + Sxz * Tzz;
 
-        res.yx() = Sxy * Txx + Syy * Tyx + Syz * Tzx;
-        res.yy() = Sxy * Txy + Syy * Tyy + Syz * Tzy;
-        res.yz() = Sxy * Txz + Syy * Tyz + Syz * Tzz;
+        res.data[Tensor3D::idx_yx] = Sxy * Txx + Syy * Tyx + Syz * Tzx;
+        res.data[Tensor3D::idx_yy] = Sxy * Txy + Syy * Tyy + Syz * Tzy;
+        res.data[Tensor3D::idx_yz] = Sxy * Txz + Syy * Tyz + Syz * Tzz;
 
-        res.zx() = Sxz * Txx + Syz * Tyx + Szz * Tzx;
-        res.zy() = Sxz * Txy + Syz * Tyy + Szz * Tzy;
-        res.zz() = Sxz * Txz + Syz * Tyz + Szz * Tzz;
+        res.data[Tensor3D::idx_zx] = Sxz * Txx + Syz * Tyx + Szz * Tzx;
+        res.data[Tensor3D::idx_zy] = Sxz * Txy + Syz * Tyy + Szz * Tzy;
+        res.data[Tensor3D::idx_zz] = Sxz * Txz + Syz * Tyz + Szz * Tzz;
 
         return res;
     }
@@ -1355,67 +1335,67 @@ namespace cfem
     [[nodiscard]] constexpr Tensor3D operator*(const SymTensor3D &S, const SkewSymTensor3D &W) noexcept
     {
         Tensor3D res;
-        const CfemReal Sxx = S.xx(), Syy = S.yy(), Szz = S.zz(), Sxy = S.xy(), Sxz = S.xz(), Syz = S.yz();
-        const CfemReal Wxy = W.xy(), Wxz = W.xz(), Wyz = W.yz();
+        const CfemReal Sxx = S.data[SymTensor3D::idx_xx], Syy = S.data[SymTensor3D::idx_yy], Szz = S.data[SymTensor3D::idx_zz], Sxy = S.data[SymTensor3D::idx_xy], Sxz = S.data[SymTensor3D::idx_xz], Syz = S.data[SymTensor3D::idx_yz];
+        const CfemReal Wxy = W.data[SkewSymTensor3D::idx_xy], Wxz = W.data[SkewSymTensor3D::idx_xz], Wyz = W.data[SkewSymTensor3D::idx_yz];
 
-        res.xx() =-Sxy * Wxy - Sxz * Wxz;
-        res.xy() = Sxx * Wxy - Sxz * Wyz;
-        res.xz() = Sxx * Wxz + Sxy * Wyz;
+        res.data[Tensor3D::idx_xx] =-Sxy * Wxy - Sxz * Wxz;
+        res.data[Tensor3D::idx_xy] = Sxx * Wxy - Sxz * Wyz;
+        res.data[Tensor3D::idx_xz] = Sxx * Wxz + Sxy * Wyz;
 
-        res.yx() =-Syy * Wxy - Syz * Wxz;
-        res.yy() = Sxy * Wxy - Syz * Wyz;
-        res.yz() = Sxy * Wxz + Syy * Wyz;
+        res.data[Tensor3D::idx_yx] =-Syy * Wxy - Syz * Wxz;
+        res.data[Tensor3D::idx_yy] = Sxy * Wxy - Syz * Wyz;
+        res.data[Tensor3D::idx_yz] = Sxy * Wxz + Syy * Wyz;
 
-        res.zx() =-Syz * Wxy - Szz * Wxz;
-        res.zy() = Sxz * Wxy - Szz * Wyz;
-        res.zz() = Sxz * Wxz + Syz * Wyz;
+        res.data[Tensor3D::idx_zx] =-Syz * Wxy - Szz * Wxz;
+        res.data[Tensor3D::idx_zy] = Sxz * Wxy - Szz * Wyz;
+        res.data[Tensor3D::idx_zz] = Sxz * Wxz + Syz * Wyz;
 
         return res;
     }
 
-    /** SymTensor3D x AxisSymTensor */
-    [[nodiscard]] constexpr Tensor3D operator*(const SymTensor3D &S, const AxisSymTensor& A) noexcept
+    /** SymTensor3D x AxiSymTensor3D */
+    [[nodiscard]] constexpr Tensor3D operator*(const SymTensor3D &S, const AxiSymTensor3D &A) noexcept
     {
-        Tensor3D R;
-        const CfemReal Sxx = S.xx(), Syy = S.yy(), Szz = S.zz(), Sxy = S.xy(), Sxz = S.xz(), Syz = S.yz();
-        const CfemReal Axx = A.xx(), Ayy = A.yy(), Azz = A.zz(), Axy = A.xy();
+        Tensor3D res;
+        const CfemReal Sxx = S.data[SymTensor3D::idx_xx], Syy = S.data[SymTensor3D::idx_yy], Szz = S.data[SymTensor3D::idx_zz], Sxy = S.data[SymTensor3D::idx_xy], Sxz = S.data[SymTensor3D::idx_xz], Syz = S.data[SymTensor3D::idx_yz];
+        const CfemReal Axx = A.data[AxiSymTensor3D::idx_xx], Ayy = A.data[AxiSymTensor3D::idx_yy], Azz = A.data[AxiSymTensor3D::idx_zz], Axy = A.data[AxiSymTensor3D::idx_xy];
 
-        R.xx() = Sxx * Axx + Sxy * Axy;
-        R.xy() = Sxx * Axy + Sxy * Ayy;
-        R.xz() = Sxz * Azz;
+        res.data[Tensor3D::idx_xx] = Sxx * Axx + Sxy * Axy;
+        res.data[Tensor3D::idx_xy] = Sxx * Axy + Sxy * Ayy;
+        res.data[Tensor3D::idx_xz] = Sxz * Azz;
 
-        R.yx() = Sxy * Axx + Syy * Axy;
-        R.yy() = Sxy * Axy + Syy * Ayy;
-        R.yz() = Syz * Azz;
+        res.data[Tensor3D::idx_yx] = Sxy * Axx + Syy * Axy;
+        res.data[Tensor3D::idx_yy] = Sxy * Axy + Syy * Ayy;
+        res.data[Tensor3D::idx_yz] = Syz * Azz;
 
-        R.zx() = Sxz * Axx + Syz * Axy;
-        R.zy() = Sxz * Axy + Syz * Ayy;
-        R.zz() = Szz * Azz;
+        res.data[Tensor3D::idx_zx] = Sxz * Axx + Syz * Axy;
+        res.data[Tensor3D::idx_zy] = Sxz * Axy + Syz * Ayy;
+        res.data[Tensor3D::idx_zz] = Szz * Azz;
 
-        return R;
+        return res;
     }
 
     /** SkewSymTensor3D x Tensor3D */
     [[nodiscard]] constexpr Tensor3D operator*(const SkewSymTensor3D &W, const Tensor3D &T) noexcept
     {
         Tensor3D res;
-        const CfemReal Txx = T.xx(), Txy = T.xy(), Txz = T.xz();
-        const CfemReal Tyx = T.yx(), Tyy = T.yy(), Tyz = T.yz();
-        const CfemReal Tzx = T.zx(), Tzy = T.zy(), Tzz = T.zz();
+        const CfemReal Txx = T.data[Tensor3D::idx_xx], Txy = T.data[Tensor3D::idx_xy], Txz = T.data[Tensor3D::idx_xz];
+        const CfemReal Tyx = T.data[Tensor3D::idx_yx], Tyy = T.data[Tensor3D::idx_yy], Tyz = T.data[Tensor3D::idx_yz];
+        const CfemReal Tzx = T.data[Tensor3D::idx_zx], Tzy = T.data[Tensor3D::idx_zy], Tzz = T.data[Tensor3D::idx_zz];
 
-        const CfemReal Wxy = W.xy(), Wxz = W.xz(), Wyz = W.yz();
+        const CfemReal Wxy = W.data[SkewSymTensor3D::idx_xy], Wxz = W.data[SkewSymTensor3D::idx_xz], Wyz = W.data[SkewSymTensor3D::idx_yz];
 
-        res.xx() = Wxy * Tyx + Wxz * Tzx;
-        res.xy() = Wxy * Tyy + Wxz * Tzy;
-        res.xz() = Wxy * Tyz + Wxz * Tzz;
+        res.data[Tensor3D::idx_xx] = Wxy * Tyx + Wxz * Tzx;
+        res.data[Tensor3D::idx_xy] = Wxy * Tyy + Wxz * Tzy;
+        res.data[Tensor3D::idx_xz] = Wxy * Tyz + Wxz * Tzz;
 
-        res.yx() = -Wxy * Txx + Wyz * Tzx;
-        res.yy() = -Wxy * Txy + Wyz * Tzy;
-        res.yz() = -Wxy * Txz + Wyz * Tzz;
+        res.data[Tensor3D::idx_yx] = -Wxy * Txx + Wyz * Tzx;
+        res.data[Tensor3D::idx_yy] = -Wxy * Txy + Wyz * Tzy;
+        res.data[Tensor3D::idx_yz] = -Wxy * Txz + Wyz * Tzz;
 
-        res.zx() = -Wxz * Txx - Wyz * Tyx;
-        res.zy() = -Wxz * Txy - Wyz * Tyy;
-        res.zz() = -Wxz * Txz - Wyz * Tyz;
+        res.data[Tensor3D::idx_zx] = -Wxz * Txx - Wyz * Tyx;
+        res.data[Tensor3D::idx_zy] = -Wxz * Txy - Wyz * Tyy;
+        res.data[Tensor3D::idx_zz] = -Wxz * Txz - Wyz * Tyz;
 
         return res;
     }
@@ -1424,34 +1404,34 @@ namespace cfem
     [[nodiscard]] constexpr Tensor3D operator*(const SkewSymTensor3D &W, const SymTensor3D &S) noexcept
     {
         Tensor3D res;
-        const CfemReal Sxx = S.xx(), Syy = S.yy(), Szz = S.zz(), Sxy = S.xy(), Sxz = S.xz(), Syz = S.yz();
-        const CfemReal Wxy = W.xy(), Wxz = W.xz(), Wyz = W.yz();
+        const CfemReal Sxx = S.data[SymTensor3D::idx_xx], Syy = S.data[SymTensor3D::idx_yy], Szz = S.data[SymTensor3D::idx_zz], Sxy = S.data[SymTensor3D::idx_xy], Sxz = S.data[SymTensor3D::idx_xz], Syz = S.data[SymTensor3D::idx_yz];
+        const CfemReal Wxy = W.data[SkewSymTensor3D::idx_xy], Wxz = W.data[SkewSymTensor3D::idx_xz], Wyz = W.data[SkewSymTensor3D::idx_yz];
 
-        res.xx() = Wxy * Sxy + Wxz * Sxz;
-        res.xy() = Wxy * Syy + Wxz * Syz;
-        res.xz() = Wxy * Syz + Wxz * Szz;
+        res.data[Tensor3D::idx_xx] = Wxy * Sxy + Wxz * Sxz;
+        res.data[Tensor3D::idx_xy] = Wxy * Syy + Wxz * Syz;
+        res.data[Tensor3D::idx_xz] = Wxy * Syz + Wxz * Szz;
 
-        res.yx() = -Wxy * Sxx + Wyz * Sxz;
-        res.yy() = -Wxy * Sxy + Wyz * Syz;
-        res.yz() = -Wxy * Sxz + Wyz * Szz;
+        res.data[Tensor3D::idx_yx] = -Wxy * Sxx + Wyz * Sxz;
+        res.data[Tensor3D::idx_yy] = -Wxy * Sxy + Wyz * Syz;
+        res.data[Tensor3D::idx_yz] = -Wxy * Sxz + Wyz * Szz;
 
-        res.zx() = -Wxz * Sxx - Wyz * Sxy;
-        res.zy() = -Wxz * Sxy - Wyz * Syy;
-        res.zz() = -Wxz * Sxz - Wyz * Syz;
+        res.data[Tensor3D::idx_zx] = -Wxz * Sxx - Wyz * Sxy;
+        res.data[Tensor3D::idx_zy] = -Wxz * Sxy - Wyz * Syy;
+        res.data[Tensor3D::idx_zz] = -Wxz * Sxz - Wyz * Syz;
 
         return res;
     }
 
-    /** SkewSymTensor3D x AxisSymTensor */
-    [[nodiscard]] constexpr Tensor3D operator*(const SkewSymTensor3D &W, const AxisSymTensor &S) noexcept
+    /** SkewSymTensor3D x AxiSymTensor3D */
+    [[nodiscard]] constexpr Tensor3D operator*(const SkewSymTensor3D &W, const AxiSymTensor3D &A) noexcept
     {
         Tensor3D res;
-        const CfemReal Sxx = S.xx(), Syy = S.yy(), Szz = S.zz(), Sxy = S.xy();
-        const CfemReal Wxy = W.xy(), Wxz = W.xz(), Wyz = W.yz();
+        const CfemReal Sxx = A.data[AxiSymTensor3D::idx_xx], Syy = A.data[AxiSymTensor3D::idx_yy], Szz = A.data[AxiSymTensor3D::idx_zz], Sxy = A.data[AxiSymTensor3D::idx_xy];
+        const CfemReal Wxy = W.data[SkewSymTensor3D::idx_xy], Wxz = W.data[SkewSymTensor3D::idx_xz], Wyz = W.data[SkewSymTensor3D::idx_yz];
 
-        res.xx() =  Wxy * Sxy;             res.xy() = Wxy * Syy;             res.xz() = Wxz * Szz;
-        res.yx() = -Wxy * Sxx;             res.yy() =-Wxy * Sxy;             res.yz() = Wyz * Szz;
-        res.zx() = -Wxz * Sxx - Wyz * Sxy; res.zy() =-Wxz * Sxy - Wyz * Syy; res.zz() = 0.0;
+        res.data[Tensor3D::idx_xx] =  Wxy * Sxy;             res.data[Tensor3D::idx_xy] = Wxy * Syy;             res.data[Tensor3D::idx_xz] = Wxz * Szz;
+        res.data[Tensor3D::idx_yx] = -Wxy * Sxx;             res.data[Tensor3D::idx_yy] =-Wxy * Sxy;             res.data[Tensor3D::idx_yz] = Wyz * Szz;
+        res.data[Tensor3D::idx_zx] = -Wxz * Sxx - Wyz * Sxy; res.data[Tensor3D::idx_zy] =-Wxz * Sxy - Wyz * Syy; res.data[Tensor3D::idx_zz] = 0.0;
 
         return res;
     }
@@ -1468,19 +1448,19 @@ namespace cfem
     [[nodiscard]] constexpr Tensor3D operator+(const Tensor3D &T, const SymTensor3D &S) noexcept
     {
         Tensor3D res = T;
-        res.xx() += S.xx(); res.xy() += S.xy(); res.xz() += S.xz();
-        res.yx() += S.xy(); res.yy() += S.yy(); res.yz() += S.yz();
-        res.zx() += S.xz(); res.zy() += S.yz(); res.zz() += S.zz();
+        res.data[Tensor3D::idx_xx] += S.data[SymTensor3D::idx_xx]; res.data[Tensor3D::idx_xy] += S.data[SymTensor3D::idx_xy]; res.data[Tensor3D::idx_xz] += S.data[SymTensor3D::idx_xz];
+        res.data[Tensor3D::idx_yx] += S.data[SymTensor3D::idx_xy];                   res.data[Tensor3D::idx_yy] += S.data[SymTensor3D::idx_yy];                   res.data[Tensor3D::idx_yz] += S.data[SymTensor3D::idx_yz];
+        res.data[Tensor3D::idx_zx] += S.data[SymTensor3D::idx_xz];                   res.data[Tensor3D::idx_zy] += S.data[SymTensor3D::idx_yz];                   res.data[Tensor3D::idx_zz] += S.data[SymTensor3D::idx_zz];
         return res;
     }
 
-    /** Tensor3D + AxisSymTensor */
-    [[nodiscard]] constexpr Tensor3D operator+(const Tensor3D &T, const AxisSymTensor &A) noexcept
+    /** Tensor3D + AxiSymTensor3D */
+    [[nodiscard]] constexpr Tensor3D operator+(const Tensor3D &T, const AxiSymTensor3D &A) noexcept
     {
         Tensor3D res = T;
-        res.xx() += A.xx(); res.xy() += A.xy();
-        res.yx() += A.xy(); res.yy() += A.yy(); 
-        res.zz() += A.zz();
+        res.data[Tensor3D::idx_xx] += A.data[AxiSymTensor3D::idx_xx]; res.data[Tensor3D::idx_xy] += A.data[AxiSymTensor3D::idx_xy];
+        res.data[Tensor3D::idx_yx] += A.data[AxiSymTensor3D::idx_xy]; res.data[Tensor3D::idx_yy] += A.data[AxiSymTensor3D::idx_yy]; 
+        res.data[Tensor3D::idx_zz] += A.data[AxiSymTensor3D::idx_zz];
         return res;
     }
 
@@ -1488,9 +1468,9 @@ namespace cfem
     [[nodiscard]] constexpr Tensor3D operator+(const Tensor3D &T, const SkewSymTensor3D &W) noexcept
     {
         Tensor3D res = T;
-        res.xy() += W.xy();  res.xz() += W.xz();
-        res.yx() -= W.xy();  res.yz() += W.yz();
-        res.zx() -= W.xz();  res.zy() -= W.yz();
+        res.data[Tensor3D::idx_xy] += W.data[SkewSymTensor3D::idx_xy];  res.data[Tensor3D::idx_xz] += W.data[SkewSymTensor3D::idx_xz];
+        res.data[Tensor3D::idx_yx] -= W.data[SkewSymTensor3D::idx_xy];  res.data[Tensor3D::idx_yz] += W.data[SkewSymTensor3D::idx_yz];
+        res.data[Tensor3D::idx_zx] -= W.data[SkewSymTensor3D::idx_xz];  res.data[Tensor3D::idx_zy] -= W.data[SkewSymTensor3D::idx_yz];
         return res;
     }
 
@@ -1500,11 +1480,14 @@ namespace cfem
         return T + S;
     }
 
-    /** SymTensor3D + AxisSymTensor */
-    [[nodiscard]] constexpr SymTensor3D operator+(const SymTensor3D &S, const AxisSymTensor &A) noexcept
+    /** SymTensor3D + AxiSymTensor3D */
+    [[nodiscard]] constexpr SymTensor3D operator+(const SymTensor3D &S, const AxiSymTensor3D &A) noexcept
     {
         SymTensor3D res = S;
-        res.xx() += A.xx(); res.yy() += A.yy(); res.zz() += A.zz(); res.xy() += A.xy();
+        res.data[SymTensor3D::idx_xx] += A.data[AxiSymTensor3D::idx_xx]; 
+        res.data[SymTensor3D::idx_yy] += A.data[AxiSymTensor3D::idx_yy]; 
+        res.data[SymTensor3D::idx_zz] += A.data[AxiSymTensor3D::idx_zz]; 
+        res.data[SymTensor3D::idx_xy] += A.data[AxiSymTensor3D::idx_xy];
         return res;
     }
 
@@ -1512,38 +1495,52 @@ namespace cfem
     [[nodiscard]] constexpr Tensor3D operator+(const SymTensor3D &S, const SkewSymTensor3D &W) noexcept
     {
         Tensor3D res;
-        res.xx() = S.xx();          res.xy() = S.xy() + W.xy(); res.xz() = S.xz() + W.xz();
-        res.yx() = S.xy() - W.xy(); res.yy() = S.yy();          res.yz() = S.yz() + W.yz();
-        res.zx() = S.xz() - W.xz(); res.zy() = S.yz() - W.yz(); res.zz() = S.zz();
+        res.data[Tensor3D::idx_xx] = S.data[SymTensor3D::idx_xx]; 
+        res.data[Tensor3D::idx_xy] = S.data[SymTensor3D::idx_xy] + W.data[SkewSymTensor3D::idx_xy]; 
+        res.data[Tensor3D::idx_xz] = S.data[SymTensor3D::idx_xz] + W.data[SkewSymTensor3D::idx_xz];
+
+        res.data[Tensor3D::idx_yx] = S.data[SymTensor3D::idx_xy] - W.data[SkewSymTensor3D::idx_xy]; 
+        res.data[Tensor3D::idx_yy] = S.data[SymTensor3D::idx_yy];          
+        res.data[Tensor3D::idx_yz] = S.data[SymTensor3D::idx_yz] + W.data[SkewSymTensor3D::idx_yz];
+
+        res.data[Tensor3D::idx_zx] = S.data[SymTensor3D::idx_xz] - W.data[SkewSymTensor3D::idx_xz]; 
+        res.data[Tensor3D::idx_zy] = S.data[SymTensor3D::idx_yz] - W.data[SkewSymTensor3D::idx_yz]; 
+        res.data[Tensor3D::idx_zz] = S.data[SymTensor3D::idx_zz];
         return res;
     }
 
-    /** AxisSymTensor + Tensor3D */
-    [[nodiscard]] constexpr Tensor3D operator+(const AxisSymTensor &A, const Tensor3D &T) noexcept
+    /** AxiSymTensor3D + Tensor3D */
+    [[nodiscard]] constexpr Tensor3D operator+(const AxiSymTensor3D &A, const Tensor3D &T) noexcept
     {
         return T + A;
     }
 
-    /** AxisSymTensor + SymTensor3D */
-    [[nodiscard]] constexpr SymTensor3D operator+(const AxisSymTensor &A, const SymTensor3D &S) noexcept
+    /** AxiSymTensor3D + SymTensor3D */
+    [[nodiscard]] constexpr SymTensor3D operator+(const AxiSymTensor3D &A, const SymTensor3D &S) noexcept
     {
         return S + A;
     }
 
-    /** AxisSymTensor + SkewSymTensor3D */
-    [[nodiscard]] constexpr Tensor3D operator+(const AxisSymTensor &A, const SkewSymTensor3D &W) noexcept
+    /** AxiSymTensor3D + SkewSymTensor3D */
+    [[nodiscard]] constexpr Tensor3D operator+(const AxiSymTensor3D &A, const SkewSymTensor3D &W) noexcept
     {
         Tensor3D res;
-        res.xx() = A.xx();          res.xy() = A.xy() + W.xy(); res.xz() =          W.xz();
-        res.yx() = A.xy() - W.xy(); res.yy() = A.yy();          res.yz() =          W.yz();
-        res.zx() =        - W.xz(); res.zy() =        - W.yz(); res.zz() = A.zz();
+        res.data[Tensor3D::idx_xx] = A.data[AxiSymTensor3D::idx_xx];
+        res.data[Tensor3D::idx_xy] = A.data[AxiSymTensor3D::idx_xy] + W.data[SkewSymTensor3D::idx_xy]; 
+        res.data[Tensor3D::idx_xz] =                                 W.data[SkewSymTensor3D::idx_xz];
+        res.data[Tensor3D::idx_yx] = A.data[AxiSymTensor3D::idx_xy] - W.data[SkewSymTensor3D::idx_xy]; 
+        res.data[Tensor3D::idx_yy] = A.data[AxiSymTensor3D::idx_yy];            
+        res.data[Tensor3D::idx_yz] =                                 W.data[SkewSymTensor3D::idx_yz];
+        res.data[Tensor3D::idx_zx] =                               - W.data[SkewSymTensor3D::idx_xz]; 
+        res.data[Tensor3D::idx_zy] =                               - W.data[SkewSymTensor3D::idx_yz];                        
+        res.data[Tensor3D::idx_zz] = A.data[AxiSymTensor3D::idx_zz];
         return res;
     }
 
     /** SkewSymTensor3D + Tensor3D */
-    [[nodiscard]] constexpr Tensor3D operator+(const SkewSymTensor3D &S, const Tensor3D &T) noexcept
+    [[nodiscard]] constexpr Tensor3D operator+(const SkewSymTensor3D &W, const Tensor3D &T) noexcept
     {
-        return T + S;
+        return T + W;
     }
 
     /** SkewSymTensor3D + SymTensor3D */
@@ -1552,8 +1549,8 @@ namespace cfem
         return S + W; 
     }
 
-    /** SkewSymTensor3D + AxisSymTensor */
-    [[nodiscard]] constexpr Tensor3D operator+(const SkewSymTensor3D &W, const AxisSymTensor &A) noexcept
+    /** SkewSymTensor3D + AxiSymTensor3D */
+    [[nodiscard]] constexpr Tensor3D operator+(const SkewSymTensor3D &W, const AxiSymTensor3D &A) noexcept
     {
         return A + W;
     }
@@ -1570,29 +1567,39 @@ namespace cfem
     [[nodiscard]] constexpr Tensor3D operator-(const Tensor3D &T, const SymTensor3D &S) noexcept
     {
         Tensor3D res = T;
-        res.xx() -= S.xx(); res.xy() -= S.xy(); res.xz() -= S.xz();
-        res.yx() -= S.xy(); res.yy() -= S.yy(); res.yz() -= S.yz();
-        res.zx() -= S.xz(); res.zy() -= S.yz(); res.zz() -= S.zz();
+        res.data[Tensor3D::idx_xx] -= S.data[SymTensor3D::idx_xx]; 
+        res.data[Tensor3D::idx_xy] -= S.data[SymTensor3D::idx_xy]; 
+        res.data[Tensor3D::idx_xz] -= S.data[SymTensor3D::idx_xz];
+
+        res.data[Tensor3D::idx_yx] -= S.data[SymTensor3D::idx_xy]; 
+        res.data[Tensor3D::idx_yy] -= S.data[SymTensor3D::idx_yy]; 
+        res.data[Tensor3D::idx_yz] -= S.data[SymTensor3D::idx_yz];
+
+        res.data[Tensor3D::idx_zx] -= S.data[SymTensor3D::idx_xz]; 
+        res.data[Tensor3D::idx_zy] -= S.data[SymTensor3D::idx_yz]; 
+        res.data[Tensor3D::idx_zz] -= S.data[SymTensor3D::idx_zz];
         return res;
     }
 
-    /** Tensor3D - AxisSymTensor */
-    [[nodiscard]] constexpr Tensor3D operator-(const Tensor3D &T, const AxisSymTensor &S) noexcept
+    /** Tensor3D - AxiSymTensor3D */
+    [[nodiscard]] constexpr Tensor3D operator-(const Tensor3D &T, const AxiSymTensor3D &A) noexcept
     {
         Tensor3D res = T;
-        res.xx() -= S.xx(); res.xy() -= S.xy();
-        res.yx() -= S.xy(); res.yy() -= S.yy();
-        res.zz() -= S.zz();
+        res.data[Tensor3D::idx_xx] -= A.data[AxiSymTensor3D::idx_xx];
+        res.data[Tensor3D::idx_xy] -= A.data[AxiSymTensor3D::idx_xy];
+        res.data[Tensor3D::idx_yx] -= A.data[AxiSymTensor3D::idx_xy]; 
+        res.data[Tensor3D::idx_yy] -= A.data[AxiSymTensor3D::idx_yy];
+        res.data[Tensor3D::idx_zz] -= A.data[AxiSymTensor3D::idx_zz];
         return res;
     }
 
     /** Tensor3D - SkewSymTensor3D */
-    [[nodiscard]] constexpr Tensor3D operator-(const Tensor3D &T, const SkewSymTensor3D &S) noexcept
+    [[nodiscard]] constexpr Tensor3D operator-(const Tensor3D &T, const SkewSymTensor3D &W) noexcept
     {
         Tensor3D res = T;
-        res.xy() -= S.xy(); res.xz() -= S.xz();
-        res.yx() += S.xy(); res.yz() -= S.yz();
-        res.zx() += S.xz(); res.zy() += S.yz();
+        res.data[Tensor3D::idx_xy] -= W.data[SkewSymTensor3D::idx_xy]; res.data[Tensor3D::idx_xz] -= W.data[SkewSymTensor3D::idx_xz];
+        res.data[Tensor3D::idx_yx] += W.data[SkewSymTensor3D::idx_xy]; res.data[Tensor3D::idx_yz] -= W.data[SkewSymTensor3D::idx_yz];
+        res.data[Tensor3D::idx_zx] += W.data[SkewSymTensor3D::idx_xz]; res.data[Tensor3D::idx_zy] += W.data[SkewSymTensor3D::idx_yz];
 
         return res;
     }
@@ -1601,9 +1608,17 @@ namespace cfem
     [[nodiscard]] constexpr Tensor3D operator-(const SymTensor3D &S, const Tensor3D &T) noexcept
     {
         Tensor3D res;
-        res.xx() = S.xx() - T.xx(); res.xy() = S.xy() - T.xy(); res.xz() = S.xz() - T.xz();
-        res.yx() = S.xy() - T.yx(); res.yy() = S.yy() - T.yy(); res.yz() = S.yz() - T.yz();
-        res.zx() = S.xz() - T.zx(); res.zy() = S.yz() - T.zy(); res.zz() = S.zz() - T.zz();
+        res.data[Tensor3D::idx_xx] = S.data[SymTensor3D::idx_xx] - T.data[Tensor3D::idx_xx]; 
+        res.data[Tensor3D::idx_xy] = S.data[SymTensor3D::idx_xy] - T.data[Tensor3D::idx_xy]; 
+        res.data[Tensor3D::idx_xz] = S.data[SymTensor3D::idx_xz] - T.data[Tensor3D::idx_xz];
+
+        res.data[Tensor3D::idx_yx] = S.data[SymTensor3D::idx_xy] - T.data[Tensor3D::idx_yx]; 
+        res.data[Tensor3D::idx_yy] = S.data[SymTensor3D::idx_yy] - T.data[Tensor3D::idx_yy]; 
+        res.data[Tensor3D::idx_yz] = S.data[SymTensor3D::idx_yz] - T.data[Tensor3D::idx_yz];
+
+        res.data[Tensor3D::idx_zx] = S.data[SymTensor3D::idx_xz] - T.data[Tensor3D::idx_zx]; 
+        res.data[Tensor3D::idx_zy] = S.data[SymTensor3D::idx_yz] - T.data[Tensor3D::idx_zy]; 
+        res.data[Tensor3D::idx_zz] = S.data[SymTensor3D::idx_zz] - T.data[Tensor3D::idx_zz];
         return res;
     }
 
@@ -1611,49 +1626,85 @@ namespace cfem
     [[nodiscard]] constexpr Tensor3D operator-(const SymTensor3D &S, const SkewSymTensor3D &W) noexcept
     {
         Tensor3D res;
-        res.xx() = S.xx();          res.xy() = S.xy() - W.xy(); res.xz() = S.xz() - W.xz();
-        res.yx() = S.xy() + W.xy(); res.yy() = S.yy();          res.yz() = S.yz() - W.yz();
-        res.zx() = S.xz() + W.xz(); res.zy() = S.yz() + W.yz(); res.zz() = S.zz();
+        res.data[Tensor3D::idx_xx] = S.data[SymTensor3D::idx_xx];
+        res.data[Tensor3D::idx_xy] = S.data[SymTensor3D::idx_xy] - W.data[SkewSymTensor3D::idx_xy]; 
+        res.data[Tensor3D::idx_xz] = S.data[SymTensor3D::idx_xz] - W.data[SkewSymTensor3D::idx_xz];
+
+        res.data[Tensor3D::idx_yx] = S.data[SymTensor3D::idx_xy] + W.data[SkewSymTensor3D::idx_xy]; 
+        res.data[Tensor3D::idx_yy] = S.data[SymTensor3D::idx_yy]; 
+        res.data[Tensor3D::idx_yz] = S.data[SymTensor3D::idx_yz] - W.data[SkewSymTensor3D::idx_yz];
+
+        res.data[Tensor3D::idx_zx] = S.data[SymTensor3D::idx_xz] + W.data[SkewSymTensor3D::idx_xz]; 
+        res.data[Tensor3D::idx_zy] = S.data[SymTensor3D::idx_yz] + W.data[SkewSymTensor3D::idx_yz];
+        res.data[Tensor3D::idx_zz] = S.data[SymTensor3D::idx_zz];
         return res;
     }
 
-    /** SymTensor3D - AxisSymTensor */
-    [[nodiscard]] constexpr SymTensor3D operator-(const SymTensor3D &S, const AxisSymTensor &A) noexcept
+    /** SymTensor3D - AxiSymTensor3D */
+    [[nodiscard]] constexpr SymTensor3D operator-(const SymTensor3D &S, const AxiSymTensor3D &A) noexcept
     {
-        return { S.xx() - A.xx(), S.yy() - A.yy(), S.zz() - A.zz(), S.yz(), S.xz(), S.xy() - A.xy() };
+        return { S.data[SymTensor3D::idx_xx] - A.data[AxiSymTensor3D::idx_xx], 
+                 S.data[SymTensor3D::idx_yy] - A.data[AxiSymTensor3D::idx_yy], 
+                 S.data[SymTensor3D::idx_zz] - A.data[AxiSymTensor3D::idx_zz], 
+                 S.data[SymTensor3D::idx_yz], 
+                 S.data[SymTensor3D::idx_xz], 
+                 S.data[SymTensor3D::idx_xy] - A.data[AxiSymTensor3D::idx_xy] };
     }
 
-    /** AxisSymTensor - Tensor3D */
-    [[nodiscard]] constexpr Tensor3D operator-(const AxisSymTensor &S, const Tensor3D &T) noexcept
+    /** AxiSymTensor3D - Tensor3D */
+    [[nodiscard]] constexpr Tensor3D operator-(const AxiSymTensor3D &A, const Tensor3D &T) noexcept
     {
         Tensor3D res;
-        res.xx() = S.xx() - T.xx(); res.xy() = S.xy() - T.xy(); res.xz() =        - T.xz();
-        res.yx() = S.xy() - T.yx(); res.yy() = S.yy() - T.yy(); res.yz() =        - T.yz();
-        res.zx() =        - T.zx(); res.zy() =        - T.zy(); res.zz() = S.zz() - T.zz();
+        res.data[Tensor3D::idx_xx] = A.data[AxiSymTensor3D::idx_xx] - T.data[Tensor3D::idx_xx]; 
+        res.data[Tensor3D::idx_xy] = A.data[AxiSymTensor3D::idx_xy] - T.data[Tensor3D::idx_xy]; 
+        res.data[Tensor3D::idx_xz] =                               - T.data[Tensor3D::idx_xz];
+        res.data[Tensor3D::idx_yx] = A.data[AxiSymTensor3D::idx_xy] - T.data[Tensor3D::idx_yx]; 
+        res.data[Tensor3D::idx_yy] = A.data[AxiSymTensor3D::idx_yy] - T.data[Tensor3D::idx_yy]; 
+        res.data[Tensor3D::idx_yz] =                               - T.data[Tensor3D::idx_yz];
+        res.data[Tensor3D::idx_zx] =                               - T.data[Tensor3D::idx_zx];
+        res.data[Tensor3D::idx_zy] =                               - T.data[Tensor3D::idx_zy]; 
+        res.data[Tensor3D::idx_zz] = A.data[AxiSymTensor3D::idx_zz] - T.data[Tensor3D::idx_zz];
         return res;
     }
 
-    /** AxisSymTensor - SymTensor3D */
-    [[nodiscard]] constexpr SymTensor3D operator-(const AxisSymTensor &A, const SymTensor3D &S) noexcept
+    /** AxiSymTensor3D - SymTensor3D */
+    [[nodiscard]] constexpr SymTensor3D operator-(const AxiSymTensor3D &A, const SymTensor3D &S) noexcept
     {
-        return { A.xx() - S.xx(), A.yy() - S.yy(), A.zz() - S.zz(), -S.yz(), -S.xz(), A.xy() - S.xy() };
+        return { A.data[AxiSymTensor3D::idx_xx] - S.data[SymTensor3D::idx_xx], 
+                 A.data[AxiSymTensor3D::idx_yy] - S.data[SymTensor3D::idx_yy], 
+                 A.data[AxiSymTensor3D::idx_zz] - S.data[SymTensor3D::idx_zz], 
+                                               - S.data[SymTensor3D::idx_yz], 
+                                               - S.data[SymTensor3D::idx_xz], 
+                 A.data[AxiSymTensor3D::idx_xy] - S.data[SymTensor3D::idx_xy] };
     }
 
-    /** AxisSymTensor - SkewSymTensor3D */
-    [[nodiscard]] constexpr Tensor3D operator-(const AxisSymTensor &A, const SkewSymTensor3D &W) noexcept
+    /** AxiSymTensor3D - SkewSymTensor3D */
+    [[nodiscard]] constexpr Tensor3D operator-(const AxiSymTensor3D &A, const SkewSymTensor3D &W) noexcept
     {
-        return { A.xx(),          A.xy() - W.xy(),         -W.xz(),
-                 A.xy() + W.xy(), A.yy(),                  -W.yz(),
-                          W.xz(),          W.yz(),  A.zz()          };
+        return { A.data[AxiSymTensor3D::idx_xx],
+                 A.data[AxiSymTensor3D::idx_xy] - W.data[SkewSymTensor3D::idx_xy],
+                                               - W.data[SkewSymTensor3D::idx_xz],
+                 A.data[AxiSymTensor3D::idx_xy] + W.data[SkewSymTensor3D::idx_xy], 
+                 A.data[AxiSymTensor3D::idx_yy],                  
+                                               - W.data[SkewSymTensor3D::idx_yz],
+                                                 W.data[SkewSymTensor3D::idx_xz],
+                                                 W.data[SkewSymTensor3D::idx_yz],  
+                 A.data[AxiSymTensor3D::idx_zz] };
     }
 
     /** SkewSymTensor3D - Tensor3D */
-    [[nodiscard]] constexpr Tensor3D operator-(const SkewSymTensor3D &S, const Tensor3D &T) noexcept
+    [[nodiscard]] constexpr Tensor3D operator-(const SkewSymTensor3D &W, const Tensor3D &T) noexcept
     {
         Tensor3D res;
-        res.xx() =         - T.xx(); res.xy() = S.xy() - T.xy(); res.xz() = S.xz() - T.xz();
-        res.yx() = -S.xy() - T.yx(); res.yy() =        - T.yy(); res.yz() = S.yz() - T.yz();
-        res.zx() = -S.xz() - T.zx(); res.zy() =-S.yz() - T.zy(); res.zz() =        - T.zz();
+        res.data[Tensor3D::idx_xx] =                                 - T.data[Tensor3D::idx_xx]; 
+        res.data[Tensor3D::idx_xy] = W.data[SkewSymTensor3D::idx_xy] - T.data[Tensor3D::idx_xy]; 
+        res.data[Tensor3D::idx_xz] = W.data[SkewSymTensor3D::idx_xz] - T.data[Tensor3D::idx_xz];
+        res.data[Tensor3D::idx_yx] =-W.data[SkewSymTensor3D::idx_xy] - T.data[Tensor3D::idx_yx]; 
+        res.data[Tensor3D::idx_yy] =                                 - T.data[Tensor3D::idx_yy]; 
+        res.data[Tensor3D::idx_yz] = W.data[SkewSymTensor3D::idx_yz] - T.data[Tensor3D::idx_yz];
+        res.data[Tensor3D::idx_zx] =-W.data[SkewSymTensor3D::idx_xz] - T.data[Tensor3D::idx_zx]; 
+        res.data[Tensor3D::idx_zy] =-W.data[SkewSymTensor3D::idx_yz] - T.data[Tensor3D::idx_zy]; 
+        res.data[Tensor3D::idx_zz] =                                 - T.data[Tensor3D::idx_zz];
         return res;
     }
 
@@ -1661,55 +1712,54 @@ namespace cfem
     [[nodiscard]] constexpr Tensor3D operator-(const SkewSymTensor3D &W, const SymTensor3D &S) noexcept
     {
         Tensor3D res;
-        res.xx() = -S.xx();          res.xy() =  W.xy() - S.xy(); res.xz() =  W.xz() - S.xz();
-        res.yx() = -W.xy() - S.xy(); res.yy() = -S.yy();          res.yz() =  W.yz() - S.yz();
-        res.zx() = -W.xz() - S.xz(); res.zy() = -W.yz() - S.yz(); res.zz() = -S.zz();
+        res.data[Tensor3D::idx_xx] =                                  - S.data[SymTensor3D::idx_xx];
+        res.data[Tensor3D::idx_xy] =  W.data[SkewSymTensor3D::idx_xy] - S.data[SymTensor3D::idx_xy]; 
+        res.data[Tensor3D::idx_xz] =  W.data[SkewSymTensor3D::idx_xz] - S.data[SymTensor3D::idx_xz];
+        res.data[Tensor3D::idx_yx] = -W.data[SkewSymTensor3D::idx_xy] - S.data[SymTensor3D::idx_xy]; 
+        res.data[Tensor3D::idx_yy] =                                  - S.data[SymTensor3D::idx_yy];
+        res.data[Tensor3D::idx_yz] =  W.data[SkewSymTensor3D::idx_yz] - S.data[SymTensor3D::idx_yz];
+        res.data[Tensor3D::idx_zx] = -W.data[SkewSymTensor3D::idx_xz] - S.data[SymTensor3D::idx_xz]; 
+        res.data[Tensor3D::idx_zy] = -W.data[SkewSymTensor3D::idx_yz] - S.data[SymTensor3D::idx_yz]; 
+        res.data[Tensor3D::idx_zz] =                                  - S.data[SymTensor3D::idx_zz];
         return res;
     }
 
-    /** SkewSymTensor3D - AxisSymTensor */
-    [[nodiscard]] constexpr Tensor3D operator-(const SkewSymTensor3D &W, const AxisSymTensor &A) noexcept
+    /** SkewSymTensor3D - AxiSymTensor3D */
+    [[nodiscard]] constexpr Tensor3D operator-(const SkewSymTensor3D &W, const AxiSymTensor3D &A) noexcept
     {
         Tensor3D res;
-        res.xx() =         - A.xx(); res.xy() =  W.xy() - A.xy(); res.xz() =  W.xz();
-        res.yx() = -W.xy() - A.xy(); res.yy() =         - A.yy(); res.yz() =  W.yz();
-        res.zx() = -W.xz();          res.zy() = -W.yz();          res.zz() =         - A.zz();
+        res.data[Tensor3D::idx_xx] =                                  - A.data[AxiSymTensor3D::idx_xx]; 
+        res.data[Tensor3D::idx_xy] =  W.data[SkewSymTensor3D::idx_xy] - A.data[AxiSymTensor3D::idx_xy];
+        res.data[Tensor3D::idx_xz] =  W.data[SkewSymTensor3D::idx_xz];
+        res.data[Tensor3D::idx_yx] = -W.data[SkewSymTensor3D::idx_xy] - A.data[AxiSymTensor3D::idx_xy];
+        res.data[Tensor3D::idx_yy] =                                  - A.data[AxiSymTensor3D::idx_yy];
+        res.data[Tensor3D::idx_yz] =  W.data[SkewSymTensor3D::idx_yz];
+        res.data[Tensor3D::idx_zx] = -W.data[SkewSymTensor3D::idx_xz];
+        res.data[Tensor3D::idx_zy] = -W.data[SkewSymTensor3D::idx_yz];
+        res.data[Tensor3D::idx_zz] =                                  - A.data[AxiSymTensor3D::idx_zz];
         return res;
     }
     /** @} */
 
     [[nodiscard]] constexpr CfemReal det(const SymTensor3D &S) noexcept
     {
-        return S.xx() * (S.yy() * S.zz() - S.yz() * S.yz())
-             - S.xy() * (S.xy() * S.zz() - S.yz() * S.xz())
-             + S.xz() * (S.xy() * S.yz() - S.yy() * S.xz());
+        return S.data[SymTensor3D::idx_xx] * (S.data[SymTensor3D::idx_yy] * S.data[SymTensor3D::idx_zz] - S.data[SymTensor3D::idx_yz] * S.data[SymTensor3D::idx_yz])
+             - S.data[SymTensor3D::idx_xy] * (S.data[SymTensor3D::idx_xy] * S.data[SymTensor3D::idx_zz] - S.data[SymTensor3D::idx_yz] * S.data[SymTensor3D::idx_xz])
+             + S.data[SymTensor3D::idx_xz] * (S.data[SymTensor3D::idx_xy] * S.data[SymTensor3D::idx_yz] - S.data[SymTensor3D::idx_yy] * S.data[SymTensor3D::idx_xz]);
     }
 
-    [[nodiscard]] constexpr CfemReal det(const SkewSymTensor3D &S) noexcept
+    [[nodiscard]] constexpr CfemReal det(const AxiSymTensor3D &A) noexcept
+    {
+        return (  A.data[AxiSymTensor3D::idx_xx] * A.data[AxiSymTensor3D::idx_yy]
+                - A.data[AxiSymTensor3D::idx_xy] * A.data[AxiSymTensor3D::idx_xy]) * A.data[AxiSymTensor3D::idx_zz];
+    }
+
+    [[nodiscard]] constexpr CfemReal det(const SkewSymTensor3D &W) noexcept
     {
         return 0.0;
     }
 
-    // [[nodiscard]] inline SymTensor3D inverse(const SymTensor3D &S, CfemReal determinant) noexcept
-    // {
-    //     CFEM_ASSERT(std::abs(determinant) < cfem::ZERO_TOLERANCE), "Singular 3x3 matrix/Jacobian detected.";
-    //     // if (std::abs(determinant) < cfem::ZERO_TOLERANCE)
-    //     //     CFEM_ERROR << "Singular 3x3 matrix/Jacobian detected.";
-
-    //     // En pratique, tu peux ajouter ici un assert(std::abs(det) > 1e-14);
-    //     const CfemReal inv_det = 1.0 / determinant;
-        
-    //     SymTensor3D res;
-    //     res.xx() = (S.yy() * S.zz() - S.yz() * S.yz()) * inv_det;
-    //     res.yy() = (S.xx() * S.zz() - S.xz() * S.xz()) * inv_det;
-    //     res.zz() = (S.xx() * S.yy() - S.xy() * S.xy()) * inv_det;
-    //     res.xy() = (S.xz() * S.yz() - S.xy() * S.zz()) * inv_det;
-    //     res.xz() = (S.xy() * S.yz() - S.xx() * S.xz()) * inv_det;
-    //     res.yz() = (S.xy() * S.xz() - S.yy() * S.xz()) * inv_det;
-    //     return res;
-    // }
-
-    [[nodiscard]] inline SymTensor3D inverse(const SymTensor3D &S, CfemReal determinant)
+    [[nodiscard]] constexpr SymTensor3D inverse(const SymTensor3D &S, CfemReal determinant)
     {
         CFEM_ASSERT(std::abs(determinant) > cfem::ZERO_TOLERANCE, "Singular 3x3 matrix/Jacobian detected.");
 
@@ -1730,11 +1780,30 @@ namespace cfem
         return inverse(S, det(S) );
     }
 
+    [[nodiscard]] constexpr AxiSymTensor3D inverse(const AxiSymTensor3D &S, CfemReal determinant)
+    {
+        CFEM_ASSERT(std::abs(determinant) > cfem::ZERO_TOLERANCE, "Singular 3x3 matrix/Jacobian detected.");
+
+        const CfemReal inv_det = 1.0 / determinant;
+        
+        AxiSymTensor3D res;
+        res.data[AxiSymTensor3D::idx_xx] = ( S.data[AxiSymTensor3D::idx_yy] * S.data[AxiSymTensor3D::idx_zz] ) * inv_det;
+        res.data[AxiSymTensor3D::idx_yy] = ( S.data[AxiSymTensor3D::idx_xx] * S.data[AxiSymTensor3D::idx_zz] ) * inv_det;
+        res.data[AxiSymTensor3D::idx_zz] = ( S.data[AxiSymTensor3D::idx_xx] * S.data[AxiSymTensor3D::idx_yy] - S.data[AxiSymTensor3D::idx_xy] * S.data[AxiSymTensor3D::idx_xy] ) * inv_det;
+        res.data[AxiSymTensor3D::idx_xy] =-( S.data[AxiSymTensor3D::idx_xy] * S.data[AxiSymTensor3D::idx_zz] ) * inv_det;
+        return res;
+    }
+
+    [[nodiscard]] inline AxiSymTensor3D inverse(const AxiSymTensor3D &S)
+    {
+        return inverse(S, det(S) );
+    }
+
     /**
      * @brief Tries to inverse a skew-symmetric second order tensor (This operation is impossible).
      * @throw std::runtime_error.
      */
-    [[nodiscard]] inline SkewSymTensor3D inverse(const SkewSymTensor3D &S) 
+    [[nodiscard]] inline SkewSymTensor3D inverse(const SkewSymTensor3D &W) 
     {
         CFEM_THROW("3x3 skew-symmetric tensor is not invertible since det = 0.");
         return SkewSymTensor3D{}; 
@@ -1749,11 +1818,11 @@ namespace cfem
      * @details
      * Uses the closed-form Cardano method for symmetric tensors.
      */
-    [[nodiscard]] inline FixedVector<CfemReal, 3> eigenvalues(const SymTensor3D& S) noexcept
+    [[nodiscard]] inline FixedVector<CfemReal, 3> eigenvalues(const SymTensor3D &S) noexcept
     {
-        const CfemReal I1 = S.xx() + S.yy() + S.zz();
-        const CfemReal I2 = S.xx()*S.yy() + S.yy()*S.zz() + S.xx()*S.zz() 
-                          - S.xy()*S.xy() - S.yz()*S.yz() - S.xz()*S.xz();
+        const CfemReal I1 = S.data[SymTensor3D::idx_xx] + S.data[SymTensor3D::idx_yy] + S.data[SymTensor3D::idx_zz];
+        const CfemReal I2 = S.data[SymTensor3D::idx_xx]*S.data[SymTensor3D::idx_yy] + S.data[SymTensor3D::idx_yy]*S.data[SymTensor3D::idx_zz] + S.data[SymTensor3D::idx_xx]*S.data[SymTensor3D::idx_zz] 
+                          - S.data[SymTensor3D::idx_xy]*S.data[SymTensor3D::idx_xy] - S.data[SymTensor3D::idx_yz]*S.data[SymTensor3D::idx_yz] - S.data[SymTensor3D::idx_xz]*S.data[SymTensor3D::idx_xz];
         const CfemReal I3 = det(S);
 
         const CfemReal p = I2 - I1 * I1 / 3.0;

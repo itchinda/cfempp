@@ -26,8 +26,8 @@ DGSpace::DGSpace(ConstructorToken, std::shared_ptr<Mesh> mesh, Order order, Fiel
     : FESpace(mesh, order, Continuity::DG, field_type) 
 {
     if (order == Order::Mini){
-        CFEM_ERROR <<  "Mini elements are not supported in DGSpace. "
-                   << "Mini elements (P1+bubble) are designed for H1-stability; for DG, use P1 or P2 instead.";
+        CFEM_THROW("Mini elements are not supported in DGSpace. "
+                   << "Mini elements (P1+bubble) are designed for H1-stability; for DG, use P1 or P2 instead.");
     }
 
 }
@@ -37,8 +37,8 @@ std::shared_ptr<DGSpace> DGSpace::create(std::shared_ptr<Mesh> mesh,
                                          FieldType field_type) {
 
     if (order == Order::Mini){
-        CFEM_ERROR <<  "Mini elements are not supported in DGSpace. "
-                   << "Mini elements (P1+bubble) are designed for H1-stability; for DG, use P1 or P2 instead.";
+        CFEM_THROW("Mini elements are not supported in DGSpace. "
+                   << "Mini elements (P1+bubble) are designed for H1-stability; for DG, use P1 or P2 instead.");
     }
 
     if (order == Order::P2 && mesh->getOrder() == MeshOrder::Linear) {
@@ -69,7 +69,8 @@ void DGSpace::enumerateDofs() {
     CfemInt currentOffset = 0;
     for (CfemInt i = 0; i < numCells; ++i) {
         m_cellOffsets[i] = currentOffset;
-        const auto& refEl = ReferenceElementFactory::getReferenceElement(m_mesh->getCell(i).type, getOrderInt());
+        const Cell& cell = m_mesh->getCell(i);
+        const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement( cell.type, getOrderInt() );
         currentOffset += refEl.getNumNodes();
     }
     m_cellOffsets[numCells] = currentOffset; // Offset total final
@@ -90,11 +91,15 @@ CfemInt DGSpace::getGlobalDofIdx(CfemInt cellId, CfemInt localNodeIdx, CfemInt c
 }
 
 CfemInt DGSpace::getDofsPerCell(CfemInt cellId) const {
-    return getRefElement(m_mesh->getCell(cellId).type).getNumNodes() * m_numComponents;
+    const Cell& cell = m_mesh->getCell(cellId);
+    const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement( cell.type, getOrderInt() );
+    return refEl.getNumNodes() * m_numComponents;
 }
 
 void DGSpace::getElementDofs(CfemInt cellId, std::vector<CfemInt>& globalIndices) const {
-    CfemInt nNodes = getRefElement(m_mesh->getCell(cellId).type).getNumNodes();
+    const Cell& cell = m_mesh->getCell(cellId);
+    const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement( cell.type, getOrderInt() );
+    CfemInt nNodes = refEl.getNumNodes();
     globalIndices.resize(nNodes * m_numComponents);
     
     for (CfemInt c = 0; c < m_numComponents; ++c) {
@@ -141,7 +146,8 @@ void DGSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
         // On remplit le tableau nnz pour chaque composante et chaque noeud local de la cellule
         // Rappel : Notre numérotation est Block-wise [Comp 0][Comp 1]...
         for (CfemInt comp = 0; comp < m_numComponents; ++comp) {
-            CfemInt nNodes = getRefElement(cell.type).getNumNodes();
+            const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement( cell.type, getOrderInt() );
+            CfemInt nNodes = refEl.getNumNodes();
             for (CfemInt n = 0; n < nNodes; ++n) {
                 CfemInt globalIdx = getGlobalDofIdx(i, n, comp);
                 nnz[globalIdx] = totalRowNNZ;
@@ -155,17 +161,22 @@ void DGSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
 // because they both use the ReferenceElement interface!
 void DGSpace::evaluateBasis(CfemInt cellId, const Vector3D& xi, std::vector<CfemReal>& values) const {
     ShapeInfo shape;
-    getRefElement(m_mesh->getCell(cellId).type).evaluate(xi, ShapeEvaluationFlags::Value, shape);
+    const Cell& cell = m_mesh->getCell(cellId);
+    const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement( cell.type, getOrderInt() );
+    refEl.evaluate(xi, ShapeEvaluationFlags::Value, shape);
     values.assign(shape.values.begin(), shape.values.end());
 }
 
 void DGSpace::evaluateGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const {
     static thread_local DynamicVector<Vector3D> physCoords;
     m_mesh->getCellVerticesCoords(cellId, physCoords);
+
+    const Cell& cell = m_mesh->getCell(cellId);
+    const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement( cell.type, getOrderInt() );
     
     ShapeInfo shape;
     MappingInfo map;
-    getRefElement(m_mesh->getCell(cellId).type).computeMapping(xi, physCoords, ShapeEvaluationFlags::Gradient, shape, map);
+    refEl.computeMapping(xi, physCoords, ShapeEvaluationFlags::Gradient, shape, map);
     grads.assign(map.physicalShapeGradients.begin(), map.physicalShapeGradients.end());
 }
 
@@ -196,7 +207,7 @@ void DGSpace::getEntityDofs(CfemInt internalEntityId, std::vector<CfemInt>& enti
         if (cellId == -1) continue; 
 
         const auto& cell = m_mesh->getCell(cellId);
-        const auto& refEl = getRefElement(cell.type);
+        const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement( cell.type, getOrderInt() );
         
         // 2. Trouver quels nœuds locaux de la cellule sont sur cette facette précise
         // On récupère la connectivité de la facette pour comparer
