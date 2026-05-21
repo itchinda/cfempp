@@ -110,12 +110,40 @@ namespace cfem
         SymTensor3D     get3DSymTensorFieldAtNode    (CfemInt meshNodeId) const;
         SkewSymTensor3D get3DSkewSymTensorFieldAtNode(CfemInt meshNodeId) const;
 
-        CfemReal getAt(CfemInt globalDofIdx, CfemInt component) const;
+        void extractCellDofs(CfemInt cellId, DynamicMatrix<CfemReal>& localDofs, EvalContext& ctx) const;
         void evaluateWithoutShape(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext &ctx) const;
         void evaluateWithShape(CfemInt cellId, const ShapeInfo& shape, std::span<CfemReal> out) const;
         void evaluateGradient(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
         void evaluateGradientWithoutCachedMapping(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const;
         void evaluateGradientWithCachedMapping(CfemInt cellId, const MappingInfo& mapping, std::span<CfemReal> out) const;
+
+        // ====================================================================
+        // --- Vectorized Batch (SoA) Evaluation Extensions
+        // ====================================================================
+
+        /**
+         * @brief Evaluates the finite element field values across a whole batch of quadrature points.
+         * @param cellId Local index of the computational cell.
+         * @param shapeBatch Contiguous batch structure holding precomputed shape functions [nQp x nNodes].
+         * @param outValuesBatch Destination matrix to store the physical field results [nQp x m_dim].
+         * @param ctx Unified high-performance evaluation context.
+         */
+        void evaluateBatch(CfemInt cellId, 
+                           const ShapeInfoBatch& shapeBatch, 
+                           DynamicMatrix<CfemReal>& outValuesBatch, 
+                           EvalContext& ctx) const;
+
+        /**
+         * @brief Evaluates the physical spatial gradients (du/dx, du/dy, du/dz) across a batch of quadrature points.
+         * @param cellId Local index of the computational cell.
+         * @param mappingBatch Contiguous metric batch structure holding physical derivatives (dN/dx, dN/dy, dN/dz).
+         * @param outGradientsBatch Destination matrix to store the spatial physical gradients [nQp x (m_dim * spaceDim)].
+         * @param ctx Unified high-performance evaluation context.
+         */
+        void evaluateGradientBatch(CfemInt cellId, 
+                                   const MappingInfoBatch& mappingBatch, 
+                                   DynamicMatrix<CfemReal>& outGradientsBatch, 
+                                   EvalContext& ctx) const;
 
         void interpolate(const sym::CfemExpression& recipe);
         void interpolate(std::shared_ptr<const sym::CfemExpression> recipe) {

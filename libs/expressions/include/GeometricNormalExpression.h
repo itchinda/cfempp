@@ -21,7 +21,7 @@
 #include "CfemExpression.h"
 #include "EvalContext.h"
 #include "Vector3D.h"
-#include "ShapeEvaluationFlags.h"
+#include "EvaluationFlags.h"
 
 namespace cfem::sym
 {
@@ -60,6 +60,8 @@ namespace cfem::sym
         ExpressionType getType() const override { 
             return ExpressionType::Variable; 
         }
+
+        virtual bool dependsOnNormalGeometricNormal() const override { return true; }
 
         /** 
          * @brief Evaluates the normal vector at a specific quadrature point.
@@ -110,7 +112,7 @@ namespace cfem::sym
          * @return ShapeEvaluationFlags::Normal to ensure the mapping computes the normal vector.
          */
         ShapeEvaluationFlags requiredShapeFlags() const override {
-            return ShapeEvaluationFlags::Normal;
+            return ShapeEvaluationFlags::FirstDerivatives;
         }
 
         /** 

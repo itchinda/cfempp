@@ -131,14 +131,14 @@ int main(int argc, char **argv)
             //         Vector3D{0., 0., 0.},
             //         Vector3D{1., 1., 0.}
             //     ),
-            //     Mesh::QuadElementType::Quadrilateral
+            //     Mesh::QuadElementType::TriangleCrissCross
             // );
 
             // mesh = Mesh::disk(MeshOrder::Quadratic, 0.1, Vector3D{0,0,0}, 0.5);
 
             mesh = Mesh::block(
                 MeshOrder::Linear,
-                Mesh::BlockSubdivisions{10, 10, 10}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+                Mesh::BlockSubdivisions{150, 150, 150}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
                 Mesh::BlockBounds(
                     Vector3D{0., 0., 0.},
                     Vector3D{1., 1., 1.}
@@ -184,6 +184,8 @@ int main(int argc, char **argv)
         //                             y*y  + x*x +  x*y + 1,              
         //                             0.0);
 
+        // auto analytical_p = scalar(x + 10); 
+        // auto analytical_u = vector( 0.0, 1, 0.0);
         
         // auto analytical_p = scalar(exp(x * y * z)); 
         // auto analytical_u = vector( x * x + y * y +  x + y,
@@ -209,7 +211,7 @@ int main(int argc, char **argv)
             PROFILE_SCOPE("L2Norm");
             IntegrationSchemeParams schemes_params{};
             FunctionIntegrator integrator(mesh, schemes_params);
-            // schemes_params.NumIntgPtHexElem = 1;
+            schemes_params.NumIntgPtTetElem = 1;
             CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
             integrator.L2Norm(p - analytical_p, &l2Norm_P, &h1SemiNorm_P);
             integrator.L2Norm(u - analytical_u, &l2Norm_U, &h1SemiNorm_U);

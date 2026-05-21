@@ -21,7 +21,8 @@
 
 #include "cfemutils.h"
 #include "cfem_topology.h"
-#include "ReferenceElement.h"
+#include "ReferenceElementFactory.h"
+
 #include <vector>
 #include <memory>
 
@@ -88,7 +89,7 @@ public:
     constexpr Continuity getContinuity() const noexcept { return m_continuity; }
 
     // Geometry & Reference Elements
-    const ReferenceElement& getRefElement(CellType type) const;
+    const ReferenceElement& getReferenceElement(CfemInt cellId) const;
 
     // DOF (Degrees of Freedom) Management
     
@@ -150,7 +151,7 @@ public:
     /** 
      * @brief Evaluates gradients of basis functions (physical or local as needed). 
      */
-    virtual void evaluateGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const = 0;
+    virtual void evaluateBasisGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const = 0;
 
     // Support for Assembler and PETSc
 

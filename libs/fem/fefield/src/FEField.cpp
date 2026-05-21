@@ -61,7 +61,7 @@ namespace cfem
     {
         CfemInt totalDofs = m_space->getGlobalNumDofs();
         
-        // 1. Assurer la taille du buffer (allocation unique au début, réutilisée ensuite)
+        // Assurer la taille du buffer (allocation unique au début, réutilisée ensuite)
         if (m_localValues.size() != static_cast<size_t>(totalDofs))
         {
             m_localValues.assign(totalDofs, 0.0);
@@ -226,101 +226,277 @@ namespace cfem
     }
 
     /**
-     * @brief Standard value evaluation at a local coordinate xi within a cell.
+     * @brief Extracts cell degrees of freedom from the synchronized global local buffer into a contiguous matrix.
+     * @param cellId Local index of the computational cell.
+     * @param localDofs Reference to the scratch matrix [nNodes x fieldDimension] allocated in the memory arena.
+     * @param ctx Unified high-performance evaluation context.
+     */
+    void FEField::extractCellDofs(CfemInt cellId, DynamicMatrix<CfemReal>& localDofs, EvalContext& ctx) const 
+    {
+        const CfemInt nNodes = m_space->getReferenceElement(cellId).getNumNodes();
+        const CfemInt fDim   = this->getNumComponents(); // m_dim (e.g., 1 for scalar fields, 3 for 3D vectors)
+        
+        // Resize the scratch matrix inside the memory arena (zero allocation overhead if capacity suffices)
+        localDofs.resize(nNodes, fDim);
+
+        // Populate the dense local layout using direct global index lookup from FESpace
+        for (CfemInt i = 0; i < nNodes; ++i) {
+            for (CfemInt d = 0; d < fDim; ++d) {
+                const CfemInt globalDofIdx = m_space->getGlobalDofIdx(cellId, i, d);
+                
+                // Safety check: Ensure the global index maps inside our synchronized cache buffer bounds
+                CFEM_ASSERT(globalDofIdx >= 0 && globalDofIdx < static_cast<CfemInt>(m_localValues.size()),
+                    "FEField::extractCellDofs - Resolved global DOF index is out of bounds of the synchronized m_localValues cache.");
+                    
+                localDofs[i][d] = m_localValues[globalDofIdx];
+            }
+        }
+    }
+
+    /**
+     * @brief Evaluates finite element field values across a whole batch of quadrature points using dense matrix contraction.
+     * @param cellId Local index of the computational cell.
+     * @param shapeBatch Contiguous batch structure holding precomputed shape functions [nQp x nNodes].
+     * @param outValuesBatch Destination matrix to store the physical field results [nQp x m_dim].
+     * @param ctx Unified high-performance evaluation context.
+     */
+    void FEField::evaluateBatch(CfemInt cellId, 
+                                const ShapeInfoBatch& shapeBatch, 
+                                DynamicMatrix<CfemReal>& outValuesBatch, 
+                                EvalContext& ctx) const
+    {
+        // Gather all local cell coefficients into cache-friendly dense layout
+        this->extractCellDofs(cellId, ctx.scratchCellDofs, ctx);
+        
+        const CfemInt nQp    = shapeBatch.values.n_rows();
+        const CfemInt nNodes = shapeBatch.values.n_cols();
+        const CfemInt fDim   = this->getNumComponents();
+
+        outValuesBatch.resize(nQp, fDim);
+        outValuesBatch.setZero(); 
+
+        // Vectorized dense matrix contraction: Out[q][d] = Sum_i ( Shape[q][i] * CellDofs[i][d] )
+        for (CfemInt q = 0; q < nQp; ++q) {
+            for (CfemInt i = 0; i < nNodes; ++i) {
+                const CfemReal Ni = shapeBatch.values[q][i];
+                for (CfemInt d = 0; d < fDim; ++d) {
+                    outValuesBatch[q][d] += Ni * ctx.scratchCellDofs[i][d];
+                }
+            }
+        }
+    }
+
+    /**
+     * @brief Evaluates the standard field value at a single local coordinate xi without pre-computed shapes.
+     * @param cellId Local index of the computational cell.
+     * @param xi Local/Reference coordinates inside the reference element space.
+     * @param out Destination memory span packing the physical field components [m_dim].
+     * @param ctx Unified high-performance evaluation context.
      */
     void FEField::evaluateWithoutShape(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
     {
         const Cell &cell = m_space->getMesh()->getCell(cellId);
         const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type, m_space->getOrderInt());
 
-        refEl.evaluate(xi, ShapeEvaluationFlags::Value, ctx.scratchShape);
-        this->evaluateWithShape(cellId, ctx.scratchShape, out);
+        ctx.singleWS.shape.values.resize(refEl.getNumNodes());
+        refEl.evaluateShapesValues(xi, ctx.singleWS.shape.values.data());
+        
+        this->evaluateWithShape(cellId, ctx.singleWS.shape, out);
     }
 
     /**
-     * @brief Optimized evaluation using pre-computed shape functions.
-     * Uses the FESpace abstraction to find global DOF indices.
+     * @brief Interpolates field values at a single integration point using pre-allocated ShapeInfo.
+     * @param cellId Local index of the computational cell.
+     * @param shape Single-point reference shape container holding base function values.
+     * @param out Destination memory span packing the physical field components [m_dim].
      */
     void FEField::evaluateWithShape(CfemInt cellId, const ShapeInfo &shape, std::span<CfemReal> out) const
     {
-        CfemInt nComp = this->getNumComponents();
+        const CfemInt nComp = this->getNumComponents();
         std::fill_n(out.data(), nComp, 0.0);
         
         const auto &shapeValues = shape.values;
-        CfemInt nNodes = static_cast<int>(shapeValues.size());
+        const CfemInt nNodes = static_cast<CfemInt>(shapeValues.size());
 
+        // Contract nodal degrees of freedom linearly against element values
         for (CfemInt i = 0; i < nNodes; ++i)
         {
-            CfemReal s = shapeValues[i];
+            const CfemReal s = shapeValues[i];
             for (CfemInt c = 0; c < nComp; ++c)
             {
-                // Request the global index from the space abstraction
-                CfemInt globalDofIdx = m_space->getGlobalDofIdx(cellId, i, c);
+                const CfemInt globalDofIdx = m_space->getGlobalDofIdx(cellId, i, c);
                 
-                if (globalDofIdx != -1) {
+                // Bypass dead or unmapped DOFs safely (e.g., in specialized embedded spaces)
+                if (globalDofIdx != -1) 
+                {
+                    CFEM_ASSERT(globalDofIdx >= 0 && globalDofIdx < static_cast<CfemInt>(m_localValues.size()),
+                        "FEField::evaluateWithShape - Resolved global DOF index out of local cache bounds.");
+                        
                     out[c] += s * m_localValues[globalDofIdx];
                 }
             }
         }
     }
 
+    /**
+     * @brief Gateway method to evaluate the spatial physical gradient tensor at a single local coordinate.
+     * @param cellId Local index of the computational cell.
+     * @param xi Local/Reference coordinates inside the reference element space.
+     * @param out Destination memory span packing the flattened gradient tensor [m_dim x spaceDim].
+     * @param ctx Unified high-performance evaluation context.
+     */
     void FEField::evaluateGradient(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
     {
-        // ÉTAPE A : Est-ce qu'on est dans un intégrateur avec un mapping déjà prêt ?
-        if (m_boundIndex != -1) {
+        if (m_boundIndex != -1) 
+        {
             const MappingInfo* cachedMap = ctx.getMapping(m_boundIndex);
-            if (cachedMap) {
+            if (cachedMap) 
+            {
                 this->evaluateGradientWithCachedMapping(cellId, *cachedMap, out);
                 return;
             }
         }
 
-        // On appelle la version lourde qui recalcule la Jacobienne
         this->evaluateGradientWithoutCachedMapping(cellId, xi, out, ctx);
     }
 
+    /**
+     * @brief Evaluates the physical spatial gradient tensor at an un-cached arbitrary local coordinate.
+     * @param cellId Local index of the computational cell.
+     * @param xi Local/Reference coordinates inside the reference element space.
+     * @param out Destination memory span packing the flattened physical gradient tensor.
+     * @param ctx Unified high-performance evaluation context.
+     */
     void FEField::evaluateGradientWithoutCachedMapping(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
     {
-        const Cell &cell = m_space->getMesh()->getCell(cellId);
-        const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type, m_space->getOrderInt());
-
+        const auto &refEl = m_space->getReferenceElement(cellId);
+        
+        // Extract contiguous cell vertex coordinates into context scratchpad
         m_space->getMesh()->getCellVerticesCoords(cellId, ctx.scratchCoords);
         
-        CfemInt expectedNodes = refEl.getNumNodes();
-        if (ctx.scratchCoords.size() > (size_t)expectedNodes) {
+        CFEM_INFO << "HIIIII";
+        const CfemInt expectedNodes = refEl.getNumNodes();
+        if (ctx.scratchCoords.size() > static_cast<size_t>(expectedNodes)) {
             ctx.scratchCoords.resize(expectedNodes);
         }
+                
+        ctx.singleWS.shape.shapeMustBeUpdated = false;
         
-        refEl.computeMapping(xi, ctx.scratchCoords, ShapeEvaluationFlags::Gradient, 
-                                ctx.scratchShape, ctx.scratchMapping);
-        // Évaluer le gradient physique
-        this->evaluateGradientWithCachedMapping(cellId, ctx.scratchMapping, out);
+        refEl.computeMapping(
+            xi, 
+            ctx.scratchCoords,
+            ShapeEvaluationFlags::FirstDerivatives,
+            MappingEvaluationFlags::PhysicalFirstDerivatives,  // all internal dependency requirements (Jacobian, Determinant, InverseJacobian).
+            ctx.singleWS.shape, 
+            ctx.singleWS.mapping
+        );
+        
+        // Forward the computed single metric point to our corrected tensor projection method
+        this->evaluateGradientWithCachedMapping(cellId, ctx.singleWS.mapping, out);
     }
 
-    /**
-     * @brief Optimized gradient evaluation using pre-computed physical mapping.
+   /**
+     * @brief Evaluates the physical gradient tensor at a single integration point using a cached MappingInfo.
+     * @param cellId Local index of the computational cell.
+     * @param mapping Single-point metric context containing precomputed physical shape gradients.
+     * @param out Destination memory span packing the flattened gradient tensor.
+     * Layout: [component * spatialDimension + spatialDirection]
      */
     void FEField::evaluateGradientWithCachedMapping(CfemInt cellId, const MappingInfo &mapping, std::span<CfemReal> out) const
     {
-        CfemInt nComp = this->getNumComponents();
-        
-        std::fill_n(out.data(), nComp * 3, 0.0);
+        const CfemInt nComp = this->getNumComponents();
+        const CfemInt spatialDimension = m_space->getMesh()->getSpatialDimension();
 
-        const auto &grads = mapping.physicalShapeGradients;
-        CfemInt nNodes = static_cast<int>(grads.size());
+        // Reset output buffer tracking the exact required tensor memory footprint
+        std::fill_n(out.data(), nComp * spatialDimension, 0.0);
 
+        const auto &gradsX = mapping.dN_dx;
+        const auto &gradsY = mapping.dN_dy;
+        const auto &gradsZ = mapping.dN_dz;
+        const CfemInt nNodes = static_cast<CfemInt>(gradsX.size());
+
+        // Loop over element basis functions (nodes)
         for (CfemInt i = 0; i < nNodes; ++i)
         {
-            const Vector3D &g = grads[i];
+            const CfemReal gx = gradsX[i];
+            const CfemReal gy = (spatialDimension == 2) ? gradsY[i] : 0.0;
+            const CfemReal gz = (spatialDimension == 3) ? gradsZ[i] : 0.0;
+
+            // Loop over physical field components
             for (CfemInt c = 0; c < nComp; ++c)
             {
-                CfemInt globalDofIdx = m_space->getGlobalDofIdx(cellId, i, c);
-                if (globalDofIdx != -1)
+                const CfemInt globalDofIdx = m_space->getGlobalDofIdx(cellId, i, c);
+                
+                CFEM_ASSERT(globalDofIdx >= 0 && globalDofIdx < static_cast<CfemInt>(m_localValues.size()),
+                    "FEField::evaluateGradientWithCachedMapping - Resolved global DOF index is out of bounds.");
+
+                const CfemReal val = m_localValues[globalDofIdx];
+                const CfemInt rowOffset = c * spatialDimension;
+
+                // Dynamically project derivatives based on the true dimensionality of the mesh
+                out[rowOffset + 0] += val * gx;
+                if (spatialDimension > 1) {
+                    out[rowOffset + 1] += val * gy;
+                    if (spatialDimension == 3) {
+                        out[rowOffset + 2] += val * gz;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * @brief Interpolates physical spatial derivatives of the field for the entire batch of integration points.
+     * @param cellId Local index of the computational cell.
+     * @param mappingBatch Contiguous metric batch structure holding physical derivatives (dN/dx, dN/dy, dN/dz).
+     * @param outGradientsBatch Destination matrix to store the spatial physical gradients [nQp x (m_dim * spatialDimension)].
+     * @param ctx Unified high-performance evaluation context.
+     */
+    void FEField::evaluateGradientBatch(CfemInt cellId, 
+                                        const MappingInfoBatch& mappingBatch, 
+                                        DynamicMatrix<CfemReal>& outGradientsBatch, 
+                                        EvalContext& ctx) const
+    {
+        // Gather all local cell coefficients into the memory arena scratchpad matrix
+        this->extractCellDofs(cellId, ctx.scratchCellDofs, ctx);
+
+        const CfemInt nQp      = mappingBatch.dN_dx.n_rows();
+        const CfemInt nNodes   = mappingBatch.dN_dx.n_cols();
+        const CfemInt fDim     = this->getNumComponents();
+        const CfemInt spatialDimension = m_space->getMesh()->getSpatialDimension();
+
+        // Allocate output footprint: Rows = Quadrature Points, Columns = Combined Gradient Matrix Components
+        outGradientsBatch.resize(nQp, fDim * spatialDimension);
+        outGradientsBatch.setZero();
+
+        // Optimized Multi-Component Contraction Loop
+        for (CfemInt q = 0; q < nQp; ++q) 
+        {
+            // Loop over field dimensions (components) first to establish continuous row offsets
+            for (CfemInt d = 0; d < fDim; ++d) 
+            {
+                const CfemInt rowOffset = d * spatialDimension;
+                CfemReal grad_x = 0.0;
+                CfemReal grad_y = 0.0;
+                CfemReal grad_z = 0.0;
+
+                // Deepest loop operates over element nodes: perfectly contiguous column memory read
+                for (CfemInt i = 0; i < nNodes; ++i) 
                 {
-                    CfemReal val = m_localValues[globalDofIdx];
-                    out[c * 3 + 0] += val * g.x;
-                    out[c * 3 + 1] += val * g.y;
-                    out[c * 3 + 2] += val * g.z; 
+                    const CfemReal u_nodal = ctx.scratchCellDofs[i][d];
+                    
+                    grad_x += mappingBatch.dN_dx[q][i] * u_nodal;
+                    grad_y += mappingBatch.dN_dy[q][i] * u_nodal;
+                    if (spatialDimension == 3) {
+                        grad_z += mappingBatch.dN_dz[q][i] * u_nodal;
+                    }
+                }
+
+                // Continuous sequential store inside the active row segment
+                outGradientsBatch[q][rowOffset + 0] = grad_x;
+                outGradientsBatch[q][rowOffset + 1] = grad_y;
+                if (spatialDimension == 3) {
+                    outGradientsBatch[q][rowOffset + 2] = grad_z;
                 }
             }
         }
@@ -334,8 +510,8 @@ namespace cfem
         if (m_boundIndex >= 0) {
             const auto& data = ctx.getSpaceData(m_boundIndex);
             
-            if (data.shape != nullptr) {
-                this->evaluateWithShape(cellId, *(data.shape), out);
+            if (data.shapeSingle != nullptr) {
+                this->evaluateWithShape(cellId, *(data.shapeSingle), out);
                 return;
             }
         }
@@ -344,101 +520,121 @@ namespace cfem
     }
 
     /**
-     * @brief Interpolates a symbolic expression onto the FE Space.
-     * This handles the parallel MPI assembly and OpenMP node-visiting logic.
+     * @brief Projects a symbolic mathematical expression (recipe) onto the finite element field via nodal interpolation.
+     * @param recipe The symbolic expression containing the mathematical definition to evaluate.
      */
     void FEField::interpolate(const sym::CfemExpression &recipe)
     {
-        CFEM_INFO << "interpolating field into " << getName();
+        CFEM_INFO << "Interpolating symbolic expression onto field '" << getName() << "'.";
 
-        
+        // Initialize or bind any symbolic parameters or sub-expressions
         recipe.prepare();
 
         const auto& mesh = m_space->getMesh();
         Vec& petscVec = m_data.getRaw();
-        CfemInt dim = this->getNumComponents();
+        const CfemInt dim = this->getNumComponents();
 
+        // Query mathematical dependencies to determine which reference derivatives are needed
         const auto recipeFlags = recipe.requiredShapeFlags();
+        const bool needsGeoNormals = recipe.dependsOnNormalGeometricNormal();
+        // Align evaluation flags to match the exact mathematical types required by the system
+        const ShapeEvaluationFlags shapeFlags = ShapeEvaluationFlags::Value | recipeFlags |
+                                                        (needsGeoNormals? ShapeEvaluationFlags::FirstDerivatives : ShapeEvaluationFlags::None);
+        const MappingEvaluationFlags mappingFlags =  MappingEvaluationFlags::PhysicalPosition | transformShapeToMappingFlags(recipeFlags) |
+                                                    (needsGeoNormals? MappingEvaluationFlags::Normal : MappingEvaluationFlags::None);
 
-        // Determine the local ownership range for MPI
-        CfemInt low, high;
+        // Determine the local process partition range owned within the distributed global PETSc system
+        CfemInt low = 0;
+        CfemInt high = 0;
         VecGetOwnershipRange(petscVec, &low, &high);
-        CfemInt localSize = high - low;
+        const CfemInt localSize = high - low;
 
+        // Reset and size the local write buffer matching this process's MPI ownership slice
         m_localValues.assign(localSize, 0.0);
 
-        // Prepare for node visiting (CG: vertex-based, DG: cell-based)
-        CfemInt numPositions = m_space->getNumUniquePositions();
+        // Track visited nodes to guarantee a single evaluation pass for shared entities (CG/DG neutral)
+        const CfemInt numPositions = m_space->getNumUniquePositions();
         std::vector<uint8_t> visited(numPositions, 0);
 
         #pragma omp parallel
         {
+            // Allocation of thread-local unified context. Core structures (Arena, cache) remain local.
             EvalContext evctx;
+            
             std::vector<CfemReal> valBuffer(dim);
             std::span<CfemReal> valSpan(valBuffer);
             
             #pragma omp for schedule(guided)
             for (CfemInt cellId = 0; cellId < mesh->getNumCells(); ++cellId)
             {
-                auto cell_type = mesh->getCell(cellId).type;
+                const auto cell_type = mesh->getCell(cellId).type;
                 const auto &refEl = ReferenceElementFactory::getReferenceElement(cell_type, m_space->getOrderInt());
                 const auto &refElGeo = ReferenceElementFactory::getReferenceElement(cell_type, mesh->getOrderInt());
 
+                // Collect node physical coordinates of the current cell into the context scratchpad
                 mesh->getCellVerticesCoords(cellId, evctx.scratchCoords);
 
-                for (CfemInt i = 0; i < (int)refEl.getNumNodes(); ++i)
+                const CfemInt nNodes = static_cast<CfemInt>(refEl.getNumNodes());
+                for (CfemInt i = 0; i < nNodes; ++i)
                 {
-                    // Get the position ID for locking/visiting logic
-                    CfemInt posId = m_space->getPositionId(cellId, i);
+                    // Obtain unique global spatial position mapping ID
+                    const CfemInt posId = m_space->getPositionId(cellId, i);
                     if (posId == -1) continue;
 
-                    // Atomic check: Ensure each unique node is computed only once
+                    // Atomic test-and-set fence to prevent concurrent evaluations of identical shared nodes
                     if (visited[posId]) continue;
                     if (__atomic_test_and_set(&visited[posId], __ATOMIC_RELAXED)) continue;
 
-                    // Evaluate the recipe at the physical location of the node
-                    Vector3D xi = refEl.getNodeCoords(i);
-                    // ShapeInfo nodeShape;
-                    refElGeo.evaluate(xi, ShapeEvaluationFlags::Value | recipeFlags, evctx.scratchShape);
+                    // Map target reference element node coordinates
+                    const Vector3D xi = refEl.getNodeCoords(i);
+
+                    // Compute metric mapping properties at the specific isolated node location
                     refElGeo.computeMapping(
                         xi, 
                         evctx.scratchCoords, 
-                        ShapeEvaluationFlags::PhysicalPosition | recipeFlags, 
-                        static_cast<const ShapeInfo&>(evctx.scratchShape), 
-                        evctx.scratchMapping
+                        shapeFlags,
+                        mappingFlags, 
+                        evctx.singleWS.shape, 
+                        evctx.singleWS.mapping
                     );
 
-                    evctx.physPos = evctx.scratchMapping.physicalPosition;
-                    evctx.currentCellId = cellId;
-                    evctx.currentXi = xi;
-                    evctx.geometricMapping = &evctx.scratchMapping;
+                    // Populate the single-point workspace with current state configurations
+                    evctx.singleWS.physPos = evctx.singleWS.mapping.physicalPosition;
+                    evctx.singleWS.xi      = xi;
+                    evctx.geometricMapping = &evctx.singleWS.mapping;
+                    evctx.currentCellId     = cellId;
 
+                    // Bind the active mapping pointer to our newly established type-safe single slots
+                    // evctx.setSpaceData(m_boundIndex, &evctx.singleWS.shape, &evctx.singleWS.mapping);
+
+                    // Execute symbolic mathematical projection directly into thread-local buffer
                     recipe.evaluate(cellId, xi, valSpan, evctx);
 
-                    // Map calculated values to the global algebraic vector
+                    // Map calculated values to the local algebraic partition slice
                     for (CfemInt d = 0; d < dim; ++d)
                     {
-                        CfemInt globalDofIdx = m_space->getGlobalDofIdx(cellId, i, d);
+                        const CfemInt globalDofIdx = m_space->getGlobalDofIdx(cellId, i, d);
 
-                        // MPI Check: Does this process own this specific DOF?
+                        // MPI ownership range check: store only if it maps onto this local process memory segment
                         if (globalDofIdx >= low && globalDofIdx < high)
                         {
-                            m_localValues[globalDofIdx - low] = valSpan[d];
+                            const size_t localProcessIdx = static_cast<size_t>(globalDofIdx - low);
+                            m_localValues[localProcessIdx] = valSpan[d];
                         }
                     }
                 }
             }
         }
 
-        // 3. Final PETSc Assembly
-        PetscScalar *array;
+        // 3. Complete distributed parallel synchronization into global PETSc architecture
+        PetscScalar *array = nullptr;
         VecGetArray(petscVec, &array);
         std::copy(m_localValues.begin(), m_localValues.end(), array);
         VecRestoreArray(petscVec, &array);
         
         m_data.assemble();
         
-        CFEM_INFO << "Projection of recipe onto field '" << m_name << "' completed.";
+        CFEM_INFO << "Nodal interpolation of recipe onto field '" << m_name << "' completed successfully.";
     }
 }
 

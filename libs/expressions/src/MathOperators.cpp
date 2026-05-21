@@ -924,7 +924,7 @@ namespace cfem::sym::utils {
         auto eval_func = [expr, idx](const Vector3D& pos, CfemReal t) -> CfemReal {
             CfemReal temp[9] = {0.0};
             EvalContext ctx;
-            ctx.physPos = pos;
+            ctx.singleWS.physPos = pos;
             ctx.currentTime = t;
             expr->evaluate(-1, pos, temp, ctx); 
             return temp[idx];

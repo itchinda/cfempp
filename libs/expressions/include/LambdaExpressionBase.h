@@ -88,6 +88,15 @@ namespace cfem::sym
             return dep;
         }
 
+        bool dependsOnNormalGeometricNormal() const override { 
+            bool dep = false;
+            if(m_gradient) dep = dep || m_gradient->dependsOnNormalGeometricNormal();
+            if(m_timeDeriv) dep = dep || m_timeDeriv->dependsOnNormalGeometricNormal(); 
+            return dep;
+        }
+
+
+
         bool dependsOnShape() const override { return false; }
 
         ShapeEvaluationFlags requiredShapeFlags() const override {

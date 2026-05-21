@@ -58,6 +58,9 @@ namespace cfem::sym
 
         bool dependsOnFEField() const override { return m_expr->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_expr->dependsOnShape(); }
+        bool dependsOnNormalGeometricNormal() const override { 
+            return m_expr->dependsOnNormalGeometricNormal();
+        }
         ShapeEvaluationFlags requiredShapeFlags() const override {
             return m_expr->requiredShapeFlags();
         }

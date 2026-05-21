@@ -79,12 +79,16 @@ namespace cfem::sym
         bool isPointwise() const override { return m_expr->isPointwise(); }
         bool dependsOnFEField() const override { return m_expr->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_expr->dependsOnShape(); }
+
+        bool dependsOnNormalGeometricNormal() const override { 
+            return m_expr->dependsOnNormalGeometricNormal(); 
+        }
         
         ShapeEvaluationFlags requiredShapeFlags() const override {
             if (!dependsOnShape())
                 return ShapeEvaluationFlags::None;
 
-            return m_expr->requiredShapeFlags() | ShapeEvaluationFlags::Gradient; 
+            return m_expr->requiredShapeFlags() | ShapeEvaluationFlags::FirstDerivatives; 
         }
 
         void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {

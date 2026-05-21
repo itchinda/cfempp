@@ -33,7 +33,7 @@ protected:
     CfemInt testCellId = 42;
 
     void SetUp() override {
-        ctx.physPos = testPoint;
+        ctx.singleWS.physPos = testPoint;
         ctx.currentCellId = testCellId;
     }
 

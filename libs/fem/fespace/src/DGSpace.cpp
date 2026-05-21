@@ -157,28 +157,66 @@ void DGSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
 }
 
 
-// Math evaluations (evaluateBasis/evaluateGradients) are identical to Lagrange 
-// because they both use the ReferenceElement interface!
-void DGSpace::evaluateBasis(CfemInt cellId, const Vector3D& xi, std::vector<CfemReal>& values) const {
-    ShapeInfo shape;
-    const Cell& cell = m_mesh->getCell(cellId);
-    const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement( cell.type, getOrderInt() );
-    refEl.evaluate(xi, ShapeEvaluationFlags::Value, shape);
-    values.assign(shape.values.begin(), shape.values.end());
-}
+    /**
+     * @brief Evaluates the reference basis function values at a local coordinate xi within a specific cell.
+     * @param cellId Local index of the computational cell.
+     * @param xi Reference/Local coordinates inside the cell's geometric space.
+     * @param values Destination vector container to hold the evaluated scalar basis functions.
+     */
+    void DGSpace::evaluateBasis(CfemInt cellId, const Vector3D& xi, std::vector<CfemReal>& values) const 
+    {
+        ShapeInfo shape;
+        const Cell& cell = m_mesh->getCell(cellId);
+        const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement(cell.type, getOrderInt());
+        
+        // Evaluate reference basis values directly into the ShapeInfo container
+        shape.values.resize(refEl.getNumNodes());
+        refEl.evaluateShapesValues(xi, shape.values.data());
+        
+        // Direct contiguous copy remains valid for scalar values
+        values.assign(shape.values.begin(), shape.values.end());
+    }
 
-void DGSpace::evaluateGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const {
-    static thread_local DynamicVector<Vector3D> physCoords;
-    m_mesh->getCellVerticesCoords(cellId, physCoords);
+    /**
+     * @brief Evaluates the physical gradients of the basis functions at a local coordinate xi.
+     * @param cellId Local index of the computational cell.
+     * @param xi Reference/Local coordinates inside the cell's geometric space.
+     * @param grads Destination vector container to pack the calculated physical Vector3D gradients.
+     */
+    void DGSpace::evaluateBasisGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const 
+    {
+        // Thread-local scratchpad to guarantee OpenMP safety and bypass dynamic allocations
+        static thread_local DynamicVector<Vector3D> t_physCoords;
+        m_mesh->getCellVerticesCoords(cellId, t_physCoords);
 
-    const Cell& cell = m_mesh->getCell(cellId);
-    const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement( cell.type, getOrderInt() );
-    
-    ShapeInfo shape;
-    MappingInfo map;
-    refEl.computeMapping(xi, physCoords, ShapeEvaluationFlags::Gradient, shape, map);
-    grads.assign(map.physicalShapeGradients.begin(), map.physicalShapeGradients.end());
-}
+        const Cell& cell = m_mesh->getCell(cellId);
+        const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement(cell.type, getOrderInt());
+        
+        ShapeInfo shape;
+        MappingInfo map;
+        
+        refEl.computeMapping(
+            xi, 
+            t_physCoords, 
+            ShapeEvaluationFlags::FirstDerivatives, 
+            MappingEvaluationFlags::PhysicalFirstDerivatives,
+            shape, 
+            map
+        );
+
+        const CfemInt nNodes = static_cast<CfemInt>(map.dN_dx.size());
+        const CfemInt spatialDimension = m_mesh->getSpatialDimension();
+
+        // Resize the destination vector to accommodate the layout without memory spikes
+        grads.resize(nNodes);
+
+        for (CfemInt i = 0; i < nNodes; ++i)
+        {
+            grads[i].x = map.dN_dx[i];
+            grads[i].y = (spatialDimension >= 2) ? map.dN_dy[i] : 0.0;
+            grads[i].z = (spatialDimension == 3) ? map.dN_dz[i] : 0.0;
+        }
+    }
 
 /**
  * @brief Récupère les DOFs associés à une entité géométrique (bord ou groupe physique).

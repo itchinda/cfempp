@@ -77,11 +77,11 @@ namespace cfem
                                  const MeshEntity &entity,
                                  const MeshEntity &);
 
-        inline bool needsMapping(ShapeEvaluationFlags flags)
-        {
-            return hasFlag(flags, ShapeEvaluationFlags::Gradient) ||
-                   hasFlag(flags, ShapeEvaluationFlags::Hessian);
-        }
+        // inline bool needsMapping(ShapeEvaluationFlags flags)
+        // {
+        //     return hasFlag(flags, ShapeEvaluationFlags::Gradient) ||
+        //            hasFlag(flags, ShapeEvaluationFlags::Hessian);
+        // }
 
     public:
         /**

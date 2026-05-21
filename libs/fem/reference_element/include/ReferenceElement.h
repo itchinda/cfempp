@@ -16,119 +16,28 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#ifndef CFEM_REFERENCE_ELEMENT_H
-#define CFEM_REFERENCE_ELEMENT_H
+#pragma once
 
 #include "cfemutils.h"
 #include "Vector3D.h"
 #include "DynamicVector.h"
 #include "DynamicMatrix.h"
 #include "Tensor3D.h"
-#include "ShapeEvaluationFlags.h"
+#include "EvaluationFlags.h"
+
+#include "ShapeInfo.h"
+#include "MappingInfo.h"
 
 namespace cfem::reference_elem
 {
-    static const std::vector<std::vector<int>> line_face_nodes = {
-        {0}, // Face 0 (Nœud gauche)
-        {1}  // Face 1 (Nœud droit)
+    static const DynamicVector<DynamicVector<int>> line_face_nodes = {
+        {0}, // Face 0 (Left node)
+        {1}  // Face 1 (Right node)
     };
 }
 
 namespace cfem {
     enum class Order { P0 = 0, P1 = 1, P2 = 2 , Mini = 101};
-
-/**
- * @struct ShapeInfo
- * @brief Storage buffer for shape function evaluations at a specific quadrature point.
- * @note Re-use this object across multiple integration points to avoid frequent heap allocations.
- */
-struct ShapeInfo {
-    DynamicVector<CfemReal> values;      ///< Shape function values (N_i)
-    DynamicVector<Vector3D> gradients;   ///< Local gradients w.r.t reference coordinates (dN_i/dxi)
-    DynamicVector<SymTensor3D> hessians; ///< Local Hessians w.r.t reference coordinates (d2N_i/dxi2)
-    bool shapeMustBeUpdated = true;
-    ShapeEvaluationFlags  validFlags = ShapeEvaluationFlags::None;
-
-    /** 
-     * @brief Prepares buffer sizes to prevent runtime reallocations. 
-     * @param numNodes Number of nodes in the element.
-     * @param includeHessians If true, allocates memory for Hessian tensors.
-     */
-    void setup(CfemInt numNodes, bool includeHessians = false) {
-        if (values.size() != static_cast<size_t>(numNodes)) {
-            values.resize(numNodes);
-            gradients.resize(numNodes);
-        }
-        if (includeHessians && hessians.size() != static_cast<size_t>(numNodes)) {
-            hessians.resize(numNodes);
-        }
-        validFlags = ShapeEvaluationFlags::None;
-    }
-    
-    /** @brief Checks if a specific field (Value/Gradient/Hessian) is marked as valid. */
-    bool has(cfem::ShapeEvaluationFlags field) const {
-        return hasFlag(validFlags, field);
-    }
-};
-
-/**
- * @struct MappingInfo
- * @brief Stores metric data resulting from the geometric transformation (Reference -> Physical).
- */
-struct MappingInfo {
-    Vector3D physicalPosition; ///< The mapped x, y, z coordinates
-    Tensor3D jacobian;         ///< Jacobian matrix (dx/dxi)
-    Tensor3D invJacobian;      ///< Inverse Jacobian matrix (dxi/dx)
-    CfemReal detJ;             ///< Determinant of the Jacobian
-    Vector3D normal;
-
-    DynamicVector<Vector3D> physicalShapeGradients;   ///< dN_i/dx (Gradients in physical space)
-    DynamicVector<SymTensor3D> physicalShapeHessians; ///< d2N_i/dx2 (Hessians in physical space)
-
-    /**
-     * @brief Prepares the mapping buffers for a specific element size.
-     * @param numNodes Number of nodes in the element.
-     * @param includeHessians Whether to allocate the Hessian buffer.
-     */
-    void setup(CfemInt numNodes, bool includeHessians = false) {
-        if (physicalShapeGradients.size() != static_cast<size_t>(numNodes)) {
-            physicalShapeGradients.resize(numNodes);
-        }
-        
-        if (includeHessians && physicalShapeHessians.size() != static_cast<size_t>(numNodes)) {
-            physicalShapeHessians.resize(numNodes);
-        }
-    }
-
-    // Quick accessors for physical gradients
-    inline CfemReal dNdx(CfemInt i) const { return physicalShapeGradients[i].x; }
-    inline CfemReal dNdy(CfemInt i) const { return physicalShapeGradients[i].y; }
-    inline CfemReal dNdz(CfemInt i) const { return physicalShapeGradients[i].z; }
-
-    // Quick accessors for physical Hessians (components)
-    inline CfemReal d2Ndxdx(CfemInt nodeIdx) const { return physicalShapeHessians[nodeIdx].xx(); }
-    inline CfemReal d2Ndydy(CfemInt nodeIdx) const { return physicalShapeHessians[nodeIdx].yy(); }
-    inline CfemReal d2Ndzdz(CfemInt nodeIdx) const { return physicalShapeHessians[nodeIdx].zz(); }
-    inline CfemReal d2Ndydz(CfemInt nodeIdx) const { return physicalShapeHessians[nodeIdx].yz(); }
-    inline CfemReal d2Ndxdz(CfemInt nodeIdx) const { return physicalShapeHessians[nodeIdx].xz(); }
-    inline CfemReal d2Ndxdy(CfemInt nodeIdx) const { return physicalShapeHessians[nodeIdx].xy(); }
-
-    void computePhysicalGradientsOnly(const ShapeInfo& fieldShape) {
-        // Le fait de charger dans des variables locales (registres) 
-        // empêche le CPU de faire des allers-retours mémoire.
-        const CfemReal i00 = invJacobian(0,0), i01 = invJacobian(0,1), i02 = invJacobian(0,2);
-        const CfemReal i10 = invJacobian(1,0), i11 = invJacobian(1,1), i12 = invJacobian(1,2);
-        const CfemReal i20 = invJacobian(2,0), i21 = invJacobian(2,1), i22 = invJacobian(2,2);
-
-        for (size_t i = 0; i < fieldShape.gradients.size(); ++i) {
-            const auto& g = fieldShape.gradients[i];
-            physicalShapeGradients[i].x = i00 * g.x + i10 * g.y + i20 * g.z;
-            physicalShapeGradients[i].y = i01 * g.x + i11 * g.y + i21 * g.z;
-            physicalShapeGradients[i].z = i02 * g.x + i12 * g.y + i22 * g.z;
-        }
-    }
-
-};
 
 /**
  * @class ReferenceElement
@@ -143,21 +52,73 @@ protected:
     CfemInt m_numNodes;
     CfemInt m_dimension;
 
+    
+
 public:
     virtual ~ReferenceElement() = default;
 
     CfemInt dimension() const { return m_dimension; };
     CfemInt getNumNodes() const { return m_numNodes; };
     virtual std::span<const CfemInt> getFaceNodes(CfemInt iFace) const = 0;
+
+    void evaluateShapes(const Vector3D &xi, ShapeEvaluationFlags requestedShape, ShapeInfo& out) const;
+    void evaluateShapesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeEvaluationFlags requestedShape, ShapeInfoBatch& outBatch) const;
     /**
-     * @brief Evaluates shape functions and their local derivatives at point xi.
-     * @param xi Target point in reference space.
-     * @param requested Bitmask of fields to calculate (Value, Gradient, Hessian).
-     * @param out ShapeInfo buffer to be filled.
+     * @brief Evaluates the shape function values ($N_i$) at a given reference point.
+     * @param xi The coordinates of the evaluation point in the reference element ($\xi, \eta, \zeta$).
+     * @param values Raw pointer to a pre-allocated array of size [numNodes] to be populated.
      */
-    virtual void evaluate(const Vector3D& xi, 
-                          ShapeEvaluationFlags requested, 
-                          ShapeInfo& out) const = 0;
+    virtual void evaluateShapesValues(const Vector3D &xi, 
+                                CfemReal* values) const = 0;
+
+    virtual void evaluateShapesValuesBatch(const DynamicVector<Vector3D> &xi, 
+                                     DynamicMatrix<CfemReal>       &values) const = 0;
+
+    /**
+     * @brief Evaluates the first-order derivatives of the shape functions (local gradients) 
+     * with respect to the reference coordinate system.
+     * @param xi The coordinates of the evaluation point in the reference element ($\xi, \eta, \zeta$).
+     * @param dN_dxi Raw pointer to the reference coordinate $\xi$ derivative array (size [numNodes]).
+     * @param dN_deta Raw pointer to the reference coordinate $\eta$ derivative array (size [numNodes]).
+     * @param dN_dzeta Raw pointer to the reference coordinate $\zeta$ derivative array (size [numNodes]).
+     */
+    virtual void evaluateShapesDerivatives(const Vector3D &xi, 
+                                     CfemReal* dN_dxi, 
+                                     CfemReal* dN_deta, 
+                                     CfemReal* dN_dzeta) const = 0;
+
+    virtual void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D> &xi, 
+                                          DynamicMatrix<CfemReal>       &dN_dxi, 
+                                          DynamicMatrix<CfemReal>       &dN_deta, 
+                                          DynamicMatrix<CfemReal>       &dN_dzeta) const = 0;
+
+    /**
+     * @brief Evaluates the second-order derivatives of the shape functions (local Hessians) 
+     * with respect to the reference coordinate system.
+     * 
+     * @param xi The coordinates of the evaluation point in the reference element ($\xi, \eta, \zeta$).
+     * @param d2N_dxi2 Raw pointer to the $\frac{\partial^2 N}{\partial \xi^2}$ array (size [numNodes]).
+     * @param d2N_deta2 Raw pointer to the $\frac{\partial^2 N}{\partial \eta^2}$ array (size [numNodes]).
+     * @param d2N_dzeta2 Raw pointer to the $\frac{\partial^2 N}{\partial \zeta^2}$ array (size [numNodes]).
+     * @param d2N_dxideta Raw pointer to the $\frac{\partial^2 N}{\partial \xi \partial \eta}$ array (size [numNodes]).
+     * @param d2N_dxidzeta Raw pointer to the $\frac{\partial^2 N}{\partial \xi \partial \zeta}$ array (size [numNodes]).
+     * @param d2N_detadzeta Raw pointer to the $\frac{\partial^2 N}{\partial \eta \partial \zeta}$ array (size [numNodes]).
+     */
+    virtual void evaluateShapesSecondDerivatives(const Vector3D &xi,
+                                           CfemReal* d2N_dxi2, 
+                                           CfemReal* d2N_deta2, 
+                                           CfemReal* d2N_dzeta2,
+                                           CfemReal* d2N_dxideta, 
+                                           CfemReal* d2N_dxidzeta, 
+                                           CfemReal* d2N_detadzeta) const = 0;
+
+    virtual void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D> &xi,
+                                                DynamicMatrix<CfemReal>       &d2N_dxi2, 
+                                                DynamicMatrix<CfemReal>       &d2N_deta2, 
+                                                DynamicMatrix<CfemReal>       &d2N_dzeta2,
+                                                DynamicMatrix<CfemReal>       &d2N_dxideta, 
+                                                DynamicMatrix<CfemReal>       &d2N_dxidzeta, 
+                                                DynamicMatrix<CfemReal>       &d2N_detadzeta) const = 0;
                           
     virtual Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const = 0;
     /**
@@ -176,48 +137,60 @@ public:
      * @param shape Work buffer for reference shape functions.
      * @param out MappingInfo structure to be populated.
      */
-    void computeMapping(const Vector3D& xi,
-                        const DynamicVector<Vector3D>& physicalNodesCoords, 
-                        ShapeEvaluationFlags requestedFields,
-                        ShapeInfo& shape, 
-                        MappingInfo& out) const;
+    void computeMapping(const Vector3D                &xi,
+                        const DynamicVector<Vector3D> &physicalNodesCoords,
+                        ShapeEvaluationFlags           requestedShape,
+                        MappingEvaluationFlags         requestedMapping,
+                        ShapeInfo                     &shape,
+                        MappingInfo                   &out) const;
 
-    inline void computeMapping(const Vector3D &xi,
-                                                 const DynamicVector<Vector3D> &physicalNodesCoords,
-                                                 ShapeEvaluationFlags requestedFields,
-                                                 const ShapeInfo &shape,
-                                                 MappingInfo &out) const;
+    void computeMapping(const Vector3D                &xi,
+                        const DynamicVector<Vector3D> &physicalNodesCoords,
+                        MappingEvaluationFlags         requestedMapping,
+                        const ShapeInfo               &shape,
+                        MappingInfo                   &out) const;
 
-    /**
-     * @brief Computes the Jacobian, its determinant (metric), and the pseudo-inverse.
-     * @note This version supports 1D/2D elements embedded in 3D space using 
-     * the Moore-Penrose pseudo-inverse logic.
-     */
-    void computeJacobian(const ShapeInfo& shape, 
-                        const DynamicVector<Vector3D>& physicalNodesCoords, 
-                        MappingInfo& out) const;
+    void computeMappingBatch(const DynamicVector<Vector3D>   &xiPoints,
+                        const DynamicVector<Vector3D> &physicalNodesCoords,
+                        ShapeEvaluationFlags           requestedShape,
+                        MappingEvaluationFlags         requestedMapping,
+                        ShapeInfoBatch                &shapeBatch,
+                        MappingInfoBatch              &outBatch) const;
 
+    void computeMappingBatch(const DynamicVector<Vector3D>   &xiPoints,
+                        const DynamicVector<Vector3D> &physicalNodesCoords,
+                        MappingEvaluationFlags         requestedMapping,
+                        const ShapeInfoBatch          &shapeBatch,
+                        MappingInfoBatch              &outBatch) const;
 
     /** 
      * @brief Transforms reference gradients to physical space using J^-T. 
      * @param shape Work buffer for reference shape functions.
      * @param out MappingInfo structure to be populated.
      */
-    void computePhysicalGradients(const ShapeInfo& shape, 
-                                  MappingInfo& out) const;
+    void computePhysicalFirstDerivatives(const ShapeInfo& shape, 
+                                         MappingInfo& out) const;
+
+    void computePhysicalFirstDerivativesBatch(const ShapeInfoBatch &shape,
+                                         MappingInfoBatch &out) const;
 
     /**
      * @brief Computes physical Hessians including the geometric curvature term.
      * @param physicalNodesCoords Actual physical coordinates of the element's nodes.
      * @param shape Work buffer for reference shape functions.
      * @param out MappingInfo structure to be populated.
-     * @note Reference: H_phys = J^-T * [H_ref - grad_phys(N) * H_geom] * J^-1
+     * @note Reference: \$ H_{phys} = J^{-T} * [H_{ref} - \nabla_{phys}(N) * H_{geom}] * J^{-1} \$
      */
-    void computePhysicalHessians(const DynamicVector<Vector3D>& physicalNodesCoords, 
-                                const ShapeInfo& shape, 
-                                MappingInfo& out) const;
+    void computePhysicalSecondDerivatives(const DynamicVector<Vector3D>& physicalNodesCoords, 
+                                          const ShapeInfo& shape, 
+                                          MappingInfo& out) const;
+
+    void computePhysicalSecondDerivativesBatch(const DynamicVector<Vector3D>& physicalNodesCoords, 
+                                               const ShapeInfoBatch& shapeBatch, 
+                                               MappingInfoBatch& outBatch) const;
 
     void computeGeometricNormal(const ShapeInfo &shape, MappingInfo &out) const;
+    void computeGeometricNormalBatch(const ShapeInfoBatch &shapeBatch, MappingInfoBatch &outBatch) const;
 
     /**
      * @brief Interpolates a field (scalar or vector) at a point evaluated in ShapeInfo.
@@ -242,10 +215,40 @@ public:
      */
     SymTensor3D interpolateHessian(const MappingInfo& map, 
                                    const DynamicVector<CfemReal>& nodalValues) const;
+
+private:
+            
+    /**
+     * @brief Computes the Jacobian, its determinant (metric), and the pseudo-inverse.
+     * @note This version supports 1D/2D elements embedded in 3D space using 
+     * the Moore-Penrose pseudo-inverse logic.
+     */
+    inline void computeJacobian(const ShapeInfo& shape, 
+                                const DynamicVector<Vector3D>& physicalNodesCoords, 
+                                MappingInfo& out) const;
+
+    inline void computeJacobianBatch(const ShapeInfoBatch& shape, 
+                                const DynamicVector<Vector3D>& physicalNodesCoords, 
+                                MappingInfoBatch& out) const;
+
+    inline void computeDeterminant(const ShapeInfo &shape,
+                                   const DynamicVector<Vector3D> &physicalNodesCoords,
+                                   MappingInfo &out) const;
+
+    inline void computeDeterminantBatch(const ShapeInfoBatch &shape,
+                                   const DynamicVector<Vector3D> &physicalNodesCoords,
+                                   MappingInfoBatch &out) const;
+
+    inline void computeInverseJacobian(const ShapeInfo &shape,
+                                       const DynamicVector<Vector3D> &physicalNodesCoords,
+                                       MappingInfo &out) const;
+
+    inline void computeInverseJacobianBatch(const ShapeInfoBatch &shape,
+                                       const DynamicVector<Vector3D> &physicalNodesCoords,
+                                       MappingInfoBatch &out) const;
+
 };
 
 }
 
 #include "ReferenceElement.tpp"
-
-#endif

@@ -63,7 +63,7 @@ namespace cfem::sym
         const std::vector<SymEngine::RCP<const SymEngine::Symbol>> &get_vars() const { return m_vars; }
 
         void evaluate(CfemInt, const Vector3D &, std::span<CfemReal> out, EvalContext &ctx) const{
-            const CfemReal input[4] = { ctx.physPos.x, ctx.physPos.y, ctx.physPos.z, ctx.currentTime};
+            const CfemReal input[4] = { ctx.singleWS.physPos.x, ctx.singleWS.physPos.y, ctx.singleWS.physPos.z, ctx.currentTime};
             out[0] = static_cast<CfemReal>(m_evaluator->evaluate(input));
         }
 

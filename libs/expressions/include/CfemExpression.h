@@ -110,6 +110,7 @@ namespace cfem::sym
         virtual bool isConstant() const  { return false; }
         virtual bool dependsOnFEField() const { return false; }
         virtual bool dependsOnShape() const { return true; }
+        virtual bool dependsOnNormalGeometricNormal() const { return false; }
 
         virtual void bind(const std::map<const FESpace*, int>& spaceToId) const {}
 

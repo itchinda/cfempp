@@ -126,6 +126,18 @@ namespace cfem::sym
         
         }
 
+        bool dependsOnNormalGeometricNormal() const override { 
+            return m_components[0]->dependsOnNormalGeometricNormal() || 
+                   m_components[1]->dependsOnNormalGeometricNormal() ||
+                   m_components[2]->dependsOnNormalGeometricNormal() ||
+                   m_components[3]->dependsOnNormalGeometricNormal() || 
+                   m_components[4]->dependsOnNormalGeometricNormal() ||
+                   m_components[5]->dependsOnNormalGeometricNormal() ||
+                   m_components[6]->dependsOnNormalGeometricNormal() || 
+                   m_components[7]->dependsOnNormalGeometricNormal() ||
+                   m_components[8]->dependsOnNormalGeometricNormal(); 
+        }
+
         ShapeEvaluationFlags requiredShapeFlags() const override {
             return m_components[0]->requiredShapeFlags() | 
                    m_components[1]->requiredShapeFlags() | 

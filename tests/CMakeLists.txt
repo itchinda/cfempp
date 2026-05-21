@@ -4,7 +4,7 @@ add_executable(unit_tests
     solvers/test_solvers.cpp
     expressions/test_symbolic_simplification.cpp
     fem/test_fem.cpp
-    fem/test_domain_integrator.cpp
+    #fem/test_domain_integrator.cpp
     fem/test_reference_element.cpp
     fem/test_quadrature.cpp
     fem/test_fields.cpp

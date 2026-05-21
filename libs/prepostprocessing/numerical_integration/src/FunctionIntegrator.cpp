@@ -203,7 +203,8 @@ namespace cfem
         // ANALYSE ET BINDING O(1)
         // ============================================================
         std::vector<size_t> activeIdx;
-        ShapeEvaluationFlags fieldFlags = ShapeEvaluationFlags::None;
+        ShapeEvaluationFlags fieldShapesFlags = ShapeEvaluationFlags::None;
+        bool fieldsDependsOnGeoNormal =  false;
         std::set<std::shared_ptr<const FESpace>> requiredSpaces;
         CfemInt geoOrder = m_mesh->getOrderInt();
 
@@ -219,7 +220,9 @@ namespace cfem
 
             if (targets[i].second) *(targets[i].second) = 0.0;
             activeIdx.push_back(i);
-            fieldFlags |= targets[i].first->requiredShapeFlags();
+            fieldShapesFlags |= targets[i].first->requiredShapeFlags();
+            fieldsDependsOnGeoNormal = fieldsDependsOnGeoNormal || targets[i].first->dependsOnNormalGeometricNormal();
+
             targets[i].first->collectRequiredSpaces(requiredSpaces);
         }
 
@@ -238,14 +241,23 @@ namespace cfem
             targets[idx].first->bind(spaceToId);
         }
 
-        const bool needsFieldGradients = hasFlag(fieldFlags, ShapeEvaluationFlags::Gradient);
-        const ShapeEvaluationFlags geoFlags = ShapeEvaluationFlags::Value | ShapeEvaluationFlags::Jacobian;
-        const ShapeEvaluationFlags normalEvalFlag = hasFlag(fieldFlags, ShapeEvaluationFlags::Normal)? ShapeEvaluationFlags::Normal : ShapeEvaluationFlags::None;
+        const bool needsFieldFirstDerivatives = hasFlag(fieldShapesFlags, ShapeEvaluationFlags::FirstDerivatives);
+        const bool needsFieldSecondDerivatives = hasFlag(fieldShapesFlags, ShapeEvaluationFlags::SecondDerivatives);
+        
+        MappingEvaluationFlags geoMappingFlags = MappingEvaluationFlags::PhysicalPosition|
+                                                       MappingEvaluationFlags::Determinant |
+                                                       (fieldsDependsOnGeoNormal? MappingEvaluationFlags::Normal : MappingEvaluationFlags::None);
+        ShapeEvaluationFlags geoShapeFlags = transformMappingToShapeFlags(geoMappingFlags) ; 
+
+        if (needsFieldFirstDerivatives) {
+            geoShapeFlags |= ShapeEvaluationFlags::FirstDerivatives;
+            geoMappingFlags   |= MappingEvaluationFlags::InverseJacobian; 
+        }
 
         IntegrationScheme scheme;
 
         // ============================================================
-        // 2. QUADRATURE ET CACHING DE REFERENCE (Read-Only)
+        // QUADRATURE ET CACHING DE REFERENCE (Read-Only)
         // ============================================================
         struct SpaceCache {
             CfemInt contextIndex;
@@ -276,13 +288,14 @@ namespace cfem
             }
 
             for (size_t q = 0; q < lQuadPts.size(); ++q) {
-                refElGeo.evaluate(lQuadPts[q].xi, geoFlags, fastCache[idx].geoShapes[q]);
+                refElGeo.evaluateShapes(lQuadPts[q].xi, geoShapeFlags, fastCache[idx].geoShapes[q]);
                 fastCache[idx].geoShapes[q].shapeMustBeUpdated = false;
 
                 for (size_t sIdx = 0; sIdx < idToSpace.size(); ++sIdx) {
                     CfemInt spaceOrder = idToSpace[sIdx]->getOrderInt();
                     const auto& refElSpace = ReferenceElementFactory::getReferenceElement(cell_type, spaceOrder);
-                    refElSpace.evaluate(lQuadPts[q].xi, geoFlags | fieldFlags, fastCache[idx].spaceCaches[sIdx].shapes[q]);
+                    
+                    refElSpace.evaluateShapes(lQuadPts[q].xi, fieldShapesFlags, fastCache[idx].spaceCaches[sIdx].shapes[q]);
                     fastCache[idx].spaceCaches[sIdx].shapes[q].shapeMustBeUpdated = false;
                 }
             }
@@ -334,7 +347,14 @@ namespace cfem
                 const bool isAffine = (geoOrder == 1) || m_mesh->isCellAffine(cellid);
 
                 if (isAffine) {
-                    refElGeo->computeMapping(lQuadPts[0].xi, physCoords, ShapeEvaluationFlags::Jacobian | normalEvalFlag, cache->geoShapes[0], mapGeo);
+                    // CFEM_INFO << cache->geoShapes[0].gradient(2);
+                    refElGeo->computeMapping(
+                                lQuadPts[0].xi, 
+                                physCoords,
+                                geoMappingFlags, 
+                                cache->geoShapes[0], 
+                                mapGeo
+                            );
                 }
 
                 for (size_t q = 0; q < lQuadPts.size(); ++q)
@@ -342,11 +362,21 @@ namespace cfem
                     const auto &qp = lQuadPts[q];
 
                     if (isAffine) {
-                        refElGeo->computeMapping(qp.xi, physCoords, ShapeEvaluationFlags::PhysicalPosition, cache->geoShapes[q], mapGeo);
+                        refElGeo->computeMapping(
+                                    qp.xi, 
+                                    physCoords, 
+                                    MappingEvaluationFlags::PhysicalPosition, 
+                                    cache->geoShapes[q],
+                                    mapGeo
+                                );
                     } else {
-                        refElGeo->computeMapping(qp.xi, physCoords, 
-                            ShapeEvaluationFlags::PhysicalPosition | ShapeEvaluationFlags::Jacobian | normalEvalFlag, 
-                            cache->geoShapes[q], mapGeo);
+                        refElGeo->computeMapping(
+                                    qp.xi, 
+                                    physCoords, 
+                                    geoMappingFlags, 
+                                    cache->geoShapes[q],
+                                    mapGeo
+                                );
                     }
 
                     const CfemReal wDetJ = mapGeo.detJ * qp.weight;
@@ -355,8 +385,8 @@ namespace cfem
                     auto bookmark = ctx.getBookmark();      // Sauvegarde l'état exact de l'Arena mémoire
 
                     ctx.currentCellId = cellid;
-                    ctx.currentXi = qp.xi;
-                    ctx.physPos = mapGeo.physicalPosition;
+                    ctx.singleWS.xi = qp.xi;
+                    ctx.singleWS.physPos = mapGeo.physicalPosition;
                     ctx.geometricMapping = &mapGeo;
 
                     for (size_t sIdx = 0; sIdx < cache->spaceCaches.size(); ++sIdx) {
@@ -367,9 +397,25 @@ namespace cfem
                         mapSpace.invJacobian = mapGeo.invJacobian;
                         mapSpace.physicalPosition = mapGeo.physicalPosition;
 
-                        if (needsFieldGradients) {
-                            mapSpace.computePhysicalGradientsOnly(spCache.shapes[q]);
+                        // CFEM_INFO << "gradient de reference: ";
+                        // for (CfemInt l = 0; l < 3; ++l)
+                        // {
+                        //     CFEM_INFO
+                        //         << spCache.shapes[q].gradient(l);
+                        // }
+
+                        if (needsFieldFirstDerivatives) {
+                            mapSpace.computePhysicalFirstDerivativesOnly(spCache.shapes[q]);
                         }
+
+                        // CFEM_INFO << "gradient de Physiques: ";
+
+                        // for (CfemInt l = 0; l < 3; ++l)
+                        // {
+                        //     CFEM_INFO
+                        //         << mapSpace.gradient(l);
+                        // }
+
                         ctx.setSpaceData(spCache.contextIndex, &spCache.shapes[q], &mapSpace);
                     }
 
@@ -401,8 +447,9 @@ namespace cfem
         if (targets.empty() || !boundary.containsFacets() || !volume.containsCells()) return;
 
         std::vector<size_t> activeIdx;
-        ShapeEvaluationFlags fieldFlags = ShapeEvaluationFlags::None;
+        ShapeEvaluationFlags fieldShapesFlags = ShapeEvaluationFlags::None;
         std::set<std::shared_ptr<const FESpace>> requiredSpaces;
+        bool fieldsDependsOnGeoNormal = false;
 
         for (size_t i = 0; i < targets.size(); ++i) {
             if (!targets[i].first) continue;
@@ -416,8 +463,10 @@ namespace cfem
 
             if (targets[i].second) *(targets[i].second) = 0.0;
             activeIdx.push_back(i);
-            fieldFlags |= targets[i].first->requiredShapeFlags();
+            fieldShapesFlags |= targets[i].first->requiredShapeFlags();
             targets[i].first->collectRequiredSpaces(requiredSpaces);
+
+            fieldsDependsOnGeoNormal = fieldsDependsOnGeoNormal || targets[i].first->dependsOnNormalGeometricNormal();
         }
         if (activeIdx.empty()) return;
 
@@ -433,9 +482,21 @@ namespace cfem
             targets[idx].first->bind(spaceToId);
         }
 
-        const bool needsFieldGradients = hasFlag(fieldFlags, ShapeEvaluationFlags::Gradient);
-        const ShapeEvaluationFlags geoFlags = ShapeEvaluationFlags::Value | ShapeEvaluationFlags::Jacobian;
-        const ShapeEvaluationFlags normalEvalFlag = hasFlag(fieldFlags, ShapeEvaluationFlags::Normal)? ShapeEvaluationFlags::Normal : ShapeEvaluationFlags::None;
+        // const bool needsFieldFirstDerivatives = hasFlag(fieldShapesFlags, ShapeEvaluationFlags::Gradient);
+        // const ShapeEvaluationFlags geoFlags = ShapeEvaluationFlags::Value | ShapeEvaluationFlags::Jacobian;
+        // const ShapeEvaluationFlags normalEvalFlag = hasFlag(fieldShapesFlags, ShapeEvaluationFlags::Normal)? ShapeEvaluationFlags::Normal : ShapeEvaluationFlags::None;
+
+        const bool needsFieldFirstDerivatives = hasFlag(fieldShapesFlags, ShapeEvaluationFlags::FirstDerivatives);
+        const bool needsFieldSecondDerivatives = hasFlag(fieldShapesFlags, ShapeEvaluationFlags::SecondDerivatives);
+        
+        const MappingEvaluationFlags facetGeoMappingFlags = MappingEvaluationFlags::PhysicalPosition | 
+                                                            MappingEvaluationFlags::Determinant |
+                                                            (fieldsDependsOnGeoNormal? MappingEvaluationFlags::Normal : MappingEvaluationFlags::None);
+        const ShapeEvaluationFlags facetGeoShapeFlags = fieldShapesFlags | transformMappingToShapeFlags(facetGeoMappingFlags);
+        const ShapeEvaluationFlags parentGeoShapeFlags = fieldShapesFlags;
+        const MappingEvaluationFlags parentGeoMappingFlags = transformShapeToMappingFlags(fieldShapesFlags);
+
+
         IntegrationScheme scheme;
 
         struct BoundarySpaceCache {
@@ -482,17 +543,18 @@ namespace cfem
                 {
                     Vector3D xi_parent = refElParentGeo.projectFacetRefCoordToCellRefCoord(f_local, lQuadPts[q].xi);
 
-                    refElFacetGeo.evaluate(lQuadPts[q].xi, geoFlags, entry.geoShapesFacet[q]);
+                    //refElFacetGeo.evaluate(lQuadPts[q].xi, geoFlags, entry.geoShapesFacet[q]);
+                    refElFacetGeo.evaluateShapes(lQuadPts[q].xi, facetGeoShapeFlags, entry.geoShapesFacet[q]);
                     entry.geoShapesFacet[q].shapeMustBeUpdated = false;
                     
-                    refElParentGeo.evaluate(xi_parent, geoFlags, entry.geoShapesParent[q]);
+                    refElParentGeo.evaluateShapes(xi_parent, parentGeoShapeFlags, entry.geoShapesParent[q]);
                     entry.geoShapesParent[q].shapeMustBeUpdated = false;
 
                     for (size_t sIdx = 0; sIdx < idToSpace.size(); ++sIdx) {
                         CfemInt spaceOrder = idToSpace[sIdx]->getOrderInt();
                         
                         const auto& refElSpace = ReferenceElementFactory::getReferenceElement(cType, spaceOrder);
-                        refElSpace.evaluate(xi_parent, geoFlags | fieldFlags, entry.spaceCaches[sIdx].shapes[q]);
+                        refElSpace.evaluateShapes(xi_parent, fieldShapesFlags, entry.spaceCaches[sIdx].shapes[q]);
                         entry.spaceCaches[sIdx].shapes[q].shapeMustBeUpdated = false;
                     }
                 }
@@ -555,8 +617,20 @@ namespace cfem
                 const bool isAffine = (geoOrder == 1) || m_mesh->isCellAffine(parentId);
 
                 if (isAffine) {
-                    refElParentGeo.computeMapping( lQuadPts[0].xi, parentNodes, ShapeEvaluationFlags::Jacobian, cache.geoShapesParent[0], mapParentGeo);
-                    refElFacet.computeMapping(lQuadPts[0].xi, facetNodes, ShapeEvaluationFlags::Jacobian | normalEvalFlag, cache.geoShapesFacet[0], mapSurf);
+                    refElParentGeo.computeMapping(
+                        lQuadPts[0].xi,
+                        parentNodes, 
+                        parentGeoMappingFlags, 
+                        cache.geoShapesParent[0], 
+                        mapParentGeo
+                    );
+                    refElFacet.computeMapping(
+                        lQuadPts[0].xi,
+                        facetNodes, 
+                        facetGeoMappingFlags,
+                        cache.geoShapesFacet[0],
+                        mapSurf
+                    );
                 }
 
                 for (size_t q = 0; q < lQuadPts.size(); ++q)
@@ -567,14 +641,28 @@ namespace cfem
 
                     if (isAffine) {
                         // On ne calcule QUE la position physique, detJ et invJ sont déjà dans mapSurf
-                        refElFacet.computeMapping(qp.xi, facetNodes, ShapeEvaluationFlags::PhysicalPosition, cache.geoShapesFacet[q], mapSurf);
+                        refElFacet.computeMapping(
+                            qp.xi,
+                            facetNodes, 
+                            MappingEvaluationFlags::PhysicalPosition,
+                            cache.geoShapesFacet[q],
+                            mapSurf
+                        );
                     } else {
-                        if (needsFieldGradients) {
-                            refElParentGeo.computeMapping( xi_parent, parentNodes, ShapeEvaluationFlags::Jacobian, cache.geoShapesParent[q], mapParentGeo);
+                        if (needsFieldFirstDerivatives || needsFieldSecondDerivatives) {
+                            refElParentGeo.computeMapping(
+                                xi_parent,
+                                parentNodes,
+                                parentGeoMappingFlags,
+                                cache.geoShapesParent[q],
+                                mapParentGeo
+                            );
                         }
                         // pour une face courbee, on doit recalculer le jacobien de la transformation
-                        refElFacet.computeMapping(qp.xi, facetNodes, 
-                            ShapeEvaluationFlags::PhysicalPosition | ShapeEvaluationFlags::Jacobian | normalEvalFlag,
+                        refElFacet.computeMapping(
+                            qp.xi,
+                            facetNodes, 
+                            facetGeoMappingFlags,
                             cache.geoShapesFacet[q], 
                             mapSurf
                         );
@@ -584,19 +672,19 @@ namespace cfem
                     
                     ctx.resetBuffers(); 
                     ctx.currentCellId = parentId;
-                    ctx.currentXi = xi_parent; 
-                    ctx.physPos = mapSurf.physicalPosition; 
+                    ctx.singleWS.xi = xi_parent; 
+                    ctx.singleWS.physPos = mapSurf.physicalPosition; 
                     ctx.geometricMapping = &mapSurf;
 
                     for (size_t sIdx = 0; sIdx < cache.spaceCaches.size(); ++sIdx) {
                         const auto& spCache = cache.spaceCaches[sIdx];
                         MappingInfo& mapSpace = spaceMappings[sIdx];
 
-                        if (needsFieldGradients) {
+                        if (needsFieldFirstDerivatives) {
                             mapSpace.detJ = mapParentGeo.detJ;
                             mapSpace.invJacobian = mapParentGeo.invJacobian;
                             mapSpace.physicalPosition = mapSurf.physicalPosition; 
-                            mapSpace.computePhysicalGradientsOnly(spCache.shapes[q]);
+                            mapSpace.computePhysicalFirstDerivativesOnly(spCache.shapes[q]);
                         }
                         
                         ctx.setSpaceData(spCache.contextIndex, &spCache.shapes[q], &mapSpace);

@@ -179,7 +179,7 @@ public:
         CFEM_ASSERT(m_boundIndex >= 0, "Argument not bound before evaluation!");
         const auto& data = ctx.getSpaceData(m_boundIndex);
 
-        const ShapeInfo* shape = data.shape;
+        const ShapeInfo* shape = data.shapeSingle;
 
         CFEM_ASSERT(shape != nullptr, "ShapeInfo is null in EvalContext!");
         CFEM_ASSERT(out.size() >= m_space->getNumComponents(), "Output span too small!");
@@ -201,19 +201,21 @@ public:
      */
     virtual void evaluateBasisGradient(CfemInt localDofIdx, std::span<CfemReal> out, EvalContext& ctx) const {
         const auto& data = ctx.getSpaceData(m_boundIndex);
-        const MappingInfo* mapping = data.mapping;
+        const MappingInfo* mapping = data.mappingSingle;
 
         const CfemInt dim = m_space->getNumComponents();
         const CfemInt node = static_cast<int>(localDofIdx / dim);
         const CfemInt comp = static_cast<int>(localDofIdx % dim);
 
-        const auto& g = mapping->physicalShapeGradients[node];
+        const auto& gx = mapping->dN_dx[node];
+        const auto& gy = mapping->dN_dy[node];
+        const auto& gz = mapping->dN_dz[node];
 
         std::fill(out.begin(), out.end(), 0.0);
         // Output span contains full gradient: [dxUx, dyUx, dzUx, dxUy, dyUy, dzUy, dxUz, dyUz, dzUz]
-        out[comp * 3 + 0] = g.x;
-        out[comp * 3 + 1] = g.y;
-        out[comp * 3 + 2] = g.z;
+        out[comp * 3 + 0] = gx;
+        out[comp * 3 + 1] = gy;
+        out[comp * 3 + 2] = gz;
     }
 
     /**

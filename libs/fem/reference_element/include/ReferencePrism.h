@@ -67,6 +67,12 @@ namespace cfem::reference_elem::utils{
 namespace cfem{
 
     class P1ReferencePrism : public ReferenceElement {
+    private:
+        static constexpr CfemInt node_map[3][2] = {
+            {0, 3}, // Nœuds du Triangle 0
+            {1, 4}, // Nœuds du Triangle 1
+            {2, 5}  // Nœuds du Triangle 2
+        };
     public:
         P1ReferencePrism() {
             m_numNodes = 6;
@@ -77,45 +83,174 @@ namespace cfem{
             m_nodes[3] = {0,0, 1}; m_nodes[4] = {1,0, 1}; m_nodes[5] = {0,1, 1};
         }
 
-        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const CfemInt n = 6;
-            if (out.values.size() != n) out.setup(n);
-            if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n)
-                out.hessians.assign(n, SymTensor3D());
+        void evaluateShapesValues(const Vector3D& xi, 
+                            CfemReal* values) const override 
+        {
+            constexpr CfemReal o2 = 0.5;
+            const CfemReal x = xi.x;
+            const CfemReal y = xi.y;
+            const CfemReal z = xi.z;
 
-            const CfemReal r = xi.x, s = xi.y, t = xi.z;
-            
-            // Fonctions Triangle P1
-            CfemReal LT[3] = { 1.0 - r - s, r, s };
-            CfemReal dLT_r[3] = { -1.0, 1.0, 0.0 };
-            CfemReal dLT_s[3] = { -1.0, 0.0, 1.0 };
+            // Fonctions du Triangle P1
+            const CfemReal Nt[3] = {1.0 - x - y, x, y};
+            // Fonctions de la Ligne P1
+            const CfemReal Nl[2] = {o2 * (1.0 - z), o2 * (1.0 + z)};
 
-            // Fonctions Segment P1 (sur t de -1 à 1)
-            CfemReal LZ[2] = { 0.5 * (1.0 - t), 0.5 * (1.0 + t) };
-            CfemReal dLZ_t[2] = { -0.5, 0.5 };
-
-            for (CfemInt i = 0; i < 6; ++i) {
-                CfemInt triIdx = i % 3;      // 0, 1, 2
-                CfemInt zIdx   = i / 3;      // 0 pour Z=-1, 1 pour Z=1
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Value))
-                    out.values[i] = LT[triIdx] * LZ[zIdx];
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
-                    out.gradients[i].x = dLT_r[triIdx] * LZ[zIdx];
-                    out.gradients[i].y = dLT_s[triIdx] * LZ[zIdx];
-                    out.gradients[i].z = LT[triIdx]    * dLZ_t[zIdx];
-                }
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                    out.hessians[i].setZero();
-                    // Dérivées croisées (Plan x Hauteur)
-                    out.hessians[i].xz() = dLT_r[triIdx] * dLZ_t[zIdx];
-                    out.hessians[i].yz() = dLT_s[triIdx] * dLZ_t[zIdx];
-                    // Les dérivées d2N/drds sont nulles ici car Triangle P1 est linéaire.
+            for (CfemInt t = 0; t < 3; ++t) {
+                for (CfemInt l = 0; l < 2; ++l) {
+                    values[node_map[t][l]] = Nt[t] * Nl[l];
                 }
             }
-            out.validFlags = requested;
+        }
+
+        void evaluateShapesDerivatives(const Vector3D& xi, 
+                                 CfemReal* dN_dxi, 
+                                 CfemReal* dN_deta, 
+                                 CfemReal* dN_dzeta) const override 
+        {
+
+            constexpr CfemReal o2 = 0.5;
+
+            const CfemReal x = xi.x;
+            const CfemReal y = xi.y;
+            const CfemReal z = xi.z;
+
+            const CfemReal Nt[3] = {1.0 - x - y, x, y};
+            const CfemReal dNt_dx[3] = {-1.0, 1.0, 0.0};
+            const CfemReal dNt_dy[3] = {-1.0, 0.0, 1.0};
+
+            const CfemReal Nl[2] = {o2 * (1.0 - z), o2 * (1.0 + z)};
+            const CfemReal dNl_dz[2] = {-o2, o2};
+
+            for (CfemInt t = 0; t < 3; ++t) {
+                for (CfemInt l = 0; l < 2; ++l) {
+                    const CfemInt node = node_map[t][l];
+                    dN_dxi[node]   = dNt_dx[t] * Nl[l];
+                    dN_deta[node]  = dNt_dy[t] * Nl[l];
+                    dN_dzeta[node] = Nt[t]     * dNl_dz[l];
+                }
+            }
+        }
+
+        void evaluateShapesSecondDerivatives(const Vector3D& xiPoints,
+                                       CfemReal* d2N_dxi2,
+                                       CfemReal* d2N_deta2,
+                                       CfemReal* d2N_dzeta2,
+                                       CfemReal* d2N_dxideta,
+                                       CfemReal* d2N_dxidzeta,
+                                       CfemReal* d2N_detadzeta) const override 
+        {
+
+            constexpr CfemReal o2 = 0.5;
+
+            const CfemReal dNt_dx[3] = {-1.0, 1.0, 0.0};
+            const CfemReal dNt_dy[3] = {-1.0, 0.0, 1.0};
+            const CfemReal dNl_dz[2] = {-o2, o2};
+
+            for (CfemInt t = 0; t < 3; ++t) {
+                for (CfemInt l = 0; l < 2; ++l) {
+                    const CfemInt node = node_map[t][l];
+                        
+                    // Les dérivées secondes pures sont nulles pour un champ linéaire (P1xP1)
+                    d2N_dxi2[node]    = 0.0;
+                    d2N_deta2[node]   = 0.0;
+                    d2N_dzeta2[node]  = 0.0;
+                    d2N_dxideta[node] = 0.0;
+
+                    // Les dérivées croisées impliquant 'z' survivent au produit tensoriel !
+                    d2N_dxidzeta[node]  = dNt_dx[t] * dNl_dz[l];
+                    d2N_detadzeta[node] = dNt_dy[t] * dNl_dz[l];
+                }
+            }
+        }
+
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D>& xiPoints, 
+                                 DynamicMatrix<CfemReal>& valuesBatch) const override 
+        {
+            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            constexpr CfemReal o2 = 0.5;
+
+            for (CfemInt q = 0; q < nQp; ++q) {
+                const CfemReal x = xiPoints[q].x;
+                const CfemReal y = xiPoints[q].y;
+                const CfemReal z = xiPoints[q].z;
+
+                // Fonctions du Triangle P1
+                const CfemReal Nt[3] = {1.0 - x - y, x, y};
+                // Fonctions de la Ligne P1
+                const CfemReal Nl[2] = {o2 * (1.0 - z), o2 * (1.0 + z)};
+
+                for (CfemInt t = 0; t < 3; ++t) {
+                    for (CfemInt l = 0; l < 2; ++l) {
+                        valuesBatch[q][node_map[t][l]] = Nt[t] * Nl[l];
+                    }
+                }
+            }
+        }
+
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, 
+                                      DynamicMatrix<CfemReal>& dN_dxi, 
+                                      DynamicMatrix<CfemReal>& dN_deta, 
+                                      DynamicMatrix<CfemReal>& dN_dzeta) const override 
+        {
+            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            constexpr CfemReal o2 = 0.5;
+
+            for (CfemInt q = 0; q < nQp; ++q) {
+                const CfemReal x = xiPoints[q].x;
+                const CfemReal y = xiPoints[q].y;
+                const CfemReal z = xiPoints[q].z;
+
+                const CfemReal Nt[3] = {1.0 - x - y, x, y};
+                const CfemReal dNt_dx[3] = {-1.0, 1.0, 0.0};
+                const CfemReal dNt_dy[3] = {-1.0, 0.0, 1.0};
+
+                const CfemReal Nl[2] = {o2 * (1.0 - z), o2 * (1.0 + z)};
+                const CfemReal dNl_dz[2] = {-o2, o2};
+
+                for (CfemInt t = 0; t < 3; ++t) {
+                    for (CfemInt l = 0; l < 2; ++l) {
+                        const CfemInt node = node_map[t][l];
+                        dN_dxi[q][node]   = dNt_dx[t] * Nl[l];
+                        dN_deta[q][node]  = dNt_dy[t] * Nl[l];
+                        dN_dzeta[q][node] = Nt[t]     * dNl_dz[l];
+                    }
+                }
+            }
+        }
+
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D>& xiPoints,
+                                            DynamicMatrix<CfemReal>& d2N_dxi2,   
+                                            DynamicMatrix<CfemReal>& d2N_deta2,  
+                                            DynamicMatrix<CfemReal>& d2N_dzeta2,
+                                            DynamicMatrix<CfemReal>& d2N_dxideta,
+                                            DynamicMatrix<CfemReal>& d2N_dxidzeta,
+                                            DynamicMatrix<CfemReal>& d2N_detadzeta) const override 
+        {
+            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            constexpr CfemReal o2 = 0.5;
+
+            for (CfemInt q = 0; q < nQp; ++q) {
+                const CfemReal dNt_dx[3] = {-1.0, 1.0, 0.0};
+                const CfemReal dNt_dy[3] = {-1.0, 0.0, 1.0};
+                const CfemReal dNl_dz[2] = {-o2, o2};
+
+                for (CfemInt t = 0; t < 3; ++t) {
+                    for (CfemInt l = 0; l < 2; ++l) {
+                        const CfemInt node = node_map[t][l];
+                        
+                        // Les dérivées secondes pures sont nulles pour un champ linéaire (P1xP1)
+                        d2N_dxi2[q][node]    = 0.0;
+                        d2N_deta2[q][node]   = 0.0;
+                        d2N_dzeta2[q][node]  = 0.0;
+                        d2N_dxideta[q][node] = 0.0;
+
+                        // Les dérivées croisées impliquant 'z' survivent au produit tensoriel !
+                        d2N_dxidzeta[q][node]  = dNt_dx[t] * dNl_dz[l];
+                        d2N_detadzeta[q][node] = dNt_dy[t] * dNl_dz[l];
+                    }
+                }
+            }
         }
 
         Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override{
@@ -129,6 +264,53 @@ namespace cfem{
 
 
     class P2ReferencePrism : public ReferenceElement {
+    protected:
+        // Mapping strict selon la connectivité de P2ReferencePrism
+        // t (Triangle P2) : 0..5
+        // l (Ligne P2)    : 0 (-1), 1 (0), 2 (+1)
+        static constexpr CfemInt node_map[6][3] = {
+            {0, 12, 3}, // Sommet 0 (0,0)
+            {1, 13, 4}, // Sommet 1 (1,0)
+            {2, 14, 5}, // Sommet 2 (0,1)
+            {6, 15, 9}, // Milieu  3 (0.5,0)
+            {7, 16, 10},// Milieu  4 (0.5,0.5)
+            {8, 17, 11} // Milieu  5 (0,0.5)
+        };
+
+        // Helper: Triangle P2
+        static inline void eval2D_tri_all(CfemReal x, CfemReal y, 
+                                          CfemReal* N, CfemReal* dNx, CfemReal* dNy, 
+                                          CfemReal* d2Nx, CfemReal* d2Ny, CfemReal* d2Nxy) 
+        {
+            const CfemReal L1 = x, L2 = y, L0 = 1.0 - x - y;
+
+            N[0] = L0 * (2.0*L0 - 1.0);  N[1] = L1 * (2.0*L1 - 1.0);  N[2] = L2 * (2.0*L2 - 1.0);
+            N[3] = 4.0 * L0 * L1;        N[4] = 4.0 * L1 * L2;        N[5] = 4.0 * L2 * L0;
+
+            dNx[0] = -3.0 + 4.0*L1 + 4.0*L2; dNy[0] = -3.0 + 4.0*L1 + 4.0*L2;
+            dNx[1] =  4.0*L1 - 1.0;          dNy[1] =  0.0;
+            dNx[2] =  0.0;                   dNy[2] =  4.0*L2 - 1.0;
+            dNx[3] =  4.0 - 8.0*L1 - 4.0*L2; dNy[3] = -4.0*L1;
+            dNx[4] =  4.0*L2;                dNy[4] =  4.0*L1;
+            dNx[5] = -4.0*L2;                dNy[5] =  4.0 - 4.0*L1 - 8.0*L2;
+
+            d2Nx[0] =  4.0; d2Ny[0] =  4.0; d2Nxy[0] =  4.0;
+            d2Nx[1] =  4.0; d2Ny[1] =  0.0; d2Nxy[1] =  0.0;
+            d2Nx[2] =  0.0; d2Ny[2] =  4.0; d2Nxy[2] =  0.0;
+            d2Nx[3] = -8.0; d2Ny[3] =  0.0; d2Nxy[3] = -4.0;
+            d2Nx[4] =  0.0; d2Ny[4] =  0.0; d2Nxy[4] =  4.0;
+            d2Nx[5] =  0.0; d2Ny[5] = -8.0; d2Nxy[5] = -4.0;
+        }
+
+        // Helper: Ligne P2 (Ordre -1.0, 0.0, 1.0)
+        static inline void eval1D_line_all(CfemReal z, CfemReal* N, CfemReal* dNz, CfemReal* d2Nz) 
+        {
+            const CfemReal z2 = z * z;
+            N[0] = 0.5 * (z2 - z); dNz[0] = z - 0.5;  d2Nz[0] = 1.0;
+            N[1] = 1.0 - z2;       dNz[1] = -2.0 * z; d2Nz[1] = -2.0;
+            N[2] = 0.5 * (z2 + z); dNz[2] = z + 0.5;  d2Nz[2] = 1.0;
+        }
+
     public:
         P2ReferencePrism() {
             m_numNodes = 18;
@@ -150,65 +332,147 @@ namespace cfem{
             m_nodes[15]= {0.5, 0.0,  0.0}; m_nodes[16]= {0.5, 0.5,  0.0}; m_nodes[17]= {0.0, 0.5,  0.0};
         }
 
-        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const CfemInt n = 18;
-            if (out.values.size() != n) out.setup(n);
-            if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
-                out.hessians.assign(n, SymTensor3D());
-            }
+        void evaluateShapesValues(const Vector3D& xi, 
+                            CfemReal* values) const override 
+        {
+            CfemReal Nt[6], dNtx[6], dNty[6], d2Ntx[6], d2Nty[6], d2Ntxy[6];
+            CfemReal Nl[3], dNlz[3], d2Nlz[3];
 
-            const CfemReal r = xi.x;
-            const CfemReal s = xi.y;
-            const CfemReal t = xi.z;
-            const CfemReal L0 = 1.0 - r - s;
+            eval2D_tri_all(xi.x, xi.y, Nt, dNtx, dNty, d2Ntx, d2Nty, d2Ntxy);
+            eval1D_line_all(xi.z, Nl, dNlz, d2Nlz);
 
-            // Fonctions 2D Triangle P2
-            CfemReal fT[6]   = { L0*(2*L0-1), r*(2*r-1), s*(2*s-1), 4*r*L0, 4*r*s, 4*s*L0 };
-            CfemReal dfTr[6] = { -3.0+4*r+4*s, 4*r-1, 0, 4-8*r-4*s, 4*s, -4*s };
-            CfemReal dfTs[6] = { -3.0+4*r+4*s, 0, 4*s-1, -4*r, 4*r, 4-4*r-8*s };
-            
-            // Hessiennes constantes du triangle P2 (d2N/dr2, d2N/ds2, d2N/drds)
-            static const CfemReal hT[6][3] = {
-                {4, 4, 4}, {4, 0, 0}, {0, 4, 0}, {-8, 0, -4}, {0, 0, 4}, {0, -8, -4}
-            };
-
-            // Fonctions 1D Segment P2 (sur t)
-            CfemReal fZ[3]   = { 0.5*t*(t-1), 0.5*t*(t+1), 1-t*t }; // Bas, Haut, Milieu
-            CfemReal dfZt[3] = { t-0.5, t+0.5, -2.0*t };
-            CfemReal ddfZtt[3]= { 1.0, 1.0, -2.0 };
-
-            // Mapping Topologique VTK (Index Triangle, Index Segment)
-            static const CfemInt mapT[18] = {0,1,2, 0,1,2, 3,4,5, 3,4,5, 0,1,2, 3,4,5};
-            static const CfemInt mapZ[18] = {0,0,0, 1,1,1, 0,0,0, 1,1,1, 2,2,2, 2,2,2};
-
-            for (CfemInt i = 0; i < 18; ++i) {
-                CfemInt iT = mapT[i];
-                CfemInt iZ = mapZ[i];
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
-                    out.values[i] = fT[iT] * fZ[iZ];
-                }
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
-                    out.gradients[i].x = dfTr[iT] * fZ[iZ];
-                    out.gradients[i].y = dfTs[iT] * fZ[iZ];
-                    out.gradients[i].z = fT[iT]   * dfZt[iZ];
-                }
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                    out.hessians[i].setZero();
-                    // d2N/dr2, d2N/ds2, d2N/drds
-                    out.hessians[i].xx() = hT[iT][0] * fZ[iZ];
-                    out.hessians[i].yy() = hT[iT][1] * fZ[iZ];
-                    out.hessians[i].xy() = hT[iT][2] * fZ[iZ];
-                    // d2N/dt2
-                    out.hessians[i].zz() = fT[iT] * ddfZtt[iZ];
-                    // Croisées (Plan x t)
-                    out.hessians[i].xz() = dfTr[iT] * dfZt[iZ];
-                    out.hessians[i].yz() = dfTs[iT] * dfZt[iZ];
+            for (CfemInt t = 0; t < 6; ++t) {
+                for (CfemInt l = 0; l < 3; ++l) {
+                    values[node_map[t][l]] = Nt[t] * Nl[l];
                 }
             }
-            out.validFlags = requested;
+        }
+
+        void evaluateShapesDerivatives(const Vector3D& xi, 
+                                 CfemReal* dN_dxi, 
+                                 CfemReal* dN_deta, 
+                                 CfemReal* dN_dzeta) const override 
+        {
+            CfemReal Nt[6], dNtx[6], dNty[6], d2Ntx[6], d2Nty[6], d2Ntxy[6];
+            CfemReal Nl[3], dNlz[3], d2Nlz[3];
+
+            eval2D_tri_all(xi.x, xi.y, Nt, dNtx, dNty, d2Ntx, d2Nty, d2Ntxy);
+            eval1D_line_all(xi.z, Nl, dNlz, d2Nlz);
+
+            for (CfemInt t = 0; t < 6; ++t) {
+                for (CfemInt l = 0; l < 3; ++l) {
+                    const CfemInt node = node_map[t][l];
+                    dN_dxi[node]   = dNtx[t] * Nl[l];
+                    dN_deta[node]  = dNty[t] * Nl[l];
+                    dN_dzeta[node] = Nt[t]   * dNlz[l];
+                }
+            }
+        }
+
+        void evaluateShapesSecondDerivatives(const Vector3D& xi,
+                                       CfemReal* d2N_dxi2,
+                                       CfemReal* d2N_deta2,
+                                       CfemReal* d2N_dzeta2,
+                                       CfemReal* d2N_dxideta,
+                                       CfemReal* d2N_dxidzeta,
+                                       CfemReal* d2N_detadzeta) const override 
+        {
+            CfemReal Nt[6], dNtx[6], dNty[6], d2Ntx[6], d2Nty[6], d2Ntxy[6];
+            CfemReal Nl[3], dNlz[3], d2Nlz[3];
+
+            eval2D_tri_all(xi.x, xi.y, Nt, dNtx, dNty, d2Ntx, d2Nty, d2Ntxy);
+            eval1D_line_all(xi.z, Nl, dNlz, d2Nlz);
+
+            for (CfemInt t = 0; t < 6; ++t) {
+                for (CfemInt l = 0; l < 3; ++l) {
+                    const CfemInt node = node_map[t][l];
+                    
+                    // Règle du produit tensoriel pour les dérivées secondes
+                    d2N_dxi2[node]      = d2Ntx[t]  * Nl[l];
+                    d2N_deta2[node]     = d2Nty[t]  * Nl[l];
+                    d2N_dzeta2[node]    = Nt[t]     * d2Nlz[l];
+                        
+                    d2N_dxideta[node]   = d2Ntxy[t] * Nl[l];
+                    d2N_dxidzeta[node]  = dNtx[t]   * dNlz[l];
+                    d2N_detadzeta[node] = dNty[t]   * dNlz[l];
+                }
+            }
+        }
+
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D>& xiPoints, 
+                                DynamicMatrix<CfemReal>& valuesBatch) const override 
+        {
+            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            for (CfemInt q = 0; q < nQp; ++q) {
+                CfemReal Nt[6], dNtx[6], dNty[6], d2Ntx[6], d2Nty[6], d2Ntxy[6];
+                CfemReal Nl[3], dNlz[3], d2Nlz[3];
+
+                eval2D_tri_all(xiPoints[q].x, xiPoints[q].y, Nt, dNtx, dNty, d2Ntx, d2Nty, d2Ntxy);
+                eval1D_line_all(xiPoints[q].z, Nl, dNlz, d2Nlz);
+
+                for (CfemInt t = 0; t < 6; ++t) {
+                    for (CfemInt l = 0; l < 3; ++l) {
+                        valuesBatch[q][node_map[t][l]] = Nt[t] * Nl[l];
+                    }
+                }
+            }
+        }
+
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, 
+                                    DynamicMatrix<CfemReal>& dN_dxi, 
+                                    DynamicMatrix<CfemReal>& dN_deta, 
+                                    DynamicMatrix<CfemReal>& dN_dzeta) const override 
+        {
+            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            for (CfemInt q = 0; q < nQp; ++q) {
+                CfemReal Nt[6], dNtx[6], dNty[6], d2Ntx[6], d2Nty[6], d2Ntxy[6];
+                CfemReal Nl[3], dNlz[3], d2Nlz[3];
+
+                eval2D_tri_all(xiPoints[q].x, xiPoints[q].y, Nt, dNtx, dNty, d2Ntx, d2Nty, d2Ntxy);
+                eval1D_line_all(xiPoints[q].z, Nl, dNlz, d2Nlz);
+
+                for (CfemInt t = 0; t < 6; ++t) {
+                    for (CfemInt l = 0; l < 3; ++l) {
+                        const CfemInt node = node_map[t][l];
+                        dN_dxi[q][node]   = dNtx[t] * Nl[l];
+                        dN_deta[q][node]  = dNty[t] * Nl[l];
+                        dN_dzeta[q][node] = Nt[t]   * dNlz[l];
+                    }
+                }
+            }
+        }
+
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D>& xiPoints,
+                                            DynamicMatrix<CfemReal>& d2N_dxi2,
+                                            DynamicMatrix<CfemReal>& d2N_deta2,
+                                            DynamicMatrix<CfemReal>& d2N_dzeta2,
+                                            DynamicMatrix<CfemReal>& d2N_dxideta,
+                                            DynamicMatrix<CfemReal>& d2N_dxidzeta,
+                                            DynamicMatrix<CfemReal>& d2N_detadzeta) const override 
+        {
+            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            for (CfemInt q = 0; q < nQp; ++q) {
+                CfemReal Nt[6], dNtx[6], dNty[6], d2Ntx[6], d2Nty[6], d2Ntxy[6];
+                CfemReal Nl[3], dNlz[3], d2Nlz[3];
+
+                eval2D_tri_all(xiPoints[q].x, xiPoints[q].y, Nt, dNtx, dNty, d2Ntx, d2Nty, d2Ntxy);
+                eval1D_line_all(xiPoints[q].z, Nl, dNlz, d2Nlz);
+
+                for (CfemInt t = 0; t < 6; ++t) {
+                    for (CfemInt l = 0; l < 3; ++l) {
+                        const CfemInt node = node_map[t][l];
+                        
+                        // Règle du produit tensoriel pour les dérivées secondes
+                        d2N_dxi2[q][node]      = d2Ntx[t]  * Nl[l];
+                        d2N_deta2[q][node]     = d2Nty[t]  * Nl[l];
+                        d2N_dzeta2[q][node]    = Nt[t]     * d2Nlz[l];
+                        
+                        d2N_dxideta[q][node]   = d2Ntxy[t] * Nl[l];
+                        d2N_dxidzeta[q][node]  = dNtx[t]   * dNlz[l];
+                        d2N_detadzeta[q][node] = dNty[t]   * dNlz[l];
+                    }
+                }
+            }
         }
 
         Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override{
@@ -231,66 +495,275 @@ namespace cfem{
             m_nodes[6]={1.0/3.0, 1.0/3.0, 0.0}; // Bulle
         }
 
-        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const CfemInt n = 7;
-            if (out.values.size() != n) out.setup(n);
-            if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n)
-                out.hessians.assign(n, SymTensor3D());
+        void evaluateShapesValues(const Vector3D& xi, 
+                            CfemReal* values) const override 
+        {
+            constexpr CfemReal o6 = 1.0 / 6.0;
 
-            const CfemReal r = xi.x, s = xi.y, t = xi.z;
+            const CfemReal r = xi.x;
+            const CfemReal s = xi.y;
+            const CfemReal t = xi.z;
+
             const CfemReal L[3] = {1.0 - r - s, r, s};
+            const CfemReal M[2] = {0.5 * (1.0 - t), 0.5 * (1.0 + t)};
+
+            // Calcul de la Bulle (Nœud 6)
             const CfemReal triB = 27.0 * L[0] * L[1] * L[2];
-            const CfemReal zB = 1.0 - t*t;
-
-            // 1. Calcul de la Bulle (Nœud 6)
+            const CfemReal zB = 1.0 - t * t;
             const CfemReal B = triB * zB;
-            Vector3D gB = { 27.0 * s * (1.0 - 2.0*r - s) * zB, 
-                            27.0 * r * (1.0 - r - 2.0*s) * zB, 
-                            triB * (-2.0 * t) };
-            
-            SymTensor3D hB; hB.setZero();
-            if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                hB.xx() = -54.0 * s * zB;
-                hB.yy() = -54.0 * r * zB;
-                hB.zz() = -2.0 * triB;
-                hB.xy() = 27.0 * (1.0 - 2.0*r - 2.0*s) * zB;
-                hB.xz() = gB.x / zB * (-2.0 * t);
-                hB.yz() = gB.y / zB * (-2.0 * t);
-            }
 
-            // 2. Fonctions des Sommets (0-5) corrigées par -B/6
-            const CfemReal M[2] = {0.5*(1.0-t), 0.5*(1.0+t)};
+            values[6] = B;
+
+            // 2. Fonctions des Sommets (0-5) avec correction
+            const CfemReal correction = B * o6;
+            for (CfemInt i = 0; i < 6; ++i) {
+                const CfemInt iT = i % 3;
+                const CfemInt iZ = i / 3;
+                values[i] = L[iT] * M[iZ] - correction;
+            }
+        }
+
+        void evaluateShapesDerivatives(const Vector3D& xi,
+                                 CfemReal* dN_dxi, 
+                                 CfemReal* dN_deta, 
+                                 CfemReal* dN_dzeta) const override 
+        {
+            constexpr CfemReal o6 = 1.0 / 6.0;
+
+            const CfemReal r = xi.x;
+            const CfemReal s = xi.y;
+            const CfemReal t = xi.z;
+
+            const CfemReal L[3] = {1.0 - r - s, r, s};
+            const CfemReal M[2] = {0.5 * (1.0 - t), 0.5 * (1.0 + t)};
             const CfemReal dM[2] = {-0.5, 0.5};
 
+            // Gradients de la bulle
+            const CfemReal triB = 27.0 * L[0] * L[1] * L[2];
+            const CfemReal zB = 1.0 - t * t;
+
+            const CfemReal gBx = 27.0 * s * (1.0 - 2.0*r - s) * zB;
+            const CfemReal gBy = 27.0 * r * (1.0 - r - 2.0*s) * zB;
+            const CfemReal gBz = triB * (-2.0 * t);
+
+            dN_dxi[6]   = gBx;
+            dN_deta[6]  = gBy;
+            dN_dzeta[6] = gBz;
+
+                // Gradients des sommets avec correction
+            const CfemReal c_dx = gBx * o6;
+            const CfemReal c_dy = gBy * o6;
+            const CfemReal c_dz = gBz * o6;
+
             for (CfemInt i = 0; i < 6; ++i) {
-                CfemInt iT = i % 3, iZ = i / 3;
-                CfemReal drL = (iT==0?-1:(iT==1?1:0)), dsL = (iT==0?-1:(iT==2?1:0));
+                const CfemInt iT = i % 3;
+                const CfemInt iZ = i / 3;
+                const CfemReal drL = (iT == 0 ? -1.0 : (iT == 1 ? 1.0 : 0.0));
+                const CfemReal dsL = (iT == 0 ? -1.0 : (iT == 2 ? 1.0 : 0.0));
 
-                if (hasFlag(requested, ShapeEvaluationFlags::Value))
-                    out.values[i] = L[iT] * M[iZ] - B / 6.0;
+                dN_dxi[i]   = drL * M[iZ] - c_dx;
+                dN_deta[i]  = dsL * M[iZ] - c_dy;
+                dN_dzeta[i] = L[iT] * dM[iZ] - c_dz;
+            }
+        }
 
-                if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
-                    out.gradients[i].x = drL * M[iZ] - gB.x / 6.0;
-                    out.gradients[i].y = dsL * M[iZ] - gB.y / 6.0;
-                    out.gradients[i].z = L[iT] * dM[iZ] - gB.z / 6.0;
-                }
+        void evaluateShapesSecondDerivatives(const Vector3D& xi,
+                                            CfemReal* d2N_dxi2,   
+                                            CfemReal* d2N_deta2,
+                                            CfemReal* d2N_dzeta2,
+                                            CfemReal* d2N_dxideta,
+                                            CfemReal* d2N_dxidzeta,
+                                            CfemReal* d2N_detadzeta) const override 
+        {
+            constexpr CfemReal o6 = 1.0 / 6.0;
 
-                if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                    out.hessians[i].setZero();
-                    out.hessians[i].xz() = drL * dM[iZ] - hB.xz() / 6.0;
-                    out.hessians[i].yz() = dsL * dM[iZ] - hB.yz() / 6.0;
-                    out.hessians[i].xx() = -hB.xx() / 6.0;
-                    out.hessians[i].yy() = -hB.yy() / 6.0;
-                    out.hessians[i].zz() = -hB.zz() / 6.0;
-                    out.hessians[i].xy() = -hB.xy() / 6.0;
+            const CfemReal r = xi.x;
+            const CfemReal s = xi.y;
+            const CfemReal t = xi.z;
+
+            const CfemReal L[3] = {1.0 - r - s, r, s};
+            const CfemReal dM[2] = {-0.5, 0.5};
+
+            const CfemReal triB = 27.0 * L[0] * L[1] * L[2];
+            const CfemReal zB = 1.0 - t * t;
+
+            // Hessiens de la bulle (calculs simplifiés sans divisions par zéro)
+            const CfemReal hBxx = -54.0 * s * zB;
+            const CfemReal hByy = -54.0 * r * zB;
+            const CfemReal hBzz = -2.0 * triB;
+            const CfemReal hBxy =  27.0 * (1.0 - 2.0*r - 2.0*s) * zB;
+            const CfemReal hBxz = -54.0 * s * t * (1.0 - 2.0*r - s); // CORRECTION: evite (gBx / zB) * (-2t)
+            const CfemReal hByz = -54.0 * r * t * (1.0 - r - 2.0*s); // CORRECTION: evite (gBy / zB) * (-2t)
+
+            d2N_dxi2[6]      = hBxx;
+            d2N_deta2[6]     = hByy;
+            d2N_dzeta2[6]    = hBzz;
+            d2N_dxideta[6]   = hBxy;
+            d2N_dxidzeta[6]  = hBxz;
+            d2N_detadzeta[6] = hByz;
+
+            // Hessiens des sommets avec correction
+            const CfemReal c_xx = hBxx * o6;
+            const CfemReal c_yy = hByy * o6;
+            const CfemReal c_zz = hBzz * o6;
+            const CfemReal c_xy = hBxy * o6;
+            const CfemReal c_xz = hBxz * o6;
+            const CfemReal c_yz = hByz * o6;
+
+            for (CfemInt i = 0; i < 6; ++i) {
+                const CfemInt iT = i % 3;
+                const CfemInt iZ = i / 3;
+                const CfemReal drL = (iT == 0 ? -1.0 : (iT == 1 ? 1.0 : 0.0));
+                const CfemReal dsL = (iT == 0 ? -1.0 : (iT == 2 ? 1.0 : 0.0));
+
+                d2N_dxi2[i]      = -c_xx;
+                d2N_deta2[i]     = -c_yy;
+                d2N_dzeta2[i]    = -c_zz;
+                d2N_dxideta[i]   = -c_xy;
+                // La partie croisée linéaire-linéaire n'est non nulle que pour les couples impliquant z
+                d2N_dxidzeta[i]  = drL * dM[iZ] - c_xz;
+                d2N_detadzeta[i] = dsL * dM[iZ] - c_yz;
+            }
+        }
+
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D>& xiPoints, 
+                                DynamicMatrix<CfemReal>& valuesBatch) const override 
+        {
+            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            constexpr CfemReal o6 = 1.0 / 6.0;
+
+            for (CfemInt q = 0; q < nQp; ++q) {
+                const CfemReal r = xiPoints[q].x;
+                const CfemReal s = xiPoints[q].y;
+                const CfemReal t = xiPoints[q].z;
+
+                const CfemReal L[3] = {1.0 - r - s, r, s};
+                const CfemReal M[2] = {0.5 * (1.0 - t), 0.5 * (1.0 + t)};
+
+                // 1. Calcul de la Bulle (Nœud 6)
+                const CfemReal triB = 27.0 * L[0] * L[1] * L[2];
+                const CfemReal zB = 1.0 - t * t;
+                const CfemReal B = triB * zB;
+
+                valuesBatch[q][6] = B;
+
+                // 2. Fonctions des Sommets (0-5) avec correction
+                const CfemReal correction = B * o6;
+                for (CfemInt i = 0; i < 6; ++i) {
+                    const CfemInt iT = i % 3;
+                    const CfemInt iZ = i / 3;
+                    valuesBatch[q][i] = L[iT] * M[iZ] - correction;
                 }
             }
+        }
 
-            if (hasFlag(requested, ShapeEvaluationFlags::Value))    out.values[6] = B;
-            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) out.gradients[6] = gB;
-            if (hasFlag(requested, ShapeEvaluationFlags::Hessian))  out.hessians[6] = hB;
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, 
+                                    DynamicMatrix<CfemReal>& dN_dxi, 
+                                    DynamicMatrix<CfemReal>& dN_deta, 
+                                    DynamicMatrix<CfemReal>& dN_dzeta) const override 
+        {
+            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            constexpr CfemReal o6 = 1.0 / 6.0;
 
-            out.validFlags = requested;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                const CfemReal r = xiPoints[q].x;
+                const CfemReal s = xiPoints[q].y;
+                const CfemReal t = xiPoints[q].z;
+
+                const CfemReal L[3] = {1.0 - r - s, r, s};
+                const CfemReal M[2] = {0.5 * (1.0 - t), 0.5 * (1.0 + t)};
+                const CfemReal dM[2] = {-0.5, 0.5};
+
+                // Gradients de la bulle
+                const CfemReal triB = 27.0 * L[0] * L[1] * L[2];
+                const CfemReal zB = 1.0 - t * t;
+
+                const CfemReal gBx = 27.0 * s * (1.0 - 2.0*r - s) * zB;
+                const CfemReal gBy = 27.0 * r * (1.0 - r - 2.0*s) * zB;
+                const CfemReal gBz = triB * (-2.0 * t);
+
+                dN_dxi[q][6]   = gBx;
+                dN_deta[q][6]  = gBy;
+                dN_dzeta[q][6] = gBz;
+
+                // Gradients des sommets avec correction
+                const CfemReal c_dx = gBx * o6;
+                const CfemReal c_dy = gBy * o6;
+                const CfemReal c_dz = gBz * o6;
+
+                for (CfemInt i = 0; i < 6; ++i) {
+                    const CfemInt iT = i % 3;
+                    const CfemInt iZ = i / 3;
+                    const CfemReal drL = (iT == 0 ? -1.0 : (iT == 1 ? 1.0 : 0.0));
+                    const CfemReal dsL = (iT == 0 ? -1.0 : (iT == 2 ? 1.0 : 0.0));
+
+                    dN_dxi[q][i]   = drL * M[iZ] - c_dx;
+                    dN_deta[q][i]  = dsL * M[iZ] - c_dy;
+                    dN_dzeta[q][i] = L[iT] * dM[iZ] - c_dz;
+                }
+            }
+        }
+
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D>& xiPoints,
+                                            DynamicMatrix<CfemReal>& d2N_dxi2,   
+                                            DynamicMatrix<CfemReal>& d2N_deta2,  
+                                            DynamicMatrix<CfemReal>& d2N_dzeta2,
+                                            DynamicMatrix<CfemReal>& d2N_dxideta,
+                                            DynamicMatrix<CfemReal>& d2N_dxidzeta,
+                                            DynamicMatrix<CfemReal>& d2N_detadzeta) const override 
+        {
+            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            constexpr CfemReal o6 = 1.0 / 6.0;
+
+            for (CfemInt q = 0; q < nQp; ++q) {
+                const CfemReal r = xiPoints[q].x;
+                const CfemReal s = xiPoints[q].y;
+                const CfemReal t = xiPoints[q].z;
+
+                const CfemReal L[3] = {1.0 - r - s, r, s};
+                const CfemReal dM[2] = {-0.5, 0.5};
+
+                const CfemReal triB = 27.0 * L[0] * L[1] * L[2];
+                const CfemReal zB = 1.0 - t * t;
+
+                // Hessiens de la bulle (calculs simplifiés sans divisions par zéro)
+                const CfemReal hBxx = -54.0 * s * zB;
+                const CfemReal hByy = -54.0 * r * zB;
+                const CfemReal hBzz = -2.0 * triB;
+                const CfemReal hBxy =  27.0 * (1.0 - 2.0*r - 2.0*s) * zB;
+                const CfemReal hBxz = -54.0 * s * t * (1.0 - 2.0*r - s); // CORRECTION: evite (gBx / zB) * (-2t)
+                const CfemReal hByz = -54.0 * r * t * (1.0 - r - 2.0*s); // CORRECTION: evite (gBy / zB) * (-2t)
+
+                d2N_dxi2[q][6]      = hBxx;
+                d2N_deta2[q][6]     = hByy;
+                d2N_dzeta2[q][6]    = hBzz;
+                d2N_dxideta[q][6]   = hBxy;
+                d2N_dxidzeta[q][6]  = hBxz;
+                d2N_detadzeta[q][6] = hByz;
+
+                // Hessiens des sommets avec correction
+                const CfemReal c_xx = hBxx * o6;
+                const CfemReal c_yy = hByy * o6;
+                const CfemReal c_zz = hBzz * o6;
+                const CfemReal c_xy = hBxy * o6;
+                const CfemReal c_xz = hBxz * o6;
+                const CfemReal c_yz = hByz * o6;
+
+                for (CfemInt i = 0; i < 6; ++i) {
+                    const CfemInt iT = i % 3;
+                    const CfemInt iZ = i / 3;
+                    const CfemReal drL = (iT == 0 ? -1.0 : (iT == 1 ? 1.0 : 0.0));
+                    const CfemReal dsL = (iT == 0 ? -1.0 : (iT == 2 ? 1.0 : 0.0));
+
+                    d2N_dxi2[q][i]      = -c_xx;
+                    d2N_deta2[q][i]     = -c_yy;
+                    d2N_dzeta2[q][i]    = -c_zz;
+                    d2N_dxideta[q][i]   = -c_xy;
+                    // La partie croisée linéaire-linéaire n'est non nulle que pour les couples impliquant z
+                    d2N_dxidzeta[q][i]  = drL * dM[iZ] - c_xz;
+                    d2N_detadzeta[q][i] = dsL * dM[iZ] - c_yz;
+                }
+            }
         }
 
         Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
@@ -306,31 +779,85 @@ namespace cfem{
         P0ReferencePrism() {
             m_numNodes = 1;
             m_dimension = 3;
-            m_nodes.resize(m_numNodes);
+
             // Un seul nœud au centre de gravité du prisme de référence
             // Triangle base (0,0), (1,0), (0,1) -> (1/3, 1/3)
             // Segment Z de -1 à 1 -> 0
-            m_nodes = { {1.0/3.0, 1.0/3.0, 0.0} };
+            m_nodes = { Vector3D{1.0/3.0, 1.0/3.0, 0.0} };
         }
 
-        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const CfemInt n = 1;
-            if (out.values.size() != n) out.setup(n);
+        void evaluateShapesValues(const Vector3D&, CfemReal* values) const override 
+        {
+            values[0] = 1.0;
+        }
 
-            if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
-                out.values[0] = 1.0;
+        void evaluateShapesDerivatives(const Vector3D&, 
+                                 CfemReal* dN_dxi, 
+                                 CfemReal* dN_deta, 
+                                 CfemReal* dN_dzeta) const override 
+        {
+            dN_dxi[0]   = 0.0;
+            dN_deta[0]  = 0.0;
+            dN_dzeta[0] = 0.0;
+        }
+
+        void evaluateShapesSecondDerivatives(const Vector3D&,
+                                       CfemReal* d2N_dxi2, 
+                                       CfemReal* d2N_deta2, 
+                                       CfemReal* d2N_dzeta2,
+                                       CfemReal* d2N_dxideta, 
+                                       CfemReal* d2N_dxidzeta, 
+                                       CfemReal* d2N_detadzeta) const override 
+        {
+            d2N_dxi2[0]      = 0.0;
+            d2N_deta2[0]     = 0.0;
+            d2N_dzeta2[0]    = 0.0;
+            d2N_dxideta[0]   = 0.0;
+            d2N_dxidzeta[0]  = 0.0;
+            d2N_detadzeta[0] = 0.0;
+        }
+
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D> &xiPoints, DynamicMatrix<CfemReal>& values) const override
+        {
+            // Constant piecewise field value
+            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            for (CfemInt q = 0; q < nQp; ++q) {
+                values[q][0] = 1.0;
             }
+        }
 
-            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
-                out.gradients[0] = Vector3D{0.0, 0.0, 0.0};
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D> & xiPoints, 
+                                      DynamicMatrix<CfemReal> &dN_dxi, 
+                                      DynamicMatrix<CfemReal> &dN_deta, 
+                                      DynamicMatrix<CfemReal> &dN_dzeta) const override
+        {
+            // Constant function results in flat zero gradients everywhere
+            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            for (CfemInt q = 0; q < nQp; ++q) {
+                dN_dxi[q][0]   = 0.0;
+                dN_deta[q][0]  = 0.0;
+                dN_dzeta[q][0] = 0.0;
             }
+        }
 
-            if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                if (out.hessians.size() != n) out.hessians.assign(n, SymTensor3D());
-                out.hessians[0].setZero();
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D> &xiPoints,
+                                            DynamicMatrix<CfemReal> &d2N_dxi2, 
+                                            DynamicMatrix<CfemReal> &d2N_deta2, 
+                                            DynamicMatrix<CfemReal> &d2N_dzeta2,
+                                            DynamicMatrix<CfemReal> &d2N_dxideta, 
+                                            DynamicMatrix<CfemReal> &d2N_dxidzeta, 
+                                            DynamicMatrix<CfemReal> &d2N_detadzeta) const override
+        {
+            // Flat null second derivatives
+            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            for (CfemInt q = 0; q < nQp; ++q) {
+                d2N_dxi2[q][0]      = 0.0;
+                d2N_deta2[q][0]     = 0.0;
+                d2N_dzeta2[q][0]    = 0.0;
+                d2N_dxideta[q][0]   = 0.0;
+                d2N_dxidzeta[q][0]  = 0.0;
+                d2N_detadzeta[q][0] = 0.0;
             }
-
-            out.validFlags = requested;
         }
 
         Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {

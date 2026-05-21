@@ -60,7 +60,7 @@ namespace cfem::sym
                 out[0] = ctx.currentTime; return;
             }
 
-            const Vector3D& globalX = ctx.physPos;
+            const Vector3D& globalX = ctx.singleWS.physPos;
             out[0] = globalX[m_dimIndex];
         }
 

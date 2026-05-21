@@ -18,7 +18,6 @@
 
 #include "FESpace.h"
 #include "Mesh.h"
-#include "ReferenceElements.h"
 
 namespace cfem
 {
@@ -87,6 +86,10 @@ namespace cfem
                 it = m_observers.erase(it);
             }
         }
+    }
+
+    const ReferenceElement& FESpace::getReferenceElement(CfemInt cellId) const{
+        return ReferenceElementFactory::getReferenceElement(m_mesh->getCell(cellId).type, getOrderInt());
     }
 
 } // namespace cfem

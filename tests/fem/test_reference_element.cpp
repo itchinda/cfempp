@@ -98,7 +98,7 @@ TEST_P(ReferenceElementTest, KroneckerDeltaProperty) {
     CfemInt n = el->getNumNodes();
 
     for (CfemInt j = 0; j < n; ++j) {
-        el->evaluate(nodes[j], ShapeEvaluationFlags::Value, info);
+        el->evaluateShapes(nodes[j], ShapeEvaluationFlags::Value, info);
         for (CfemInt i = 0; i < n; ++i) {
             CfemReal expected = (i == j) ? 1.0 : 0.0;
             EXPECT_NEAR(info.values[i], expected, tol) 
@@ -114,7 +114,7 @@ TEST_P(ReferenceElementTest, PartitionOfUnity) {
     DynamicVector<Vector3D> test_points = getTestPointsForDim(dim);
 
     for (const auto& xi : test_points) {
-        el->evaluate(xi, ShapeEvaluationFlags::Value, info);
+        el->evaluateShapes(xi, ShapeEvaluationFlags::Value, info);
         
         CfemReal sum = 0.0;
         for (CfemInt i = 0; i < el->getNumNodes(); ++i) {
@@ -136,13 +136,11 @@ TEST_P(ReferenceElementTest, GradientSumIsZero) {
 
     for (const auto& xi : test_points){
 
-        el->evaluate(xi, ShapeEvaluationFlags::Gradient, info);
+        el->evaluateShapes(xi, ShapeEvaluationFlags::FirstDerivatives, info);
         
         Vector3D gradSum{0.0, 0.0, 0.0};
         for (CfemInt i = 0; i < el->getNumNodes(); ++i) {
-            gradSum.x += info.gradients[i].x;
-            gradSum.y += info.gradients[i].y;
-            gradSum.z += info.gradients[i].z;
+            gradSum += info.gradient(i);
         }
 
         EXPECT_NEAR(gradSum.x, 0.0, tol);
@@ -165,7 +163,7 @@ TEST_P(ReferenceElementTest, HessianFullConsistency) {
     ShapeInfo info, infoPlus, infoMinus;
 
     for (const auto& xi : test_points) {
-        el->evaluate(xi, ShapeEvaluationFlags::Hessian | ShapeEvaluationFlags::Gradient, info);
+        el->evaluateShapes(xi, ShapeEvaluationFlags::FirstDerivatives | ShapeEvaluationFlags::SecondDerivatives, info);
 
         for (CfemInt i = 0; i < n; ++i) {
             for (CfemInt r = 0; r < dim; ++r) {
@@ -178,16 +176,16 @@ TEST_P(ReferenceElementTest, HessianFullConsistency) {
                     else if (c == 1) { xiPlus.y += eps; xiMinus.y -= eps; }
                     else if (c == 2) { xiPlus.z += eps; xiMinus.z -= eps; }
 
-                    el->evaluate(xiPlus, ShapeEvaluationFlags::Gradient, infoPlus);
-                    el->evaluate(xiMinus, ShapeEvaluationFlags::Gradient, infoMinus);
+                    el->evaluateShapes(xiPlus, ShapeEvaluationFlags::FirstDerivatives, infoPlus);
+                    el->evaluateShapes(xiMinus, ShapeEvaluationFlags::FirstDerivatives, infoMinus);
 
                     // Valeur du gradient au nœud i pour la composante r
-                    CfemReal grad_r_plus = getComp(infoPlus.gradients[i], r);
-                    CfemReal grad_r_minus = getComp(infoMinus.gradients[i], r);
+                    CfemReal grad_r_plus = getComp(infoPlus.gradient(i), r);
+                    CfemReal grad_r_minus = getComp(infoMinus.gradient(i), r);
                     
                     CfemReal d2N_drc_fd = (grad_r_plus - grad_r_minus) / (2.0 * eps);
 
-                    EXPECT_NEAR(info.hessians[i](r, c), d2N_drc_fd, h_tol)
+                    EXPECT_NEAR(info.hessian(i)(r, c), d2N_drc_fd, h_tol)
                         << "Hessian mismatch at node " << i 
                         << " component (" << r << "," << c << ")"
                         << " for element " << typeid(*el).name();
@@ -207,20 +205,26 @@ TEST_F(MappingTest, QuadPlanarMapping) {
     Vector3D xi{0.5, 0.5, 0}; // Un point dans l'élément
 
     // On vérifie que le mapping ne crash pas malgré le déterminant 3D nul (Z=0)
-    // NOTE: Si ton inverse() est purement 3x3, il faudra s'assurer que J(2,2) = 1 
-    // ou traiter le cas 2D séparément.
     
     // Si on simule une épaisseur ou un élément 3D "aplati" :
     for(CfemInt i=0; i<4; ++i) coords[i].z = 0.0; 
     
     // Ici on teste surtout la cohérence des gradients dN/dx et dN/dy
     
-    ShapeEvaluationFlags lRequestedFields = ShapeEvaluationFlags::Gradient;
-    quad.computeMapping(xi, coords, lRequestedFields, shape, map);
+    ShapeEvaluationFlags shapeFlags = ShapeEvaluationFlags::FirstDerivatives;
+    MappingEvaluationFlags mappingFlags = MappingEvaluationFlags::PhysicalFirstDerivatives;
+    quad.computeMapping(
+        xi,
+        coords,
+        shapeFlags,
+        mappingFlags,
+        shape,
+        map
+    );
     
     // dN/dz doit être nul car l'élément est dans le plan XY
     for(CfemInt i=0; i<4; ++i) {
-        EXPECT_NEAR(map.dNdz(i), 0.0, tol);
+        EXPECT_NEAR(map.dN_dz[i], 0.0, tol);
     }
 }
 
@@ -236,9 +240,17 @@ TEST_F(MappingTest, Hex8ShearMapping) {
     MappingInfo map;
     ShapeInfo shape;
     Vector3D xi{0, 0, 0};
-    ShapeEvaluationFlags lRequestedFields = ShapeEvaluationFlags::Jacobian;
+    ShapeEvaluationFlags shapeFlags = ShapeEvaluationFlags::FirstDerivatives;
+    MappingEvaluationFlags mappingFlags = MappingEvaluationFlags::Jacobian | MappingEvaluationFlags::Determinant;
 
-    hex.computeMapping(xi, coords, lRequestedFields, shape, map);
+    hex.computeMapping(
+        xi,
+        coords,
+        shapeFlags,
+        mappingFlags,
+        shape,
+        map
+    );
 
     // Le déterminant doit rester 1.0 (le cisaillement préserve le volume)
     EXPECT_NEAR(map.detJ, 1.0, tol);
@@ -272,14 +284,23 @@ TEST_F(MappingTest, P2TriangleCurvedHessians) {
     Vector3D xi{1.0/3.0, 1.0/3.0, 0};
     
     // On demande explicitement les Hessiennes et gradients
-    ShapeEvaluationFlags lRequestedFields = ShapeEvaluationFlags::Hessian;
+    ShapeEvaluationFlags shapeFlags = ShapeEvaluationFlags::FirstDerivatives | ShapeEvaluationFlags::SecondDerivatives;
+    MappingEvaluationFlags mappingFlags = MappingEvaluationFlags::PhysicalFirstDerivatives | MappingEvaluationFlags::PhysicalSecondDerivatives;
 
-    tri.computeMapping(xi, coords, lRequestedFields, shape, map);
+    tri.computeMapping(
+        xi,
+        coords, 
+        shapeFlags,
+        mappingFlags,
+        shape,
+        map
+    );
+
     EXPECT_GT(map.detJ, 0.0) << "Jacobian determinant should be positive";
 
     bool hasNonZeroHessian = false;
     for (CfemInt i=0; i<6; ++i) {
-        const auto& H = map.physicalShapeHessians[i];
+        const auto& H = map.hessian(i);
 
         if (std::abs(H.xx()) > 1e-5 || std::abs(H.yy()) > 1e-5 || std::abs(H.zz()) > 1e-5 ||
             std::abs(H.xy()) > 1e-5 || std::abs(H.xz()) > 1e-5 || std::abs(H.yz()) > 1e-5) {
@@ -291,9 +312,9 @@ TEST_F(MappingTest, P2TriangleCurvedHessians) {
 
     // Check that the gradient components are reasonable (not NaN)
     for (CfemInt i=0; i<6; ++i) {
-        EXPECT_FALSE(std::isnan(map.physicalShapeGradients[i].x));
-        EXPECT_FALSE(std::isnan(map.physicalShapeGradients[i].y));
-        EXPECT_FALSE(std::isnan(map.physicalShapeGradients[i].z));
+        EXPECT_FALSE(std::isnan(map.dN_dx[i]));
+        EXPECT_FALSE(std::isnan(map.dN_dy[i]));
+        EXPECT_FALSE(std::isnan(map.dN_dz[i]));
     }
 }
 
@@ -339,11 +360,20 @@ TEST_F(MappingTest, PhysicalGradientSumIsZero) {
     ShapeInfo shape;
     Vector3D xi{0.25, 0.25, 0.0};
 
-    ShapeEvaluationFlags req = ShapeEvaluationFlags::Gradient;
-    quad.computeMapping(xi, coords, req, shape, map);
+    ShapeEvaluationFlags shapeFlags = ShapeEvaluationFlags::FirstDerivatives;
+    MappingEvaluationFlags mappingFlags = MappingEvaluationFlags::PhysicalFirstDerivatives;
+
+    quad.computeMapping(
+        xi,
+        coords,
+        shapeFlags,
+        mappingFlags,
+        shape,
+        map
+    );
 
     Vector3D sumGrad{0.0, 0.0, 0.0};
-    for (CfemInt i=0; i<4; ++i) sumGrad += map.physicalShapeGradients[i];
+    for (CfemInt i=0; i<4; ++i) sumGrad += map.gradient(i);
 
     EXPECT_NEAR(sumGrad.x, 0.0, tol);
     EXPECT_NEAR(sumGrad.y, 0.0, tol);
@@ -358,8 +388,17 @@ TEST_F(MappingTest, JacobianInverseCheck) {
     ShapeInfo shape;
     Vector3D xi{0.0, 0.0, 0.0};
 
-    ShapeEvaluationFlags req = ShapeEvaluationFlags::Jacobian;
-    hex.computeMapping(xi, coords, req, shape, map);
+    ShapeEvaluationFlags shapeFlags = ShapeEvaluationFlags::FirstDerivatives;
+    MappingEvaluationFlags mappingFlags = MappingEvaluationFlags::InverseJacobian;
+
+    hex.computeMapping(
+        xi,
+        coords,
+        shapeFlags,
+        mappingFlags,
+        shape,
+        map
+    );
 
     Tensor3D identity;
     identity.setZero();
@@ -431,16 +470,16 @@ TEST_F(MappingTest, P2TetraCurvedHessians) {
     ShapeInfo shape;
     Vector3D xi{0.25, 0.25, 0.25}; // Evaluation point (inside the tet)
     
-    ShapeEvaluationFlags req = ShapeEvaluationFlags::Gradient | 
-                               ShapeEvaluationFlags::Hessian;
+    ShapeEvaluationFlags shapeFlags = ShapeEvaluationFlags::FirstDerivatives | ShapeEvaluationFlags::SecondDerivatives;
+    MappingEvaluationFlags mappingFlags = MappingEvaluationFlags::PhysicalFirstDerivatives | MappingEvaluationFlags::PhysicalSecondDerivatives;
 
-    ASSERT_NO_THROW(tet.computeMapping(xi, coords, req, shape, map));
+    ASSERT_NO_THROW(tet.computeMapping(xi, coords, shapeFlags, mappingFlags, shape, map));
 
     //  VALIDATION: The Partition of Unity for Hessians: The sum of physical Hessians must be exactly zero.
     SymTensor3D hessianSum;
     hessianSum.setZero();
     for (CfemInt i = 0; i < n; ++i) {
-        hessianSum += map.physicalShapeHessians[i];
+        hessianSum += map.hessian(i);
     }
 
     for (CfemInt i = 0; i < 6; ++i) {
@@ -452,7 +491,7 @@ TEST_F(MappingTest, P2TetraCurvedHessians) {
     SymTensor3D fieldHessian;
     fieldHessian.setZero();
     for (CfemInt i = 0; i < n; ++i) {
-        fieldHessian += map.physicalShapeHessians[i] * (coords[i].x + coords[i].y + coords[i].z);
+        fieldHessian += map.hessian(i) * (coords[i].x + coords[i].y + coords[i].z);
     }
 
     for (CfemInt i = 0; i < 6; ++i) {
@@ -481,7 +520,12 @@ TEST_F(MappingTest, P2TetraQuadraticFieldReproduction) {
     MappingInfo map;
     ShapeInfo shape;
     Vector3D xi{0.2, 0.3, 0.1}; 
-    tet.computeMapping(xi, coords, ShapeEvaluationFlags::Hessian, shape, map);
+
+    
+    ShapeEvaluationFlags shapeFlags = ShapeEvaluationFlags::FirstDerivatives | ShapeEvaluationFlags::SecondDerivatives;
+    MappingEvaluationFlags mappingFlags = MappingEvaluationFlags::PhysicalFirstDerivatives | MappingEvaluationFlags::PhysicalSecondDerivatives;
+
+    tet.computeMapping(xi, coords, shapeFlags, mappingFlags, shape, map);
 
     // Quadratic Field: u = x^2 + y^2 + z^2 + xy + xz + yz
     auto fieldFunc = [](const Vector3D& p) {
@@ -492,7 +536,7 @@ TEST_F(MappingTest, P2TetraQuadraticFieldReproduction) {
     SymTensor3D interpInHessian;
     interpInHessian.setZero();
     for (CfemInt i = 0; i < n; ++i) {
-        interpInHessian += map.physicalShapeHessians[i] * fieldFunc(coords[i]);
+        interpInHessian += map.hessian(i) * fieldFunc(coords[i]);
     }
 
     // 4. VALIDATION: Compare against the analytical Hessian
@@ -516,12 +560,14 @@ TEST_F(MappingTest, DegenerateTetrahedron) {
     MappingInfo map;
     ShapeInfo shape;
     Vector3D xi{0.25,0.25,0.25};
-    ShapeEvaluationFlags req = ShapeEvaluationFlags::Gradient;
+    
+    ShapeEvaluationFlags shapeFlags = ShapeEvaluationFlags::FirstDerivatives;
+    MappingEvaluationFlags mappingFlags = MappingEvaluationFlags::InverseJacobian;
 
     // Collapse two nodes -> degenerate
     coords[3] = coords[2];
     EXPECT_THROW({
-        tet.computeMapping(xi, coords, req, shape, map);
+        tet.computeMapping(xi, coords, shapeFlags, mappingFlags, shape, map);
     }, AssertionException);
 #endif
 }
@@ -552,7 +598,11 @@ TEST_F(MappingTest, P2TetraInterpolationSuite) {
     ShapeInfo shape;
     MappingInfo map;
     // We need Gradients for the gradient tests later
-    tet.computeMapping(xi, coords, ShapeEvaluationFlags::PhysicalPosition | ShapeEvaluationFlags::Gradient, shape, map);
+    
+    ShapeEvaluationFlags shapeFlags = ShapeEvaluationFlags::Value | ShapeEvaluationFlags::FirstDerivatives;
+    MappingEvaluationFlags mappingFlags = MappingEvaluationFlags::PhysicalPosition | MappingEvaluationFlags::PhysicalFirstDerivatives;
+
+    tet.computeMapping(xi, coords, shapeFlags, mappingFlags, shape, map);
 
     // --- TEST A: Scalar Value Interpolation ---
     CfemReal expectedScalar = map.physicalPosition.x + map.physicalPosition.y;
@@ -620,4 +670,8 @@ INSTANTIATE_TEST_SUITE_P(
                     &p0prism, &p1prism, &p2prism, &miniprism,
                     &q0hex,   &q1hex,   &q2hex,   &minihex
                 )
+    // ::testing::Values(
+    //                 &p0seg,   &p1seg,   &p2seg,
+    //                 &p0tri,   &p1tri,  &minitri
+    //             )
 );

@@ -54,11 +54,11 @@ namespace cfem::sym
             auto result = [&]() {
                 // Signature: f(Vector3D, CfemReal) -> Spatiotemporal
                 if constexpr (std::is_invocable_v<F, const Vector3D&, CfemReal>) {
-                    return m_f(ctx.physPos, ctx.currentTime);
+                    return m_f(ctx.singleWS.physPos, ctx.currentTime);
                 } 
                 // Signature: f(Vector3D) -> Pure Spatial
                 else if constexpr (std::is_invocable_v<F, const Vector3D&>) {
-                    return m_f(ctx.physPos);
+                    return m_f(ctx.singleWS.physPos);
                 }
                 else {
                     static_assert(sizeof(F) == 0, "Invalid Lambda signature. Use f(X) or f(X, t).");

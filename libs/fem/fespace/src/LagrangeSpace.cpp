@@ -247,21 +247,23 @@ void LagrangeSpace::getElementDofs(CfemInt cellId, std::vector<CfemInt>& globalI
     }
 }
 
-// --- MATH & EVALUATION ---
+// MATH & EVALUATION
 
 void LagrangeSpace::evaluateBasis(CfemInt cellId, const Vector3D& xi, std::vector<CfemReal>& values) const {
     const Cell& cell = m_mesh->getCell(cellId);
     const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement( cell.type, getOrderInt() );
 
     ShapeInfo shape;
-    refEl.evaluate(xi, ShapeEvaluationFlags::Value, shape);
+    shape.values.resize(refEl.getNumNodes());
+    refEl.evaluateShapesValues(xi, shape.values.data());
 
     values.assign(shape.values.begin(), shape.values.end());
 }
 
-void LagrangeSpace::evaluateGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const {
+void LagrangeSpace::evaluateBasisGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const 
+{
     const Cell& cell = m_mesh->getCell(cellId);
-    const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement( cell.type, getOrderInt() );
+    const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement(cell.type, getOrderInt());
     
     // Thread-local scratchpad to ensure OpenMP safety and avoid allocations
     static thread_local DynamicVector<Vector3D> t_physicalCoords;
@@ -269,9 +271,27 @@ void LagrangeSpace::evaluateGradients(CfemInt cellId, const Vector3D& xi, std::v
 
     ShapeInfo shape;
     MappingInfo map;
-    refEl.computeMapping(xi, t_physicalCoords, ShapeEvaluationFlags::Gradient, shape, map);
 
-    grads.assign(map.physicalShapeGradients.begin(), map.physicalShapeGradients.end());
+    refEl.computeMapping(
+        xi, 
+        t_physicalCoords,
+        ShapeEvaluationFlags::FirstDerivatives,
+        MappingEvaluationFlags::PhysicalFirstDerivatives,
+        shape, 
+        map
+    );
+
+    const CfemInt nNodes = static_cast<CfemInt>(map.dN_dx.size());
+    const CfemInt spatialDimension = m_mesh->getSpatialDimension();
+
+    grads.resize(nNodes);
+
+    for (CfemInt i = 0; i < nNodes; ++i)
+    {
+        grads[i].x = map.dN_dx[i];
+        grads[i].y = (spatialDimension >= 2) ? map.dN_dy[i] : 0.0;
+        grads[i].z = (spatialDimension == 3) ? map.dN_dz[i] : 0.0;
+    }
 }
 
 //PETSc & SYSTEM SUPPORT

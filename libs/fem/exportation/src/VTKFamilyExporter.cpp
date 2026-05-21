@@ -149,17 +149,21 @@ namespace cfem
         bool isFacet  = (entity.getTopologicalDimension() == m_mesh.getTopologicalDimension() - 1);
 
         size_t numEntries = entries.size();
-        ShapeEvaluationFlags fieldFlags = ShapeEvaluationFlags::None;
-        if (isDiscontinuous && isFacet) fieldFlags |= ShapeEvaluationFlags::Normal;
+        ShapeEvaluationFlags shapeEvalFlags = ShapeEvaluationFlags::None;
+        MappingEvaluationFlags mappingEvalFlags = MappingEvaluationFlags::PhysicalPosition;
+        bool needsNormal = false;
+        // if (isDiscontinuous && isFacet) fieldFlags |= ShapeEvaluationFlags::Normal;
 
         data.fields.resize(numEntries);
         for (size_t i = 0; i < numEntries; ++i) {
             entries[i].expr->prepare();
-            fieldFlags |= entries[i].expr->requiredShapeFlags();
+            shapeEvalFlags |= entries[i].expr->requiredShapeFlags();
+            needsNormal = needsNormal || entries[i].expr->dependsOnNormalGeometricNormal();
             data.fields[i].resize(geo.numActiveVerts * entries[i].expr->getNumComponents(), 0.0);
         }
 
-        // FIX: O(1) Cache using unordered_map
+        mappingEvalFlags |= transformShapeToMappingFlags(shapeEvalFlags) | MappingEvaluationFlags::PhysicalPosition;
+
         struct TypeCache { std::vector<ShapeInfo> nodeShapes; const ReferenceElement *refEl; };
         std::unordered_map<CellType, TypeCache> geoCache; 
         CfemInt geoOrder = m_mesh.getOrderInt();
@@ -170,7 +174,9 @@ namespace cfem
                 auto &cache = geoCache[type];
                 cache.refEl = &ReferenceElementFactory::getReferenceElement(type, geoOrder);
                 for (const auto &xi : cache.refEl->referenceNodes()) {
-                    ShapeInfo info; cache.refEl->evaluate(xi, ShapeEvaluationFlags::Value | fieldFlags, info);
+                    ShapeInfo info;
+                    cache.refEl->evaluateShapes(xi, shapeEvalFlags, info);
+                    
                     info.shapeMustBeUpdated = false;
                     cache.nodeShapes.push_back(info);
                 }
@@ -216,17 +222,26 @@ namespace cfem
                 ctx.resetBuffers(); 
                 MappingInfo& mapParent = ctx.scratchMapping;
 
-                parentCache.refEl->computeMapping(parentCache.refEl->referenceNodes()[parentNodeIdx], physCoordsParent,
-                                           ShapeEvaluationFlags::PhysicalPosition | fieldFlags,
-                                           parentCache.nodeShapes[parentNodeIdx], mapParent);
+                parentCache.refEl->computeMapping(
+                    parentCache.refEl->referenceNodes()[parentNodeIdx], 
+                    physCoordsParent,
+                    mappingEvalFlags,
+                    parentCache.nodeShapes[parentNodeIdx], 
+                    mapParent
+                );
 
-                if (isFacet && hasFlag(fieldFlags, ShapeEvaluationFlags::Normal)) {
-                    elemCache.refEl->computeMapping(elemCache.refEl->referenceNodes()[n], physCoordsElem,
-                                             ShapeEvaluationFlags::Normal, elemCache.nodeShapes[n], scratchFacetMapping);
+                if (isFacet && needsNormal) {
+                    elemCache.refEl->computeMapping(
+                        elemCache.refEl->referenceNodes()[n], 
+                        physCoordsElem,
+                        MappingEvaluationFlags::Normal, 
+                        elemCache.nodeShapes[n], 
+                        scratchFacetMapping
+                    );
                     mapParent.normal = scratchFacetMapping.normal;
                 }
 
-                ctx.physPos = mapParent.physicalPosition;
+                ctx.singleWS.physPos = mapParent.physicalPosition;
                 ctx.geometricMapping = &mapParent;
 
                 for (size_t i = 0; i < numEntries; ++i) {

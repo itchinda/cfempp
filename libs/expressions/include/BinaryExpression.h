@@ -74,6 +74,11 @@ namespace cfem::sym
             return m_lhs->dependsOnShape() || m_rhs->dependsOnShape();
         }
 
+        bool dependsOnNormalGeometricNormal() const override { 
+            return m_lhs->dependsOnNormalGeometricNormal() || 
+                   m_rhs->dependsOnNormalGeometricNormal(); 
+        }
+
         ShapeEvaluationFlags requiredShapeFlags() const override {
             return m_lhs->requiredShapeFlags() | m_rhs->requiredShapeFlags();
         }
