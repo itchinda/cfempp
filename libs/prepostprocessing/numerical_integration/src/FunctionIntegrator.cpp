@@ -221,7 +221,7 @@ namespace cfem
             if (targets[i].second) *(targets[i].second) = 0.0;
             activeIdx.push_back(i);
             fieldShapesFlags |= targets[i].first->requiredShapeFlags();
-            fieldsDependsOnGeoNormal = fieldsDependsOnGeoNormal || targets[i].first->dependsOnNormalGeometricNormal();
+            fieldsDependsOnGeoNormal = fieldsDependsOnGeoNormal || targets[i].first->dependsOnGeometricNormal();
 
             targets[i].first->collectRequiredSpaces(requiredSpaces);
         }
@@ -466,7 +466,7 @@ namespace cfem
             fieldShapesFlags |= targets[i].first->requiredShapeFlags();
             targets[i].first->collectRequiredSpaces(requiredSpaces);
 
-            fieldsDependsOnGeoNormal = fieldsDependsOnGeoNormal || targets[i].first->dependsOnNormalGeometricNormal();
+            fieldsDependsOnGeoNormal = fieldsDependsOnGeoNormal || targets[i].first->dependsOnGeometricNormal();
         }
         if (activeIdx.empty()) return;
 

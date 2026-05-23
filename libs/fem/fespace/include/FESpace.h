@@ -169,7 +169,6 @@ public:
      * @brief Registers a field to be notified when the mesh or space changes.
      */
     void registerField(std::shared_ptr<FESpaceObserver> field);
-    // void registerField(std::shared_ptr<FEField> field);
 
 protected:
     FESpace(std::shared_ptr<Mesh> mesh, Order order, Continuity cont, FieldType fieldType)

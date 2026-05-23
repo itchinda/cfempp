@@ -4,7 +4,7 @@ add_executable(unit_tests
     solvers/test_solvers.cpp
     expressions/test_symbolic_simplification.cpp
     fem/test_fem.cpp
-    #fem/test_domain_integrator.cpp
+    fem/test_domain_integrator.cpp
     fem/test_reference_element.cpp
     fem/test_quadrature.cpp
     fem/test_fields.cpp
@@ -25,13 +25,14 @@ add_executable(unit_tests
 target_link_libraries(unit_tests
     PRIVATE
         GTest::gtest
-	cfem_openmp_interface
+	    cfem_openmp_interface
         cfem_solvers
         cfem_utils
         cfem_quadrature
         cfem_reference_element
         cfem_mesh
         cfem_fespace
+        cfem_fefield
         cfem_expressions
         cfem_numerical_integration
 )

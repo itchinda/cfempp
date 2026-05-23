@@ -63,8 +63,8 @@ namespace cfem::sym
         ExpressionType getType() const override { return ExpressionType::Gradient; }
         bool dependsOnFEField() const override { return m_expr->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_expr->dependsOnShape(); }
-        bool dependsOnNormalGeometricNormal() const override { 
-            return m_expr->dependsOnNormalGeometricNormal(); 
+        bool dependsOnGeometricNormal() const override { 
+            return m_expr->dependsOnGeometricNormal(); 
         }
 
         ShapeEvaluationFlags requiredShapeFlags() const override {

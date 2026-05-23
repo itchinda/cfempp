@@ -20,8 +20,6 @@
 #include "BinaryExpression.h"
 #include "BinaryExpression.h"
 #include "MagnitudeSqExpression.h"
-#include "FEField.h"
-
 
 namespace cfem::sym
 {

@@ -29,7 +29,7 @@ target_link_libraries(cfem_expressions
         cfem_utils
         cfem_mesh
         cfem_reference_element
-        SymEngine::libsymengine 
+        SymEngine::libsymengine
         #${llvm_libs}
         ${GMP_LIB}
         ${MPFR_LIB}

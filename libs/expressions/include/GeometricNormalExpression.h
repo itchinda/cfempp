@@ -61,7 +61,7 @@ namespace cfem::sym
             return ExpressionType::Variable; 
         }
 
-        virtual bool dependsOnNormalGeometricNormal() const override { return true; }
+        virtual bool dependsOnGeometricNormal() const override { return true; }
 
         /** 
          * @brief Evaluates the normal vector at a specific quadrature point.

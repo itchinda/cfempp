@@ -72,14 +72,6 @@ namespace cfem
         bool dependsOnFEField() const override { return true; }
         bool dependsOnShape() const override { return true; }
 
-        ShapeEvaluationFlags requiredShapeFlags() const override {
-            return ShapeEvaluationFlags::Value;
-        }
-
-        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
-            spaces.insert(m_space);
-        }
-
         /**
          * @brief Lie le champ à son index de cache O(1).
          */

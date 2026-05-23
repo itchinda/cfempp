@@ -374,7 +374,6 @@ namespace cfem
         // Extract contiguous cell vertex coordinates into context scratchpad
         m_space->getMesh()->getCellVerticesCoords(cellId, ctx.scratchCoords);
         
-        CFEM_INFO << "HIIIII";
         const CfemInt expectedNodes = refEl.getNumNodes();
         if (ctx.scratchCoords.size() > static_cast<size_t>(expectedNodes)) {
             ctx.scratchCoords.resize(expectedNodes);
@@ -419,7 +418,7 @@ namespace cfem
         for (CfemInt i = 0; i < nNodes; ++i)
         {
             const CfemReal gx = gradsX[i];
-            const CfemReal gy = (spatialDimension == 2) ? gradsY[i] : 0.0;
+            const CfemReal gy = (spatialDimension >= 2) ? gradsY[i] : 0.0;
             const CfemReal gz = (spatialDimension == 3) ? gradsZ[i] : 0.0;
 
             // Loop over physical field components
@@ -536,7 +535,7 @@ namespace cfem
 
         // Query mathematical dependencies to determine which reference derivatives are needed
         const auto recipeFlags = recipe.requiredShapeFlags();
-        const bool needsGeoNormals = recipe.dependsOnNormalGeometricNormal();
+        const bool needsGeoNormals = recipe.dependsOnGeometricNormal();
         // Align evaluation flags to match the exact mathematical types required by the system
         const ShapeEvaluationFlags shapeFlags = ShapeEvaluationFlags::Value | recipeFlags |
                                                         (needsGeoNormals? ShapeEvaluationFlags::FirstDerivatives : ShapeEvaluationFlags::None);

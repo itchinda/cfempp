@@ -101,7 +101,7 @@ static char help[] = "CFEM Example: Field interpolation on a quadratic mesh.\n\n
 
 int main(int argc, char **argv)
 {
-    omp_set_num_threads(1);
+    // omp_set_num_threads(1);
     Environment::initialize(argc, argv, help);
     {
         #define CFEM_USE_DYNAMIC_SPACE_CACHE
@@ -112,7 +112,7 @@ int main(int argc, char **argv)
         CfemReal y0 = 0;
         CfemReal z0 = 0;
         CfemReal r0 = 0.5;
-        CfemReal h = 0.25;
+        CfemReal h = 0.0125;
         {
             PROFILE_SCOPE("MeshBuilding");
 
@@ -136,15 +136,15 @@ int main(int argc, char **argv)
 
             // mesh = Mesh::disk(MeshOrder::Quadratic, 0.1, Vector3D{0,0,0}, 0.5);
 
-            mesh = Mesh::block(
-                MeshOrder::Linear,
-                Mesh::BlockSubdivisions{150, 150, 150}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
-                Mesh::BlockBounds(
-                    Vector3D{0., 0., 0.},
-                    Vector3D{1., 1., 1.}
-                ),
-                Mesh::BlockElementType::Tetrahedron 
-            );
+            // mesh = Mesh::block(
+            //     MeshOrder::Linear,
+            //     Mesh::BlockSubdivisions{150, 150, 150}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+            //     Mesh::BlockBounds(
+            //         Vector3D{0., 0., 0.},
+            //         Vector3D{1., 1., 1.}
+            //     ),
+            //     Mesh::BlockElementType::Tetrahedron
+            // );
 
             //mesh = Mesh::loadFromGmsh("../tests/grenier/stanford_bunny/bunny.msh");
             // mesh = Mesh::loadFromGmsh("../tests/grenier/wheel/wheel.msh");
@@ -152,13 +152,16 @@ int main(int argc, char **argv)
             // mesh = Mesh::sphere( MeshOrder::Quadratic,
             //                      0.25,
             //                      Vector3D{0,0,0},
-            //                      0.5);
+            //                      0.5
+            //                 );
 
             
-            // mesh = Mesh::surface_sphere( MeshOrder::Quadratic,
-            //                      h,
-            //                      Vector3D{x0,y0,z0},
-            //                      r0);
+            mesh = Mesh::surface_sphere( 
+                MeshOrder::Quadratic,
+                h,
+                Vector3D{x0,y0,z0},
+                r0
+            );
             // mesh = Mesh::sphere( MeshOrder::Quadratic,
             //                      0.25,
             //                      Vector3D{0,0,0},
@@ -170,7 +173,7 @@ int main(int argc, char **argv)
         }
 
         // auto N = DGSpace::create(mesh, Order::P0, FieldType::Vector3D);
-        auto Q = LagrangeSpace::create(mesh, Order::P1, FieldType::Scalar);
+        auto Q = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);
         auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
 
         // auto n = Trial(N, "n");
@@ -179,7 +182,7 @@ int main(int argc, char **argv)
         auto q = Test (Q, "q");
         auto v = Test (V, "v");
 
-        // auto analytical_p = scalar(x + y + 1.0); 
+        // auto analytical_p = scalar(x*x + y + 1.0); 
         // auto analytical_u = vector( x*y + y*y +  x + y,
         //                             y*y  + x*x +  x*y + 1,              
         //                             0.0);
@@ -211,12 +214,12 @@ int main(int argc, char **argv)
             PROFILE_SCOPE("L2Norm");
             IntegrationSchemeParams schemes_params{};
             FunctionIntegrator integrator(mesh, schemes_params);
-            schemes_params.NumIntgPtTetElem = 1;
-            CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
-            integrator.L2Norm(p - analytical_p, &l2Norm_P, &h1SemiNorm_P);
-            integrator.L2Norm(u - analytical_u, &l2Norm_U, &h1SemiNorm_U);
-            CFEM_INFO << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P;
-            CFEM_INFO << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U;
+            // schemes_params.NumIntgPtTetElem = 1;
+            // CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
+            // integrator.L2Norm(p - analytical_p, &l2Norm_P, &h1SemiNorm_P);
+            // integrator.L2Norm(u - analytical_u, &l2Norm_U, &h1SemiNorm_U);
+            // CFEM_INFO << "L2-norm error on P: " << l2Norm_P << " H1-Seminorm error on P: " << h1SemiNorm_P;
+            // CFEM_INFO << "L2-norm error on U: " << l2Norm_U << " H1-Seminorm error on U: " << h1SemiNorm_U;
 
             // auto Proj = tensor(1 -normaleX*normaleX,   -normaleX*normaleY,   -normaleX*normaleZ,
             //                   -normaleY*normaleX, 1 -normaleY*normaleY,   -normaleY*normaleZ,
@@ -227,10 +230,10 @@ int main(int argc, char **argv)
             // auto gradP = Proj*grad(p);  //grad(p) - dot(grad(p), normale) * normale;
             // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral( mag_sqr( gradP - gradPanal ) ) );
 
-            // CfemReal lseminorm_p = sqrt( integrator.computeIntegral( mag_sqr( grad_s(p) - grad_s(analytical_p) ) ) );
-            // CfemReal lseminorm_u = sqrt( integrator.computeIntegral( mag_sqr( grad_s(u) - grad_s(analytical_u) ) ) );
-            // CFEM_INFO << "surface gradien error for p  = " << lseminorm_p;
-            // CFEM_INFO << "surface gradien error for u  = " << lseminorm_u;
+            CfemReal lseminorm_p = sqrt( integrator.computeIntegral( mag_sqr( grad_s(p) - grad_s(analytical_p) ) ) );
+            CfemReal lseminorm_u = sqrt( integrator.computeIntegral( mag_sqr( grad_s(u) - grad_s(analytical_u) ) ) );
+            CFEM_INFO << "surface gradient error for p  = " << lseminorm_p;
+            CFEM_INFO << "surface gradient error for u  = " << lseminorm_u;
 
             // auto gradUanal = dot(grad(analytical_u), Proj); //grad(analytical_p) - dot(grad(analytical_p), normale) * normale;
             // auto gradU = dot(grad(u), Proj);  //grad(p) - dot(grad(p), normale) * normale;
@@ -244,23 +247,24 @@ int main(int argc, char **argv)
         // h = 0.0625 lseminorm_p = 0.000222298 lseminorm_u = 0.000602551
         // h = 0.03125 lseminorm_p = 5.56204e-05 lseminorm_u = 0.000150505
 
-        {
-            // PROFILE_SCOPE("Exportation");
-            // VTKExporter vtu_exporter(*mesh);
-            // vtu_exporter.addExpression("U", u);
-            // vtu_exporter.addExpression("P", p);
-            // vtu_exporter.setExportedEntities({"Mag_external_surface", "Bande_de_roulement", "Caoutchouc"});
-            // //vtu_exporter.addExpression("N", geometric_normal());
+        // {
+        //     PROFILE_SCOPE("Exportation");
+        //     VTKExporter vtu_exporter(*mesh);
+        //     vtu_exporter.addExpression("U", u);
+        //     vtu_exporter.addExpression("P", p);
+        //     // vtu_exporter.setExportedEntities({"Mag_external_surface", "Bande_de_roulement", "Caoutchouc"});
+        //     vtu_exporter.addExpression("N", geometric_normal());
             
-            // vtu_exporter.setFormat(VTKExportFormat::BINARY);
-            // vtu_exporter.exportCellQuality(true);
-            // vtu_exporter.write("result_global");
-            // vtu_exporter.write("Gomme", "Gomme");
-            // vtu_exporter.write("Mag_external_surface", "Mag_external_surface");
-            // vtu_exporter.write("Bande_de_roulement", "Bande_de_roulement");
-            // vtu_exporter.write("Caoutchouc", "Caoutchouc");
+        //     vtu_exporter.setFormat(VTKExportFormat::BINARY);
+        //     vtu_exporter.exportCellQuality(true);
+        //     vtu_exporter.write("result_global");
+        //     //vtu_exporter.write("result_global", SYS_BOUNDARY_ID);
+        //     // vtu_exporter.write("Gomme", "Gomme");
+        //     // vtu_exporter.write("Mag_external_surface", "Mag_external_surface");
+        //     // vtu_exporter.write("Bande_de_roulement", "Bande_de_roulement");
+        //     // vtu_exporter.write("Caoutchouc", "Caoutchouc");
 
-        }
+        // }
     }
 
     Profiler::instance().saveProfiler();

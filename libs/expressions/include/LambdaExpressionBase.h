@@ -88,10 +88,10 @@ namespace cfem::sym
             return dep;
         }
 
-        bool dependsOnNormalGeometricNormal() const override { 
+        bool dependsOnGeometricNormal() const override { 
             bool dep = false;
-            if(m_gradient) dep = dep || m_gradient->dependsOnNormalGeometricNormal();
-            if(m_timeDeriv) dep = dep || m_timeDeriv->dependsOnNormalGeometricNormal(); 
+            if(m_gradient) dep = dep || m_gradient->dependsOnGeometricNormal();
+            if(m_timeDeriv) dep = dep || m_timeDeriv->dependsOnGeometricNormal(); 
             return dep;
         }
 

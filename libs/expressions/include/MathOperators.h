@@ -21,7 +21,7 @@
 #include <memory>
 #include "CfemExpression.h"
 #include "ConstantExpression.h"
-#include "Argument.h"
+// #include "Argument.h"
 // #include "FEField.h"
 // #include "FESpace.h"
 
@@ -31,6 +31,7 @@ namespace cfem
 {
     class FEField;
     class FESpace;
+    class TestFunction;
 }
 namespace cfem::sym
 {

@@ -98,10 +98,10 @@ namespace cfem::sym
                    m_components[2]->dependsOnShape(); 
         }
 
-        bool dependsOnNormalGeometricNormal() const override { 
-            return m_components[0]->dependsOnNormalGeometricNormal() || 
-                   m_components[1]->dependsOnNormalGeometricNormal() ||
-                   m_components[2]->dependsOnNormalGeometricNormal(); 
+        bool dependsOnGeometricNormal() const override { 
+            return m_components[0]->dependsOnGeometricNormal() || 
+                   m_components[1]->dependsOnGeometricNormal() ||
+                   m_components[2]->dependsOnGeometricNormal(); 
         }
 
         ShapeEvaluationFlags requiredShapeFlags() const override {
