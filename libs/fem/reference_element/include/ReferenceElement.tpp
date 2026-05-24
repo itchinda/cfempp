@@ -41,7 +41,10 @@ namespace cfem
 
     inline void ReferenceElement::evaluateShapesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeEvaluationFlags requestedShape, ShapeInfoBatch& shapeBatch) const
     {
+        const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
         const bool includeSecondDerivatives = hasFlag(requestedShape, ShapeEvaluationFlags::SecondDerivatives);
+        shapeBatch.setup(nQp, m_numNodes, includeSecondDerivatives);
+
         if (hasFlag(requestedShape, ShapeEvaluationFlags::Value)) {
             evaluateShapesValuesBatch(xiPoints, shapeBatch.values);
         }
@@ -86,39 +89,37 @@ namespace cfem
                                                  const ShapeInfo &shape,
                                                  MappingInfo &out) const
     {
-        // Préparation des buffers physiques (gère l'allocation ou la réutilisation)
         out.setup(m_numNodes, hasFlag(requestedMapping, MappingEvaluationFlags::PhysicalSecondDerivatives));
 
-        // Position physique interpolée
         if (hasFlag(requestedMapping, MappingEvaluationFlags::PhysicalPosition)) {
-            out.physicalPosition.setZero();
+            CfemReal px = 0.0, py = 0.0, pz = 0.0;
             const CfemReal* N = shape.values.data();
             for (CfemInt i = 0; i < m_numNodes; ++i) {
-                out.physicalPosition += physicalNodesCoords[i] * N[i];
+                const Vector3D& pos = physicalNodesCoords[i];
+                const CfemReal ni = N[i];
+                px += pos.x * ni;
+                py += pos.y * ni;
+                pz += pos.z * ni;
             }
+            out.physicalPosition = Vector3D(px, py, pz);
         }
 
-        // Base locale / Jacobien
         if (hasFlag(requestedMapping, MappingEvaluationFlags::Jacobian)) {
             computeJacobian(shape, physicalNodesCoords, out);
         }
 
-        // Déterminant (Calcule et stocke le tenseur métrique SymTensor2D/3D pour éviter le double calcul)
         if (hasFlag(requestedMapping, MappingEvaluationFlags::Determinant)) {
             computeDeterminant(shape, physicalNodesCoords, out);
         }
 
-        // Inverse / Pseudo-inverse du Jacobien (Réutilise le tenseur métrique mis en cache)
         if (hasFlag(requestedMapping, MappingEvaluationFlags::InverseJacobian)) {
             computeInverseJacobian(shape, physicalNodesCoords, out);
         }
 
-        // Gradients physiques SoA (dN/dx, dN/dy, dN/dz)
         if (hasFlag(requestedMapping, MappingEvaluationFlags::PhysicalFirstDerivatives)) {
             computePhysicalFirstDerivatives(shape, out);
         }
 
-        // Hessiens physiques translatés (avec prise en compte de la courbure géométrique)
         if (hasFlag(requestedMapping, MappingEvaluationFlags::PhysicalSecondDerivatives)) {
             computePhysicalSecondDerivatives(physicalNodesCoords, shape, out);
         }
@@ -161,14 +162,20 @@ namespace cfem
         // Initialisation du lot physique
         outBatch.setup(nQp, m_numNodes, m_dimension, hasFlag(requestedMapping, MappingEvaluationFlags::PhysicalSecondDerivatives));
 
-        // Interpolation des positions physiques par point de quadrature
         if (hasFlag(requestedMapping, MappingEvaluationFlags::PhysicalPosition)) {
             for (CfemInt q = 0; q < nQp; ++q) {
-                outBatch.physicalPositions[q].setZero();
-                const auto rowValues = shapeBatch.values[q];
+                CfemReal px = 0.0, py = 0.0, pz = 0.0;
+                
+                const CfemReal* N = shapeBatch.values[q].data(); 
+                
                 for (CfemInt i = 0; i < m_numNodes; ++i) {
-                    outBatch.physicalPositions[q] += physicalNodesCoords[i] * rowValues[i];
+                    const Vector3D& pos = physicalNodesCoords[i];
+                    const CfemReal ni = N[i];
+                    px += pos.x * ni;
+                    py += pos.y * ni;
+                    pz += pos.z * ni;
                 }
+                outBatch.physicalPositions[q] = Vector3D(px, py, pz); // Écriture unique
             }
         }
 
@@ -279,7 +286,7 @@ namespace cfem
             CfemReal g12 = j00*j01 + j10*j11 + j20*j21;
 
             out.metric2D = SymTensor2D(g11, g22, g12);
-            out.detJ = std::sqrt(std::max(0.0, g11 * g22 - g12 * g12));
+            out.detJ = std::sqrt(std::max<CfemReal>(0.0, g11 * g22 - g12 * g12));
         }
         else if (m_dimension == 1) {
             const CfemReal j00 = out.jacobian.data[Tensor3D::idx_xx];
@@ -313,7 +320,7 @@ namespace cfem
                 CfemReal g12 = j00*j01 + j10*j11 + j20*j21;
 
                 out.metric2Ds[q] = SymTensor2D{g11, g22, g12};
-                out.detJs[q] = std::sqrt(std::max(0.0, g11 * g22 - g12 * g12));
+                out.detJs[q] = std::sqrt(std::max<CfemReal>(0.0, g11 * g22 - g12 * g12));
             }
         }
         else if (m_dimension == 1) {
@@ -330,36 +337,110 @@ namespace cfem
 
     }
 
+    /**
+     * @brief Computes the contravariant geometric transformation operator G.
+     *
+     * Maps reference-space derivatives to physical-space derivatives:
+     *      \$ \nabla_x(u) = G^T \nabla_{\xi}(u) \$
+     *
+     * G is defined as the Moore-Penrose pseudo-inverse of the Jacobian J, 
+     * depending on the manifold dimension:
+     *  - 3D (Volume)  : \$ G = J^{-1} \$
+     *  - 2D (Surface) : \$ G = (J^T J)^{-1} J^T \$
+     *  - 1D (Curve)   : \$ G = J^T / ||J||^2 \$
+     *
+     * @pre `out.jacobian`, `out.detJ`, and the appropriate metric tensor 
+     *      (`metric2D` or `metric1D`) must be precomputed.
+     * @note Stored in `out.invJacobian` for historical compatibility.
+     *
+     * @param[in]  shape               Element shape information (unused).
+     * @param[in]  physicalNodesCoords Physical node coordinates (unused).
+     * @param[out] out                 Mapping structure receiving the operator.
+     */
     inline void ReferenceElement::computeInverseJacobian(const ShapeInfo &shape,
                                                          const DynamicVector<Vector3D> &physicalNodesCoords,
                                                          MappingInfo &out) const
     {
-        CFEM_ASSERT(std::abs(out.detJ) > cfem::ZERO_TOLERANCE, "Degenerate Jacobian detected");
+        CFEM_ASSERT(  std::abs(out.detJ) > cfem::ZERO_TOLERANCE, "Degenerate Jacobian detected" );
 
-        if (m_dimension == 3) {
-            out.invJacobian = inverse(out.jacobian, out.detJ);
-        } 
-        else if (m_dimension == 2) {
+        Tensor3D& G = out.invJacobian;
+
+        // ================================================================
+        // 3D volumetric element  G = J^{-1}
+        // ================================================================
+        if (m_dimension == 3)
+        {
+            G = inverse(out.jacobian, out.detJ);
+            return;
+        }
+
+        // ================================================================
+        // 2D embedded manifold G = (J^T J)^{-1} J^T
+        // ================================================================
+        if (m_dimension == 2)
+        {
             const CfemReal g11 = out.metric2D.xx();
             const CfemReal g22 = out.metric2D.yy();
             const CfemReal g12 = out.metric2D.xy();
 
-            CfemReal invDetG = 1.0 / (g11 * g22 - g12 * g12);
+            // det(G_metric) = det(J)^2
+            const CfemReal invDetMetric = 1.0 / (out.detJ * out.detJ);
 
-            for (CfemInt i = 0; i < 3; ++i) {
-                out.invJacobian(0, i) = (g22 * out.jacobian(i, 0) - g12 * out.jacobian(i, 1)) * invDetG;
-                out.invJacobian(1, i) = (g11 * out.jacobian(i, 1) - g12 * out.jacobian(i, 0)) * invDetG;
-                out.invJacobian(2, i) = 0.0;
-            }
+            // Inverse metric tensor coefficients
+            const CfemReal m11 =  g22 * invDetMetric;
+            const CfemReal m22 =  g11 * invDetMetric;
+            const CfemReal m12 = -g12 * invDetMetric;
+
+            // Jacobian columns (surface tangents)
+            const CfemReal j00 = out.jacobian.xx();
+            const CfemReal j10 = out.jacobian.yx();
+            const CfemReal j20 = out.jacobian.zx();
+
+            const CfemReal j01 = out.jacobian.xy();
+            const CfemReal j11 = out.jacobian.yy();
+            const CfemReal j21 = out.jacobian.zy();
+
+            // First contravariant basis vector
+            G.xx() = m11*j00 + m12*j01;
+            G.xy() = m11*j10 + m12*j11;
+            G.xz() = m11*j20 + m12*j21;
+
+            // Second contravariant basis vector
+            G.yx() = m12*j00 + m22*j01;
+            G.yy() = m12*j10 + m22*j11;
+            G.yz() = m12*j20 + m22*j21;
+
+            // Third row unused for 2D manifolds
+            G.zx() = 0.0;
+            G.zy() = 0.0;
+            G.zz() = 0.0;
+
+            return;
         }
-        else if (m_dimension == 1) {
-            CfemReal invG11 = 1.0 / out.metric1D;
-            for (CfemInt i = 0; i < 3; ++i) {
-                out.invJacobian(i, 0) = out.jacobian(i, 0) * invG11;
-                out.invJacobian(i, 1) = 0.0;
-                out.invJacobian(i, 2) = 0.0;
-            }
+
+        // ================================================================
+        // 1D embedded manifold  G = J^T / ||J||^2
+        // ================================================================
+        if (m_dimension == 1)
+        {
+            const CfemReal invMetric = 1.0 / out.metric1D;
+
+            G(0,0) = out.jacobian(0,0) * invMetric;
+            G(0,1) = out.jacobian(1,0) * invMetric;
+            G(0,2) = out.jacobian(2,0) * invMetric;
+
+            G(1,0) = 0.0;
+            G(1,1) = 0.0;
+            G(1,2) = 0.0;
+
+            G(2,0) = 0.0;
+            G(2,1) = 0.0;
+            G(2,2) = 0.0;
+
+            return;
         }
+
+        CFEM_ASSERT(false, "Unsupported manifold dimension");
     }
 
     inline void ReferenceElement::computeInverseJacobianBatch(const ShapeInfoBatch &shape,
@@ -381,23 +462,33 @@ namespace cfem
                 const CfemReal g22 = out.metric2Ds[q].yy();
                 const CfemReal g12 = out.metric2Ds[q].xy();
 
-                CfemReal invDetG = 1.0 / (g11 * g22 - g12 * g12);
+                // OPTIMISATION : Réutilisation du déterminant (sauve 2 multiplications, 1 soustraction)
+                const CfemReal invDetMetric = 1.0 / (out.detJs[q] * out.detJs[q]);
 
-                for (CfemInt i = 0; i < 3; ++i) {
-                    out.invJacobians[q](0, i) = (g22 * out.jacobians[q](i, 0) - g12 * out.jacobians[q](i, 1)) * invDetG;
-                    out.invJacobians[q](1, i) = (g11 * out.jacobians[q](i, 1) - g12 * out.jacobians[q](i, 0)) * invDetG;
-                    out.invJacobians[q](2, i) = 0.0;
-                }
+                const CfemReal m11 =  g22 * invDetMetric;
+                const CfemReal m22 =  g11 * invDetMetric;
+                const CfemReal m12 = -g12 * invDetMetric;
+
+                const auto& jac_q = out.jacobians[q];
+                const CfemReal j00 = jac_q.xx(), j10 = jac_q.yx(), j20 = jac_q.zx();
+                const CfemReal j01 = jac_q.xy(), j11 = jac_q.yy(), j21 = jac_q.zy();
+
+                // OPTIMISATION : Déroulage manuel total (zéro boucle)
+                auto& G = out.invJacobians[q];
+                G.xx() = m11*j00 + m12*j01; G.xy() = m11*j10 + m12*j11; G.xz() = m11*j20 + m12*j21;
+                G.yx() = m12*j00 + m22*j01; G.yy() = m12*j10 + m22*j11; G.yz() = m12*j20 + m22*j21;
+                G.zx() = 0.0;               G.zy() = 0.0;               G.zz() = 0.0;
             }
         }
         else if (m_dimension == 1) {
             for (CfemInt q = 0; q < nQp; ++q){
-                CfemReal invG11 = 1.0 / out.metric1Ds[q];
-                for (CfemInt i = 0; i < 3; ++i) {
-                    out.invJacobians[q](i, 0) = out.jacobians[q](i, 0) * invG11;
-                    out.invJacobians[q](i, 1) = 0.0;
-                    out.invJacobians[q](i, 2) = 0.0;
-                }
+                const CfemReal invMetric = 1.0 / out.metric1Ds[q];
+                const auto& jac_q = out.jacobians[q];
+                auto& G = out.invJacobians[q];
+
+                G.xx() = jac_q.xx() * invMetric; G.xy() = jac_q.yx() * invMetric; G.xz() = jac_q.zx() * invMetric;
+                G.yx() = 0.0; G.yy() = 0.0; G.yz() = 0.0;
+                G.zx() = 0.0; G.zy() = 0.0; G.zz() = 0.0;
             }
         }
         
@@ -414,21 +505,25 @@ namespace cfem
         const CfemReal i20 = out.invJacobian.zx(), i21 = out.invJacobian.zy(), i22 = out.invJacobian.zz();
 
         // Pointeurs SoA (lecture)
-        const CfemReal* dxi   = shape.dN_dxi.data();
-        const CfemReal* deta  = shape.dN_deta.data();
-        const CfemReal* dzeta = shape.dN_dzeta.data();
+        const CfemReal* __restrict dxi   = shape.dN_dxi.data();
+        const CfemReal* __restrict deta  = shape.dN_deta.data();
+        const CfemReal* __restrict dzeta = shape.dN_dzeta.data();
 
         // Pointeurs SoA (écriture)
-        CfemReal* dx = out.dN_dx.data();
-        CfemReal* dy = out.dN_dy.data();
-        CfemReal* dz = out.dN_dz.data();
+        CfemReal* __restrict dx = out.dN_dx.data();
+        CfemReal* __restrict dy = out.dN_dy.data();
+        CfemReal* __restrict dz = out.dN_dz.data();
 
         // Boucle SIMD ultra-rapide
         for (CfemInt a = 0; a < n; ++a)
         {
-            dx[a] = i00 * dxi[a] + i10 * deta[a] + i20 * dzeta[a];
-            dy[a] = i01 * dxi[a] + i11 * deta[a] + i21 * dzeta[a];
-            dz[a] = i02 * dxi[a] + i12 * deta[a] + i22 * dzeta[a];
+            const CfemReal gx = dxi[a];
+            const CfemReal gy = deta[a];
+            const CfemReal gz = dzeta[a];
+
+            dx[a] = i00 * gx + i10 * gy + i20 * gz;
+            dy[a] = i01 * gx + i11 * gy + i21 * gz;
+            dz[a] = i02 * gx + i12 * gy + i22 * gz;
         }
     }
 
@@ -441,26 +536,30 @@ namespace cfem
         for (CfemInt q = 0; q < nQp; ++q)
         {
             // Cache des composantes de l'inverse du Jacobien dans les registres pour le point q
-            const CfemReal i00 = out.invJacobians[q](0,0), i01 = out.invJacobians[q](0,1), i02 = out.invJacobians[q](0,2);
-            const CfemReal i10 = out.invJacobians[q](1,0), i11 = out.invJacobians[q](1,1), i12 = out.invJacobians[q](1,2);
-            const CfemReal i20 = out.invJacobians[q](2,0), i21 = out.invJacobians[q](2,1), i22 = out.invJacobians[q](2,2);
+            const CfemReal i00 = out.invJacobians[q].xx(), i01 = out.invJacobians[q].xy(), i02 = out.invJacobians[q].xz();
+            const CfemReal i10 = out.invJacobians[q].yx(), i11 = out.invJacobians[q].yy(), i12 = out.invJacobians[q].yz();
+            const CfemReal i20 = out.invJacobians[q].zx(), i21 = out.invJacobians[q].zy(), i22 = out.invJacobians[q].zz();
 
             // Pointeurs SoA vers les lignes de la matrice de référence (Lecture)
-            const CfemReal* dxi   = shape.dN_dxi[q].data();
-            const CfemReal* deta  = shape.dN_deta[q].data();
-            const CfemReal* dzeta = shape.dN_dzeta[q].data();
+            const CfemReal* __restrict dxi   = shape.dN_dxi[q].data();
+            const CfemReal* __restrict deta  = shape.dN_deta[q].data();
+            const CfemReal* __restrict dzeta = shape.dN_dzeta[q].data();
 
             // Pointeurs SoA vers les lignes de la matrice physique (Écriture)
-            CfemReal* dx = out.dN_dx[q].data();
-            CfemReal* dy = out.dN_dy[q].data();
-            CfemReal* dz = out.dN_dz[q].data();
+            CfemReal* __restrict dx = out.dN_dx[q].data();
+            CfemReal* __restrict dy = out.dN_dy[q].data();
+            CfemReal* __restrict dz = out.dN_dz[q].data();
 
             // Boucle sur les nœuds interne : vectorisation SIMD maximale
             for (CfemInt a = 0; a < n; ++a)
             {
-                dx[a] = i00 * dxi[a] + i10 * deta[a] + i20 * dzeta[a];
-                dy[a] = i01 * dxi[a] + i11 * deta[a] + i21 * dzeta[a];
-                dz[a] = i02 * dxi[a] + i12 * deta[a] + i22 * dzeta[a];
+                const CfemReal gx = dxi[a];
+                const CfemReal gy = deta[a];
+                const CfemReal gz = dzeta[a];
+
+                dx[a] = i00 * gx + i10 * gy + i20 * gz;
+                dy[a] = i01 * gx + i11 * gy + i21 * gz;
+                dz[a] = i02 * gx + i12 * gy + i22 * gz;
             }
         }
     }
@@ -477,12 +576,12 @@ namespace cfem
         CfemReal hZ_xx = 0, hZ_yy = 0, hZ_zz = 0, hZ_xy = 0, hZ_xz = 0, hZ_yz = 0;
 
         // Pointeurs SoA pour les Hessiens de référence
-        const CfemReal* d2xi2      = shape.d2N_dxi2.data();
-        const CfemReal* d2eta2     = shape.d2N_deta2.data();
-        const CfemReal* d2zeta2    = shape.d2N_dzeta2.data();
-        const CfemReal* d2xideta   = shape.d2N_dxideta.data();
-        const CfemReal* d2xidzeta  = shape.d2N_dxidzeta.data();
-        const CfemReal* d2etadzeta = shape.d2N_detadzeta.data();
+        const CfemReal* __restrict d2xi2      = shape.d2N_dxi2.data();
+        const CfemReal* __restrict d2eta2     = shape.d2N_deta2.data();
+        const CfemReal* __restrict d2zeta2    = shape.d2N_dzeta2.data();
+        const CfemReal* __restrict d2xideta   = shape.d2N_dxideta.data();
+        const CfemReal* __restrict d2xidzeta  = shape.d2N_dxidzeta.data();
+        const CfemReal* __restrict d2etadzeta = shape.d2N_detadzeta.data();
 
         for (CfemInt a = 0; a < n; ++a)
         {
@@ -506,53 +605,68 @@ namespace cfem
             hZ_xy += hxy * pos.z; hZ_xz += hxz * pos.z; hZ_yz += hyz * pos.z;
         }
 
-        const CfemReal i00 = out.invJacobian(0,0), i01 = out.invJacobian(0,1), i02 = out.invJacobian(0,2);
-        const CfemReal i10 = out.invJacobian(1,0), i11 = out.invJacobian(1,1), i12 = out.invJacobian(1,2);
-        const CfemReal i20 = out.invJacobian(2,0), i21 = out.invJacobian(2,1), i22 = out.invJacobian(2,2);
-
-        // Helper lambda pour la transformation de congruence
-        auto computeComp = [&](CfemInt p, CfemInt q, CfemReal r_xx, CfemReal r_yy, CfemReal r_zz, 
-                                                     CfemReal r_xy, CfemReal r_xz, CfemReal r_yz) {
-            CfemReal res = out.invJacobian(0,p)*r_xx*out.invJacobian(0,q) + 
-                           out.invJacobian(1,p)*r_yy*out.invJacobian(1,q) + 
-                           out.invJacobian(2,p)*r_zz*out.invJacobian(2,q);
-            res += (out.invJacobian(0,p)*r_xy*out.invJacobian(1,q) + out.invJacobian(1,p)*r_xy*out.invJacobian(0,q)) +
-                   (out.invJacobian(0,p)*r_xz*out.invJacobian(2,q) + out.invJacobian(2,p)*r_xz*out.invJacobian(0,q)) +
-                   (out.invJacobian(1,p)*r_yz*out.invJacobian(2,q) + out.invJacobian(2,p)*r_yz*out.invJacobian(1,q));
-            return res;
-        };
+        const CfemReal i00 = out.invJacobian.xx(), i01 = out.invJacobian.xy(), i02 = out.invJacobian.xz();
+        const CfemReal i10 = out.invJacobian.yx(), i11 = out.invJacobian.yy(), i12 = out.invJacobian.yz();
+        const CfemReal i20 = out.invJacobian.zx(), i21 = out.invJacobian.zy(), i22 = out.invJacobian.zz();
 
         // Pointeurs SoA pour la lecture des gradients physiques
-        const CfemReal* dNdx = out.dN_dx.data();
-        const CfemReal* dNdy = out.dN_dy.data();
-        const CfemReal* dNdz = out.dN_dz.data();
+        const CfemReal* __restrict dNdx = out.dN_dx.data();
+        const CfemReal* __restrict dNdy = out.dN_dy.data();
+        const CfemReal* __restrict dNdz = out.dN_dz.data();
 
         // Pointeurs SoA pour l'écriture des Hessiens physiques
-        CfemReal* d2x2 = out.d2N_dx2.data();
-        CfemReal* d2y2 = out.d2N_dy2.data();
-        CfemReal* d2z2 = out.d2N_dz2.data();
-        CfemReal* dxdy = out.d2N_dxdy.data();
-        CfemReal* dxdz = out.d2N_dxdz.data();
-        CfemReal* dydz = out.d2N_dydz.data();
+        CfemReal* __restrict d2x2 = out.d2N_dx2.data();
+        CfemReal* __restrict d2y2 = out.d2N_dy2.data();
+        CfemReal* __restrict d2z2 = out.d2N_dz2.data();
+        CfemReal* __restrict dxdy = out.d2N_dxdy.data();
+        CfemReal* __restrict dxdz = out.d2N_dxdz.data();
+        CfemReal* __restrict dydz = out.d2N_dydz.data();
 
         // --- Étape 2 : Matrice R et Transformation vers l'espace physique ---
         for (CfemInt a = 0; a < n; ++a)
         {
-            // R = H_ref - sum( dN/dx_k * H_geom_k )
-            CfemReal r_xx = d2xi2[a]      - (dNdx[a] * hX_xx + dNdy[a] * hY_xx + dNdz[a] * hZ_xx);
-            CfemReal r_yy = d2eta2[a]     - (dNdx[a] * hX_yy + dNdy[a] * hY_yy + dNdz[a] * hZ_yy);
-            CfemReal r_zz = d2zeta2[a]    - (dNdx[a] * hX_zz + dNdy[a] * hY_zz + dNdz[a] * hZ_zz);
-            CfemReal r_xy = d2xideta[a]   - (dNdx[a] * hX_xy + dNdy[a] * hY_xy + dNdz[a] * hZ_xy);
-            CfemReal r_xz = d2xidzeta[a]  - (dNdx[a] * hX_xz + dNdy[a] * hY_xz + dNdz[a] * hZ_xz);
-            CfemReal r_yz = d2etadzeta[a] - (dNdx[a] * hX_yz + dNdy[a] * hY_yz + dNdz[a] * hZ_yz);
-            
-            // Écriture directe et contiguë des 6 composantes (Congruence)
-            d2x2[a] = computeComp(0, 0, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
-            d2y2[a] = computeComp(1, 1, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
-            d2z2[a] = computeComp(2, 2, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
-            dxdy[a] = computeComp(0, 1, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
-            dxdz[a] = computeComp(0, 2, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
-            dydz[a] = computeComp(1, 2, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
+            // =========================================================
+            // Construction de R
+            // =========================================================
+
+            const CfemReal gx = dNdx[a];
+            const CfemReal gy = dNdy[a];
+            const CfemReal gz = dNdz[a];
+
+            const CfemReal rxx = d2xi2[a] - (gx*hX_xx + gy*hY_xx + gz*hZ_xx);
+            const CfemReal ryy = d2eta2[a] - (gx*hX_yy + gy*hY_yy + gz*hZ_yy);
+            const CfemReal rzz = d2zeta2[a] - (gx*hX_zz + gy*hY_zz + gz*hZ_zz);
+            const CfemReal rxy = d2xideta[a] - (gx*hX_xy + gy*hY_xy + gz*hZ_xy);
+            const CfemReal rxz = d2xidzeta[a] - (gx*hX_xz + gy*hY_xz + gz*hZ_xz);
+            const CfemReal ryz = d2etadzeta[a] - (gx*hX_yz + gy*hY_yz + gz*hZ_yz);
+
+            // =========================================================
+            // T = R * invJ
+            // =========================================================
+
+            const CfemReal t00 = rxx*i00 + rxy*i10 + rxz*i20;
+            const CfemReal t01 = rxx*i01 + rxy*i11 + rxz*i21;
+            const CfemReal t02 = rxx*i02 + rxy*i12 + rxz*i22;
+
+            const CfemReal t10 = rxy*i00 + ryy*i10 + ryz*i20;
+            const CfemReal t11 = rxy*i01 + ryy*i11 + ryz*i21;
+            const CfemReal t12 = rxy*i02 + ryy*i12 + ryz*i22;
+
+            const CfemReal t20 = rxz*i00 + ryz*i10 + rzz*i20;
+            const CfemReal t21 = rxz*i01 + ryz*i11 + rzz*i21;
+            const CfemReal t22 = rxz*i02 + ryz*i12 + rzz*i22;
+
+            // =========================================================
+            // H = invJ^T * T
+            // =========================================================
+
+            d2x2[a] = i00*t00 + i10*t10 + i20*t20;
+            d2y2[a] = i01*t01 + i11*t11 + i21*t21;
+            d2z2[a] = i02*t02 + i12*t12 + i22*t22;
+
+            dxdy[a] = i00*t01 + i10*t11 + i20*t21;
+            dxdz[a] = i00*t02 + i10*t12 + i20*t22;
+            dydz[a] = i01*t02 + i11*t12 + i21*t22;
         }
     }
 
@@ -570,12 +684,12 @@ namespace cfem
             CfemReal hY_xx = 0, hY_yy = 0, hY_zz = 0, hY_xy = 0, hY_xz = 0, hY_yz = 0;
             CfemReal hZ_xx = 0, hZ_yy = 0, hZ_zz = 0, hZ_xy = 0, hZ_xz = 0, hZ_yz = 0;
 
-            const CfemReal* d2xi2      = shape.d2N_dxi2[q].data();
-            const CfemReal* d2eta2     = shape.d2N_deta2[q].data();
-            const CfemReal* d2zeta2    = shape.d2N_dzeta2[q].data();
-            const CfemReal* d2xideta   = shape.d2N_dxideta[q].data();
-            const CfemReal* d2xidzeta  = shape.d2N_dxidzeta[q].data();
-            const CfemReal* d2etadzeta = shape.d2N_detadzeta[q].data();
+            const CfemReal* __restrict d2xi2      = shape.d2N_dxi2[q].data();
+            const CfemReal* __restrict d2eta2     = shape.d2N_deta2[q].data();
+            const CfemReal* __restrict d2zeta2    = shape.d2N_dzeta2[q].data();
+            const CfemReal* __restrict d2xideta   = shape.d2N_dxideta[q].data();
+            const CfemReal* __restrict d2xidzeta  = shape.d2N_dxidzeta[q].data();
+            const CfemReal* __restrict d2etadzeta = shape.d2N_detadzeta[q].data();
 
             for (CfemInt a = 0; a < n; ++a)
             {
@@ -600,47 +714,67 @@ namespace cfem
             // Récupération de l'inverse du Jacobien pour le point q
             const auto& invJ = out.invJacobians[q];
 
-            // Lambda helper local pour la transformation de congruence au point q
-            auto computeComp = [&](CfemInt p, CfemInt qIndex, CfemReal r_xx, CfemReal r_yy, CfemReal r_zz, 
-                                                              CfemReal r_xy, CfemReal r_xz, CfemReal r_yz) {
-                CfemReal res = invJ(0,p)*r_xx*invJ(0,qIndex) + 
-                               invJ(1,p)*r_yy*invJ(1,qIndex) + 
-                               invJ(2,p)*r_zz*invJ(2,qIndex);
-                res += (invJ(0,p)*r_xy*invJ(1,qIndex) + invJ(1,p)*r_xy*invJ(0,qIndex)) +
-                       (invJ(0,p)*r_xz*invJ(2,qIndex) + invJ(2,p)*r_xz*invJ(0,qIndex)) +
-                       (invJ(1,p)*r_yz*invJ(2,qIndex) + invJ(2,p)*r_yz*invJ(0,qIndex));
-                return res;
-            };
+            // =========================================================
+            // PRÉ-CHARGEMENT : Extraction dans les registres locaux
+            // =========================================================
+            const CfemReal i00 = invJ(0,0), i01 = invJ(0,1), i02 = invJ(0,2);
+            const CfemReal i10 = invJ(1,0), i11 = invJ(1,1), i12 = invJ(1,2);
+            const CfemReal i20 = invJ(2,0), i21 = invJ(2,1), i22 = invJ(2,2);
 
             // Recouvrement des pointeurs de lignes physiques (Lecture des gradients, Écriture des Hessiens)
-            const CfemReal* dNdx = out.dN_dx[q].data();
-            const CfemReal* dNdy = out.dN_dy[q].data();
-            const CfemReal* dNdz = out.dN_dz[q].data();
+            const CfemReal* __restrict dNdx = out.dN_dx[q].data();
+            const CfemReal* __restrict dNdy = out.dN_dy[q].data();
+            const CfemReal* __restrict dNdz = out.dN_dz[q].data();
 
-            CfemReal* d2x2 = out.d2N_dx2[q].data();
-            CfemReal* d2y2 = out.d2N_dy2[q].data();
-            CfemReal* d2z2 = out.d2N_dz2[q].data();
-            CfemReal* dxdy = out.d2N_dxdy[q].data();
-            CfemReal* dxdz = out.d2N_dxdz[q].data();
-            CfemReal* dydz = out.d2N_dydz[q].data();
+            CfemReal* __restrict d2x2 = out.d2N_dx2[q].data();
+            CfemReal* __restrict d2y2 = out.d2N_dy2[q].data();
+            CfemReal* __restrict d2z2 = out.d2N_dz2[q].data();
+            CfemReal* __restrict dxdy = out.d2N_dxdy[q].data();
+            CfemReal* __restrict dxdz = out.d2N_dxdz[q].data();
+            CfemReal* __restrict dydz = out.d2N_dydz[q].data();
 
             // Étape 2 : Calcul de R et application de la congruence pour chaque nœud
             for (CfemInt a = 0; a < n; ++a)
             {
-                CfemReal r_xx = d2xi2[a]      - (dNdx[a] * hX_xx + dNdy[a] * hY_xx + dNdz[a] * hZ_xx);
-                CfemReal r_yy = d2eta2[a]     - (dNdx[a] * hX_yy + dNdy[a] * hY_yy + dNdz[a] * hZ_yy);
-                CfemReal r_zz = d2zeta2[a]    - (dNdx[a] * hX_zz + dNdy[a] * hY_zz + dNdz[a] * hZ_zz);
-                CfemReal r_xy = d2xideta[a]   - (dNdx[a] * hX_xy + dNdy[a] * hY_xy + dNdz[a] * hZ_xy);
-                CfemReal r_xz = d2xidzeta[a]  - (dNdx[a] * hX_xz + dNdy[a] * hY_xz + dNdz[a] * hZ_xz);
-                CfemReal r_yz = d2etadzeta[a] - (dNdx[a] * hX_yz + dNdy[a] * hY_yz + dNdz[a] * hZ_yz);
-                
-                // Enregistrement direct dans les structures matricielles contigues du Batch
-                d2x2[a] = computeComp(0, 0, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
-                d2y2[a] = computeComp(1, 1, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
-                d2z2[a] = computeComp(2, 2, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
-                dxdy[a] = computeComp(0, 1, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
-                dxdz[a] = computeComp(0, 2, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
-                dydz[a] = computeComp(1, 2, r_xx, r_yy, r_zz, r_xy, r_xz, r_yz);
+                // =========================================================
+                // Construction de R
+                // =========================================================
+                const CfemReal gx = dNdx[a];
+                const CfemReal gy = dNdy[a];
+                const CfemReal gz = dNdz[a];
+
+                const CfemReal rxx = d2xi2[a]      - (gx*hX_xx + gy*hY_xx + gz*hZ_xx);
+                const CfemReal ryy = d2eta2[a]     - (gx*hX_yy + gy*hY_yy + gz*hZ_yy);
+                const CfemReal rzz = d2zeta2[a]    - (gx*hX_zz + gy*hY_zz + gz*hZ_zz);
+                const CfemReal rxy = d2xideta[a]   - (gx*hX_xy + gy*hY_xy + gz*hZ_xy);
+                const CfemReal rxz = d2xidzeta[a]  - (gx*hX_xz + gy*hY_xz + gz*hZ_xz);
+                const CfemReal ryz = d2etadzeta[a] - (gx*hX_yz + gy*hY_yz + gz*hZ_yz);
+
+                // =========================================================
+                // T = R * invJ
+                // =========================================================
+                const CfemReal t00 = rxx*i00 + rxy*i10 + rxz*i20;
+                const CfemReal t01 = rxx*i01 + rxy*i11 + rxz*i21;
+                const CfemReal t02 = rxx*i02 + rxy*i12 + rxz*i22;
+
+                const CfemReal t10 = rxy*i00 + ryy*i10 + ryz*i20;
+                const CfemReal t11 = rxy*i01 + ryy*i11 + ryz*i21;
+                const CfemReal t12 = rxy*i02 + ryy*i12 + ryz*i22;
+
+                const CfemReal t20 = rxz*i00 + ryz*i10 + rzz*i20;
+                const CfemReal t21 = rxz*i01 + ryz*i11 + rzz*i21;
+                const CfemReal t22 = rxz*i02 + ryz*i12 + rzz*i22;
+
+                // =========================================================
+                // H = invJ^T * T
+                // =========================================================
+                d2x2[a] = i00*t00 + i10*t10 + i20*t20;
+                d2y2[a] = i01*t01 + i11*t11 + i21*t21;
+                d2z2[a] = i02*t02 + i12*t12 + i22*t22;
+
+                dxdy[a] = i00*t01 + i10*t11 + i20*t21;
+                dxdz[a] = i00*t02 + i10*t12 + i20*t22;
+                dydz[a] = i01*t02 + i11*t12 + i21*t22;
             }
         }
     }
@@ -652,8 +786,8 @@ namespace cfem
         {
             // Variété 2D (Surface, Triangle/Quad) dans l'espace 3D
             // Les deux vecteurs tangents sont les deux premières colonnes du Jacobien
-            Vector3D t1(out.jacobian(0, 0), out.jacobian(1, 0), out.jacobian(2, 0));
-            Vector3D t2(out.jacobian(0, 1), out.jacobian(1, 1), out.jacobian(2, 1));
+            Vector3D t1(out.jacobian.xx(), out.jacobian.yx(), out.jacobian.zx());
+            Vector3D t2(out.jacobian.xy(), out.jacobian.yy(), out.jacobian.zy());
             
             out.normal = (t1.cross(t2)).normalized();
 
@@ -661,8 +795,8 @@ namespace cfem
         else if (m_dimension == 1) 
         {
             // Variété 1D (Ligne) dans un espace 2D (ou 3D z=0)
-            CfemReal dx = out.jacobian(0, 0);
-            CfemReal dy = out.jacobian(1, 0);
+            CfemReal dx = out.jacobian.xx();
+            CfemReal dy = out.jacobian.yx();
             CfemReal norm = std::sqrt(dx * dx + dy * dy);
             
             if (norm > cfem::ZERO_TOLERANCE) {

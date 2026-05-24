@@ -60,6 +60,28 @@ namespace cfem::sym
             return std::make_shared<const ZeroExpression>(m_dimension);
         }
 
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            ShapeEvaluationFlags gradFlags = ShapeEvaluationFlags::None;
+
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::FirstDerivatives)) {
+                gradFlags |= ShapeEvaluationFlags::Value;
+            }
+
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::SecondDerivatives)) {
+                gradFlags |= ShapeEvaluationFlags::FirstDerivatives;
+            }
+
+            if (m_gradient && gradFlags != ShapeEvaluationFlags::None) {
+                m_gradient->collectSpaceRequirements(reqs, gradFlags);
+            }
+            else if (!m_gradient && gradFlags != ShapeEvaluationFlags::None) {
+                CFEM_THROW("Error in AST: Derivatives requested from a LambdaExpression, "
+                           "but no analytical gradient expression was provided during its construction.");
+            }
+        }
+
 
         /**
          * @brief Constructeur de la base.

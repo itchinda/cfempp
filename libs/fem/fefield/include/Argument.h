@@ -73,6 +73,11 @@ protected:
         return nullptr;
     }
 
+    void doCollectSpaceRequirements( SpaceRequirements& reqs, ShapeEvaluationFlags inheritedFlags) const override 
+    {
+        reqs.addRequirement(m_space.get(), inheritedFlags);
+    }
+
 public:
 
     /**

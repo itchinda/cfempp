@@ -31,7 +31,7 @@ namespace cfem::sym
 {
 
     class VariableExpression : public CfemExpression {
-    private:
+    protected:
         std::string m_name;
         const CfemReal* m_dataPtr;
         CfemInt m_dim;
@@ -55,6 +55,28 @@ namespace cfem::sym
                     "' has no time derivative defined. Please assign a derivative or a numerical scheme (e.g., BDF1).";
             }
             return m_timeDerivExpr;
+        }
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            ShapeEvaluationFlags gradFlags = ShapeEvaluationFlags::None;
+
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::FirstDerivatives)) {
+                gradFlags |= ShapeEvaluationFlags::Value;
+            }
+
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::SecondDerivatives)) {
+                gradFlags |= ShapeEvaluationFlags::FirstDerivatives;
+            }
+
+            if (m_gradExpr && gradFlags != ShapeEvaluationFlags::None) {
+                m_gradExpr->collectSpaceRequirements(reqs, gradFlags);
+            }
+            else if (!m_gradExpr && gradFlags != ShapeEvaluationFlags::None) {
+                CFEM_THROW("Error in AST: Derivatives requested from a LambdaExpression, "
+                           "but no analytical gradient expression was provided during its construction.");
+            }
         }
 
     public:

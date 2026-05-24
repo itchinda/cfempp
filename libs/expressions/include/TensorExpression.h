@@ -35,13 +35,27 @@ namespace cfem::sym
      **************************************************************************** */
     class TensorExpression : public CfemExpression
     {
-    private:
+    protected:
         std::shared_ptr<const CfemExpression> m_components[9];
         std::shared_ptr<const CfemExpression> createGradient() const override { 
             CFEM_THROW("Gradient is not yet supported for tensor expressions. It would required a 3rd order tensor which is not implemented.");
             return nullptr; 
         }
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            m_components[0]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[1]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[2]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[3]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[4]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[5]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[6]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[7]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[8]->collectSpaceRequirements(reqs, inheritedFlags);     
+        }
 
     public:
         TensorExpression (std::shared_ptr<const CfemExpression> expr_xx, std::shared_ptr<const CfemExpression> expr_xy, std::shared_ptr<const CfemExpression> expr_xz,

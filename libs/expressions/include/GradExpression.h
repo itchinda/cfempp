@@ -35,7 +35,7 @@ namespace cfem::sym
      **************************************************************************** */
     class GradExpression : public CfemExpression
     {
-    private:
+    protected:
         std::shared_ptr<const CfemExpression> m_expr;
 
         std::shared_ptr<const CfemExpression> createGradient() const override{
@@ -44,6 +44,30 @@ namespace cfem::sym
         }
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override{
             return std::make_shared<GradExpression>(m_expr->timeDerivative());
+        }
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            ShapeEvaluationFlags childFlags = ShapeEvaluationFlags::None;
+            
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::Value)) {
+                childFlags |= ShapeEvaluationFlags::FirstDerivatives;
+            }
+
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::FirstDerivatives)) {
+                childFlags |= ShapeEvaluationFlags::SecondDerivatives;
+            }
+
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::SecondDerivatives)) {
+                CFEM_THROW("Error in AST: A differential operator was asked for its Second Derivatives. "
+                           "This requires Third Derivatives from the underlying field, which are not "
+                           "supported by the current CFEM++ implementation.");
+            }
+
+            if (m_expr) {
+                m_expr->collectSpaceRequirements(reqs, childFlags); 
+            }
         }
 
     public:

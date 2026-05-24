@@ -102,7 +102,7 @@ namespace cfem::sym {
             return coeffStr + " * " + baseStr;
         }
 
-    private:
+    protected:
         CfemReal m_coeff;
         std::shared_ptr<const CfemExpression> m_base;
 
@@ -118,6 +118,12 @@ namespace cfem::sym {
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override{
             CFEM_ASSERT(m_base, "ScaledExpression::createTimeFDerivative: base expression must be valid");
             return std::make_shared<ScaledExpression>(m_coeff, m_base->timeDerivative());
+        }
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            if (m_base) m_base->collectSpaceRequirements(reqs, inheritedFlags);
         }
     };
 }

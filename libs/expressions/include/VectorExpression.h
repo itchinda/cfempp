@@ -35,10 +35,18 @@ namespace cfem::sym
      **************************************************************************** */
     class VectorExpression : public CfemExpression
     {
-    private:
+    protected:
         std::shared_ptr<const CfemExpression> m_components[3];
         std::shared_ptr<const CfemExpression> createGradient() const override;
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            m_components[0]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[1]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[2]->collectSpaceRequirements(reqs, inheritedFlags);  
+        }
 
     public:
         VectorExpression (std::shared_ptr<const CfemExpression> expr_x,

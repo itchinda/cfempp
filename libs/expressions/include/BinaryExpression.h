@@ -36,7 +36,7 @@ namespace cfem::sym
      **************************************************************************** */
     class BinaryExpression : public CfemExpression
     {
-    private:
+    protected:
         std::shared_ptr<const CfemExpression> m_lhs;
         std::shared_ptr<const CfemExpression> m_rhs;
         MathOp                                m_op;
@@ -46,6 +46,13 @@ namespace cfem::sym
     
         std::shared_ptr<const CfemExpression> createGradient() const override;
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            if (m_lhs) m_lhs->collectSpaceRequirements(reqs, inheritedFlags);
+            if (m_rhs) m_rhs->collectSpaceRequirements(reqs, inheritedFlags);
+        }
 
     public:
         BinaryExpression(std::shared_ptr<const CfemExpression> lhs,

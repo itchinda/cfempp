@@ -34,7 +34,7 @@ namespace cfem::sym
      **************************************************************************** */
     class DivergenceExpression : public CfemExpression
     {
-    private:
+    protected:
         std::shared_ptr<const CfemExpression> m_expr;
         CfemInt m_dimIn;
         CfemInt m_dimOut;
@@ -52,6 +52,30 @@ namespace cfem::sym
         std::shared_ptr<const CfemExpression> createGradient() const override {
             CFEM_THROW("The gradient of a divergence node requires a dedicated GradExpression fallback.");
             return nullptr;
+        }
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            ShapeEvaluationFlags childFlags = ShapeEvaluationFlags::None;
+            
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::Value)) {
+                childFlags |= ShapeEvaluationFlags::FirstDerivatives;
+            }
+
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::FirstDerivatives)) {
+                childFlags |= ShapeEvaluationFlags::SecondDerivatives;
+            }
+
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::SecondDerivatives)) {
+                CFEM_THROW("Error in AST: A differential operator was asked for its Second Derivatives. "
+                           "This requires Third Derivatives from the underlying field, which are not "
+                           "supported by the current CFEM++ implementation.");
+            }
+
+            if (m_expr) {
+                m_expr->collectSpaceRequirements(reqs, childFlags); 
+            }
         }
 
     public:

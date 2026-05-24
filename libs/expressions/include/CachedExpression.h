@@ -85,7 +85,7 @@ namespace cfem::sym {
 
         
 
-    private:
+    protected:
         std::shared_ptr<const CfemExpression> m_inner;
 
         std::shared_ptr<const CfemExpression> createGradient() const override {
@@ -94,6 +94,12 @@ namespace cfem::sym {
 
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override {
             return std::make_shared<const CachedExpression>(m_inner->timeDerivative());
+        }
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            if (m_inner) m_inner->collectSpaceRequirements(reqs, inheritedFlags);
         }
     };
 

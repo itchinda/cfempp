@@ -71,7 +71,7 @@ namespace cfem::sym
         CfemInt precedence() const override;
         ExpressionType getType() const override { return ExpressionType::Unary; }
 
-    private:
+    protected:
         std::shared_ptr<const CfemExpression> m_expr;
         MathOp m_op;
         CfemInt m_dimIn;
@@ -81,6 +81,12 @@ namespace cfem::sym
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
 
         std::shared_ptr<const CfemExpression> getDerivativeWrtInner() const;
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            if(m_expr) m_expr->collectSpaceRequirements(reqs, inheritedFlags);   
+        }
     };
 }
 

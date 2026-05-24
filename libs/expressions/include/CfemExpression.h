@@ -71,6 +71,20 @@ namespace cfem::sym
         Test
     };
 
+    struct SpaceRequirements {
+        std::vector<std::pair<const FESpace*, ShapeEvaluationFlags>> data;
+
+        void addRequirement(const FESpace* space, ShapeEvaluationFlags flags) {
+            for (auto& pair : data) {
+                if (pair.first == space) {
+                    pair.second |= flags; // Fusionne les drapeaux si l'espace existe
+                    return;
+                }
+            }
+            data.push_back({space, flags});
+        }
+    };
+
     /** *************************************************************************
      * @brief 
      * 
@@ -83,6 +97,7 @@ namespace cfem::sym
         mutable std::shared_ptr<const CfemExpression> m_timeDeriv = nullptr;
         virtual std::shared_ptr<const CfemExpression> createGradient() const = 0;
         virtual std::shared_ptr<const CfemExpression> createTimeDerivative() const = 0;
+        virtual void doCollectSpaceRequirements(SpaceRequirements& reqs,  ShapeEvaluationFlags inheritedFlags) const {}
 
     public:
         virtual ~CfemExpression() = default;
@@ -120,6 +135,12 @@ namespace cfem::sym
 
         virtual void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const {
             // Par défaut, pas de dépendance à un espace FE
+        }
+
+        void collectSpaceRequirements(SpaceRequirements& reqs, 
+                                      ShapeEvaluationFlags inheritedFlags = ShapeEvaluationFlags::Value) const 
+        {
+            doCollectSpaceRequirements(reqs, inheritedFlags);
         }
 
         virtual std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const {return nullptr; } 

@@ -36,12 +36,17 @@ namespace cfem::sym
      **************************************************************************** */
     class MagnitudeSqExpression : public CfemExpression
     {
-    private:
+    protected:
         CfemInt m_innerDim = 0;
         std::shared_ptr<const CfemExpression> m_expr;
         std::shared_ptr<const CfemExpression> createGradient() const override;
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
         
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            if (m_expr) m_expr->collectSpaceRequirements(reqs, inheritedFlags);
+        }
 
     public:
         explicit MagnitudeSqExpression(std::shared_ptr<const CfemExpression> expr)
