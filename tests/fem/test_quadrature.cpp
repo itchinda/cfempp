@@ -191,7 +191,7 @@ TEST_F(MappingAccuracyTest, TransformedTriangle3) {
 TEST_F(MappingAccuracyTest, InterpolationConsistency) {
     Q1ReferenceQuad ref;
     ShapeInfo shape;
-    shape.values.resize(ref.getNumNodes());
+    shape.setup(ref.getNumNodes());
     //shape.setup(ref.getNumNodes());
     
     
@@ -220,8 +220,8 @@ TEST_F(MappingAccuracyTest, PhysicalGradientLinearField) {
     const QuadratureRule& q = scheme.getRule(CellType::TRI3, 1);
     ShapeInfo shape;
     MappingInfo map;
-    shape.setup(3);
-    map.setup(3);
+    shape.setup(ref.getNumNodes());
+    map.setup(ref.getNumNodes());
 
     // Triangle : (0,0), (1,0), (0,1)
     DynamicVector<Vector3D> nodes = {{0,0,0}, {1,0,0}, {0,1,0}};

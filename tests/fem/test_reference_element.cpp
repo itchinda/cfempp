@@ -99,9 +99,10 @@ TEST_P(ReferenceElementTest, KroneckerDeltaProperty) {
 
     for (CfemInt j = 0; j < n; ++j) {
         el->evaluateShapes(nodes[j], ShapeEvaluationFlags::Value, info);
+        const auto& values = info.values();
         for (CfemInt i = 0; i < n; ++i) {
             CfemReal expected = (i == j) ? 1.0 : 0.0;
-            EXPECT_NEAR(info.values[i], expected, tol) 
+            EXPECT_NEAR(values[i], expected, tol) 
                 << "Element: " << typeid(*el).name() << " - Node: " << j << " - ShapeFn: " << i;
         }
     }
@@ -115,10 +116,11 @@ TEST_P(ReferenceElementTest, PartitionOfUnity) {
 
     for (const auto& xi : test_points) {
         el->evaluateShapes(xi, ShapeEvaluationFlags::Value, info);
-        
+        const auto& values = info.values();
+
         CfemReal sum = 0.0;
         for (CfemInt i = 0; i < el->getNumNodes(); ++i) {
-            sum += info.values[i];
+            sum += values[i];
         }
         
         EXPECT_NEAR(sum, 1.0, tol) 
@@ -224,7 +226,7 @@ TEST_F(MappingTest, QuadPlanarMapping) {
     
     // dN/dz doit être nul car l'élément est dans le plan XY
     for(CfemInt i=0; i<4; ++i) {
-        EXPECT_NEAR(map.dN_dz[i], 0.0, tol);
+        EXPECT_NEAR(map.dN_dz()[i], 0.0, tol);
     }
 }
 
@@ -312,9 +314,9 @@ TEST_F(MappingTest, P2TriangleCurvedHessians) {
 
     // Check that the gradient components are reasonable (not NaN)
     for (CfemInt i=0; i<6; ++i) {
-        EXPECT_FALSE(std::isnan(map.dN_dx[i]));
-        EXPECT_FALSE(std::isnan(map.dN_dy[i]));
-        EXPECT_FALSE(std::isnan(map.dN_dz[i]));
+        EXPECT_FALSE(std::isnan(map.dN_dx()[i]));
+        EXPECT_FALSE(std::isnan(map.dN_dy()[i]));
+        EXPECT_FALSE(std::isnan(map.dN_dz()[i]));
     }
 }
 

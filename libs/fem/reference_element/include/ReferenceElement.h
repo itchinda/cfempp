@@ -68,11 +68,9 @@ public:
      * @param xi The coordinates of the evaluation point in the reference element ($\xi, \eta, \zeta$).
      * @param values Raw pointer to a pre-allocated array of size [numNodes] to be populated.
      */
-    virtual void evaluateShapesValues(const Vector3D &xi, 
-                                CfemReal* values) const = 0;
-
+    virtual void evaluateShapesValues(const Vector3D& xi, ShapeInfo& info) const = 0;
     virtual void evaluateShapesValuesBatch(const DynamicVector<Vector3D> &xi, 
-                                     DynamicMatrix<CfemReal>       &values) const = 0;
+                                           ShapeInfoBatch& shapeBatch) const = 0;
 
     /**
      * @brief Evaluates the first-order derivatives of the shape functions (local gradients) 
@@ -82,43 +80,19 @@ public:
      * @param dN_deta Raw pointer to the reference coordinate $\eta$ derivative array (size [numNodes]).
      * @param dN_dzeta Raw pointer to the reference coordinate $\zeta$ derivative array (size [numNodes]).
      */
-    virtual void evaluateShapesDerivatives(const Vector3D &xi, 
-                                     CfemReal* dN_dxi, 
-                                     CfemReal* dN_deta, 
-                                     CfemReal* dN_dzeta) const = 0;
-
+    virtual void evaluateShapesDerivatives(const Vector3D& xi, ShapeInfo& info) const = 0;
     virtual void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D> &xi, 
-                                          DynamicMatrix<CfemReal>       &dN_dxi, 
-                                          DynamicMatrix<CfemReal>       &dN_deta, 
-                                          DynamicMatrix<CfemReal>       &dN_dzeta) const = 0;
+                                                ShapeInfoBatch& shapeBatch) const = 0;
 
     /**
      * @brief Evaluates the second-order derivatives of the shape functions (local Hessians) 
      * with respect to the reference coordinate system.
      * 
-     * @param xi The coordinates of the evaluation point in the reference element ($\xi, \eta, \zeta$).
-     * @param d2N_dxi2 Raw pointer to the $\frac{\partial^2 N}{\partial \xi^2}$ array (size [numNodes]).
-     * @param d2N_deta2 Raw pointer to the $\frac{\partial^2 N}{\partial \eta^2}$ array (size [numNodes]).
-     * @param d2N_dzeta2 Raw pointer to the $\frac{\partial^2 N}{\partial \zeta^2}$ array (size [numNodes]).
-     * @param d2N_dxideta Raw pointer to the $\frac{\partial^2 N}{\partial \xi \partial \eta}$ array (size [numNodes]).
-     * @param d2N_dxidzeta Raw pointer to the $\frac{\partial^2 N}{\partial \xi \partial \zeta}$ array (size [numNodes]).
-     * @param d2N_detadzeta Raw pointer to the $\frac{\partial^2 N}{\partial \eta \partial \zeta}$ array (size [numNodes]).
+     * @param info The ShapeInfo object containing buffers to be filled.
      */
-    virtual void evaluateShapesSecondDerivatives(const Vector3D &xi,
-                                           CfemReal* d2N_dxi2, 
-                                           CfemReal* d2N_deta2, 
-                                           CfemReal* d2N_dzeta2,
-                                           CfemReal* d2N_dxideta, 
-                                           CfemReal* d2N_dxidzeta, 
-                                           CfemReal* d2N_detadzeta) const = 0;
-
+    virtual void evaluateShapesSecondDerivatives(const Vector3D& xi, ShapeInfo& info) const = 0;
     virtual void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D> &xi,
-                                                DynamicMatrix<CfemReal>       &d2N_dxi2, 
-                                                DynamicMatrix<CfemReal>       &d2N_deta2, 
-                                                DynamicMatrix<CfemReal>       &d2N_dzeta2,
-                                                DynamicMatrix<CfemReal>       &d2N_dxideta, 
-                                                DynamicMatrix<CfemReal>       &d2N_dxidzeta, 
-                                                DynamicMatrix<CfemReal>       &d2N_detadzeta) const = 0;
+                                                      ShapeInfoBatch& shapeBatch) const = 0;
                           
     virtual Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const = 0;
     /**

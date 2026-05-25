@@ -249,18 +249,20 @@ void LagrangeSpace::getElementDofs(CfemInt cellId, std::vector<CfemInt>& globalI
 
 // MATH & EVALUATION
 
-void LagrangeSpace::evaluateBasis(CfemInt cellId, const Vector3D& xi, std::vector<CfemReal>& values) const {
+void LagrangeSpace::evaluateBasis(CfemInt cellId, const Vector3D& xi, ShapeInfo& shape, std::vector<CfemReal>& values) const {
     const Cell& cell = m_mesh->getCell(cellId);
     const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement( cell.type, getOrderInt() );
 
-    ShapeInfo shape;
-    shape.values.resize(refEl.getNumNodes());
-    refEl.evaluateShapesValues(xi, shape.values.data());
+    shape.setup(refEl.getNumNodes(), false);
+    shape.validFlags = ShapeEvaluationFlags::Value;
 
-    values.assign(shape.values.begin(), shape.values.end());
+    refEl.evaluateShapesValues(xi, shape);
+
+    const CfemReal* ptr = shape.values();
+    values.assign(ptr, ptr + shape.numNodes);
 }
 
-void LagrangeSpace::evaluateBasisGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const 
+void LagrangeSpace::evaluateBasisFirstDerivatives(CfemInt cellId, const Vector3D& xi, ShapeInfo& shape, MappingInfo& map) const 
 {
     const Cell& cell = m_mesh->getCell(cellId);
     const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement(cell.type, getOrderInt());
@@ -268,9 +270,6 @@ void LagrangeSpace::evaluateBasisGradients(CfemInt cellId, const Vector3D& xi, s
     // Thread-local scratchpad to ensure OpenMP safety and avoid allocations
     static thread_local DynamicVector<Vector3D> t_physicalCoords;
     m_mesh->getCellVerticesCoords(cellId, t_physicalCoords);
-
-    ShapeInfo shape;
-    MappingInfo map;
 
     refEl.computeMapping(
         xi, 
@@ -281,17 +280,21 @@ void LagrangeSpace::evaluateBasisGradients(CfemInt cellId, const Vector3D& xi, s
         map
     );
 
-    const CfemInt nNodes = static_cast<CfemInt>(map.dN_dx.size());
-    const CfemInt spatialDimension = m_mesh->getSpatialDimension();
+    // const CfemInt nNodes = map.numNodes;
+    // const CfemInt spatialDimension = m_mesh->getSpatialDimension();
 
-    grads.resize(nNodes);
+    // grads.resize(nNodes);
 
-    for (CfemInt i = 0; i < nNodes; ++i)
-    {
-        grads[i].x = map.dN_dx[i];
-        grads[i].y = (spatialDimension >= 2) ? map.dN_dy[i] : 0.0;
-        grads[i].z = (spatialDimension == 3) ? map.dN_dz[i] : 0.0;
-    }
+    // const auto& dNdx = map.dN_dx();
+    // const auto& dNdy = map.dN_dy();
+    // const auto& dNdz = map.dN_dz();
+
+    // for (CfemInt i = 0; i < nNodes; ++i)
+    // {
+    //     grads[i].x = dNdx[i];
+    //     grads[i].y = (spatialDimension >= 2) ? dNdy[i] : 0.0;
+    //     grads[i].z = (spatialDimension == 3) ? dNdz[i] : 0.0;
+    // }
 }
 
 //PETSc & SYSTEM SUPPORT

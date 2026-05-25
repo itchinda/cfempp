@@ -146,12 +146,12 @@ public:
     /** 
      * @brief Evaluates basis functions at a local coordinate xi. 
      */
-    virtual void evaluateBasis(CfemInt cellId, const Vector3D& xi, std::vector<CfemReal>& values) const = 0;
+    virtual void evaluateBasis(CfemInt cellId, const Vector3D& xi, ShapeInfo& shape, std::vector<CfemReal>& values) const = 0;
     
     /** 
      * @brief Evaluates gradients of basis functions (physical or local as needed). 
      */
-    virtual void evaluateBasisGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const = 0;
+    virtual void evaluateBasisFirstDerivatives(CfemInt cellId, const Vector3D& xi, ShapeInfo& shape, MappingInfo& map) const = 0;
 
     // Support for Assembler and PETSc
 

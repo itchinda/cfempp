@@ -163,18 +163,18 @@ void DGSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
      * @param xi Reference/Local coordinates inside the cell's geometric space.
      * @param values Destination vector container to hold the evaluated scalar basis functions.
      */
-    void DGSpace::evaluateBasis(CfemInt cellId, const Vector3D& xi, std::vector<CfemReal>& values) const 
+    void DGSpace::evaluateBasis(CfemInt cellId, const Vector3D& xi, ShapeInfo& shape, std::vector<CfemReal>& values) const 
     {
-        ShapeInfo shape;
         const Cell& cell = m_mesh->getCell(cellId);
         const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement(cell.type, getOrderInt());
         
-        // Evaluate reference basis values directly into the ShapeInfo container
-        shape.values.resize(refEl.getNumNodes());
-        refEl.evaluateShapesValues(xi, shape.values.data());
+        shape.setup(refEl.getNumNodes(), false);
+        shape.validFlags = ShapeEvaluationFlags::Value;
         
-        // Direct contiguous copy remains valid for scalar values
-        values.assign(shape.values.begin(), shape.values.end());
+        refEl.evaluateShapesValues(xi, shape);
+        
+        const CfemReal* ptr = shape.values();
+        values.assign(ptr, ptr + shape.numNodes);
     }
 
     /**
@@ -183,7 +183,7 @@ void DGSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
      * @param xi Reference/Local coordinates inside the cell's geometric space.
      * @param grads Destination vector container to pack the calculated physical Vector3D gradients.
      */
-    void DGSpace::evaluateBasisGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const 
+    void DGSpace::evaluateBasisFirstDerivatives(CfemInt cellId, const Vector3D& xi, ShapeInfo& shape, MappingInfo& map) const 
     {
         // Thread-local scratchpad to guarantee OpenMP safety and bypass dynamic allocations
         static thread_local DynamicVector<Vector3D> t_physCoords;
@@ -191,9 +191,6 @@ void DGSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
 
         const Cell& cell = m_mesh->getCell(cellId);
         const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement(cell.type, getOrderInt());
-        
-        ShapeInfo shape;
-        MappingInfo map;
         
         refEl.computeMapping(
             xi, 
@@ -204,18 +201,22 @@ void DGSpace::computeSparsityPattern(std::vector<CfemInt>& nnz) const {
             map
         );
 
-        const CfemInt nNodes = static_cast<CfemInt>(map.dN_dx.size());
-        const CfemInt spatialDimension = m_mesh->getSpatialDimension();
+        // const CfemInt nNodes = map.numNodes;
+        // const CfemInt spatialDimension = m_mesh->getSpatialDimension();
 
-        // Resize the destination vector to accommodate the layout without memory spikes
-        grads.resize(nNodes);
+        // // Resize the destination vector to accommodate the layout without memory spikes
+        // grads.resize(nNodes);
 
-        for (CfemInt i = 0; i < nNodes; ++i)
-        {
-            grads[i].x = map.dN_dx[i];
-            grads[i].y = (spatialDimension >= 2) ? map.dN_dy[i] : 0.0;
-            grads[i].z = (spatialDimension == 3) ? map.dN_dz[i] : 0.0;
-        }
+        // const auto& dNdx = map.dN_dx();
+        // const auto& dNdy = map.dN_dy();
+        // const auto& dNdz = map.dN_dz();
+
+        // for (CfemInt i = 0; i < nNodes; ++i)
+        // {
+        //     grads[i].x = dNdx[i];
+        //     grads[i].y = (spatialDimension >= 2) ? dNdy[i] : 0.0;
+        //     grads[i].z = (spatialDimension == 3) ? dNdz[i] : 0.0;
+        // }
     }
 
 /**

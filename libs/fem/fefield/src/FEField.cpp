@@ -268,8 +268,8 @@ namespace cfem
         // Gather all local cell coefficients into cache-friendly dense layout
         this->extractCellDofs(cellId, ctx.scratchCellDofs, ctx);
         
-        const CfemInt nQp    = shapeBatch.values.n_rows();
-        const CfemInt nNodes = shapeBatch.values.n_cols();
+        const CfemInt nQp    = shapeBatch.numQuadraturePoints;
+        const CfemInt nNodes = shapeBatch.numNodes;
         const CfemInt fDim   = this->getNumComponents();
 
         outValuesBatch.resize(nQp, fDim);
@@ -277,8 +277,9 @@ namespace cfem
 
         // Vectorized dense matrix contraction: Out[q][d] = Sum_i ( Shape[q][i] * CellDofs[i][d] )
         for (CfemInt q = 0; q < nQp; ++q) {
+            const auto* values = shapeBatch.values(q);
             for (CfemInt i = 0; i < nNodes; ++i) {
-                const CfemReal Ni = shapeBatch.values[q][i];
+                const CfemReal Ni = values[i];
                 for (CfemInt d = 0; d < fDim; ++d) {
                     outValuesBatch[q][d] += Ni * ctx.scratchCellDofs[i][d];
                 }
@@ -298,8 +299,9 @@ namespace cfem
         const Cell &cell = m_space->getMesh()->getCell(cellId);
         const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type, m_space->getOrderInt());
 
-        ctx.singleWS.shape.values.resize(refEl.getNumNodes());
-        refEl.evaluateShapesValues(xi, ctx.singleWS.shape.values.data());
+        ctx.singleWS.shape.setup(refEl.getNumNodes(), false);
+        ctx.singleWS.shape.validFlags |= ShapeEvaluationFlags::Value;
+        refEl.evaluateShapesValues(xi, ctx.singleWS.shape);
         
         this->evaluateWithShape(cellId, ctx.singleWS.shape, out);
     }
@@ -315,8 +317,8 @@ namespace cfem
         const CfemInt nComp = this->getNumComponents();
         std::fill_n(out.data(), nComp, 0.0);
         
-        const auto &shapeValues = shape.values;
-        const CfemInt nNodes = static_cast<CfemInt>(shapeValues.size());
+        const auto &shapeValues = shape.values();
+        const CfemInt nNodes = shape.numNodes;
 
         // Contract nodal degrees of freedom linearly against element values
         for (CfemInt i = 0; i < nNodes; ++i)
@@ -409,10 +411,10 @@ namespace cfem
         // Reset output buffer tracking the exact required tensor memory footprint
         std::fill_n(out.data(), nComp * spatialDimension, 0.0);
 
-        const auto &gradsX = mapping.dN_dx;
-        const auto &gradsY = mapping.dN_dy;
-        const auto &gradsZ = mapping.dN_dz;
-        const CfemInt nNodes = static_cast<CfemInt>(gradsX.size());
+        const auto &gradsX = mapping.dN_dx();
+        const auto &gradsY = mapping.dN_dy();
+        const auto &gradsZ = mapping.dN_dz();
+        const CfemInt nNodes = mapping.numNodes;  //  static_cast<CfemInt>(gradsX.size());
 
         // Loop over element basis functions (nodes)
         for (CfemInt i = 0; i < nNodes; ++i)
@@ -459,8 +461,8 @@ namespace cfem
         // Gather all local cell coefficients into the memory arena scratchpad matrix
         this->extractCellDofs(cellId, ctx.scratchCellDofs, ctx);
 
-        const CfemInt nQp      = mappingBatch.dN_dx.n_rows();
-        const CfemInt nNodes   = mappingBatch.dN_dx.n_cols();
+        const CfemInt nQp      = mappingBatch.numQuadraturePoints;
+        const CfemInt nNodes   = mappingBatch.numNodes;
         const CfemInt fDim     = this->getNumComponents();
         const CfemInt spatialDimension = m_space->getMesh()->getSpatialDimension();
 
@@ -472,6 +474,9 @@ namespace cfem
         for (CfemInt q = 0; q < nQp; ++q) 
         {
             // Loop over field dimensions (components) first to establish continuous row offsets
+            const auto* dN_dx = mappingBatch.dN_dx(q);
+            const auto* dN_dy = mappingBatch.dN_dy(q);
+            const auto* dN_dz = mappingBatch.dN_dz(q);
             for (CfemInt d = 0; d < fDim; ++d) 
             {
                 const CfemInt rowOffset = d * spatialDimension;
@@ -484,10 +489,10 @@ namespace cfem
                 {
                     const CfemReal u_nodal = ctx.scratchCellDofs[i][d];
                     
-                    grad_x += mappingBatch.dN_dx[q][i] * u_nodal;
-                    grad_y += mappingBatch.dN_dy[q][i] * u_nodal;
+                    grad_x += dN_dx[i] * u_nodal;
+                    grad_y += dN_dy[i] * u_nodal;
                     if (spatialDimension == 3) {
-                        grad_z += mappingBatch.dN_dz[q][i] * u_nodal;
+                        grad_z += dN_dz[i] * u_nodal;
                     }
                 }
 

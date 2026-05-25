@@ -336,7 +336,7 @@ namespace cfem
 
                     mapGeo.setup(refElGeo->getNumNodes());
                     for (size_t sIdx = 0; sIdx < idToSpace.size(); ++sIdx) {
-                        CfemInt nNodesSpace = static_cast<int>(cache->spaceCaches[sIdx].shapes[0].values.size());
+                        CfemInt nNodesSpace = static_cast<int>(cache->spaceCaches[sIdx].shapes[0].numNodes);
                         spaceMappings[sIdx].setup(nNodesSpace);
                     }
                 }
@@ -608,7 +608,7 @@ namespace cfem
                 mapParentGeo.setup(static_cast<int>(parentNodes.size()));
                 
                 for (size_t sIdx = 0; sIdx < idToSpace.size(); ++sIdx) {
-                    spaceMappings[sIdx].setup(static_cast<int>(cache.spaceCaches[sIdx].shapes[0].values.size())); 
+                    spaceMappings[sIdx].setup(static_cast<int>(cache.spaceCaches[sIdx].shapes[0].numNodes)); 
                 }
 
                 const auto &refElFacet = ReferenceElementFactory::getReferenceElement(facet.type, geoOrder);

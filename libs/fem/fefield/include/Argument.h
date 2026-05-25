@@ -195,7 +195,7 @@ public:
         const CfemInt comp = static_cast<int>(localDofIdx % dim);
 
         std::fill(out.begin(), out.end(), 0.0);
-        out[comp] = shape->values[node];
+        out[comp] = shape->values()[node];
     }
 
     /**
@@ -212,9 +212,9 @@ public:
         const CfemInt node = static_cast<int>(localDofIdx / dim);
         const CfemInt comp = static_cast<int>(localDofIdx % dim);
 
-        const auto& gx = mapping->dN_dx[node];
-        const auto& gy = mapping->dN_dy[node];
-        const auto& gz = mapping->dN_dz[node];
+        const auto& gx = mapping->dN_dx()[node];
+        const auto& gy = mapping->dN_dy()[node];
+        const auto& gz = mapping->dN_dz()[node];
 
         std::fill(out.begin(), out.end(), 0.0);
         // Output span contains full gradient: [dxUx, dyUx, dzUx, dxUy, dyUy, dzUy, dxUz, dyUz, dzUz]

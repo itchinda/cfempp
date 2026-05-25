@@ -21,6 +21,8 @@
 
 #include "ReferenceElement.h"
 #include <cstring>
+#include <array>
+#include <span>
 
 namespace cfem::reference_elem::utils{
 
@@ -75,9 +77,26 @@ namespace cfem::reference_elem::utils{
 
 namespace cfem::reference_elem::kernels {
 
-    // Note : L'utilisation de __restrict (ou __restrict__ sous GCC/Clang) 
-    // garantit au compilateur qu'il n'y a pas d'aliasing entre les pointeurs.
-    
+    struct P0TetraKernel {
+        [[gnu::always_inline]] static inline void values(CfemReal* __restrict N) noexcept
+        {
+            N[0] = 1.0;
+        }
+
+        [[gnu::always_inline]] static inline void grads(CfemReal* __restrict dx, 
+                                 CfemReal* __restrict dy, 
+                                 CfemReal* __restrict dz) noexcept
+        {
+            dx[0] = dy[0] = dz[0] = 0.0;
+        }
+
+        [[gnu::always_inline]] static inline void hess(CfemReal* __restrict d2x, CfemReal* __restrict d2y, CfemReal* __restrict d2z, 
+                                CfemReal* __restrict dxy, CfemReal* __restrict dxz, CfemReal* __restrict dyz) noexcept
+        {
+            d2x[0] = d2y[0] = d2z[0] = dxy[0] = dxz[0] = dyz[0] = 0.0;
+        }
+    };
+
     struct P1TetraKernel {
         [[gnu::always_inline]] static inline void values(CfemReal L0, CfemReal L1, CfemReal L2, CfemReal L3, 
                                   CfemReal* __restrict N) noexcept
@@ -99,6 +118,59 @@ namespace cfem::reference_elem::kernels {
         {
             for(CfemInt i = 0; i < 4; ++i) {
                 d2x[i] = d2y[i] = d2z[i] = dxy[i] = dxz[i] = dyz[i] = 0.0;
+            }
+        }
+    };
+
+    struct MiniTetraKernel {
+        [[gnu::always_inline]] static inline void values(CfemReal L0, CfemReal L1, CfemReal L2, CfemReal L3, 
+                                  CfemReal* __restrict N) noexcept
+        {
+            const CfemReal b = 256.0 * L0 * L1 * L2 * L3;
+            N[4] = b;
+            N[0] = L0 - b * 0.25;
+            N[1] = L1 - b * 0.25;
+            N[2] = L2 - b * 0.25;
+            N[3] = L3 - b * 0.25;
+        }
+
+        [[gnu::always_inline]] static inline void grads(CfemReal L0, CfemReal L1, CfemReal L2, CfemReal L3, 
+                                 CfemReal* __restrict dx, 
+                                 CfemReal* __restrict dy, 
+                                 CfemReal* __restrict dz) noexcept
+        {
+            const CfemReal db_dxi  = 256.0 * L2 * L3 * (L0 - L1);
+            const CfemReal db_deta = 256.0 * L1 * L3 * (L0 - L2);
+            const CfemReal db_dzeta = 256.0 * L1 * L2 * (L0 - L3);
+
+            dx[4] = db_dxi;             dy[4] = db_deta;             dz[4] = db_dzeta;
+            dx[0] = -1.0 - db_dxi*0.25; dy[0] = -1.0 - db_deta*0.25; dz[0] = -1.0 - db_dzeta*0.25;
+            dx[1] =  1.0 - db_dxi*0.25; dy[1] =  0.0 - db_deta*0.25; dz[1] =  0.0 - db_dzeta*0.25;
+            dx[2] =  0.0 - db_dxi*0.25; dy[2] =  1.0 - db_deta*0.25; dz[2] =  0.0 - db_dzeta*0.25;
+            dx[3] =  0.0 - db_dxi*0.25; dy[3] =  0.0 - db_deta*0.25; dz[3] =  1.0 - db_dzeta*0.25;
+        }
+
+        [[gnu::always_inline]] static inline void hess(CfemReal L0, CfemReal L1, CfemReal L2, CfemReal L3, 
+                                CfemReal* __restrict d2x, CfemReal* __restrict d2y, CfemReal* __restrict d2z, 
+                                CfemReal* __restrict dxy, CfemReal* __restrict dxz, CfemReal* __restrict dyz) noexcept
+        {
+            const CfemReal d2b_dxi2     = -512.0 * L2 * L3;
+            const CfemReal d2b_deta2    = -512.0 * L1 * L3;
+            const CfemReal d2b_dzeta2   = -512.0 * L1 * L2;
+            const CfemReal d2b_dxideta  =  256.0 * L3 * (L0 - L1 - L2);
+            const CfemReal d2b_dxidzeta =  256.0 * L2 * (L0 - L1 - L3);
+            const CfemReal d2b_detadzeta=  256.0 * L1 * (L0 - L2 - L3);
+
+            d2x[4] = d2b_dxi2;     d2y[4] = d2b_deta2;    d2z[4] = d2b_dzeta2;
+            dxy[4] = d2b_dxideta;  dxz[4] = d2b_dxidzeta; dyz[4] = d2b_detadzeta;
+
+            for (CfemInt i = 0; i < 4; ++i) {
+                d2x[i] = -d2b_dxi2 * 0.25;
+                d2y[i] = -d2b_deta2 * 0.25;
+                d2z[i] = -d2b_dzeta2 * 0.25;
+                dxy[i] = -d2b_dxideta * 0.25;
+                dxz[i] = -d2b_dxidzeta * 0.25;
+                dyz[i] = -d2b_detadzeta * 0.25;
             }
         }
     };
@@ -128,7 +200,7 @@ namespace cfem::reference_elem::kernels {
             // Lignes = composantes (xx, yy, zz, xy, xz, yz)
             // Colonnes = nœuds (0 à 9)
             static constexpr CfemReal H[6][10] = {
-                {4.0, 4.0, 0.0, 0.0,-8.0, 0.0, 0.0, 0.0, 0.0, 0.0}, // d2x2 (CORRIGÉ: Noeuds 1, 6, 7)
+                {4.0, 4.0, 0.0, 0.0,-8.0, 0.0, 0.0, 0.0, 0.0, 0.0}, // d2x2
                 {4.0, 0.0, 4.0, 0.0, 0.0, 0.0,-8.0, 0.0, 0.0, 0.0}, // d2y2
                 {4.0, 0.0, 0.0, 4.0, 0.0, 0.0, 0.0,-8.0, 0.0, 0.0}, // d2z2
                 {4.0, 0.0, 0.0, 0.0,-4.0, 4.0,-4.0, 0.0, 0.0, 0.0}, // dxy
@@ -146,12 +218,106 @@ namespace cfem::reference_elem::kernels {
             }
         }
     };
+
 }
 
 namespace cfem {
 
     /**
-     * @brief Tétraèdre Linéaire (4 nœuds)
+     * @brief Constant Reference Tetrahedron (1 node, P0)
+     */
+    class P0ReferenceTetrahedron : public ReferenceElement {
+    public:
+        P0ReferenceTetrahedron() {
+            m_numNodes = 1;
+            m_dimension = 3;
+            m_nodes = { Vector3D{0.25, 0.25, 0.25} };
+        }
+
+        // =========================================================================
+        // SCALAR INTERFACES
+        // =========================================================================
+        void evaluateShapesValues(const Vector3D&, ShapeInfo& shape) const override 
+        {
+            reference_elem::kernels::P0TetraKernel::values(shape.values());
+        }
+
+        void evaluateShapesDerivatives(const Vector3D&, ShapeInfo& shape) const override 
+        {
+            reference_elem::kernels::P0TetraKernel::grads(shape.dN_dxi(), shape.dN_deta(), shape.dN_dzeta());
+        }
+
+        void evaluateShapesSecondDerivatives(const Vector3D&, ShapeInfo& shape) const override 
+        {
+            reference_elem::kernels::P0TetraKernel::hess(shape.d2N_dxi2(), shape.d2N_deta2(), shape.d2N_dzeta2(), 
+                                          shape.d2N_dxideta(), shape.d2N_dxidzeta(), shape.d2N_detadzeta());
+        }
+
+        // =====================================================================
+        // BATCH INTERFACES (Full Memcpy broadcasting for everything)
+        // =====================================================================
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            if (nQp == 0) return;
+
+            reference_elem::kernels::P0TetraKernel::values(shapeBatch.values(0));
+
+            const size_t bytesToCopy = m_numNodes * sizeof(CfemReal);
+            for (CfemInt q = 1; q < nQp; ++q) {
+                std::memcpy(shapeBatch.values(q), shapeBatch.values(0), bytesToCopy);
+            }
+        }
+
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D> & xiPoints, 
+                                            ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            if (nQp == 0) return;
+
+            reference_elem::kernels::P0TetraKernel::grads(shapeBatch.dN_dxi(0), shapeBatch.dN_deta(0), shapeBatch.dN_dzeta(0));
+
+            const size_t bytesToCopy = m_numNodes * sizeof(CfemReal);
+            for (CfemInt q = 1; q < nQp; ++q) {
+                std::memcpy(shapeBatch.dN_dxi(q),   shapeBatch.dN_dxi(0),   bytesToCopy);
+                std::memcpy(shapeBatch.dN_deta(q),  shapeBatch.dN_deta(0),  bytesToCopy);
+                std::memcpy(shapeBatch.dN_dzeta(q), shapeBatch.dN_dzeta(0), bytesToCopy);
+            }
+        }
+
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D> &xiPoints,
+                                                  ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            if (nQp == 0) return;
+
+            reference_elem::kernels::P0TetraKernel::hess(
+                shapeBatch.d2N_dxi2(0), shapeBatch.d2N_deta2(0), shapeBatch.d2N_dzeta2(0),
+                shapeBatch.d2N_dxideta(0), shapeBatch.d2N_dxidzeta(0), shapeBatch.d2N_detadzeta(0)
+            );
+
+            const size_t bytesToCopy = m_numNodes * sizeof(CfemReal);
+            for (CfemInt q = 1; q < nQp; ++q) {
+                std::memcpy(shapeBatch.d2N_dxi2(q),      shapeBatch.d2N_dxi2(0),      bytesToCopy);
+                std::memcpy(shapeBatch.d2N_deta2(q),     shapeBatch.d2N_deta2(0),     bytesToCopy);
+                std::memcpy(shapeBatch.d2N_dzeta2(q),    shapeBatch.d2N_dzeta2(0),    bytesToCopy);
+                std::memcpy(shapeBatch.d2N_dxideta(q),   shapeBatch.d2N_dxideta(0),   bytesToCopy);
+                std::memcpy(shapeBatch.d2N_dxidzeta(q),  shapeBatch.d2N_dxidzeta(0),  bytesToCopy);
+                std::memcpy(shapeBatch.d2N_detadzeta(q), shapeBatch.d2N_detadzeta(0), bytesToCopy);
+            }
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
+            return cfem::reference_elem::utils::projectFacetRefCoordToTetraRefCoord(localFacetId, xiFacet);
+        }
+
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
+            return cfem::reference_elem::utils::tet1_face_nodes[iFace];
+        }
+    };
+
+    /**
+     * @brief Linear TET reference element
      */
     class P1ReferenceTetrahedron : public ReferenceElement {
     public:
@@ -167,81 +333,162 @@ namespace cfem {
             };
         }
 
-        void evaluateShapesValues(const Vector3D& xi, CfemReal* values) const override {
+        void evaluateShapesValues(const Vector3D& xi, ShapeInfo& shape) const override {
             CfemReal L0, L1, L2, L3;
             reference_elem::utils::computeTetraBarycentric(xi, L0, L1, L2, L3);
-            reference_elem::kernels::P1TetraKernel::values(L0, L1, L2, L3, values);
+            reference_elem::kernels::P1TetraKernel::values(L0, L1, L2, L3, shape.values());
         }
 
-        void evaluateShapesDerivatives(const Vector3D&, CfemReal* dN_dxi, CfemReal* dN_deta, CfemReal* dN_dzeta) const override {
-            reference_elem::kernels::P1TetraKernel::grads(dN_dxi, dN_deta, dN_dzeta);
+        void evaluateShapesDerivatives(const Vector3D&, ShapeInfo& shape) const override {
+            reference_elem::kernels::P1TetraKernel::grads(shape.dN_dxi(), shape.dN_deta(), shape.dN_dzeta());
         }
 
-        void evaluateShapesSecondDerivatives(const Vector3D&,
-                                            CfemReal* d2N_dxi2, 
-                                            CfemReal* d2N_deta2, 
-                                            CfemReal* d2N_dzeta2,
-                                            CfemReal* d2N_dxideta, 
-                                            CfemReal* d2N_dxidzeta, 
-                                            CfemReal* d2N_detadzeta) const override
+        void evaluateShapesSecondDerivatives(const Vector3D&, ShapeInfo& shape) const override
         {
-            reference_elem::kernels::P1TetraKernel::hess(d2N_dxi2, d2N_deta2, d2N_dzeta2, 
-                                            d2N_dxideta, d2N_dxidzeta, d2N_detadzeta);
+            reference_elem::kernels::P1TetraKernel::hess(shape.d2N_dxi2(), shape.d2N_deta2(), shape.d2N_dzeta2(), 
+                                                         shape.d2N_dxideta(), shape.d2N_dxidzeta(), shape.d2N_detadzeta());
         }
 
         // =====================================================================
         // INTERFACES BATCH
         // =====================================================================
-        void evaluateShapesValuesBatch(const DynamicVector<Vector3D>& xiPoints, DynamicMatrix<CfemReal>& values) const override {
-            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
             for (CfemInt q = 0; q < nQp; ++q) {
-                const Vector3D& xi = xiPoints[q];
                 CfemReal L0, L1, L2, L3;
-                reference_elem::utils::computeTetraBarycentric(xi, L0, L1, L2, L3);
-                reference_elem::kernels::P1TetraKernel::values(L0, L1, L2, L3, values[q].data());
+                reference_elem::utils::computeTetraBarycentric(xiPoints[q], L0, L1, L2, L3);
+                reference_elem::kernels::P1TetraKernel::values(L0, L1, L2, L3, shapeBatch.values(q));
             }
         }
 
-        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, 
-                                            DynamicMatrix<CfemReal>& dN_dxi, 
-                                            DynamicMatrix<CfemReal>& dN_deta, 
-                                            DynamicMatrix<CfemReal>& dN_dzeta) const override {
-            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
-
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
             for (CfemInt q = 0; q < nQp; ++q) {
-                reference_elem::kernels::P1TetraKernel::grads(dN_dxi[q].data(), dN_deta[q].data(), dN_dzeta[q].data());
+                reference_elem::kernels::P1TetraKernel::grads(
+                    shapeBatch.dN_dxi(q), 
+                    shapeBatch.dN_deta(q), 
+                    shapeBatch.dN_dzeta(q)
+                );
             }
         }
 
-        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D>& xiPoints,
-                                                DynamicMatrix<CfemReal>& d2N_dxi2, 
-                                                DynamicMatrix<CfemReal>& d2N_deta2, 
-                                                DynamicMatrix<CfemReal>& d2N_dzeta2,
-                                                DynamicMatrix<CfemReal>& d2N_dxideta, 
-                                                DynamicMatrix<CfemReal>& d2N_dxidzeta, 
-                                                DynamicMatrix<CfemReal>& d2N_detadzeta) const override
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override
         {
-            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
             if (nQp == 0) return;
 
             reference_elem::kernels::P1TetraKernel::hess(
-                d2N_dxi2[0].data(), d2N_deta2[0].data(), d2N_dzeta2[0].data(),
-                d2N_dxideta[0].data(), d2N_dxidzeta[0].data(), d2N_detadzeta[0].data()
+                shapeBatch.d2N_dxi2(0), shapeBatch.d2N_deta2(0), shapeBatch.d2N_dzeta2(0),
+                shapeBatch.d2N_dxideta(0), shapeBatch.d2N_dxidzeta(0), shapeBatch.d2N_detadzeta(0)
             );
 
             const size_t bytesToCopy = m_numNodes * sizeof(CfemReal);
             for (CfemInt q = 1; q < nQp; ++q) {
-                std::memcpy(d2N_dxi2[q].data(),      d2N_dxi2[0].data(),      bytesToCopy);
-                std::memcpy(d2N_deta2[q].data(),     d2N_deta2[0].data(),     bytesToCopy);
-                std::memcpy(d2N_dzeta2[q].data(),    d2N_dzeta2[0].data(),    bytesToCopy);
-                std::memcpy(d2N_dxideta[q].data(),   d2N_dxideta[0].data(),   bytesToCopy);
-                std::memcpy(d2N_dxidzeta[q].data(),  d2N_dxidzeta[0].data(),  bytesToCopy);
-                std::memcpy(d2N_detadzeta[q].data(), d2N_detadzeta[0].data(), bytesToCopy);
+                std::memcpy(shapeBatch.d2N_dxi2(q),      shapeBatch.d2N_dxi2(0),      bytesToCopy);
+                std::memcpy(shapeBatch.d2N_deta2(q),     shapeBatch.d2N_deta2(0),     bytesToCopy);
+                std::memcpy(shapeBatch.d2N_dzeta2(q),    shapeBatch.d2N_dzeta2(0),    bytesToCopy);
+                std::memcpy(shapeBatch.d2N_dxideta(q),   shapeBatch.d2N_dxideta(0),   bytesToCopy);
+                std::memcpy(shapeBatch.d2N_dxidzeta(q),  shapeBatch.d2N_dxidzeta(0),  bytesToCopy);
+                std::memcpy(shapeBatch.d2N_detadzeta(q), shapeBatch.d2N_detadzeta(0), bytesToCopy);
             }
         }
 
         Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override{
             return cfem::reference_elem::utils::projectFacetRefCoordToTetraRefCoord(localFacetId, xiFacet); // Make the compiler happy
+        }
+
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
+            return cfem::reference_elem::utils::tet4_face_nodes[iFace];
+        }
+    };
+
+    /**
+     * @brief P1-Mini Reference Tetrahedron (5 nodes: 4 vertices + 1 bubble)
+     */
+    class MiniReferenceTetrahedron : public ReferenceElement {
+    public:
+        MiniReferenceTetrahedron() {
+            m_numNodes = 5; 
+            m_dimension = 3;
+            
+            m_nodes = { 
+                Vector3D{0.0, 0.0 ,0.0},
+                Vector3D{1.0, 0.0 ,0.0},
+                Vector3D{0.0, 1.0 ,0.0},
+                Vector3D{0.0, 0.0 ,1.0},
+                Vector3D{0.25, 0.25, 0.25}
+            };
+        }
+
+        // =========================================================================
+        // SCALAR INTERFACES
+        // =========================================================================
+        void evaluateShapesValues(const Vector3D& xi, ShapeInfo& shape) const override 
+        {
+            CfemReal L0, L1, L2, L3;
+            reference_elem::utils::computeTetraBarycentric(xi, L0, L1, L2, L3);
+            reference_elem::kernels::MiniTetraKernel::values(L0, L1, L2, L3, shape.values());
+        }
+
+        void evaluateShapesDerivatives(const Vector3D& xi, ShapeInfo& shape) const override 
+        {
+            CfemReal L0, L1, L2, L3;
+            reference_elem::utils::computeTetraBarycentric(xi, L0, L1, L2, L3);
+            reference_elem::kernels::MiniTetraKernel::grads(L0, L1, L2, L3, shape.dN_dxi(), shape.dN_deta(), shape.dN_dzeta());
+        }
+
+        void evaluateShapesSecondDerivatives(const Vector3D& xi, ShapeInfo& shape) const override 
+        {
+            CfemReal L0, L1, L2, L3;
+            reference_elem::utils::computeTetraBarycentric(xi, L0, L1, L2, L3);
+            reference_elem::kernels::MiniTetraKernel::hess(L0, L1, L2, L3, 
+                                            shape.d2N_dxi2(), shape.d2N_deta2(), shape.d2N_dzeta2(), 
+                                            shape.d2N_dxideta(), shape.d2N_dxidzeta(), shape.d2N_detadzeta());
+        }
+
+        // =====================================================================
+        // HPC BATCH INTERFACES
+        // =====================================================================
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                CfemReal L0, L1, L2, L3;
+                reference_elem::utils::computeTetraBarycentric(xiPoints[q], L0, L1, L2, L3);
+                reference_elem::kernels::MiniTetraKernel::values(L0, L1, L2, L3, shapeBatch.values(q));
+            }
+        }
+
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D> & xiPoints, 
+                                            ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                CfemReal L0, L1, L2, L3;
+                reference_elem::utils::computeTetraBarycentric(xiPoints[q], L0, L1, L2, L3);
+                reference_elem::kernels::MiniTetraKernel::grads(L0, L1, L2, L3, 
+                                                 shapeBatch.dN_dxi(q), 
+                                                 shapeBatch.dN_deta(q), 
+                                                 shapeBatch.dN_dzeta(q));
+            }
+        }
+
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D> &xiPoints,
+                                                  ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            // Note : Contrairement au P1/P2, le hessien dépend de xi. Pas de memcpy possible.
+            for (CfemInt q = 0; q < nQp; ++q) {
+                CfemReal L0, L1, L2, L3;
+                reference_elem::utils::computeTetraBarycentric(xiPoints[q], L0, L1, L2, L3);
+                reference_elem::kernels::MiniTetraKernel::hess(L0, L1, L2, L3, 
+                                                shapeBatch.d2N_dxi2(q), shapeBatch.d2N_deta2(q), shapeBatch.d2N_dzeta2(q),
+                                                shapeBatch.d2N_dxideta(q), shapeBatch.d2N_dxidzeta(q), shapeBatch.d2N_detadzeta(q));
+            }
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
+            return cfem::reference_elem::utils::projectFacetRefCoordToTetraRefCoord(localFacetId, xiFacet);
         }
 
         std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
@@ -276,96 +523,80 @@ namespace cfem {
         // =========================================================================
         // FIRST DERIVATIVES
         // =========================================================================
-        void evaluateShapesValues(const Vector3D& xi, CfemReal* values) const override
+        void evaluateShapesValues(const Vector3D& xi, ShapeInfo& shape) const override
         {
             CfemReal L0, L1, L2, L3;
             reference_elem::utils::computeTetraBarycentric(xi, L0, L1, L2, L3);
-            reference_elem::kernels::P2TetraKernel::values(L0, L1, L2, L3, values);
+            reference_elem::kernels::P2TetraKernel::values(L0, L1, L2, L3, shape.values());
         }
 
         void evaluateShapesValuesBatch(const DynamicVector<Vector3D>& xiPoints, 
-                                                            DynamicMatrix<CfemReal>& values) const override
+                                       ShapeInfoBatch& shapeBatch) const override
         {
-            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
             for (CfemInt q = 0; q < nQp; ++q) {
                 const Vector3D& xi = xiPoints[q];
                 CfemReal L0, L1, L2, L3;
                 reference_elem::utils::computeTetraBarycentric(xi, L0, L1, L2, L3);
                 
-                reference_elem::kernels::P2TetraKernel::values(L0, L1, L2, L3, values[q].data());
+                reference_elem::kernels::P2TetraKernel::values(L0, L1, L2, L3, shapeBatch.values(q) );
             }
         }
     
         // =========================================================================
         // FIRST DERIVATIVES
         // =========================================================================
-        void evaluateShapesDerivatives(const Vector3D& xi, 
-                                    CfemReal* dN_dxi, 
-                                    CfemReal* dN_deta, 
-                                    CfemReal* dN_dzeta) const override
+        void evaluateShapesDerivatives(const Vector3D& xi, ShapeInfo& shape) const override
         {
             CfemReal L0, L1, L2, L3;
             reference_elem::utils::computeTetraBarycentric(xi, L0, L1, L2, L3);
-            reference_elem::kernels::P2TetraKernel::grads(L0, L1, L2, L3, dN_dxi, dN_deta, dN_dzeta);
+            reference_elem::kernels::P2TetraKernel::grads(L0, L1, L2, L3, shape.dN_dxi(), shape.dN_deta(), shape.dN_dzeta());
         }
 
         void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, 
-                                            DynamicMatrix<CfemReal>& dN_dxi, 
-                                            DynamicMatrix<CfemReal>& dN_deta, 
-                                            DynamicMatrix<CfemReal>& dN_dzeta) const override
+                                            ShapeInfoBatch& shapeBatch) const override
         {
-            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
             for (CfemInt q = 0; q < nQp; ++q) {
                 const Vector3D& xi = xiPoints[q];
                 CfemReal L0, L1, L2, L3;
                 reference_elem::utils::computeTetraBarycentric(xi, L0, L1, L2, L3);
                 
                 reference_elem::kernels::P2TetraKernel::grads(L0, L1, L2, L3, 
-                                                    dN_dxi[q].data(), 
-                                                    dN_deta[q].data(), 
-                                                    dN_dzeta[q].data());
+                                                    shapeBatch.dN_dxi(q), 
+                                                    shapeBatch.dN_deta(q), 
+                                                    shapeBatch.dN_dzeta(q));
             }
         }
 
         // =========================================================================
         // SECOND DERIVATIVES
         // =========================================================================
-        void evaluateShapesSecondDerivatives(const Vector3D& /*xi*/,
-                                            CfemReal* d2N_dxi2, 
-                                            CfemReal* d2N_deta2, 
-                                            CfemReal* d2N_dzeta2,
-                                            CfemReal* d2N_dxideta, 
-                                            CfemReal* d2N_dxidzeta, 
-                                            CfemReal* d2N_detadzeta) const override
+        void evaluateShapesSecondDerivatives(const Vector3D& /*xi*/, ShapeInfo& shape) const override
         {
-            reference_elem::kernels::P2TetraKernel::hess(d2N_dxi2, d2N_deta2, d2N_dzeta2, 
-                                            d2N_dxideta, d2N_dxidzeta, d2N_detadzeta);
+            reference_elem::kernels::P2TetraKernel::hess(shape.d2N_dxi2(), shape.d2N_deta2(), shape.d2N_dzeta2(), 
+                                                         shape.d2N_dxideta(), shape.d2N_dxidzeta(), shape.d2N_detadzeta());
         }
 
         void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D>& xiPoints,
-                                                DynamicMatrix<CfemReal>& d2N_dxi2, 
-                                                DynamicMatrix<CfemReal>& d2N_deta2, 
-                                                DynamicMatrix<CfemReal>& d2N_dzeta2,
-                                                DynamicMatrix<CfemReal>& d2N_dxideta, 
-                                                DynamicMatrix<CfemReal>& d2N_dxidzeta, 
-                                                DynamicMatrix<CfemReal>& d2N_detadzeta) const override
+                                                  ShapeInfoBatch& shapeBatch) const override
         {
-            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
             if (nQp == 0) return;
 
             reference_elem::kernels::P2TetraKernel::hess(
-                d2N_dxi2[0].data(), d2N_deta2[0].data(), d2N_dzeta2[0].data(),
-                d2N_dxideta[0].data(), d2N_dxidzeta[0].data(), d2N_detadzeta[0].data()
+                shapeBatch.d2N_dxi2(0), shapeBatch.d2N_deta2(0), shapeBatch.d2N_dzeta2(0),
+                shapeBatch.d2N_dxideta(0), shapeBatch.d2N_dxidzeta(0), shapeBatch.d2N_detadzeta(0)
             );
 
             const size_t bytesToCopy = m_numNodes * sizeof(CfemReal);
             for (CfemInt q = 1; q < nQp; ++q) {
-                std::memcpy(d2N_dxi2[q].data(),      d2N_dxi2[0].data(),      bytesToCopy);
-                std::memcpy(d2N_deta2[q].data(),     d2N_deta2[0].data(),     bytesToCopy);
-                std::memcpy(d2N_dzeta2[q].data(),    d2N_dzeta2[0].data(),    bytesToCopy);
-                std::memcpy(d2N_dxideta[q].data(),   d2N_dxideta[0].data(),   bytesToCopy);
-                std::memcpy(d2N_dxidzeta[q].data(),  d2N_dxidzeta[0].data(),  bytesToCopy);
-                std::memcpy(d2N_detadzeta[q].data(), d2N_detadzeta[0].data(), bytesToCopy);
+                std::memcpy(shapeBatch.d2N_dxi2(q),      shapeBatch.d2N_dxi2(0),      bytesToCopy);
+                std::memcpy(shapeBatch.d2N_deta2(q),     shapeBatch.d2N_deta2(0),     bytesToCopy);
+                std::memcpy(shapeBatch.d2N_dzeta2(q),    shapeBatch.d2N_dzeta2(0),    bytesToCopy);
+                std::memcpy(shapeBatch.d2N_dxideta(q),   shapeBatch.d2N_dxideta(0),   bytesToCopy);
+                std::memcpy(shapeBatch.d2N_dxidzeta(q),  shapeBatch.d2N_dxidzeta(0),  bytesToCopy);
+                std::memcpy(shapeBatch.d2N_detadzeta(q), shapeBatch.d2N_detadzeta(0), bytesToCopy);
             }
         }
 
@@ -375,296 +606,6 @@ namespace cfem {
 
         std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
             return cfem::reference_elem::utils::tet10_face_nodes[iFace];
-        }
-    };
-
-    class MiniReferenceTetrahedron : public ReferenceElement {
-    public:
-        MiniReferenceTetrahedron() {
-            m_numNodes = 5; // 4 sommets + 1 bulle
-            m_dimension = 3;
-            
-            m_nodes = { 
-                Vector3D{0.0, 0.0 ,0.0},
-                Vector3D{1.0, 0.0 ,0.0},
-                Vector3D{0.0, 1.0 ,0.0},
-                Vector3D{0.0, 0.0 ,1.0},
-                Vector3D{0.25, 0.25, 0.25}
-            };
-        }
-
-        void evaluateShapesValues(const Vector3D& xi, CfemReal* values) const override 
-        {
-            CfemReal L0, L1, L2, L3;
-            reference_elem::utils::computeTetraBarycentric(xi, L0, L1, L2, L3);
-
-            // Bubble function: 256 * L0 * L1 * L2 * L3
-            const CfemReal b = 256.0 * L0 * L1 * L2 * L3;
-
-            values[4] = b;
-            values[0] = L0 - b * 0.25;
-            values[1] = L1 - b * 0.25;
-            values[2] = L2 - b * 0.25;
-            values[3] = L3 - b * 0.25;
-        }
-
-        void evaluateShapesDerivatives(const Vector3D& xi, 
-                                 CfemReal* dN_dxi, 
-                                 CfemReal* dN_deta, 
-                                 CfemReal* dN_dzeta) const override 
-        {
-            CfemReal L0, L1, L2, L3;
-            reference_elem::utils::computeTetraBarycentric(xi, L0, L1, L2, L3);
-
-            // Bubble gradients
-            const CfemReal db_dxi  = 256.0 * L2 * L3 * (L0 - L1);
-            const CfemReal db_deta = 256.0 * L1 * L3 * (L0 - L2);
-            const CfemReal db_dzeta = 256.0 * L1 * L2 * (L0 - L3);
-
-            // Node 4 (Bubble)
-            dN_dxi[4]   = db_dxi;
-            dN_deta[4]  = db_deta;
-            dN_dzeta[4] = db_dzeta;
-
-            // Node 0
-            dN_dxi[0]   = -1.0 - db_dxi * 0.25;
-            dN_deta[0]  = -1.0 - db_deta * 0.25;
-            dN_dzeta[0] = -1.0 - db_dzeta * 0.25;
-
-            // Node 1
-            dN_dxi[1]   =  1.0 - db_dxi * 0.25;
-            dN_deta[1]  =  0.0 - db_deta * 0.25;
-            dN_dzeta[1] =  0.0 - db_dzeta * 0.25;
-
-            // Node 2
-            dN_dxi[2]   =  0.0 - db_dxi * 0.25;
-            dN_deta[2]  =  1.0 - db_deta * 0.25;
-            dN_dzeta[2] =  0.0 - db_dzeta * 0.25;
-
-            // Node 3
-            dN_dxi[3]   =  0.0 - db_dxi * 0.25;
-            dN_deta[3]  =  0.0 - db_deta * 0.25;
-            dN_dzeta[3] =  1.0 - db_dzeta * 0.25;
-        }
-
-        void evaluateShapesSecondDerivatives(const Vector3D& xi,
-                                       CfemReal* d2N_dxi2, 
-                                       CfemReal* d2N_deta2, 
-                                       CfemReal* d2N_dzeta2,
-                                       CfemReal* d2N_dxideta, 
-                                       CfemReal* d2N_dxidzeta, 
-                                       CfemReal* d2N_detadzeta) const override 
-        {
-            CfemReal L0, L1, L2, L3;
-            reference_elem::utils::computeTetraBarycentric(xi, L0, L1, L2, L3);
-
-            // Second derivatives of the bubble function
-            const CfemReal d2b_dxi2     = -512.0 * L2 * L3;
-            const CfemReal d2b_deta2    = -512.0 * L1 * L3;
-            const CfemReal d2b_dzeta2   = -512.0 * L1 * L2;
-            const CfemReal d2b_dxideta  =  256.0 * L3 * (L0 - L1 - L2);
-            const CfemReal d2b_dxidzeta =  256.0 * L2 * (L0 - L1 - L3);
-            const CfemReal d2b_detadzeta=  256.0 * L1 * (L0 - L2 - L3);
-
-            // Node 4 (Bubble)
-            d2N_dxi2[4]      = d2b_dxi2; 
-            d2N_deta2[4]     = d2b_deta2; 
-            d2N_dzeta2[4]    = d2b_dzeta2;
-            d2N_dxideta[4]   = d2b_dxideta; 
-            d2N_dxidzeta[4]  = d2b_dxidzeta; 
-            d2N_detadzeta[4] = d2b_detadzeta;
-
-            // Nodes 0 to 3 inherit the bubble's correction divided by -4.0
-            for (CfemInt i = 0; i < 4; ++i) {
-                d2N_dxi2[i]      = -d2b_dxi2 * 0.25;
-                d2N_deta2[i]     = -d2b_deta2 * 0.25;
-                d2N_dzeta2[i]    = -d2b_dzeta2 * 0.25;
-                d2N_dxideta[i]   = -d2b_dxideta * 0.25;
-                d2N_dxidzeta[i]  = -d2b_dxidzeta * 0.25;
-                d2N_detadzeta[i] = -d2b_detadzeta * 0.25;
-            }
-        }
-
-        void evaluateShapesValuesBatch(const DynamicVector<Vector3D> &xiPoints, DynamicMatrix<CfemReal>& values) const override
-        {
-            // Constant piecewise field value
-            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
-            for (CfemInt q = 0; q < nQp; ++q) {
-                CfemReal L0, L1, L2, L3;
-                reference_elem::utils::computeTetraBarycentric(xiPoints[q], L0, L1, L2, L3);
-
-                // Bubble function: 256 * L0 * L1 * L2 * L3
-                const CfemReal b = 256.0 * L0 * L1 * L2 * L3;
-
-                values[q][4] = b;
-                values[q][0] = L0 - b * 0.25;
-                values[q][1] = L1 - b * 0.25;
-                values[q][2] = L2 - b * 0.25;
-                values[q][3] = L3 - b * 0.25;
-            }
-        }
-
-        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D> & xiPoints, 
-                                      DynamicMatrix<CfemReal> &dN_dxi, 
-                                      DynamicMatrix<CfemReal> &dN_deta, 
-                                      DynamicMatrix<CfemReal> &dN_dzeta) const override
-        {
-            // Constant function results in flat zero gradients everywhere
-            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
-            for (CfemInt q = 0; q < nQp; ++q) {
-                CfemReal L0, L1, L2, L3;
-                reference_elem::utils::computeTetraBarycentric(xiPoints[q], L0, L1, L2, L3);
-
-                // Bubble gradients
-                const CfemReal db_dxi  = 256.0 * L2 * L3 * (L0 - L1);
-                const CfemReal db_deta = 256.0 * L1 * L3 * (L0 - L2);
-                const CfemReal db_dzeta = 256.0 * L1 * L2 * (L0 - L3);
-
-                // Node 4 (Bubble)
-                dN_dxi[q][4]   = db_dxi;
-                dN_deta[q][4]  = db_deta;
-                dN_dzeta[q][4] = db_dzeta;
-
-                // Node 0
-                dN_dxi[q][0]   = -1.0 - db_dxi * 0.25;
-                dN_deta[q][0]  = -1.0 - db_deta * 0.25;
-                dN_dzeta[q][0] = -1.0 - db_dzeta * 0.25;
-
-                // Node 1
-                dN_dxi[q][1]   =  1.0 - db_dxi * 0.25;
-                dN_deta[q][1]  =  0.0 - db_deta * 0.25;
-                dN_dzeta[q][1] =  0.0 - db_dzeta * 0.25;
-
-                // Node 2
-                dN_dxi[q][2]   =  0.0 - db_dxi * 0.25;
-                dN_deta[q][2]  =  1.0 - db_deta * 0.25;
-                dN_dzeta[q][2] =  0.0 - db_dzeta * 0.25;
-
-                // Node 3
-                dN_dxi[q][3]   =  0.0 - db_dxi * 0.25;
-                dN_deta[q][3]  =  0.0 - db_deta * 0.25;
-                dN_dzeta[q][3] =  1.0 - db_dzeta * 0.25;
-            }
-        }
-
-        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D> &xiPoints,
-                                            DynamicMatrix<CfemReal> &d2N_dxi2, 
-                                            DynamicMatrix<CfemReal> &d2N_deta2, 
-                                            DynamicMatrix<CfemReal> &d2N_dzeta2,
-                                            DynamicMatrix<CfemReal> &d2N_dxideta, 
-                                            DynamicMatrix<CfemReal> &d2N_dxidzeta, 
-                                            DynamicMatrix<CfemReal> &d2N_detadzeta) const override
-        {
-            // Flat null second derivatives
-            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
-            for (CfemInt q = 0; q < nQp; ++q) {
-                d2N_dxi2[q][0]      = 0.0;
-                d2N_deta2[q][0]     = 0.0;
-                d2N_dzeta2[q][0]    = 0.0;
-                d2N_dxideta[q][0]   = 0.0;
-                d2N_dxidzeta[q][0]  = 0.0;
-                d2N_detadzeta[q][0] = 0.0;
-            }
-        }
-
-        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
-            return cfem::reference_elem::utils::projectFacetRefCoordToTetraRefCoord(localFacetId, xiFacet);
-        }
-
-        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
-            return cfem::reference_elem::utils::tet4_face_nodes[iFace];
-        }
-    };
-
-class P0ReferenceTetrahedron : public ReferenceElement {
-    public:
-        P0ReferenceTetrahedron() {
-            m_numNodes = 1;
-            m_dimension = 3;
-        
-            m_nodes = { Vector3D{0.25, 0.25, 0.25} };
-        }
-
-        void evaluateShapesValues(const Vector3D&, CfemReal* values) const override 
-        {
-            values[0] = 1.0;
-        }
-
-        void evaluateShapesDerivatives(const Vector3D&, 
-                                 CfemReal* dN_dxi, 
-                                 CfemReal* dN_deta, 
-                                 CfemReal* dN_dzeta) const override 
-        {
-            dN_dxi[0]   = 0.0;
-            dN_deta[0]  = 0.0;
-            dN_dzeta[0] = 0.0;
-        }
-
-        void evaluateShapesSecondDerivatives(const Vector3D&,
-                                       CfemReal* d2N_dxi2, 
-                                       CfemReal* d2N_deta2, 
-                                       CfemReal* d2N_dzeta2,
-                                       CfemReal* d2N_dxideta, 
-                                       CfemReal* d2N_dxidzeta, 
-                                       CfemReal* d2N_detadzeta) const override 
-        {
-            d2N_dxi2[0]      = 0.0;
-            d2N_deta2[0]     = 0.0;
-            d2N_dzeta2[0]    = 0.0;
-            d2N_dxideta[0]   = 0.0;
-            d2N_dxidzeta[0]  = 0.0;
-            d2N_detadzeta[0] = 0.0;
-        }
-
-        void evaluateShapesValuesBatch(const DynamicVector<Vector3D> &xiPoints, DynamicMatrix<CfemReal>& values) const override
-        {
-            // Constant piecewise field value
-            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
-            for (CfemInt q = 0; q < nQp; ++q) {
-                values[q][0] = 1.0;
-            }
-        }
-
-        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D> & xiPoints, 
-                                      DynamicMatrix<CfemReal> &dN_dxi, 
-                                      DynamicMatrix<CfemReal> &dN_deta, 
-                                      DynamicMatrix<CfemReal> &dN_dzeta) const override
-        {
-            // Constant function results in flat zero gradients everywhere
-            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
-            for (CfemInt q = 0; q < nQp; ++q) {
-                dN_dxi[q][0]   = 0.0;
-                dN_deta[q][0]  = 0.0;
-                dN_dzeta[q][0] = 0.0;
-            }
-        }
-
-        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D> &xiPoints,
-                                            DynamicMatrix<CfemReal> &d2N_dxi2, 
-                                            DynamicMatrix<CfemReal> &d2N_deta2, 
-                                            DynamicMatrix<CfemReal> &d2N_dzeta2,
-                                            DynamicMatrix<CfemReal> &d2N_dxideta, 
-                                            DynamicMatrix<CfemReal> &d2N_dxidzeta, 
-                                            DynamicMatrix<CfemReal> &d2N_detadzeta) const override
-        {
-            // Flat null second derivatives
-            const CfemInt nQp = static_cast<CfemInt>(xiPoints.size());
-            for (CfemInt q = 0; q < nQp; ++q) {
-                d2N_dxi2[q][0]      = 0.0;
-                d2N_deta2[q][0]     = 0.0;
-                d2N_dzeta2[q][0]    = 0.0;
-                d2N_dxideta[q][0]   = 0.0;
-                d2N_dxidzeta[q][0]  = 0.0;
-                d2N_detadzeta[q][0] = 0.0;
-            }
-        }
-
-        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
-            return cfem::reference_elem::utils::projectFacetRefCoordToTetraRefCoord(localFacetId, xiFacet);
-        }
-
-        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
-            return cfem::reference_elem::utils::tet1_face_nodes[iFace];
         }
     };
 }

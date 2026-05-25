@@ -25,17 +25,17 @@ namespace cfem
         shape.setup(m_numNodes, includeSecondDerivatives);
 
         if (hasFlag(requestedShape, ShapeEvaluationFlags::Value)) {
-            evaluateShapesValues(xi, shape.values.data());
+            shape.validFlags |= ShapeEvaluationFlags::Value;
+            evaluateShapesValues(xi, shape);
         }
         if (hasFlag(requestedShape, ShapeEvaluationFlags::FirstDerivatives)) {
-            evaluateShapesDerivatives(xi, shape.dN_dxi.data(), shape.dN_deta.data(), shape.dN_dzeta.data());
+            shape.validFlags |= ShapeEvaluationFlags::FirstDerivatives;
+            evaluateShapesDerivatives(xi, shape);
         }
         if (includeSecondDerivatives) {
-            evaluateShapesSecondDerivatives(xi, 
-                                      shape.d2N_dxi2.data(), shape.d2N_deta2.data(), shape.d2N_dzeta2.data(),
-                                      shape.d2N_dxideta.data(), shape.d2N_dxidzeta.data(), shape.d2N_detadzeta.data());
+            shape.validFlags |= ShapeEvaluationFlags::SecondDerivatives;
+            evaluateShapesSecondDerivatives(xi, shape);
         }
-        shape.validFlags = requestedShape;
 
     }
 
@@ -46,18 +46,13 @@ namespace cfem
         shapeBatch.setup(nQp, m_numNodes, includeSecondDerivatives);
 
         if (hasFlag(requestedShape, ShapeEvaluationFlags::Value)) {
-            evaluateShapesValuesBatch(xiPoints, shapeBatch.values);
+            evaluateShapesValuesBatch(xiPoints, shapeBatch);
         }
         if (hasFlag(requestedShape, ShapeEvaluationFlags::FirstDerivatives)) {
-            evaluateShapesDerivativesBatch(xiPoints, 
-                                shapeBatch.dN_dxi, 
-                                shapeBatch.dN_deta, 
-                                shapeBatch.dN_dzeta);
+            evaluateShapesDerivativesBatch(xiPoints, shapeBatch);
         }
         if (includeSecondDerivatives) {
-            evaluateShapesSecondDerivativesBatch(xiPoints,
-                                      shapeBatch.d2N_dxi2, shapeBatch.d2N_deta2, shapeBatch.d2N_dzeta2,
-                                      shapeBatch.d2N_dxideta, shapeBatch.d2N_dxidzeta, shapeBatch.d2N_detadzeta);
+            evaluateShapesSecondDerivativesBatch(xiPoints, shapeBatch);
         }
 
         shapeBatch.validFlags = requestedShape;
@@ -93,7 +88,7 @@ namespace cfem
 
         if (hasFlag(requestedMapping, MappingEvaluationFlags::PhysicalPosition)) {
             CfemReal px = 0.0, py = 0.0, pz = 0.0;
-            const CfemReal* N = shape.values.data();
+            const CfemReal* N = shape.values();
             for (CfemInt i = 0; i < m_numNodes; ++i) {
                 const Vector3D& pos = physicalNodesCoords[i];
                 const CfemReal ni = N[i];
@@ -105,26 +100,32 @@ namespace cfem
         }
 
         if (hasFlag(requestedMapping, MappingEvaluationFlags::Jacobian)) {
+            out.validFlags |= MappingEvaluationFlags::Jacobian;
             computeJacobian(shape, physicalNodesCoords, out);
         }
 
         if (hasFlag(requestedMapping, MappingEvaluationFlags::Determinant)) {
+            out.validFlags |= MappingEvaluationFlags::Determinant;
             computeDeterminant(shape, physicalNodesCoords, out);
         }
 
         if (hasFlag(requestedMapping, MappingEvaluationFlags::InverseJacobian)) {
+            out.validFlags |= MappingEvaluationFlags::InverseJacobian;
             computeInverseJacobian(shape, physicalNodesCoords, out);
         }
 
         if (hasFlag(requestedMapping, MappingEvaluationFlags::PhysicalFirstDerivatives)) {
+            out.validFlags |= MappingEvaluationFlags::PhysicalFirstDerivatives;
             computePhysicalFirstDerivatives(shape, out);
         }
 
         if (hasFlag(requestedMapping, MappingEvaluationFlags::PhysicalSecondDerivatives)) {
+            out.validFlags |= MappingEvaluationFlags::PhysicalSecondDerivatives;
             computePhysicalSecondDerivatives(physicalNodesCoords, shape, out);
         }
 
         if (hasFlag(requestedMapping, MappingEvaluationFlags::Normal)){
+            out.validFlags |= MappingEvaluationFlags::Normal;
             computeGeometricNormal(shape, out);
         }
 
@@ -166,7 +167,7 @@ namespace cfem
             for (CfemInt q = 0; q < nQp; ++q) {
                 CfemReal px = 0.0, py = 0.0, pz = 0.0;
                 
-                const CfemReal* N = shapeBatch.values[q].data(); 
+                const CfemReal* N = shapeBatch.values(q); 
                 
                 for (CfemInt i = 0; i < m_numNodes; ++i) {
                     const Vector3D& pos = physicalNodesCoords[i];
@@ -218,9 +219,9 @@ namespace cfem
         CfemReal j20 = 0.0, j21 = 0.0, j22 = 0.0;
 
         // Pointeurs SoA pour ce point de quadrature précis
-        const CfemReal* dxi   = shape.dN_dxi.data();
-        const CfemReal* deta  = shape.dN_deta.data();
-        const CfemReal* dzeta = shape.dN_dzeta.data();
+        const CfemReal* dxi   = shape.dN_dxi();
+        const CfemReal* deta  = shape.dN_deta();
+        const CfemReal* dzeta = shape.dN_dzeta();
         
         for (CfemInt i = 0; i < n; ++i)
         {
@@ -250,9 +251,9 @@ namespace cfem
             CfemReal j20 = 0.0, j21 = 0.0, j22 = 0.0;
 
             // Pointeurs SoA pour ce point de quadrature précis
-            const CfemReal* dxi   = shape.dN_dxi[q].data();
-            const CfemReal* deta  = shape.dN_deta[q].data();
-            const CfemReal* dzeta = shape.dN_dzeta[q].data();
+            const CfemReal* dxi   = shape.dN_dxi(q);
+            const CfemReal* deta  = shape.dN_deta(q);
+            const CfemReal* dzeta = shape.dN_dzeta(q);
 
             for (CfemInt i = 0; i < n; ++i)
             {
@@ -505,14 +506,14 @@ namespace cfem
         const CfemReal i20 = out.invJacobian.zx(), i21 = out.invJacobian.zy(), i22 = out.invJacobian.zz();
 
         // Pointeurs SoA (lecture)
-        const CfemReal* __restrict dxi   = shape.dN_dxi.data();
-        const CfemReal* __restrict deta  = shape.dN_deta.data();
-        const CfemReal* __restrict dzeta = shape.dN_dzeta.data();
+        const CfemReal* __restrict dxi   = shape.dN_dxi();
+        const CfemReal* __restrict deta  = shape.dN_deta();
+        const CfemReal* __restrict dzeta = shape.dN_dzeta();
 
         // Pointeurs SoA (écriture)
-        CfemReal* __restrict dx = out.dN_dx.data();
-        CfemReal* __restrict dy = out.dN_dy.data();
-        CfemReal* __restrict dz = out.dN_dz.data();
+        CfemReal* __restrict dx = out.dN_dx();
+        CfemReal* __restrict dy = out.dN_dy();
+        CfemReal* __restrict dz = out.dN_dz();
 
         // Boucle SIMD ultra-rapide
         for (CfemInt a = 0; a < n; ++a)
@@ -541,14 +542,14 @@ namespace cfem
             const CfemReal i20 = out.invJacobians[q].zx(), i21 = out.invJacobians[q].zy(), i22 = out.invJacobians[q].zz();
 
             // Pointeurs SoA vers les lignes de la matrice de référence (Lecture)
-            const CfemReal* __restrict dxi   = shape.dN_dxi[q].data();
-            const CfemReal* __restrict deta  = shape.dN_deta[q].data();
-            const CfemReal* __restrict dzeta = shape.dN_dzeta[q].data();
+            const CfemReal* __restrict dxi   = shape.dN_dxi(q);
+            const CfemReal* __restrict deta  = shape.dN_deta(q);
+            const CfemReal* __restrict dzeta = shape.dN_dzeta(q);
 
             // Pointeurs SoA vers les lignes de la matrice physique (Écriture)
-            CfemReal* __restrict dx = out.dN_dx[q].data();
-            CfemReal* __restrict dy = out.dN_dy[q].data();
-            CfemReal* __restrict dz = out.dN_dz[q].data();
+            CfemReal* __restrict dx = out.dN_dx(q);
+            CfemReal* __restrict dy = out.dN_dy(q);
+            CfemReal* __restrict dz = out.dN_dz(q);
 
             // Boucle sur les nœuds interne : vectorisation SIMD maximale
             for (CfemInt a = 0; a < n; ++a)
@@ -576,12 +577,12 @@ namespace cfem
         CfemReal hZ_xx = 0, hZ_yy = 0, hZ_zz = 0, hZ_xy = 0, hZ_xz = 0, hZ_yz = 0;
 
         // Pointeurs SoA pour les Hessiens de référence
-        const CfemReal* __restrict d2xi2      = shape.d2N_dxi2.data();
-        const CfemReal* __restrict d2eta2     = shape.d2N_deta2.data();
-        const CfemReal* __restrict d2zeta2    = shape.d2N_dzeta2.data();
-        const CfemReal* __restrict d2xideta   = shape.d2N_dxideta.data();
-        const CfemReal* __restrict d2xidzeta  = shape.d2N_dxidzeta.data();
-        const CfemReal* __restrict d2etadzeta = shape.d2N_detadzeta.data();
+        const CfemReal* __restrict d2xi2      = shape.d2N_dxi2();
+        const CfemReal* __restrict d2eta2     = shape.d2N_deta2();
+        const CfemReal* __restrict d2zeta2    = shape.d2N_dzeta2();
+        const CfemReal* __restrict d2xideta   = shape.d2N_dxideta();
+        const CfemReal* __restrict d2xidzeta  = shape.d2N_dxidzeta();
+        const CfemReal* __restrict d2etadzeta = shape.d2N_detadzeta();
 
         for (CfemInt a = 0; a < n; ++a)
         {
@@ -610,17 +611,17 @@ namespace cfem
         const CfemReal i20 = out.invJacobian.zx(), i21 = out.invJacobian.zy(), i22 = out.invJacobian.zz();
 
         // Pointeurs SoA pour la lecture des gradients physiques
-        const CfemReal* __restrict dNdx = out.dN_dx.data();
-        const CfemReal* __restrict dNdy = out.dN_dy.data();
-        const CfemReal* __restrict dNdz = out.dN_dz.data();
+        const CfemReal* __restrict dNdx = out.dN_dx();
+        const CfemReal* __restrict dNdy = out.dN_dy();
+        const CfemReal* __restrict dNdz = out.dN_dz();
 
         // Pointeurs SoA pour l'écriture des Hessiens physiques
-        CfemReal* __restrict d2x2 = out.d2N_dx2.data();
-        CfemReal* __restrict d2y2 = out.d2N_dy2.data();
-        CfemReal* __restrict d2z2 = out.d2N_dz2.data();
-        CfemReal* __restrict dxdy = out.d2N_dxdy.data();
-        CfemReal* __restrict dxdz = out.d2N_dxdz.data();
-        CfemReal* __restrict dydz = out.d2N_dydz.data();
+        CfemReal* __restrict d2x2 = out.d2N_dx2();
+        CfemReal* __restrict d2y2 = out.d2N_dy2();
+        CfemReal* __restrict d2z2 = out.d2N_dz2();
+        CfemReal* __restrict dxdy = out.d2N_dxdy();
+        CfemReal* __restrict dxdz = out.d2N_dxdz();
+        CfemReal* __restrict dydz = out.d2N_dydz();
 
         // --- Étape 2 : Matrice R et Transformation vers l'espace physique ---
         for (CfemInt a = 0; a < n; ++a)
@@ -674,6 +675,10 @@ namespace cfem
                                                                         const ShapeInfoBatch &shape,
                                                                         MappingInfoBatch &out) const
     {
+        CFEM_ASSERT(hasFlag(shape.validFlags, ShapeEvaluationFlags::SecondDerivatives), "Second derivative not computed.");
+        CFEM_ASSERT(hasFlag(out.validFlags, MappingEvaluationFlags::InverseJacobian), "Inverse Jacobian not computed.");
+        CFEM_ASSERT(hasFlag(out.validFlags, MappingEvaluationFlags::PhysicalFirstDerivatives), "Physical First Derivatives not computed.");
+
         const CfemInt nQp = shape.numQuadraturePoints;
         const CfemInt n = shape.numNodes;
 
@@ -684,12 +689,12 @@ namespace cfem
             CfemReal hY_xx = 0, hY_yy = 0, hY_zz = 0, hY_xy = 0, hY_xz = 0, hY_yz = 0;
             CfemReal hZ_xx = 0, hZ_yy = 0, hZ_zz = 0, hZ_xy = 0, hZ_xz = 0, hZ_yz = 0;
 
-            const CfemReal* __restrict d2xi2      = shape.d2N_dxi2[q].data();
-            const CfemReal* __restrict d2eta2     = shape.d2N_deta2[q].data();
-            const CfemReal* __restrict d2zeta2    = shape.d2N_dzeta2[q].data();
-            const CfemReal* __restrict d2xideta   = shape.d2N_dxideta[q].data();
-            const CfemReal* __restrict d2xidzeta  = shape.d2N_dxidzeta[q].data();
-            const CfemReal* __restrict d2etadzeta = shape.d2N_detadzeta[q].data();
+            const CfemReal* __restrict d2xi2      = shape.d2N_dxi2(q);
+            const CfemReal* __restrict d2eta2     = shape.d2N_deta2(q);
+            const CfemReal* __restrict d2zeta2    = shape.d2N_dzeta2(q);
+            const CfemReal* __restrict d2xideta   = shape.d2N_dxideta(q);
+            const CfemReal* __restrict d2xidzeta  = shape.d2N_dxidzeta(q);
+            const CfemReal* __restrict d2etadzeta = shape.d2N_detadzeta(q);
 
             for (CfemInt a = 0; a < n; ++a)
             {
@@ -717,21 +722,21 @@ namespace cfem
             // =========================================================
             // PRÉ-CHARGEMENT : Extraction dans les registres locaux
             // =========================================================
-            const CfemReal i00 = invJ(0,0), i01 = invJ(0,1), i02 = invJ(0,2);
-            const CfemReal i10 = invJ(1,0), i11 = invJ(1,1), i12 = invJ(1,2);
-            const CfemReal i20 = invJ(2,0), i21 = invJ(2,1), i22 = invJ(2,2);
+            const CfemReal i00 = invJ.xx(), i01 = invJ.xy(), i02 = invJ.xz();
+            const CfemReal i10 = invJ.yx(), i11 = invJ.yy(), i12 = invJ.yz();
+            const CfemReal i20 = invJ.zx(), i21 = invJ.zy(), i22 = invJ.zz();
 
             // Recouvrement des pointeurs de lignes physiques (Lecture des gradients, Écriture des Hessiens)
-            const CfemReal* __restrict dNdx = out.dN_dx[q].data();
-            const CfemReal* __restrict dNdy = out.dN_dy[q].data();
-            const CfemReal* __restrict dNdz = out.dN_dz[q].data();
+            const CfemReal* __restrict dNdx = out.dN_dx(q);
+            const CfemReal* __restrict dNdy = out.dN_dy(q);
+            const CfemReal* __restrict dNdz = out.dN_dz(q);
 
-            CfemReal* __restrict d2x2 = out.d2N_dx2[q].data();
-            CfemReal* __restrict d2y2 = out.d2N_dy2[q].data();
-            CfemReal* __restrict d2z2 = out.d2N_dz2[q].data();
-            CfemReal* __restrict dxdy = out.d2N_dxdy[q].data();
-            CfemReal* __restrict dxdz = out.d2N_dxdz[q].data();
-            CfemReal* __restrict dydz = out.d2N_dydz[q].data();
+            CfemReal* __restrict d2x2 = out.d2N_dx2(q);
+            CfemReal* __restrict d2y2 = out.d2N_dy2(q);
+            CfemReal* __restrict d2z2 = out.d2N_dz2(q);
+            CfemReal* __restrict dxdy = out.d2N_dxdy(q);
+            CfemReal* __restrict dxdz = out.d2N_dxdz(q);
+            CfemReal* __restrict dydz = out.d2N_dydz(q);
 
             // Étape 2 : Calcul de R et application de la congruence pour chaque nœud
             for (CfemInt a = 0; a < n; ++a)
@@ -867,7 +872,7 @@ namespace cfem
         CFEM_ASSERT(nodalValues.size() == n, "Nodal values size mismatch");
 
         T result{};
-        const CfemReal* N = shape.values.data();
+        const CfemReal* N = shape.values();
 
         for (CfemInt i = 0; i < n; ++i){
             result += nodalValues[i] * N[i];
@@ -889,9 +894,9 @@ namespace cfem
         CfemReal gradZ = 0.0;
 
         // Pointeurs vers la mémoire SoA
-        const CfemReal* dx = map.dN_dx.data();
-        const CfemReal* dy = map.dN_dy.data();
-        const CfemReal* dz = map.dN_dz.data();
+        const CfemReal* dx = map.dN_dx();
+        const CfemReal* dy = map.dN_dy();
+        const CfemReal* dz = map.dN_dz();
 
         for (CfemInt i = 0; i < n; ++i) {
             const CfemReal u = nodalValues[i];
@@ -914,12 +919,12 @@ namespace cfem
         CfemReal h11 = 0.0, h22 = 0.0, h33 = 0.0;
         CfemReal h12 = 0.0, h13 = 0.0, h23 = 0.0;
 
-        const CfemReal* d2x  = map.d2N_dx2.data();
-        const CfemReal* d2y  = map.d2N_dy2.data();
-        const CfemReal* d2z  = map.d2N_dz2.data();
-        const CfemReal* dxdy = map.d2N_dxdy.data();
-        const CfemReal* dxdz = map.d2N_dxdz.data();
-        const CfemReal* dydz = map.d2N_dydz.data();
+        const CfemReal* d2x  = map.d2N_dx2();
+        const CfemReal* d2y  = map.d2N_dy2();
+        const CfemReal* d2z  = map.d2N_dz2();
+        const CfemReal* dxdy = map.d2N_dxdy();
+        const CfemReal* dxdz = map.d2N_dxdz();
+        const CfemReal* dydz = map.d2N_dydz();
 
         for (CfemInt i = 0; i < n; ++i)
         {
