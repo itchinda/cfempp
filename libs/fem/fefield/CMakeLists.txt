@@ -13,6 +13,7 @@ target_link_libraries(cfem_fefield
     PUBLIC
         cfem_openmp_interface 
         cfem_utils
+        cfem_kernel
         cfem_petsc_wrappers
         cfem_reference_element
         cfem_expressions

@@ -65,7 +65,7 @@ namespace cfem
 
         void evaluateGradientWithCachedMapping(CfemInt cellId, const MappingInfo& mapping, std::span<CfemReal> out) const;
         void evaluateGradientWithoutCachedMapping(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const;
-        void evaluateGradientBatchWithCachedMapping(CfemInt cellId, CfemInt nQp, const MappingInfoBatch& mappingBatch, std::span<CfemReal> outValues, EvalContext& ctx) const;
+        void evaluateGradientBatchWithCachedMapping(CfemInt cellId, CfemInt nQp, const MappingInfoBatchView& mappingBatch, std::span<CfemReal> outValues, EvalContext& ctx) const;
         void evaluateGradientBatchWithoutCachedMapping(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const;
 
     public:

@@ -647,6 +647,139 @@ namespace cfem
         out.validFlags |= MappingEvaluationFlags::PhysicalFirstDerivatives;
     }
 
+    // /**
+    //  * @brief Computes physical gradients for the entire batch.
+    //  * @note Hyper-optimized utilizing SIMD friendly contiguous memory rows.
+    //  */
+    // inline void ReferenceElement::computePhysicalFirstDerivativesBatch(const ShapeInfoBatch &shape,
+    //                                                                    MappingInfoBatch &out) const
+    // {
+    //     CFEM_ASSERT(shape.has(ShapeEvaluationFlags::FirstDerivatives), "Shapes derivatives not pre-computed");
+    //     CFEM_ASSERT(out.has(MappingEvaluationFlags::InverseJacobian), "Inverse jacobian not pre-computed");
+
+    //     const CfemInt nQp = shape.numQuadraturePoints;
+    //     const CfemInt n = shape.numNodes;
+
+    //     CfemReal i00, i01, i02, i10, i11, i12, i20, i21, i22;
+    //     if (out.isCellAffine && out.numQuadraturePoints > 0)
+    //     {
+    //         i00 = out.invJacobians[0].xx();
+    //         i01 = out.invJacobians[0].xy();
+    //         i02 = out.invJacobians[0].xz();
+    //         i10 = out.invJacobians[0].yx();
+    //         i11 = out.invJacobians[0].yy();
+    //         i12 = out.invJacobians[0].yz();
+    //         i20 = out.invJacobians[0].zx();
+    //         i21 = out.invJacobians[0].zy();
+    //         i22 = out.invJacobians[0].zz();
+    //     }
+
+    //     for (CfemInt q = 0; q < out.numQuadraturePoints; ++q)
+    //     {
+    //         // Si la cellule n'est PAS affine, on charge le Jacobien spécifique à ce QP
+    //         if (!out.isCellAffine)
+    //         {
+    //             i00 = out.invJacobians[q].xx();
+    //             i01 = out.invJacobians[q].xy();
+    //             i02 = out.invJacobians[q].xz();
+    //             i10 = out.invJacobians[q].yx();
+    //             i11 = out.invJacobians[q].yy();
+    //             i12 = out.invJacobians[q].yz();
+    //             i20 = out.invJacobians[q].zx();
+    //             i21 = out.invJacobians[q].zy();
+    //             i22 = out.invJacobians[q].zz();
+    //         }
+
+    //         // Pointeurs SoA vers les lignes de la matrice de référence (Lecture)
+    //         const CfemReal *__restrict dxi = shape.dN_dxi(q);
+    //         const CfemReal *__restrict deta = shape.dN_deta(q);
+    //         const CfemReal *__restrict dzeta = shape.dN_dzeta(q);
+
+    //         // Pointeurs SoA vers les lignes de la matrice physique (Écriture)
+    //         CfemReal *__restrict dx = out.dN_dx(q);
+    //         CfemReal *__restrict dy = out.dN_dy(q);
+    //         CfemReal *__restrict dz = out.dN_dz(q);
+
+    //         // Boucle sur les nœuds interne : vectorisation SIMD maximale
+    //         for (CfemInt a = 0; a < n; ++a)
+    //         {
+    //             const CfemReal gx = dxi[a];
+    //             const CfemReal gy = deta[a];
+    //             const CfemReal gz = dzeta[a];
+
+    //             dx[a] = i00 * gx + i10 * gy + i20 * gz;
+    //             dy[a] = i01 * gx + i11 * gy + i21 * gz;
+    //             dz[a] = i02 * gx + i12 * gy + i22 * gz;
+    //         }
+    //     }
+
+    //     out.validFlags |= MappingEvaluationFlags::PhysicalFirstDerivatives;
+    // }
+
+/**
+     * @brief Computes physical gradients for the entire batch.
+     * @note Hyper-optimized utilizing SIMD friendly contiguous memory rows. 
+     * Correctly handles embedded manifolds (e.g., 1D/2D elements in 3D ambient space).
+     */
+    inline void ReferenceElement::computePhysicalFirstDerivativesBatch(const ShapeInfoBatch &shape,
+                                                                       MappingInfoBatchView &out) const
+    {
+        CFEM_ASSERT(shape.has(ShapeEvaluationFlags::FirstDerivatives), "Shapes derivatives not pre-computed");
+
+        const CfemInt nQp = out.numQuadraturePoints;
+        const CfemInt n = out.numNodes;
+        
+        // La dimension de référence (l'élément lui-même : 1 pour Ligne, 2 pour Triangle/Quad, 3 pour Tet/Hex)
+        const CfemInt refDim = m_dimension; 
+        
+        // La dimension de l'espace ambiant déduite intelligemment grâce aux allocations de l'Arena
+        const CfemInt spatialDim = (out.dN_dz_data != nullptr) ? 3 : ((out.dN_dy_data != nullptr) ? 2 : 1);
+
+        CfemReal i00 = 0, i01 = 0, i02 = 0, i10 = 0, i11 = 0, i12 = 0, i20 = 0, i21 = 0, i22 = 0;
+        
+        if (out.isCellAffine && nQp > 0)
+        {
+            i00 = out.invJacobians[0].xx(); i01 = out.invJacobians[0].xy(); i02 = out.invJacobians[0].xz();
+            i10 = out.invJacobians[0].yx(); i11 = out.invJacobians[0].yy(); i12 = out.invJacobians[0].yz();
+            i20 = out.invJacobians[0].zx(); i21 = out.invJacobians[0].zy(); i22 = out.invJacobians[0].zz();
+        }
+
+        for (CfemInt q = 0; q < nQp; ++q)
+        {
+            if (!out.isCellAffine)
+            {
+                i00 = out.invJacobians[q].xx(); i01 = out.invJacobians[q].xy(); i02 = out.invJacobians[q].xz();
+                i10 = out.invJacobians[q].yx(); i11 = out.invJacobians[q].yy(); i12 = out.invJacobians[q].yz();
+                i20 = out.invJacobians[q].zx(); i21 = out.invJacobians[q].zy(); i22 = out.invJacobians[q].zz();
+            }
+
+            // --- LECTURE (Basée sur refDim) ---
+            const CfemReal *__restrict dxi = shape.dN_dxi(q);
+            const CfemReal *__restrict deta = (refDim >= 2) ? shape.dN_deta(q) : nullptr;
+            const CfemReal *__restrict dzeta = (refDim == 3) ? shape.dN_dzeta(q) : nullptr;
+
+            // --- ÉCRITURE (Basée sur spatialDim) ---
+            CfemReal *__restrict dx = out.dN_dx_mut(q);
+            CfemReal *__restrict dy = (spatialDim >= 2) ? out.dN_dy_mut(q) : nullptr;
+            CfemReal *__restrict dz = (spatialDim == 3) ? out.dN_dz_mut(q) : nullptr;
+
+            for (CfemInt a = 0; a < n; ++a)
+            {
+                const CfemReal gx = dxi[a];
+                const CfemReal gy = (refDim >= 2) ? deta[a] : 0.0;
+                const CfemReal gz = (refDim == 3) ? dzeta[a] : 0.0;
+
+                // Calcul matriciel optimisé 
+                // Même si refDim=2 (gz=0), si spatialDim=3, on écrit bien dans dz !
+                dx[a] = i00 * gx + i10 * gy + i20 * gz;
+                if (spatialDim >= 2) dy[a] = i01 * gx + i11 * gy + i21 * gz;
+                if (spatialDim == 3) dz[a] = i02 * gx + i12 * gy + i22 * gz;
+            }
+        }
+
+        out.validFlags |= MappingEvaluationFlags::PhysicalFirstDerivatives;
+    }
+
     /**
      * @brief Computes physical gradients for the entire batch.
      * @note Hyper-optimized utilizing SIMD friendly contiguous memory rows.

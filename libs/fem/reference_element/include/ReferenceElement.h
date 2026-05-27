@@ -26,7 +26,11 @@
 #include "EvaluationFlags.h"
 
 #include "ShapeInfo.h"
+#include "ShapeInfoBatch.h"
 #include "MappingInfo.h"
+#include "MappingInfoBatch.h"
+#include "MappingInfoBatchView.h"
+
 
 namespace cfem::reference_elem
 {
@@ -145,7 +149,7 @@ public:
                                          MappingInfo& out) const;
 
     void computePhysicalFirstDerivativesBatch(const ShapeInfoBatch &shape,
-                                              MappingInfoBatch &out) const;
+                                              MappingInfoBatchView &out) const;
 
     /**
      * @brief Computes physical Hessians including the geometric curvature term.
@@ -208,6 +212,9 @@ private:
 
     inline void computeGeometricNormal(MappingInfo &out) const;
     inline void computeGeometricNormalBatch(MappingInfoBatch &outBatch) const;
+
+    void computePhysicalFirstDerivativesBatch(const ShapeInfoBatch &shape,
+                                              MappingInfoBatch &out) const;
     };
 
 }

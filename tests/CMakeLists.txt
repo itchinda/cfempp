@@ -28,6 +28,7 @@ target_link_libraries(unit_tests
 	    cfem_openmp_interface
         cfem_solvers
         cfem_utils
+        cfem_kernel
         cfem_quadrature
         cfem_reference_element
         cfem_mesh

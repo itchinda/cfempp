@@ -24,6 +24,13 @@
 #include "MeshEntity.h"
 #include "EvalContext.h"
 
+#include "ShapeInfo.h"
+#include "ShapeInfoBatch.h"
+#include "MappingInfo.h"
+#include "MappingInfoBatch.h"
+#include "MappingInfoBatchView.h"
+
+
 #include <set>
 #include <map>
 
@@ -193,255 +200,7 @@ namespace cfem
         else for (const auto &target : targets) if (target.second) *(target.second) = 0.0;
     }
 
-//     void FunctionIntegrator::integrate(const std::vector<EvaluationTarget> &targets,
-//                                        const MeshEntity                    &entity)
-//     {
-//         if (targets.empty()) return;
-//         CFEM_INFO << "Integrating over entity " << entity.getName();
-
-//         // ============================================================
-//         // ANALYSE ET BINDING O(1)
-//         // ============================================================
-//         std::vector<size_t> activeIdx;
-//         ShapeEvaluationFlags fieldShapesFlags = ShapeEvaluationFlags::None;
-//         bool fieldsDependsOnGeoNormal =  false;
-//         std::set<std::shared_ptr<const FESpace>> requiredSpaces;
-//         CfemInt geoOrder = m_mesh->getOrderInt();
-
-//         for (size_t i = 0; i < targets.size(); ++i) {
-//             if (!targets[i].first) continue;
-
-//             if (targets[i].first->getNumComponents() != 1) {
-//                 CFEM_THROW( "FunctionIntegrator only accepts scalar expressions. "
-//                            << "Please pass each component separately.");
-//             }
-
-//             targets[i].first->prepare();
-
-//             if (targets[i].second) *(targets[i].second) = 0.0;
-//             activeIdx.push_back(i);
-//             fieldShapesFlags |= targets[i].first->requiredShapeFlags();
-//             fieldsDependsOnGeoNormal = fieldsDependsOnGeoNormal || targets[i].first->dependsOnGeometricNormal();
-
-//             targets[i].first->collectRequiredSpaces(requiredSpaces);
-//         }
-
-//         if (activeIdx.empty()) return;
-
-//         std::map<const FESpace*, int> spaceToId;
-//         std::vector<std::shared_ptr<const FESpace>> idToSpace;
-//         CfemInt nextId = 0;
-//         for (const auto& sp : requiredSpaces) {
-//             spaceToId[sp.get()] = nextId++;
-//             idToSpace.push_back(sp);
-//         }
-
-        
-//         for (size_t idx : activeIdx) {
-//             targets[idx].first->bind(spaceToId);
-//         }
-
-//         const bool needsFieldFirstDerivatives = hasFlag(fieldShapesFlags, ShapeEvaluationFlags::FirstDerivatives);
-//         const bool needsFieldSecondDerivatives = hasFlag(fieldShapesFlags, ShapeEvaluationFlags::SecondDerivatives);
-        
-//         MappingEvaluationFlags geoMappingFlags = MappingEvaluationFlags::PhysicalPosition|
-//                                                        MappingEvaluationFlags::Determinant |
-//                                                        (fieldsDependsOnGeoNormal? MappingEvaluationFlags::Normal : MappingEvaluationFlags::None);
-//         ShapeEvaluationFlags geoShapeFlags = transformMappingToShapeFlags(geoMappingFlags) ; 
-
-//         if (needsFieldFirstDerivatives) {
-//             geoShapeFlags |= ShapeEvaluationFlags::FirstDerivatives;
-//             geoMappingFlags   |= MappingEvaluationFlags::InverseJacobian; 
-//         }
-
-//         IntegrationScheme scheme;
-
-//         // ============================================================
-//         // QUADRATURE ET CACHING DE REFERENCE (Read-Only)
-//         // ============================================================
-//         struct SpaceCache {
-//             CfemInt contextIndex;
-//             std::vector<ShapeInfo> shapes;
-//         };
-
-//         struct CellCacheEntry {
-//             const QuadratureRule* quad = nullptr;
-//             std::vector<ShapeInfo> geoShapes; 
-//             std::vector<SpaceCache> spaceCaches; 
-//         };
-
-//         std::vector<CellCacheEntry> fastCache(static_cast<int>(CellType::COUNT));
-
-//         for (CellType cell_type : m_mesh->getCellTypesPresent())
-//         {
-//             CfemInt idx = static_cast<int>(cell_type);
-//             const auto &quad = scheme.getRule(cell_type, m_schemes_params.getNumIntgPt(cell_type));
-//             const auto &lQuadPts = quad.getPoints();
-
-//             fastCache[idx].quad = &quad;
-//             fastCache[idx].geoShapes.resize(lQuadPts.size());
-
-//             const auto &refElGeo = ReferenceElementFactory::getReferenceElement(cell_type, geoOrder);
-
-//             for (const auto& space : idToSpace) {
-//                 fastCache[idx].spaceCaches.push_back({spaceToId[space.get()], std::vector<ShapeInfo>(lQuadPts.size())});
-//             }
-
-//             for (size_t q = 0; q < lQuadPts.size(); ++q) {
-//                 refElGeo.evaluateShapes(lQuadPts[q].xi, geoShapeFlags, fastCache[idx].geoShapes[q]);
-//                 fastCache[idx].geoShapes[q].shapeMustBeUpdated = false;
-
-//                 for (size_t sIdx = 0; sIdx < idToSpace.size(); ++sIdx) {
-//                     CfemInt spaceOrder = idToSpace[sIdx]->getOrderInt();
-//                     const auto& refElSpace = ReferenceElementFactory::getReferenceElement(cell_type, spaceOrder);
-                    
-//                     refElSpace.evaluateShapes(lQuadPts[q].xi, fieldShapesFlags, fastCache[idx].spaceCaches[sIdx].shapes[q]);
-//                     fastCache[idx].spaceCaches[sIdx].shapes[q].shapeMustBeUpdated = false;
-//                 }
-//             }
-//         }
-
-//         const std::vector<CfemInt> &cells_vIds = entity.getCellIds();
-
-//         // ============================================================
-//         // BOUCLE D'INTÉGRATION PARALLÈLE OPTIMISÉE
-//         // ============================================================
-
-//         #pragma omp parallel
-//         {
-//             std::vector<CfemReal> threadTotals(targets.size(), 0.0);
-//             EvalContext ctx;
-//             CfemReal outVal[9] = {0.0};
-//             std::span<CfemReal> spanOut(outVal, 1);
-
-//             MappingInfo mapGeo; 
-//             std::vector<MappingInfo> spaceMappings(idToSpace.size()); 
-//             DynamicVector<Vector3D> physCoords;
-            
-//             CellType lastType = CellType::COUNT; 
-//             const ReferenceElement* refElGeo = nullptr;
-//             const CellCacheEntry* cache = nullptr;
-
-// #pragma omp for schedule(static)
-//             for (CfemInt i = 0; i < entity.getNumCells(); ++i)
-//             {
-//                 CfemInt cellid = cells_vIds[i];
-//                 const auto &cell = m_mesh->getCell(cellid);
-
-//                 // Maintien du cache local O(1) : On ne "setup" que si la topologie change
-//                 if (cell.type != lastType) {
-//                     lastType = cell.type;
-//                     refElGeo = &ReferenceElementFactory::getReferenceElement(lastType, geoOrder);
-//                     cache = &fastCache[static_cast<int>(lastType)];
-
-//                     mapGeo.setup(refElGeo->getNumNodes());
-//                     for (size_t sIdx = 0; sIdx < idToSpace.size(); ++sIdx) {
-//                         CfemInt nNodesSpace = static_cast<int>(cache->spaceCaches[sIdx].shapes[0].numNodes);
-//                         spaceMappings[sIdx].setup(nNodesSpace);
-//                     }
-//                 }
-
-//                 const auto &lQuadPts = cache->quad->getPoints();
-//                 m_mesh->getCellVerticesCoords(cellid, physCoords);
-
-//                 const bool isAffine = (geoOrder == 1) || m_mesh->isCellAffine(cellid);
-
-//                 if (isAffine) {
-//                     // CFEM_INFO << cache->geoShapes[0].gradient(2);
-//                     refElGeo->computeMapping(
-//                                 lQuadPts[0].xi, 
-//                                 physCoords,
-//                                 geoMappingFlags, 
-//                                 cache->geoShapes[0], 
-//                                 mapGeo
-//                             );
-//                 }
-
-//                 for (size_t q = 0; q < lQuadPts.size(); ++q)
-//                 {
-//                     const auto &qp = lQuadPts[q];
-
-//                     if (isAffine) {
-//                         refElGeo->computeMapping(
-//                                     qp.xi, 
-//                                     physCoords, 
-//                                     MappingEvaluationFlags::PhysicalPosition, 
-//                                     cache->geoShapes[q],
-//                                     mapGeo
-//                                 );
-//                     } else {
-//                         refElGeo->computeMapping(
-//                                     qp.xi, 
-//                                     physCoords, 
-//                                     geoMappingFlags, 
-//                                     cache->geoShapes[q],
-//                                     mapGeo
-//                                 );
-//                     }
-
-//                     const CfemReal wDetJ = mapGeo.detJ * qp.weight;
-
-//                     ctx.resetBuffers();                     // Vide l'index de cache d'expressions pour ce point
-//                     auto bookmark = ctx.getBookmark();      // Sauvegarde l'état exact de l'Arena mémoire
-
-//                     ctx.currentCellId = cellid;
-//                     ctx.singleWS.xi = qp.xi;
-//                     ctx.singleWS.physPos = mapGeo.physicalPosition;
-//                     ctx.geometricMapping = &mapGeo;
-
-//                     for (size_t sIdx = 0; sIdx < cache->spaceCaches.size(); ++sIdx) {
-//                         const auto& spCache = cache->spaceCaches[sIdx];
-//                         MappingInfo& mapSpace = spaceMappings[sIdx];
-
-//                         mapSpace.detJ = mapGeo.detJ;
-//                         mapSpace.invJacobian = mapGeo.invJacobian;
-//                         mapSpace.physicalPosition = mapGeo.physicalPosition;
-//                         mapSpace.validFlags |=  MappingEvaluationFlags::PhysicalPosition | MappingEvaluationFlags::InverseJacobian;
-
-//                         // CFEM_INFO << "gradient de reference: ";
-//                         // for (CfemInt l = 0; l < 3; ++l)
-//                         // {
-//                         //     CFEM_INFO
-//                         //         << spCache.shapes[q].gradient(l);
-//                         // }
-
-//                         if (needsFieldFirstDerivatives) {
-//                             //refElGeo.computePhysicalFirstDerivativesOnly(spCache.shapes[q]);
-//                             refElGeo->computePhysicalFirstDerivatives(spCache.shapes[q], mapSpace);
-//                         }
-
-//                         // CFEM_INFO << "gradient de Physiques: ";
-
-//                         // for (CfemInt l = 0; l < 3; ++l)
-//                         // {
-//                         //     CFEM_INFO
-//                         //         << mapSpace.gradient(l);
-//                         // }
-
-//                         ctx.setSpaceData(spCache.contextIndex, &spCache.shapes[q], &mapSpace);
-//                     }
-
-//                     for (size_t idx : activeIdx) {
-//                         targets[idx].first->evaluate(cellid, qp.xi, spanOut, ctx);
-//                         threadTotals[idx] += spanOut[0] * wDetJ;
-//                     }
-
-//                     // Libère TOUTE la mémoire temporaire allouée par `evaluate` pour ce point
-//                     ctx.releaseToBookmark(bookmark); 
-//                     // ---------------------------------------------------------
-//                 }
-//             }
-
-// #pragma omp critical
-//             {
-//                 for (size_t idx : activeIdx) {
-//                     if (targets[idx].second) *(targets[idx].second) += threadTotals[idx];
-//                 }
-//             }
-//         }
-//     }
-
-    void FunctionIntegrator::integrate(const std::vector<EvaluationTarget> &targets,
+void FunctionIntegrator::integrate(const std::vector<EvaluationTarget> &targets,
                                        const MeshEntity                    &entity)
     {
         if (targets.empty()) return;
@@ -455,6 +214,7 @@ namespace cfem
         bool fieldsDependsOnGeoNormal = false;
         std::set<std::shared_ptr<const FESpace>> requiredSpaces;
         CfemInt geoOrder = m_mesh->getOrderInt();
+        CfemInt spatialDim =m_mesh->getSpatialDimension();
 
         for (size_t i = 0; i < targets.size(); ++i) {
             if (!targets[i].first) continue;
@@ -515,7 +275,7 @@ namespace cfem
 
         struct CellCacheEntryBatch {
             const QuadratureRule* quad = nullptr;
-            DynamicVector<Vector3D> xiPoints; // Coordonnées de référence pour le Batch
+            DynamicVector<Vector3D> xiPoints; 
             ShapeInfoBatch geoShapesBatch; 
             std::vector<SpaceCacheBatch> spaceCaches; 
         };
@@ -530,7 +290,6 @@ namespace cfem
 
             fastCache[idx].quad = &quad;
             
-            // Extraction des points xi pour l'interface Batch
             CfemInt nQp = static_cast<CfemInt>(lQuadPts.size());
             fastCache[idx].xiPoints.resize(nQp);
             for (CfemInt q = 0; q < nQp; ++q) {
@@ -539,11 +298,9 @@ namespace cfem
 
             const auto &refElGeo = ReferenceElementFactory::getReferenceElement(cell_type, geoOrder);
             
-            // Évaluation Géométrique de Référence par Lot
             refElGeo.evaluateShapesBatch(fastCache[idx].xiPoints, geoShapeFlags, fastCache[idx].geoShapesBatch);
             fastCache[idx].geoShapesBatch.shapeMustBeUpdated = false;
 
-            // Évaluation des Espaces de Champs par Lot
             for (const auto& space : idToSpace) {
                 SpaceCacheBatch spCache;
                 spCache.contextIndex = spaceToId[space.get()];
@@ -567,14 +324,18 @@ namespace cfem
         {
             std::vector<CfemReal> threadTotals(targets.size(), 0.0);
             EvalContext ctx;
-            
-            // --- NOUVEAU : Buffer par lot pour stocker la sortie de evaluateBatch ---
             std::vector<CfemReal> batchOutVals; 
 
+            // Le SEUL Owner de la mémoire géométrique
             MappingInfoBatch mapGeoBatch; 
-            std::vector<MappingInfoBatch> spaceMappingsBatch(idToSpace.size()); 
-            DynamicVector<Vector3D> physCoords;
             
+            // L'instance locale de la vue géométrique (pour que son adresse survive à la boucle)
+            MappingInfoBatchView geoView;
+
+            // NOUVEAU : Un vecteur de Vues (Zéro allocation dynamique)
+            std::vector<MappingInfoBatchView> spaceMappingsViews(idToSpace.size()); 
+            
+            DynamicVector<Vector3D> physCoords;
             CellType lastType = CellType::COUNT; 
             const ReferenceElement* refElGeo = nullptr;
             const CellCacheEntryBatch* cache = nullptr;
@@ -585,21 +346,16 @@ namespace cfem
                 CfemInt cellid = cells_vIds[i];
                 const auto &cell = m_mesh->getCell(cellid);
 
-                // Maintien du cache local O(1)
                 if (cell.type != lastType) {
                     lastType = cell.type;
                     refElGeo = &ReferenceElementFactory::getReferenceElement(lastType, geoOrder);
                     cache = &fastCache[static_cast<int>(lastType)];
 
                     CfemInt nQp = cache->xiPoints.size();
+                    
+                    // Seul le Owner géométrique nécessite un redimensionnement (setup)
                     mapGeoBatch.setup(nQp, refElGeo->getNumNodes(), refElGeo->dimension(), false);
                     
-                    for (size_t sIdx = 0; sIdx < idToSpace.size(); ++sIdx) {
-                        CfemInt nNodesSpace = static_cast<int>(cache->spaceCaches[sIdx].shapesBatch.numNodes);
-                        spaceMappingsBatch[sIdx].setup(nQp, nNodesSpace, refElGeo->dimension(), needsFieldSecondDerivatives);
-                    }
-
-                    // Redimensionner le buffer de sortie pour qu'il puisse contenir tous les QP
                     if (batchOutVals.size() < static_cast<size_t>(nQp)) {
                         batchOutVals.resize(nQp);
                     }
@@ -609,13 +365,10 @@ namespace cfem
                 const bool isAffine = (geoOrder == 1) || m_mesh->isCellAffine(cellid);
 
                 // -------------------------------------------------------------
-                // ÉTAPE 3.1 : CALCULS BATCH GÉOMÉTRIQUES
+                // ÉTAPE 3.1 : CALCULS BATCH GÉOMÉTRIQUES (Le Owner)
                 // -------------------------------------------------------------
                 mapGeoBatch.isCellAffine = isAffine; 
                 
-                // CFEM_INFO << "fieldsDependsOnGeoNormal = " << fieldsDependsOnGeoNormal;
-                // CFEM_INFO << "HASFLAG NORMALE  = " << hasFlag(geoMappingFlags, MappingEvaluationFlags::Normal);
-
                 refElGeo->computeMappingBatch(
                             cache->xiPoints, 
                             physCoords, 
@@ -624,58 +377,80 @@ namespace cfem
                             mapGeoBatch
                         );
 
+                // On génère la vue géométrique pure (O(1))
+                geoView = mapGeoBatch.createView();
+
+                // -------------------------------------------------------------
+                // ÉTAPE 3.2 : CONFIGURATION DES VUES METIERS ET DE L'ARENA
+                // -------------------------------------------------------------
+                // CRITIQUE HPC : On remet l'Arena à zéro au DÉBUT de la cellule.
+                // Cela libère la mémoire des dérivées physiques de la cellule précédente.
+                ctx.resetBuffers(); 
+                
+                CfemInt nQp = cache->xiPoints.size();
+
                 for (size_t sIdx = 0; sIdx < cache->spaceCaches.size(); ++sIdx) {
                     const auto& spCache = cache->spaceCaches[sIdx];
-                    MappingInfoBatch& mapSpace = spaceMappingsBatch[sIdx];
+                    
+                    // 1. Zéro-Copie : La vue métier hérite de la vue géométrique
+                    spaceMappingsViews[sIdx] = geoView;
 
-                    mapSpace.detJs = mapGeoBatch.detJs;
-                    mapSpace.invJacobians = mapGeoBatch.invJacobians;
-                    mapSpace.physicalPositions = mapGeoBatch.physicalPositions;
-                    mapSpace.validFlags |= MappingEvaluationFlags::PhysicalPosition | MappingEvaluationFlags::InverseJacobian;
-
+                    // 2. Allocation locale via l'Arena et calcul de la physique
                     if (needsFieldFirstDerivatives) {
-                        refElGeo->computePhysicalFirstDerivativesBatch(spCache.shapesBatch, mapSpace);
+                        
+                        // L'intégrateur demande la mémoire continue à l'Arena
+                        CfemInt paddedNodes = kernel_utils::computePaddedStride(spCache.shapesBatch.numNodes);
+                        std::span<CfemReal> arenaStorage = ctx.getBuffer(spatialDim * nQp * paddedNodes);
+                        
+                        // La vue configure ses pointeurs internes
+
+                        // CFEM_INFO << "IIIIIIIIIIIIIIIIIIIII";
+                        spaceMappingsViews[sIdx].setupPhysicalDerivativesMemory(arenaStorage, spCache.shapesBatch.numNodes, spatialDim, nQp);
+
+                        
+                        // Le noyau vectorisé calcule la physique
+                        refElGeo->computePhysicalFirstDerivativesBatch(spCache.shapesBatch, spaceMappingsViews[sIdx]);
+                        // CFEM_INFO << "OK";
                     }
                 }
 
                 // -------------------------------------------------------------
-                // ÉTAPE 3.2 : CONFIGURATION DU CONTEXTE O(1)
+                // ÉTAPE 3.3 : BINDING AU CONTEXTE O(1)
                 // -------------------------------------------------------------
                 ctx.currentCellId = cellid;
-                ctx.geometricMappingBatch = &mapGeoBatch;
+                ctx.geometricMappingBatch = &geoView;
+                ctx.batchWS.physPos = &mapGeoBatch.physicalPositions;
 
-                // On lie les espaces au contexte UNE SEULE FOIS pour toute la cellule
+                // On lie les Vues au contexte
                 for (size_t sIdx = 0; sIdx < cache->spaceCaches.size(); ++sIdx) {
                     ctx.setSpaceDataBatch(
                         cache->spaceCaches[sIdx].contextIndex, 
                         &cache->spaceCaches[sIdx].shapesBatch, 
-                        &spaceMappingsBatch[sIdx]
+                        &spaceMappingsViews[sIdx]
                     );
                 }
 
                 // -------------------------------------------------------------
-                // ÉTAPE 3.3 : ÉVALUATION DES EXPRESSIONS (100% BATCH)
+                // ÉTAPE 3.4 : ÉVALUATION DES EXPRESSIONS
                 // -------------------------------------------------------------
                 const auto &lQuadPts = cache->quad->getPoints();
-                const CfemInt nQp = static_cast<CfemInt>(lQuadPts.size());
                 std::span<CfemReal> spanOutBatch(batchOutVals.data(), nQp);
-                ctx.batchWS.physPos = &mapGeoBatch.physicalPositions;
 
                 for (size_t idx : activeIdx) {
-                    ctx.resetBuffers();                     
+                    // On pose un signet POUR PRÉSERVER les dérivées physiques déjà allouées !
                     auto bookmark = ctx.getBookmark();
 
-                    // 1. Évaluation de l'arbre d'expression complet pour TOUS les QP d'un coup
+                    // Évaluation de l'arbre d'expression complet
                     targets[idx].first->evaluateBatch(cellid, nQp, spanOutBatch, ctx);
 
-                    // 2. Intégration numérique vectorisée (Réduction)
-                    // Cette boucle est extrêmement simple, le compilateur la vectorisera automatiquement.
+                    // Intégration numérique (Réduction vectorisable)
                     CfemReal localSum = 0.0;
                     for (CfemInt q = 0; q < nQp; ++q) {
                         localSum += spanOutBatch[q] * mapGeoBatch.detJs[q] * lQuadPts[q].weight;
                     }
                     threadTotals[idx] += localSum;
 
+                    // On libère uniquement la mémoire temporaire allouée par evaluateBatch (ex: tenseurs intermédiaires)
                     ctx.releaseToBookmark(bookmark); 
                 }
             }

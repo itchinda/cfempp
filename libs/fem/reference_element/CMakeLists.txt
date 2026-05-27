@@ -7,5 +7,8 @@ target_include_directories(cfem_reference_element
 )
 
 target_link_libraries(cfem_reference_element
-    PUBLIC cfem_utils cfem_fespace
+    PUBLIC 
+    cfem_utils 
+    cfem_kernel
+    cfem_fespace
 )

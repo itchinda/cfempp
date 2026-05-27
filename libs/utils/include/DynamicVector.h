@@ -112,6 +112,10 @@ public:
         m_data.assign(size, value);
     }
 
+    constexpr bool empty() const noexcept{
+        return m_data.empty();
+    }
+
     /*! 
      * @brief Resets all elements to zero. 
      */

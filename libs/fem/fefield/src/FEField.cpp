@@ -517,7 +517,7 @@ namespace cfem
         this->evaluateGradientBatchWithoutCachedMapping(cellId, nQp, outValues, ctx);
     }
 
-    void FEField::evaluateGradientBatchWithCachedMapping(CfemInt cellId, CfemInt nQp, const MappingInfoBatch& mappingBatch, std::span<CfemReal> outValues, EvalContext& ctx) const
+    void FEField::evaluateGradientBatchWithCachedMapping(CfemInt cellId, CfemInt nQp, const MappingInfoBatchView& mappingBatch, std::span<CfemReal> outValues, EvalContext& ctx) const
     {
         const CfemInt nComp = this->getNumComponents();
         const CfemInt spatialDim = m_space->getMesh()->getSpatialDimension();
@@ -565,13 +565,44 @@ namespace cfem
         ctx.releaseToBookmark(bookmark);
     }
 
+    // void FEField::evaluateGradientBatchWithoutCachedMapping(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const
+    // {
+    //     // Pareil que pour la valeur batch : on a besoin de xiBatch (via EvalContext)
+    //     const auto& xiBatch = ctx.batchWS.xi;
+    //     CFEM_ASSERT(xiBatch != nullptr && xiBatch->size() >= static_cast<size_t>(nQp), "FEField::evaluateGradientBatchWithoutCachedMapping requires xiBatch");
+
+    //     const auto &refEl = m_space->getReferenceElement(cellId);
+        
+    //     m_space->getMesh()->getCellVerticesCoords(cellId, ctx.scratchCoords);
+    //     const CfemInt expectedNodes = refEl.getNumNodes();
+    //     if (ctx.scratchCoords.size() > static_cast<size_t>(expectedNodes)) {
+    //         ctx.scratchCoords.resize(expectedNodes);
+    //     }
+
+    //     // On demande à l'élément de référence de construire la totale pour nQp points
+    //     ctx.batchWS.shape->shapeMustBeUpdated = false;
+
+    //     const bool isAffine = (m_space->getMesh()->getOrderInt() == 1) || m_space->getMesh()->isCellAffine(cellId);
+        
+    //     refEl.computeMappingBatch(
+    //         *xiBatch, 
+    //         ctx.scratchCoords,
+    //         ShapeEvaluationFlags::FirstDerivatives,
+    //         MappingEvaluationFlags::PhysicalFirstDerivatives,
+    //         *(ctx.batchWS.shape), 
+    //         *(ctx.batchWS.mapping)
+    //     );
+        
+    //     this->evaluateGradientBatchWithCachedMapping(cellId, nQp, *(ctx.batchWS.mapping), outValues, ctx);
+    // }
+
     void FEField::evaluateGradientBatchWithoutCachedMapping(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const
     {
-        // Pareil que pour la valeur batch : on a besoin de xiBatch (via EvalContext)
         const auto& xiBatch = ctx.batchWS.xi;
-        CFEM_ASSERT(xiBatch != nullptr && xiBatch->size() >= static_cast<size_t>(nQp), "FEField::evaluateGradientBatchWithoutCachedMapping requires xiBatch");
+        CFEM_ASSERT(xiBatch != nullptr && xiBatch->size() >= static_cast<size_t>(nQp), "FEField requires xiBatch");
 
         const auto &refEl = m_space->getReferenceElement(cellId);
+        const CfemInt spatialDim = m_space->getMesh()->getSpatialDimension();
         
         m_space->getMesh()->getCellVerticesCoords(cellId, ctx.scratchCoords);
         const CfemInt expectedNodes = refEl.getNumNodes();
@@ -579,21 +610,38 @@ namespace cfem
             ctx.scratchCoords.resize(expectedNodes);
         }
 
-        // On demande à l'élément de référence de construire la totale pour nQp points
-        ctx.batchWS.shape->shapeMustBeUpdated = false;
-
         const bool isAffine = (m_space->getMesh()->getOrderInt() == 1) || m_space->getMesh()->isCellAffine(cellId);
-        
+
+        // Make sure the temporary buffers have the correct sizes
+        ctx.scratchShapeBatch.setup(nQp, expectedNodes, false);
+        ctx.scratchMappingBatch.setup(nQp, expectedNodes, spatialDim, false);
+
+        // Shapes and mapping evaluations
+        refEl.evaluateShapesBatch(*xiBatch, ShapeEvaluationFlags::FirstDerivatives, ctx.scratchShapeBatch);
+
+        ctx.scratchMappingBatch.isCellAffine = isAffine;  // for optimization
         refEl.computeMappingBatch(
             *xiBatch, 
-            ctx.scratchCoords,
-            ShapeEvaluationFlags::FirstDerivatives,
-            MappingEvaluationFlags::PhysicalFirstDerivatives,
-            *(ctx.batchWS.shape), 
-            *(ctx.batchWS.mapping)
+            ctx.scratchCoords, 
+            MappingEvaluationFlags::InverseJacobian, 
+            ctx.scratchShapeBatch, 
+            ctx.scratchMappingBatch
         );
         
-        this->evaluateGradientBatchWithCachedMapping(cellId, nQp, *(ctx.batchWS.mapping), outValues, ctx);
+        // Mapping view (zero allocation)
+        MappingInfoBatchView view = ctx.scratchMappingBatch.createView();
+        
+        CfemInt paddedNodes = kernel_utils::computePaddedStride(expectedNodes);
+        CfemInt reqSize = spatialDim * nQp * paddedNodes;
+        std::span<CfemReal> arenaStorage = ctx.getBuffer(reqSize);
+        
+        view.setupPhysicalDerivativesMemory(arenaStorage, expectedNodes, spatialDim, nQp);
+
+        // Physical First derivatives computation
+        refEl.computePhysicalFirstDerivativesBatch(ctx.scratchShapeBatch, view);
+
+        // Delegation to the Cached mapping version
+        this->evaluateGradientBatchWithCachedMapping(cellId, nQp, view, outValues, ctx);
     }
 
     /**
