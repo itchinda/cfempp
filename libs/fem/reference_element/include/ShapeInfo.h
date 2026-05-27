@@ -93,8 +93,7 @@ namespace cfem
         // ================================================================================================
 
         /** @brief Returns a writable pointer to shape function values. */
-        [[nodiscard]] inline CfemReal* values()   {
-            CFEM_ASSERT(has(ShapeEvaluationFlags::Value), "Shape values not computed?");
+        [[nodiscard]] inline CfemReal* values()  noexcept {
             return storage.data();
         }
 
@@ -103,20 +102,17 @@ namespace cfem
         // ================================================================================================
 
         /** @brief Returns a writable pointer to shape derivatives along the reference \f$\xi\f$ direction. */
-        [[nodiscard]] inline CfemReal* dN_dxi() {
-            CFEM_ASSERT(has(ShapeEvaluationFlags::FirstDerivatives), "Shape first derivatives not computed?"); 
+        [[nodiscard]] inline CfemReal* dN_dxi()  noexcept {
             return storage.data() + 1 * stride; 
         }
 
         /** @brief Returns a writable pointer to shape derivatives along the reference \f$\eta\f$ direction. */
-        [[nodiscard]] inline CfemReal* dN_deta() {
-            CFEM_ASSERT(has(ShapeEvaluationFlags::FirstDerivatives), "Shape first derivatives not computed?");
+        [[nodiscard]] inline CfemReal* dN_deta() noexcept {
             return storage.data() + 2 * stride; 
         }
 
         /** @brief Returns a writable pointer to shape derivatives along the reference \f$\zeta\f$ direction. */
-        [[nodiscard]] inline CfemReal* dN_dzeta() {
-            CFEM_ASSERT(has(ShapeEvaluationFlags::FirstDerivatives), "Shape first derivatives not computed?");
+        [[nodiscard]] inline CfemReal* dN_dzeta() noexcept {
             return storage.data() + 3 * stride;
         }
 
@@ -125,33 +121,27 @@ namespace cfem
         // ================================================================================================
 
         /** @brief Returns a writable pointer to shape second derivatives \f$\partial^2 N \partial \zeta^2\f$ direction. */
-        [[nodiscard]] inline CfemReal* d2N_dxi2()      {
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivative not computed?");
+        [[nodiscard]] inline CfemReal* d2N_dxi2()   noexcept   {
             return storage.data() + 4 * stride;
         }
 
-        [[nodiscard]] inline CfemReal* d2N_deta2()     {
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivative not computed?");
+        [[nodiscard]] inline CfemReal* d2N_deta2()  noexcept   {
             return storage.data() + 5 * stride;
         }
 
-        [[nodiscard]] inline CfemReal* d2N_dzeta2()    {
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivative not computed?");
+        [[nodiscard]] inline CfemReal* d2N_dzeta2()  noexcept  {
             return storage.data() + 6 * stride;
         }
 
-        [[nodiscard]] inline CfemReal* d2N_dxideta()   {
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivative not computed?");
+        [[nodiscard]] inline CfemReal* d2N_dxideta()  noexcept {
             return storage.data() + 7 * stride;
         }
 
-        [[nodiscard]] inline CfemReal* d2N_dxidzeta()  {
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivative not computed?");
+        [[nodiscard]] inline CfemReal* d2N_dxidzeta() noexcept {
             return storage.data() + 8 * stride;
         }
 
-        [[nodiscard]] inline CfemReal* d2N_detadzeta() {
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivative not computed?");
+        [[nodiscard]] inline CfemReal* d2N_detadzeta() noexcept {
             return storage.data() + 9 * stride;
         }
 
@@ -321,61 +311,51 @@ namespace cfem
 
         [[nodiscard]] inline CfemReal* values(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(has(ShapeEvaluationFlags::Value), "Shape values not computed?");
             return storage.data() + q * qpStride + 0 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* dN_dxi(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(has(ShapeEvaluationFlags::FirstDerivatives), "Shape first derivatives not computed?");
             return storage.data() + q * qpStride + 1 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* dN_deta(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(has(ShapeEvaluationFlags::FirstDerivatives), "Shape first derivatives not computed?");
             return storage.data() + q * qpStride + 2 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* dN_dzeta(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(has(ShapeEvaluationFlags::FirstDerivatives), "Shape first derivatives not computed?");
             return storage.data() + q * qpStride + 3 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* d2N_dxi2(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivatives not allocated");
             return storage.data() + q * qpStride + 4 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* d2N_deta2(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivatives not allocated");
             return storage.data() + q * qpStride + 5 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* d2N_dzeta2(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivatives not allocated");
             return storage.data() + q * qpStride + 6 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* d2N_dxideta(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivatives not allocated");
             return storage.data() + q * qpStride + 7 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* d2N_dxidzeta(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivatives not allocated");
             return storage.data() + q * qpStride + 8 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* d2N_detadzeta(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivatives not allocated");
             return storage.data() + q * qpStride + 9 * paddedNodeStride;
         }
 

@@ -152,6 +152,50 @@ namespace cfem::sym
             }
         }
 
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+            CFEM_ASSERT(outValues.size() >= static_cast<size_t>(m_dimOut * nQp), 
+                        "DivergenceExpression: Batch output buffer too small!");
+
+            // 1. Sauvegarde de la mémoire et allocation des buffers SoA via l'Arena (coût = 0)
+            auto bookmark = ctx.getBookmark();
+            
+            std::span<CfemReal> span_dx = ctx.getBuffer(m_dimIn * nQp);
+            std::span<CfemReal> span_dy = ctx.getBuffer(m_dimIn * nQp);
+            std::span<CfemReal> span_dz = ctx.getBuffer(m_dimIn * nQp);
+
+            // 2. Évaluation des sous-arbres dérivés
+            m_dx->evaluateBatch(cellId, nQp, span_dx, ctx);
+            m_dy->evaluateBatch(cellId, nQp, span_dy, ctx);
+            m_dz->evaluateBatch(cellId, nQp, span_dz, ctx);
+
+            // =========================================================================
+            // 3. FORMAT SoA : Contraction (Divergence)
+            // L'accès séquentiel span[composante * nQp + q] garantit le SIMD
+            // =========================================================================
+            if (m_dimIn == 3) {
+                // div(Vecteur) = Scalaire
+                // outValues a une taille de 1 * nQp
+                for (CfemInt q = 0; q < nQp; ++q) {
+                    outValues[q] = span_dx[0 * nQp + q] + 
+                                   span_dy[1 * nQp + q] + 
+                                   span_dz[2 * nQp + q];
+                }
+            } 
+            else if (m_dimIn == 9) {
+                // div(Tenseur) = Vecteur
+                // outValues a une taille de 3 * nQp
+                for (CfemInt q = 0; q < nQp; ++q) {
+                    outValues[0 * nQp + q] = span_dx[0 * nQp + q] + span_dy[1 * nQp + q] + span_dz[2 * nQp + q]; // Ligne 1
+                    outValues[1 * nQp + q] = span_dx[3 * nQp + q] + span_dy[4 * nQp + q] + span_dz[5 * nQp + q]; // Ligne 2
+                    outValues[2 * nQp + q] = span_dx[6 * nQp + q] + span_dy[7 * nQp + q] + span_dz[8 * nQp + q]; // Ligne 3
+                }
+            }
+
+            // 4. Libération instantanée de la mémoire temporaire
+            ctx.releaseToBookmark(bookmark);
+        }
+
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override {
             // By Clairaut's theorem (symmetry of second derivatives):
             // d(div(u)) / dx_i == div( du / dx_i )

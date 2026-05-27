@@ -93,6 +93,11 @@ namespace cfem::sym
             for (CfemInt i = 0; i < m_dim; ++i) out[i] = m_dataPtr[i];
         }
 
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+            CFEM_THROW("Batch evaluation not allowed for VariableExpression");
+        }
+
         // std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override {
         //     if (var_idx == 3) {
         //         return timeDerivative();

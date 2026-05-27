@@ -165,6 +165,233 @@ namespace cfem::sym
         }
     }
 
+    inline void BinaryExpression::evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> out, EvalContext &ctx) const
+    {
+        // On sauvegarde l'état de l'Arena avant d'allouer les buffers temporaires par lot
+        auto bookmark = ctx.getBookmark();
+
+        // Allocation des buffers SoA pour les nQp points : taille = dimension * nQp
+        std::span<CfemReal> spanL = ctx.getBuffer(m_dimL * nQp);
+        std::span<CfemReal> spanR = ctx.getBuffer(m_dimR * nQp);
+
+        // Évaluation en cascade de l'arbre d'expression
+        m_lhs->evaluateBatch(cellId, nQp, spanL, ctx);
+        m_rhs->evaluateBatch(cellId, nQp, spanR, ctx);
+
+        // =========================================================================
+        // RAPPEL FORMAT SoA: span[comp * nQp + q]
+        // Les boucles internes sur `q` assurent une lecture/écriture séquentielle pure
+        // =========================================================================
+
+        switch (m_op)
+        {
+            case MathOp::Add: {
+                for (CfemInt i = 0; i < m_dimOut; ++i) {
+                    for (CfemInt q = 0; q < nQp; ++q) {
+                        out[i * nQp + q] = spanL[i * nQp + q] + spanR[i * nQp + q];
+                    }
+                }
+                break;
+            }
+            case MathOp::Sub: {
+                for (CfemInt i = 0; i < m_dimOut; ++i) {
+                    for (CfemInt q = 0; q < nQp; ++q) {
+                        out[i * nQp + q] = spanL[i * nQp + q] - spanR[i * nQp + q];
+                    }
+                }
+                break;
+            }
+            case MathOp::Mul: {
+                if (m_dimL == 1) { // Scalaire * (Scalaire/Vecteur/Tenseur)
+                    for (CfemInt i = 0; i < m_dimOut; ++i) {
+                        for (CfemInt q = 0; q < nQp; ++q) {
+                            out[i * nQp + q] = spanL[q] * spanR[i * nQp + q]; // spanL[0*nQp + q] == spanL[q]
+                        }
+                    }
+                }
+                else if (m_dimR == 1) { // (Vecteur/Tenseur) * Scalaire
+                    for (CfemInt i = 0; i < m_dimOut; ++i) {
+                        for (CfemInt q = 0; q < nQp; ++q) {
+                            out[i * nQp + q] = spanL[i * nQp + q] * spanR[q];
+                        }
+                    }
+                }
+                else if (m_dimL == 9 && m_dimR == 9) { // Tenseur * Tenseur
+                    for (CfemInt i = 0; i < 3; ++i) {
+                        for (CfemInt j = 0; j < 3; ++j) {
+                            CfemInt outIdx = i * 3 + j;
+                            CfemInt L0 = i * 3 + 0, L1 = i * 3 + 1, L2 = i * 3 + 2;
+                            CfemInt R0 = 0 * 3 + j, R1 = 1 * 3 + j, R2 = 2 * 3 + j;
+                            for (CfemInt q = 0; q < nQp; ++q) {
+                                out[outIdx * nQp + q] = spanL[L0 * nQp + q] * spanR[R0 * nQp + q] +
+                                                        spanL[L1 * nQp + q] * spanR[R1 * nQp + q] +
+                                                        spanL[L2 * nQp + q] * spanR[R2 * nQp + q];
+                            }
+                        }
+                    }
+                }
+                else if (m_dimL == 9 && m_dimR == 3) { // Tenseur * Vecteur
+                    for (CfemInt i = 0; i < 3; ++i) {
+                        CfemInt L0 = i * 3 + 0, L1 = i * 3 + 1, L2 = i * 3 + 2;
+                        for (CfemInt q = 0; q < nQp; ++q) {
+                            out[i * nQp + q] = spanL[L0 * nQp + q] * spanR[0 * nQp + q] +
+                                               spanL[L1 * nQp + q] * spanR[1 * nQp + q] +
+                                               spanL[L2 * nQp + q] * spanR[2 * nQp + q];
+                        }
+                    }
+                }
+                else { // Élément par élément (Hadamard)
+                    for (CfemInt i = 0; i < m_dimOut; ++i) {
+                        for (CfemInt q = 0; q < nQp; ++q) {
+                            out[i * nQp + q] = spanL[i * nQp + q] * spanR[i * nQp + q];
+                        }
+                    }
+                }
+                break;
+            }
+            case MathOp::Div: {
+                if (m_dimR == 1) { // (Vecteur/Tenseur) / Scalaire
+                    for (CfemInt i = 0; i < m_dimOut; ++i) {
+                        for (CfemInt q = 0; q < nQp; ++q) {
+                            out[i * nQp + q] = spanL[i * nQp + q] / spanR[q];
+                        }
+                    }
+                } else { // Élément par élément
+                    for (CfemInt i = 0; i < m_dimOut; ++i) {
+                        for (CfemInt q = 0; q < nQp; ++q) {
+                            out[i * nQp + q] = spanL[i * nQp + q] / spanR[i * nQp + q];
+                        }
+                    }
+                }
+                break;
+            }
+            case MathOp::Dot: {
+                if (m_dimL == 3 && m_dimR == 3) { // Vecteur . Vecteur -> Scalaire
+                    for (CfemInt q = 0; q < nQp; ++q) {
+                        out[q] = spanL[0 * nQp + q] * spanR[0 * nQp + q] + 
+                                 spanL[1 * nQp + q] * spanR[1 * nQp + q] + 
+                                 spanL[2 * nQp + q] * spanR[2 * nQp + q];
+                    }
+                }
+                else if (m_dimL == 9 && m_dimR == 3) { // Tenseur . Vecteur -> Vecteur
+                    for (CfemInt i = 0; i < 3; ++i) {
+                        CfemInt L0 = i * 3 + 0, L1 = i * 3 + 1, L2 = i * 3 + 2;
+                        for (CfemInt q = 0; q < nQp; ++q) {
+                            out[i * nQp + q] = spanL[L0 * nQp + q] * spanR[0 * nQp + q] +
+                                               spanL[L1 * nQp + q] * spanR[1 * nQp + q] +
+                                               spanL[L2 * nQp + q] * spanR[2 * nQp + q];
+                        }
+                    }
+                }
+                else if (m_dimL == 3 && m_dimR == 9) { // Vecteur . Tenseur -> Vecteur
+                    for (CfemInt j = 0; j < 3; ++j) {
+                        CfemInt R0 = 0 * 3 + j, R1 = 1 * 3 + j, R2 = 2 * 3 + j;
+                        for (CfemInt q = 0; q < nQp; ++q) {
+                            out[j * nQp + q] = spanL[0 * nQp + q] * spanR[R0 * nQp + q] +
+                                               spanL[1 * nQp + q] * spanR[R1 * nQp + q] +
+                                               spanL[2 * nQp + q] * spanR[R2 * nQp + q];
+                        }
+                    }
+                }
+                else if (m_dimL == 9 && m_dimR == 9) { // Tenseur . Tenseur -> Tenseur
+                    for (CfemInt i = 0; i < 3; ++i) {
+                        for (CfemInt j = 0; j < 3; ++j) {
+                            CfemInt outIdx = i * 3 + j;
+                            CfemInt L0 = i * 3 + 0, L1 = i * 3 + 1, L2 = i * 3 + 2;
+                            CfemInt R0 = 0 * 3 + j, R1 = 1 * 3 + j, R2 = 2 * 3 + j;
+                            for (CfemInt q = 0; q < nQp; ++q) {
+                                out[outIdx * nQp + q] = spanL[L0 * nQp + q] * spanR[R0 * nQp + q] +
+                                                        spanL[L1 * nQp + q] * spanR[R1 * nQp + q] +
+                                                        spanL[L2 * nQp + q] * spanR[R2 * nQp + q];
+                            }
+                        }
+                    }
+                }
+                else if (m_dimL == 1) { // Scalaire . (Vecteur/Tenseur)
+                    for (CfemInt i = 0; i < m_dimOut; ++i) {
+                        for (CfemInt q = 0; q < nQp; ++q) {
+                            out[i * nQp + q] = spanL[q] * spanR[i * nQp + q];
+                        }
+                    }
+                }
+                else if (m_dimR == 1) { // (Vecteur/Tenseur) . Scalaire
+                    for (CfemInt i = 0; i < m_dimOut; ++i) {
+                        for (CfemInt q = 0; q < nQp; ++q) {
+                            out[i * nQp + q] = spanL[i * nQp + q] * spanR[q];
+                        }
+                    }
+                }
+                break;
+            }
+            case MathOp::Inner: { // Double contraction sigma : epsilon -> Scalaire
+                for (CfemInt q = 0; q < nQp; ++q) out[q] = 0.0;
+                // Boucle externe sur les composantes pour vectorisation parfaite
+                for (CfemInt i = 0; i < 9; ++i) {
+                    for (CfemInt q = 0; q < nQp; ++q) {
+                        out[q] += spanL[i * nQp + q] * spanR[i * nQp + q];
+                    }
+                }
+                break;
+            }
+            case MathOp::Cross: { // Produit vectoriel 3D
+                for (CfemInt q = 0; q < nQp; ++q) {
+                    out[0 * nQp + q] = spanL[1 * nQp + q] * spanR[2 * nQp + q] - spanL[2 * nQp + q] * spanR[1 * nQp + q];
+                    out[1 * nQp + q] = spanL[2 * nQp + q] * spanR[0 * nQp + q] - spanL[0 * nQp + q] * spanR[2 * nQp + q];
+                    out[2 * nQp + q] = spanL[0 * nQp + q] * spanR[1 * nQp + q] - spanL[1 * nQp + q] * spanR[0 * nQp + q];
+                }
+                break;
+            }
+            case MathOp::Outer: { // Produit dyadique (Vecteur X Vecteur -> Tenseur)
+                for (CfemInt i = 0; i < 3; ++i) {
+                    for (CfemInt j = 0; j < 3; ++j) {
+                        CfemInt outIdx = i * 3 + j;
+                        for (CfemInt q = 0; q < nQp; ++q) {
+                            out[outIdx * nQp + q] = spanL[i * nQp + q] * spanR[j * nQp + q];
+                        }
+                    }
+                }
+                break;
+            }
+            case MathOp::Pow: {
+                for (CfemInt i = 0; i < m_dimOut; ++i) {
+                    for (CfemInt q = 0; q < nQp; ++q) {
+                        out[i * nQp + q] = std::pow(spanL[i * nQp + q], spanR[i * nQp + q]);
+                    }
+                }
+                break;
+            }
+            case MathOp::Max: {
+                for (CfemInt i = 0; i < m_dimOut; ++i) {
+                    for (CfemInt q = 0; q < nQp; ++q) {
+                        out[i * nQp + q] = std::max(spanL[i * nQp + q], spanR[i * nQp + q]);
+                    }
+                }
+                break;
+            }
+            case MathOp::Min: {
+                for (CfemInt i = 0; i < m_dimOut; ++i) {
+                    for (CfemInt q = 0; q < nQp; ++q) {
+                        out[i * nQp + q] = std::min(spanL[i * nQp + q], spanR[i * nQp + q]);
+                    }
+                }
+                break;
+            }
+            case MathOp::Atan2: {
+                for (CfemInt i = 0; i < m_dimOut; ++i) {
+                    for (CfemInt q = 0; q < nQp; ++q) {
+                        out[i * nQp + q] = std::atan2(spanL[i * nQp + q], spanR[i * nQp + q]);
+                    }
+                }
+                break;
+            }
+            default:
+                break;
+        }
+
+        // Libération de la mémoire de l'Arena
+        ctx.releaseToBookmark(bookmark);
+    }
+
     inline CfemInt getPrecedence(MathOp op)
     {
         switch (op)

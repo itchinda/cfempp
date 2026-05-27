@@ -116,14 +116,6 @@ int main(int argc, char **argv)
         {
             PROFILE_SCOPE("MeshBuilding");
 
-            SymTensor3D A;
-            SymTensor3D B;
-            auto ApB = A + B;
-            auto AmB = A - B;
-            auto AfB = A * B;
-            
-
-
             // mesh = Mesh::quad(
             //     MeshOrder::Linear,
             //     Mesh::QuadSubdivisions{1, 1}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
@@ -146,7 +138,7 @@ int main(int argc, char **argv)
                 Mesh::BlockElementType::Tetrahedron
             );
 
-            //mesh = Mesh::loadFromGmsh("../tests/grenier/stanford_bunny/bunny.msh");
+            // mesh = Mesh::loadFromGmsh("../tests/grenier/stanford_bunny/bunny.msh");
             // mesh = Mesh::loadFromGmsh("../tests/grenier/wheel/wheel.msh");
 
             // mesh = Mesh::sphere( MeshOrder::Quadratic,
@@ -247,24 +239,24 @@ int main(int argc, char **argv)
         // h = 0.0625 lseminorm_p = 0.000222298 lseminorm_u = 0.000602551
         // h = 0.03125 lseminorm_p = 5.56204e-05 lseminorm_u = 0.000150505
 
-        // {
-        //     PROFILE_SCOPE("Exportation");
-        //     VTKExporter vtu_exporter(*mesh);
-        //     vtu_exporter.addExpression("U", u);
-        //     vtu_exporter.addExpression("P", p);
-        //     // vtu_exporter.setExportedEntities({"Mag_external_surface", "Bande_de_roulement", "Caoutchouc"});
-        //     vtu_exporter.addExpression("N", geometric_normal());
+        {
+            // PROFILE_SCOPE("Exportation");
+            // VTKExporter vtu_exporter(*mesh);
+            // vtu_exporter.addExpression("U", u);
+            // vtu_exporter.addExpression("P", p);
+            // // vtu_exporter.setExportedEntities({"Mag_external_surface", "Bande_de_roulement", "Caoutchouc"});
+            // vtu_exporter.addExpression("N", geometric_normal());
             
-        //     vtu_exporter.setFormat(VTKExportFormat::BINARY);
-        //     vtu_exporter.exportCellQuality(true);
-        //     vtu_exporter.write("result_global");
-        //     //vtu_exporter.write("result_global", SYS_BOUNDARY_ID);
-        //     // vtu_exporter.write("Gomme", "Gomme");
-        //     // vtu_exporter.write("Mag_external_surface", "Mag_external_surface");
-        //     // vtu_exporter.write("Bande_de_roulement", "Bande_de_roulement");
-        //     // vtu_exporter.write("Caoutchouc", "Caoutchouc");
+            // vtu_exporter.setFormat(VTKExportFormat::BINARY);
+            // vtu_exporter.exportCellQuality(true);
+            // vtu_exporter.write("result_global");
+            // vtu_exporter.write("result_boundary", SYS_BOUNDARY_ID);
+            // // vtu_exporter.write("Gomme", "Gomme");
+            // // vtu_exporter.write("Mag_external_surface", "Mag_external_surface");
+            // // vtu_exporter.write("Bande_de_roulement", "Bande_de_roulement");
+            // // vtu_exporter.write("Caoutchouc", "Caoutchouc");
 
-        // }
+        }
     }
 
     Profiler::instance().saveProfiler();

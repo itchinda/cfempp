@@ -106,6 +106,8 @@ namespace cfem::sym
         virtual ExpressionType getType() const = 0;
 
         virtual void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const = 0;
+        virtual void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const = 0;
+        
         virtual void evaluateGradient(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const {
             auto g = this->grad(); 
             if (g && g.get() != this) {
@@ -113,6 +115,15 @@ namespace cfem::sym
                 return;
             }
             CFEM_THROW("Gradient evaluation failed.");
+        }
+
+        virtual void evaluateGradientBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext &ctx) const {
+            auto g = this->grad(); 
+            if (g && g.get() != this) {
+                g->evaluateBatch(cellId, nQp, outValues, ctx);
+                return;
+            }
+            CFEM_THROW("Gradient batch evaluation failed.");
         }
 
         virtual void prepare() const {};

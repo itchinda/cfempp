@@ -86,17 +86,14 @@ namespace cfem
         // ================================================================================================
 
         [[nodiscard]] inline CfemReal* dN_dx() {
-            CFEM_ASSERT(hasFlag(validFlags, MappingEvaluationFlags::PhysicalFirstDerivatives), "Physical first derivatives not computed?"); 
             return storage.data() + 0 * stride; 
         }
 
         [[nodiscard]] inline CfemReal* dN_dy() {
-            CFEM_ASSERT(hasFlag(validFlags, MappingEvaluationFlags::PhysicalFirstDerivatives), "Physical first derivatives not computed?");
             return storage.data() + 1 * stride; 
         }
 
         [[nodiscard]] inline CfemReal* dN_dz() {
-            CFEM_ASSERT(hasFlag(validFlags, MappingEvaluationFlags::PhysicalFirstDerivatives), "Physical first derivatives not computed?");
             return storage.data() + 2 * stride;
         }
 
@@ -120,33 +117,27 @@ namespace cfem
         // SHAPES SECOND DERIVATIVES (Physical Space)
         // ================================================================================================
 
-        [[nodiscard]] inline CfemReal* d2N_dx2() {
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivatives not allocated?");
+        [[nodiscard]] inline CfemReal* d2N_dx2() noexcept {
             return storage.data() + 3 * stride;
         }
 
-        [[nodiscard]] inline CfemReal* d2N_dy2() {
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivatives not allocated?");
+        [[nodiscard]] inline CfemReal* d2N_dy2() noexcept {
             return storage.data() + 4 * stride;
         }
 
-        [[nodiscard]] inline CfemReal* d2N_dz2() {
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivatives not allocated?");
+        [[nodiscard]] inline CfemReal* d2N_dz2() noexcept {
             return storage.data() + 5 * stride;
         }
 
-        [[nodiscard]] inline CfemReal* d2N_dxdy() {
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivatives not allocated?");
+        [[nodiscard]] inline CfemReal* d2N_dxdy() noexcept {
             return storage.data() + 6 * stride;
         }
 
-        [[nodiscard]] inline CfemReal* d2N_dxdz() {
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivatives not allocated?");
+        [[nodiscard]] inline CfemReal* d2N_dxdz() noexcept {
             return storage.data() + 7 * stride;
         }
 
-        [[nodiscard]] inline CfemReal* d2N_dydz() {
-            CFEM_ASSERT(hasSecondDerivatives, "Second derivatives not allocated?");
+        [[nodiscard]] inline CfemReal* d2N_dydz() noexcept {
             return storage.data() + 8 * stride;
         }
 
@@ -199,48 +190,12 @@ namespace cfem
                                d2N_dydz()[node], d2N_dxdz()[node], d2N_dxdy()[node]);
         }
 
-        // ============================================================
-        // Calcul (Optimisé HPC)
-        // ============================================================
-
-        void computePhysicalFirstDerivativesOnly(const ShapeInfo &fieldShape)
+        /**
+         * @brief Checks if a specific evaluation field is marked as valid.
+         */
+        inline bool has(MappingEvaluationFlags field) const
         {
-            const CfemInt n = fieldShape.numNodes;
-            CFEM_ASSERT(n == numNodes);
-
-            // Hoisting (mise en cache des variables invariantes de la boucle)
-            const CfemReal i00 = invJacobian.xx();
-            const CfemReal i01 = invJacobian.xy();
-            const CfemReal i02 = invJacobian.xz();
-
-            const CfemReal i10 = invJacobian.yx();
-            const CfemReal i11 = invJacobian.yy();
-            const CfemReal i12 = invJacobian.yz();
-
-            const CfemReal i20 = invJacobian.zx();
-            const CfemReal i21 = invJacobian.zy();
-            const CfemReal i22 = invJacobian.zz();
-
-            // Pointeurs en lecture (restrict = promesse de non-aliasing au compilateur)
-            const CfemReal* __restrict dxi   = fieldShape.dN_dxi();
-            const CfemReal* __restrict deta  = fieldShape.dN_deta();
-            const CfemReal* __restrict dzeta = fieldShape.dN_dzeta();
-
-            // L'astuce : On contourne temporairement l'ASSERT de validFlags pour l'écriture
-            // (car ils ne seront valides qu'à la fin de cette fonction)
-            CfemReal* __restrict dx = storage.data() + 0 * stride;
-            CfemReal* __restrict dy = storage.data() + 1 * stride;
-            CfemReal* __restrict dz = storage.data() + 2 * stride;
-
-            // Boucle principale vectorisable par le compilateur
-            for (CfemInt i = 0; i < n; ++i)
-            {
-                dx[i] = i00 * dxi[i] + i10 * deta[i] + i20 * dzeta[i];
-                dy[i] = i01 * dxi[i] + i11 * deta[i] + i21 * dzeta[i];
-                dz[i] = i02 * dxi[i] + i12 * deta[i] + i22 * dzeta[i];
-            }
-
-            validFlags |= MappingEvaluationFlags::PhysicalFirstDerivatives;
+            return hasFlag(validFlags, field);
         }
     };
 
@@ -260,6 +215,7 @@ namespace cfem
         CfemInt numQuadraturePoints = 0;
         CfemInt numNodes = 0;
         MappingEvaluationFlags validFlags = MappingEvaluationFlags::None;
+        bool isCellAffine = false;
 
         // --- Global quantities per quadrature point [qp] ---
         // Ces éléments restent dans leurs propres DynamicVector car ils sont 
@@ -326,55 +282,46 @@ namespace cfem
 
         [[nodiscard]] inline CfemReal* dN_dx(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasFlag(validFlags, MappingEvaluationFlags::PhysicalFirstDerivatives), "Derivatives not computed");
             return storage.data() + q * qpStride + 0 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* dN_dy(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasFlag(validFlags, MappingEvaluationFlags::PhysicalFirstDerivatives), "Derivatives not computed");
             return storage.data() + q * qpStride + 1 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* dN_dz(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasFlag(validFlags, MappingEvaluationFlags::PhysicalFirstDerivatives), "Derivatives not computed");
             return storage.data() + q * qpStride + 2 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* d2N_dx2(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasFlag(validFlags, MappingEvaluationFlags::PhysicalSecondDerivatives), "Second derivatives not allocated");
             return storage.data() + q * qpStride + 3 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* d2N_dy2(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasFlag(validFlags, MappingEvaluationFlags::PhysicalSecondDerivatives), "Second derivatives not allocated");
             return storage.data() + q * qpStride + 4 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* d2N_dz2(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasFlag(validFlags, MappingEvaluationFlags::PhysicalSecondDerivatives), "Second derivatives not allocated");
             return storage.data() + q * qpStride + 5 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* d2N_dxdy(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasFlag(validFlags, MappingEvaluationFlags::PhysicalSecondDerivatives), "Second derivatives not allocated");
             return storage.data() + q * qpStride + 6 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* d2N_dxdz(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasFlag(validFlags, MappingEvaluationFlags::PhysicalSecondDerivatives), "Second derivatives not allocated");
             return storage.data() + q * qpStride + 7 * paddedNodeStride;
         }
 
         [[nodiscard]] inline CfemReal* d2N_dydz(CfemInt q) {
             CFEM_ASSERT(q >= 0 && q < numQuadraturePoints, "Invalid QP index");
-            CFEM_ASSERT(hasFlag(validFlags, MappingEvaluationFlags::PhysicalSecondDerivatives), "Second derivatives not allocated");
             return storage.data() + q * qpStride + 8 * paddedNodeStride;
         }
 
@@ -452,48 +399,14 @@ namespace cfem
                                d2N_dydz(q)[node], d2N_dxdz(q)[node], d2N_dxdy(q)[node]);
         }
 
-        // ============================================================
-        // Calcul (Optimisé HPC)
-        // ============================================================
-
         /**
-         * @brief Computes physical gradients for the entire batch.
-         * @note Hyper-optimized utilizing SIMD friendly contiguous memory rows.
+         * @brief Checks if a specific evaluation field is marked as valid.
          */
-        void computePhysicalFirstDerivativesOnly(const ShapeInfoBatch& fieldShape) {
-            CFEM_ASSERT(fieldShape.numQuadraturePoints == numQuadraturePoints, "Mismatch QP");
-            CFEM_ASSERT(fieldShape.numNodes == numNodes, "Mismatch Nodes");
-
-            for (CfemInt q = 0; q < numQuadraturePoints; ++q) 
-            {
-                // Cache invariant Jacobian terms in registers for this quadrature point
-                const CfemReal i00 = invJacobians[q].data[Tensor3D::idx_xx], i01 = invJacobians[q].data[Tensor3D::idx_xy], i02 = invJacobians[q].data[Tensor3D::idx_xz];
-                const CfemReal i10 = invJacobians[q].data[Tensor3D::idx_yx], i11 = invJacobians[q].data[Tensor3D::idx_yy], i12 = invJacobians[q].data[Tensor3D::idx_yz];
-                const CfemReal i20 = invJacobians[q].data[Tensor3D::idx_zx], i21 = invJacobians[q].data[Tensor3D::idx_zy], i22 = invJacobians[q].data[Tensor3D::idx_zz];
-
-                // Remarque : Si vous avez appliqué la même logique à ShapeInfoBatch, 
-                // ceci devrait être `fieldShape.dN_dxi(q);`. 
-                // Si ShapeInfoBatch utilise encore l'ancienne méthode (DynamicMatrix), laissez `.data()`.
-                const CfemReal* __restrict dxi   = fieldShape.dN_dxi(q);
-                const CfemReal* __restrict deta  = fieldShape.dN_deta(q);
-                const CfemReal* __restrict dzeta = fieldShape.dN_dzeta(q);
-
-                // Extraction des pointeurs en écriture (on contourne les ASSERT temporairement)
-                CfemReal* __restrict dx = storage.data() + q * qpStride + 0 * paddedNodeStride;
-                CfemReal* __restrict dy = storage.data() + q * qpStride + 1 * paddedNodeStride;
-                CfemReal* __restrict dz = storage.data() + q * qpStride + 2 * paddedNodeStride;
-
-                // Inner loop over nodes: perfectly contiguous, ripe for auto-vectorization
-                for (CfemInt i = 0; i < numNodes; ++i) {
-                    dx[i] = i00 * dxi[i] + i10 * deta[i] + i20 * dzeta[i];
-                    dy[i] = i01 * dxi[i] + i11 * deta[i] + i21 * dzeta[i];
-                    dz[i] = i02 * dxi[i] + i12 * deta[i] + i22 * dzeta[i];
-                }
-            }
-
-            // Marquer comme valide une fois la boucle de calcul terminée
-            validFlags |= MappingEvaluationFlags::PhysicalFirstDerivatives;
+        inline bool has(MappingEvaluationFlags field) const
+        {
+            return hasFlag(validFlags, field);
         }
+
     };
 
 }

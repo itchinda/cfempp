@@ -74,7 +74,7 @@ namespace cfem::reference_elem::kernels {
     // P0 TRIANGLE KERNEL (1 node, constant)
     // =========================================================================
     struct P0TriKernel {
-        [[gnu::always_inline]] static inline void values(CfemReal* __restrict N) noexcept {
+        [[gnu::always_inline]] static inline void values(CfemReal* N) noexcept {
             N[0] = 1.0;
         }
 
@@ -95,7 +95,7 @@ namespace cfem::reference_elem::kernels {
     // =========================================================================
     struct P1TriKernel {
         [[gnu::always_inline]] static inline void values(CfemReal L0, CfemReal L1, CfemReal L2, 
-                                  CfemReal* __restrict N) noexcept {
+                                  CfemReal* N) noexcept {
             N[0] = L0; N[1] = L1; N[2] = L2;
         }
 
@@ -120,7 +120,7 @@ namespace cfem::reference_elem::kernels {
     // =========================================================================
     struct MiniTriKernel {
         [[gnu::always_inline]] static inline void values(CfemReal L0, CfemReal L1, CfemReal L2, 
-                                  CfemReal* __restrict N) noexcept {
+                                  CfemReal* N) noexcept {
             const CfemReal b = 27.0 * L0 * L1 * L2;
             N[3] = b;
             N[0] = L0 - b / 3.0;
@@ -165,7 +165,7 @@ namespace cfem::reference_elem::kernels {
     // =========================================================================
     struct P2TriKernel {
         [[gnu::always_inline]] static inline void values(CfemReal L0, CfemReal L1, CfemReal L2, 
-                                  CfemReal* __restrict N) noexcept {
+                                  CfemReal* N) noexcept {
             N[0] = L0 * (2.0 * L0 - 1.0);
             N[1] = L1 * (2.0 * L1 - 1.0);
             N[2] = L2 * (2.0 * L2 - 1.0);

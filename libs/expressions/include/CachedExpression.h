@@ -59,6 +59,20 @@ namespace cfem::sym {
             ctx.storeInCache(this, out);
         }
 
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+
+            CFEM_THROW("CachedExpression::evaluateBatch is explicitly not supported. "
+                       "Remove cache() wrappers when running full-batch integration, "
+                       "or implement an Arena-safe Batch-level caching strategy.");
+        }
+
+        inline void evaluateGradientBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext &ctx) const override 
+        {
+            CFEM_THROW("CachedExpression::evaluateGradientBatch is explicitly not supported.");
+        }
+
+
         bool isConstant() const override { return m_inner->isConstant(); }
         bool isContinuous() const override {
             return  m_inner->isContinuous();

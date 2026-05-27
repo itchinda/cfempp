@@ -43,6 +43,25 @@ namespace cfem::sym {
             }
         }
 
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+
+            CfemInt dim = nQp * m_base->getNumComponents();
+            // Un tenseur 3x3 évalué sur nQp points nécessite 9 * nQp espaces mémoire
+            CFEM_ASSERT(outValues.size() >= dim, "Batch evaluation output buffer too small for 3D Tensor");
+
+            // =========================================================================
+            // FORMAT SoA (Structure of Arrays) - Optimisé pour le cache et le SIMD
+            // Le buffer de sortie sera organisé ainsi :
+            // [xx_0..xx_n, xy_0..xy_n, xz_0..xz_n, yx_0..yx_n, yy_0..yy_n, yz_0..yz_n, zx_0..zx_n, zy_0..zy_n, zz_0..zz_n]
+            // =========================================================================
+
+            m_base->evaluateBatch(cellId, nQp, outValues, ctx);
+            for (CfemInt i = 0; i < dim; ++i) {
+                outValues[i] *= m_coeff; 
+            }
+        }
+
         CfemInt getNumComponents() const override { return m_base->getNumComponents(); }
 
         bool isContinuous() const override {

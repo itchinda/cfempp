@@ -105,8 +105,8 @@ namespace cfem::reference_elem::kernels {
         }
 
         [[gnu::always_inline]] static inline void grads(CfemReal* __restrict dx, 
-                                 CfemReal* __restrict dy, 
-                                 CfemReal* __restrict dz) noexcept
+                                                        CfemReal* __restrict dy, 
+                                                        CfemReal* __restrict dz) noexcept
         {
             dx[0] = -1.0; dx[1] = 1.0; dx[2] = 0.0; dx[3] = 0.0;
             dy[0] = -1.0; dy[1] = 0.0; dy[2] = 1.0; dy[3] = 0.0;
@@ -177,7 +177,7 @@ namespace cfem::reference_elem::kernels {
 
     struct P2TetraKernel {
         [[gnu::always_inline]] static inline void values(CfemReal L0, CfemReal L1, CfemReal L2, CfemReal L3, 
-                                  CfemReal* __restrict N) noexcept
+                                  CfemReal* N) noexcept
         {
             N[0]=L0*(2*L0-1); N[1]=L1*(2*L1-1); N[2]=L2*(2*L2-1); N[3]=L3*(2*L3-1);
             N[4]=4*L0*L1;     N[5]=4*L1*L2;     N[6]=4*L2*L0;
@@ -265,7 +265,7 @@ namespace cfem {
 
             const size_t bytesToCopy = m_numNodes * sizeof(CfemReal);
             for (CfemInt q = 1; q < nQp; ++q) {
-                std::memcpy(shapeBatch.values(q), shapeBatch.values(0), bytesToCopy);
+                shapeBatch.values(q)[0] = shapeBatch.values(0)[0];
             }
         }
 
@@ -277,11 +277,17 @@ namespace cfem {
 
             reference_elem::kernels::P0TetraKernel::grads(shapeBatch.dN_dxi(0), shapeBatch.dN_deta(0), shapeBatch.dN_dzeta(0));
 
-            const size_t bytesToCopy = m_numNodes * sizeof(CfemReal);
+            // const size_t bytesToCopy = m_numNodes * sizeof(CfemReal);
+            // for (CfemInt q = 1; q < nQp; ++q) {
+            //     std::memcpy(shapeBatch.dN_dxi(q),   shapeBatch.dN_dxi(0),   bytesToCopy);
+            //     std::memcpy(shapeBatch.dN_deta(q),  shapeBatch.dN_deta(0),  bytesToCopy);
+            //     std::memcpy(shapeBatch.dN_dzeta(q), shapeBatch.dN_dzeta(0), bytesToCopy);
+            // }
+
             for (CfemInt q = 1; q < nQp; ++q) {
-                std::memcpy(shapeBatch.dN_dxi(q),   shapeBatch.dN_dxi(0),   bytesToCopy);
-                std::memcpy(shapeBatch.dN_deta(q),  shapeBatch.dN_deta(0),  bytesToCopy);
-                std::memcpy(shapeBatch.dN_dzeta(q), shapeBatch.dN_dzeta(0), bytesToCopy);
+                shapeBatch.dN_dxi(q)[0]   = shapeBatch.dN_dxi(0)[0];
+                shapeBatch.dN_deta(q)[0]  = shapeBatch.dN_deta(0)[0];
+                shapeBatch.dN_dzeta(q)[0] = shapeBatch.dN_dzeta(0)[0];
             }
         }
 
@@ -296,14 +302,23 @@ namespace cfem {
                 shapeBatch.d2N_dxideta(0), shapeBatch.d2N_dxidzeta(0), shapeBatch.d2N_detadzeta(0)
             );
 
-            const size_t bytesToCopy = m_numNodes * sizeof(CfemReal);
+            // const size_t bytesToCopy = m_numNodes * sizeof(CfemReal);
+            // for (CfemInt q = 1; q < nQp; ++q) {
+            //     std::memcpy(shapeBatch.d2N_dxi2(q),      shapeBatch.d2N_dxi2(0),      bytesToCopy);
+            //     std::memcpy(shapeBatch.d2N_deta2(q),     shapeBatch.d2N_deta2(0),     bytesToCopy);
+            //     std::memcpy(shapeBatch.d2N_dzeta2(q),    shapeBatch.d2N_dzeta2(0),    bytesToCopy);
+            //     std::memcpy(shapeBatch.d2N_dxideta(q),   shapeBatch.d2N_dxideta(0),   bytesToCopy);
+            //     std::memcpy(shapeBatch.d2N_dxidzeta(q),  shapeBatch.d2N_dxidzeta(0),  bytesToCopy);
+            //     std::memcpy(shapeBatch.d2N_detadzeta(q), shapeBatch.d2N_detadzeta(0), bytesToCopy);
+            // }
+
             for (CfemInt q = 1; q < nQp; ++q) {
-                std::memcpy(shapeBatch.d2N_dxi2(q),      shapeBatch.d2N_dxi2(0),      bytesToCopy);
-                std::memcpy(shapeBatch.d2N_deta2(q),     shapeBatch.d2N_deta2(0),     bytesToCopy);
-                std::memcpy(shapeBatch.d2N_dzeta2(q),    shapeBatch.d2N_dzeta2(0),    bytesToCopy);
-                std::memcpy(shapeBatch.d2N_dxideta(q),   shapeBatch.d2N_dxideta(0),   bytesToCopy);
-                std::memcpy(shapeBatch.d2N_dxidzeta(q),  shapeBatch.d2N_dxidzeta(0),  bytesToCopy);
-                std::memcpy(shapeBatch.d2N_detadzeta(q), shapeBatch.d2N_detadzeta(0), bytesToCopy);
+                shapeBatch.d2N_dxi2(q)[0]      = shapeBatch.d2N_dxi2(0)[0];
+                shapeBatch.d2N_deta2(q)[0]     = shapeBatch.d2N_deta2(0)[0];
+                shapeBatch.d2N_dzeta2(q)[0]    = shapeBatch.d2N_dzeta2(0)[0];
+                shapeBatch.d2N_dxideta(q)[0]   = shapeBatch.d2N_dxideta(0)[0];
+                shapeBatch.d2N_dxidzeta(q)[0]  = shapeBatch.d2N_dxidzeta(0)[0];
+                shapeBatch.d2N_detadzeta(q)[0] = shapeBatch.d2N_detadzeta(0)[0];
             }
         }
 

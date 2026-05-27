@@ -52,7 +52,6 @@ protected:
     CfemInt m_numNodes;
     CfemInt m_dimension;
 
-    
 
 public:
     virtual ~ReferenceElement() = default;
@@ -64,8 +63,8 @@ public:
     void evaluateShapes(const Vector3D &xi, ShapeEvaluationFlags requestedShape, ShapeInfo& out) const;
     void evaluateShapesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeEvaluationFlags requestedShape, ShapeInfoBatch& outBatch) const;
     /**
-     * @brief Evaluates the shape function values ($N_i$) at a given reference point.
-     * @param xi The coordinates of the evaluation point in the reference element ($\xi, \eta, \zeta$).
+     * @brief Evaluates the shape function values (\f$ N_i \f$) at a given reference point.
+     * @param xi The coordinates of the evaluation point in the reference element (\f$\xi, \eta, \zeta \f$).
      * @param values Raw pointer to a pre-allocated array of size [numNodes] to be populated.
      */
     virtual void evaluateShapesValues(const Vector3D& xi, ShapeInfo& info) const = 0;
@@ -75,10 +74,10 @@ public:
     /**
      * @brief Evaluates the first-order derivatives of the shape functions (local gradients) 
      * with respect to the reference coordinate system.
-     * @param xi The coordinates of the evaluation point in the reference element ($\xi, \eta, \zeta$).
-     * @param dN_dxi Raw pointer to the reference coordinate $\xi$ derivative array (size [numNodes]).
-     * @param dN_deta Raw pointer to the reference coordinate $\eta$ derivative array (size [numNodes]).
-     * @param dN_dzeta Raw pointer to the reference coordinate $\zeta$ derivative array (size [numNodes]).
+     * @param xi The coordinates of the evaluation point in the reference element (\f$\xi, \eta, \zeta \f$).
+     * @param dN_dxi Raw pointer to the reference coordinate \f$ \xi \f$ derivative array (size [numNodes]).
+     * @param dN_deta Raw pointer to the reference coordinate \f$ \eta \f$ derivative array (size [numNodes]).
+     * @param dN_dzeta Raw pointer to the reference coordinate \f$ \zeta \f$ derivative array (size [numNodes]).
      */
     virtual void evaluateShapesDerivatives(const Vector3D& xi, ShapeInfo& info) const = 0;
     virtual void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D> &xi, 
@@ -146,14 +145,14 @@ public:
                                          MappingInfo& out) const;
 
     void computePhysicalFirstDerivativesBatch(const ShapeInfoBatch &shape,
-                                         MappingInfoBatch &out) const;
+                                              MappingInfoBatch &out) const;
 
     /**
      * @brief Computes physical Hessians including the geometric curvature term.
      * @param physicalNodesCoords Actual physical coordinates of the element's nodes.
      * @param shape Work buffer for reference shape functions.
      * @param out MappingInfo structure to be populated.
-     * @note Reference: \$ H_{phys} = J^{-T} * [H_{ref} - \nabla_{phys}(N) * H_{geom}] * J^{-1} \$
+     * @note Reference: \f$ H_{phys} = J^{-T} * [H_{ref} - \nabla_{phys}(N) * H_{geom}] * J^{-1} \f$
      */
     void computePhysicalSecondDerivatives(const DynamicVector<Vector3D>& physicalNodesCoords, 
                                           const ShapeInfo& shape, 
@@ -162,9 +161,6 @@ public:
     void computePhysicalSecondDerivativesBatch(const DynamicVector<Vector3D>& physicalNodesCoords, 
                                                const ShapeInfoBatch& shapeBatch, 
                                                MappingInfoBatch& outBatch) const;
-
-    void computeGeometricNormal(const ShapeInfo &shape, MappingInfo &out) const;
-    void computeGeometricNormalBatch(const ShapeInfoBatch &shapeBatch, MappingInfoBatch &outBatch) const;
 
     /**
      * @brief Interpolates a field (scalar or vector) at a point evaluated in ShapeInfo.
@@ -200,28 +196,19 @@ private:
     inline void computeJacobian(const ShapeInfo& shape, 
                                 const DynamicVector<Vector3D>& physicalNodesCoords, 
                                 MappingInfo& out) const;
-
     inline void computeJacobianBatch(const ShapeInfoBatch& shape, 
                                 const DynamicVector<Vector3D>& physicalNodesCoords, 
                                 MappingInfoBatch& out) const;
 
-    inline void computeDeterminant(const ShapeInfo &shape,
-                                   const DynamicVector<Vector3D> &physicalNodesCoords,
-                                   MappingInfo &out) const;
+    inline void computeDeterminant(MappingInfo &out) const;
+    inline void computeDeterminantBatch(MappingInfoBatch &out) const;
 
-    inline void computeDeterminantBatch(const ShapeInfoBatch &shape,
-                                   const DynamicVector<Vector3D> &physicalNodesCoords,
-                                   MappingInfoBatch &out) const;
+    inline void computeInverseJacobian(MappingInfo &out) const;
+    inline void computeInverseJacobianBatch(MappingInfoBatch &out) const;
 
-    inline void computeInverseJacobian(const ShapeInfo &shape,
-                                       const DynamicVector<Vector3D> &physicalNodesCoords,
-                                       MappingInfo &out) const;
-
-    inline void computeInverseJacobianBatch(const ShapeInfoBatch &shape,
-                                       const DynamicVector<Vector3D> &physicalNodesCoords,
-                                       MappingInfoBatch &out) const;
-
-};
+    inline void computeGeometricNormal(MappingInfo &out) const;
+    inline void computeGeometricNormalBatch(MappingInfoBatch &outBatch) const;
+    };
 
 }
 

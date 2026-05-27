@@ -75,6 +75,7 @@ namespace cfem {
         // ====================================================================
         CfemReal currentTime   = 0.0; /**< Current simulation time (for transient problems). */
         CfemInt  currentCellId = -1;  /**< Index of the cell currently being integrated. */
+        CfemInt currentQpIndex = 0;
 
         // ====================================================================
         // SINGLE-POINT WORKSPACE (Legacy / Probing)
@@ -90,8 +91,8 @@ namespace cfem {
         // BATCH WORKSPACE (Vectorized Element Assembly)
         // ====================================================================
         struct BatchWorkspace {
-            DynamicVector<Vector3D> physPos;     /**< Physical coordinates for all QPs. */
-            DynamicVector<Vector3D> xi;          /**< Reference coordinates for all QPs. */
+            DynamicVector<Vector3D>* physPos;     /**< Physical coordinates for all QPs. */
+            DynamicVector<Vector3D>* xi;          /**< Reference coordinates for all QPs. */
             ShapeInfoBatch* shape   = nullptr;   /**< Pointer to allocated batch shape memory. */
             MappingInfoBatch* mapping = nullptr; /**< Pointer to allocated batch metric memory. */
         } batchWS;
@@ -167,19 +168,6 @@ namespace cfem {
             return m_spaceDataCache[index];
         }
 
-        inline void setSpaceDataBatch(CfemInt index, const ShapeInfoBatch* shape, const MappingInfoBatch* mapping) 
-        {
-            CFEM_ASSERT(index >= 0, "Negative space index");
-#ifdef CFEM_USE_DYNAMIC_SPACE_CACHE
-            CFEM_ASSERT(index < static_cast<int>(m_spaceDataCache.size()), "Space cache not pre-sized");
-#else
-            CFEM_ASSERT(index < MAX_CACHED_SPACES, "Space index exceeds MAX_CACHED_SPACES");
-#endif
-            auto& entry = m_spaceDataCache[index];
-            entry.shapeBatch = shape;
-            entry.mappingBatch = mapping;
-        }
-
         inline void setSpaceData(CfemInt index, const ShapeInfo* shape, const MappingInfo* mapping) 
         {
             CFEM_ASSERT(index >= 0, "Negative space index");
@@ -191,6 +179,19 @@ namespace cfem {
             auto& entry = m_spaceDataCache[index];
             entry.shapeSingle = shape;
             entry.mappingSingle = mapping;
+        }
+
+        inline void setSpaceDataBatch(CfemInt index, const ShapeInfoBatch* shape, const MappingInfoBatch* mapping) 
+        {
+            CFEM_ASSERT(index >= 0, "Negative space index");
+#ifdef CFEM_USE_DYNAMIC_SPACE_CACHE
+            CFEM_ASSERT(index < static_cast<int>(m_spaceDataCache.size()), "Space cache not pre-sized");
+#else
+            CFEM_ASSERT(index < MAX_CACHED_SPACES, "Space index exceeds MAX_CACHED_SPACES");
+#endif
+            auto& entry = m_spaceDataCache[index];
+            entry.shapeBatch = shape;
+            entry.mappingBatch = mapping;
         }
 
         inline const MappingInfoBatch* getMappingBatch(CfemInt index) const 
@@ -241,7 +242,7 @@ namespace cfem {
          * @return Pointer to ShapeInfo (Legacy/Probing).
          * @pre index is valid and single shape has been set.
          */
-        inline const ShapeInfo* getShapeSingle(CfemInt index) const 
+        inline const ShapeInfo* getShape(CfemInt index) const 
         {
         #ifdef CFEM_USE_DYNAMIC_SPACE_CACHE
             CFEM_ASSERT(index >= 0 && index < static_cast<int>(m_spaceDataCache.size()), "EvalContext::getShapeSingle index out of bounds");

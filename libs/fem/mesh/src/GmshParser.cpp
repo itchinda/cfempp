@@ -253,7 +253,7 @@ std::shared_ptr<Mesh> GmshParser::load(const std::string &filename, std::optiona
     }
     std::ifstream file(filename);
     if (!file.is_open()) {
-        CFEM_ERROR << "Failed to open " << filename;
+        CFEM_THROW("Failed to open " << filename);
         return nullptr;
     }
 

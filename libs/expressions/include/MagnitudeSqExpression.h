@@ -81,6 +81,7 @@ namespace cfem::sym
         void prepare() const override { m_expr->prepare(); }
 
         void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override;
 
         std::shared_ptr<const CfemExpression> getInner() const { return m_expr; }
 

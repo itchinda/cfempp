@@ -67,6 +67,23 @@ namespace cfem::sym
             out[0] = static_cast<CfemReal>(m_evaluator->evaluate(input));
         }
 
+
+        void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+            const CfemReal t = ctx.currentTime;
+            const auto* physPos_ptr = ctx.batchWS.physPos; 
+            
+            CFEM_ASSERT(physPos_ptr != nullptr && (*physPos_ptr).size() >= nQp, "Batch physical positions not properly sized in EvalContext");
+
+            const auto& physPos = *physPos_ptr;
+
+            for (CfemInt q = 0; q < nQp; ++q) {
+                const CfemReal input[4] = { physPos[q].x, physPos[q].y, physPos[q].z, t };
+                
+                outValues[q] = m_evaluator->evaluate(input);
+            }
+        }
+
         std::shared_ptr<const ScalarSymbolicExpression> diff( const SymEngine::RCP<const SymEngine::Symbol> &var) const {
             return std::make_shared<const ScalarSymbolicExpression>(m_expression.diff(var), m_vars);
         }

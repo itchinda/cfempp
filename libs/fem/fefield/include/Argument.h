@@ -167,10 +167,35 @@ public:
      */
     virtual void evaluate(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext& ctx) const override 
     {
-        CFEM_ERROR << "Invalid call: Argument '" << m_name 
+        CFEM_THROW("Invalid call: Argument '" << m_name 
                    << "' cannot be evaluated as a field. "
                    << "Arguments are placeholders for basis functions and can only be "
-                   << "evaluated via evaluateBasis() during assembly.";
+                   << "evaluated via evaluateBasis() during assembly.");
+    }
+
+    void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+    {
+        CFEM_THROW("Invalid call: Argument '" << m_name 
+                   << "' cannot be evaluated as a field. "
+                   << "Arguments are placeholders for basis functions and can only be "
+                   << "evaluated via evaluateBasis() during assembly.");
+    }
+
+    void evaluateGradient(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext& ctx) const override 
+    {
+        CFEM_THROW("Invalid call: Argument '" << m_name 
+                   << "' cannot be evaluated as a field. "
+                   << "Arguments are placeholders for basis functions and can only be "
+                   << "evaluated via evaluateBasis() OR evaluateBasisGradients()  during assembly.");
+    }
+
+
+    void evaluateGradientBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+    {
+        CFEM_THROW("Invalid call: Argument '" << m_name 
+                   << "' cannot be evaluated as a field. "
+                   << "Arguments are placeholders for basis functions and can only be "
+                   << "evaluated via evaluateBasis() OR evaluateBasisGradients()  during assembly.");
     }
 
     /**

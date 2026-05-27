@@ -151,6 +151,123 @@ namespace cfem::sym
         }
     }
 
+    inline void UnaryExpression::evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> out, EvalContext& ctx) const
+    {
+        // Allocation du buffer temporaire SoA pour le nœud enfant
+        auto bookmark = ctx.getBookmark();
+        std::span<CfemReal> in_buf = ctx.getBuffer(m_dimIn * nQp);
+        
+        // Évaluation en lot de l'expression enfant
+        m_expr->evaluateBatch(cellId, nQp, in_buf, ctx);
+
+        // =========================================================================
+        // FORMAT SoA: buffer[composante * nQp + q]
+        // Les boucles `q` internes garantissent la vectorisation SIMD maximale.
+        // =========================================================================
+
+        switch (m_op) {
+            // --- Opérations Matricielles (dimIn == 9) ---
+            case MathOp::Transpose: {
+                for (CfemInt q = 0; q < nQp; ++q) {
+                    out[0 * nQp + q] = in_buf[0 * nQp + q]; out[1 * nQp + q] = in_buf[3 * nQp + q]; out[2 * nQp + q] = in_buf[6 * nQp + q];
+                    out[3 * nQp + q] = in_buf[1 * nQp + q]; out[4 * nQp + q] = in_buf[4 * nQp + q]; out[5 * nQp + q] = in_buf[7 * nQp + q];
+                    out[6 * nQp + q] = in_buf[2 * nQp + q]; out[7 * nQp + q] = in_buf[5 * nQp + q]; out[8 * nQp + q] = in_buf[8 * nQp + q];
+                }
+                break;
+            }
+            case MathOp::Trace: {
+                for (CfemInt q = 0; q < nQp; ++q) {
+                    out[q] = in_buf[0 * nQp + q] + in_buf[4 * nQp + q] + in_buf[8 * nQp + q];
+                }
+                break;
+            }
+            case MathOp::Det: {
+                for (CfemInt q = 0; q < nQp; ++q) {
+                    out[q] = in_buf[0 * nQp + q] * (in_buf[4 * nQp + q] * in_buf[8 * nQp + q] - in_buf[5 * nQp + q] * in_buf[7 * nQp + q]) -
+                             in_buf[1 * nQp + q] * (in_buf[3 * nQp + q] * in_buf[8 * nQp + q] - in_buf[5 * nQp + q] * in_buf[6 * nQp + q]) +
+                             in_buf[2 * nQp + q] * (in_buf[3 * nQp + q] * in_buf[7 * nQp + q] - in_buf[4 * nQp + q] * in_buf[6 * nQp + q]);
+                }
+                break;
+            }
+            case MathOp::Inv: {
+                for (CfemInt q = 0; q < nQp; ++q) {
+                    CfemReal det = in_buf[0 * nQp + q] * (in_buf[4 * nQp + q] * in_buf[8 * nQp + q] - in_buf[5 * nQp + q] * in_buf[7 * nQp + q]) -
+                                   in_buf[1 * nQp + q] * (in_buf[3 * nQp + q] * in_buf[8 * nQp + q] - in_buf[5 * nQp + q] * in_buf[6 * nQp + q]) +
+                                   in_buf[2 * nQp + q] * (in_buf[3 * nQp + q] * in_buf[7 * nQp + q] - in_buf[4 * nQp + q] * in_buf[6 * nQp + q]);
+
+                    if (NumericPolicy::isZero(std::abs(det))) {
+                        for(int i = 0; i < 9; ++i) out[i * nQp + q] = 0.0; 
+                        continue; // On passe au point de quadrature suivant
+                    }
+
+                    CfemReal invDet = 1.0 / det;
+
+                    out[0 * nQp + q] = (in_buf[4 * nQp + q] * in_buf[8 * nQp + q] - in_buf[5 * nQp + q] * in_buf[7 * nQp + q]) * invDet;
+                    out[1 * nQp + q] = (in_buf[2 * nQp + q] * in_buf[7 * nQp + q] - in_buf[1 * nQp + q] * in_buf[8 * nQp + q]) * invDet;
+                    out[2 * nQp + q] = (in_buf[1 * nQp + q] * in_buf[5 * nQp + q] - in_buf[2 * nQp + q] * in_buf[4 * nQp + q]) * invDet;
+
+                    out[3 * nQp + q] = (in_buf[5 * nQp + q] * in_buf[6 * nQp + q] - in_buf[3 * nQp + q] * in_buf[8 * nQp + q]) * invDet;
+                    out[4 * nQp + q] = (in_buf[0 * nQp + q] * in_buf[8 * nQp + q] - in_buf[2 * nQp + q] * in_buf[6 * nQp + q]) * invDet;
+                    out[5 * nQp + q] = (in_buf[2 * nQp + q] * in_buf[3 * nQp + q] - in_buf[0 * nQp + q] * in_buf[5 * nQp + q]) * invDet;
+
+                    out[6 * nQp + q] = (in_buf[3 * nQp + q] * in_buf[7 * nQp + q] - in_buf[4 * nQp + q] * in_buf[6 * nQp + q]) * invDet;
+                    out[7 * nQp + q] = (in_buf[1 * nQp + q] * in_buf[6 * nQp + q] - in_buf[0 * nQp + q] * in_buf[7 * nQp + q]) * invDet;
+                    out[8 * nQp + q] = (in_buf[0 * nQp + q] * in_buf[4 * nQp + q] - in_buf[1 * nQp + q] * in_buf[3 * nQp + q]) * invDet;
+                }
+                break;
+            }
+
+            // --- Mathématiques de base (Élément par élément) ---
+            case MathOp::Negate: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = -in_buf[i*nQp+q]; } break;
+            case MathOp::Abs:    for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::abs(in_buf[i*nQp+q]); } break;
+            case MathOp::Sqrt:   for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = (in_buf[i*nQp+q] > 0) ? std::sqrt(in_buf[i*nQp+q]) : 0.0; } break;
+            case MathOp::Cbrt:   for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::cbrt(in_buf[i*nQp+q]); } break;
+            
+            // --- Fonctions Logiques / Marches ---
+            case MathOp::Sign:      for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = (in_buf[i*nQp+q] > 0) ? 1.0 : ((in_buf[i*nQp+q] < 0) ? -1.0 : 0.0); } break;
+            case MathOp::Heaviside: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = (in_buf[i*nQp+q] >= 0) ? 1.0 : 0.0; } break;
+            
+            // --- Trigonométrie ---
+            case MathOp::Sin: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::sin(in_buf[i*nQp+q]); } break;
+            case MathOp::Cos: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::cos(in_buf[i*nQp+q]); } break;
+            case MathOp::Tan: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::tan(in_buf[i*nQp+q]); } break;
+            case MathOp::Cot: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = 1.0 / std::tan(in_buf[i*nQp+q]); } break;
+            case MathOp::Sec: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = 1.0 / std::cos(in_buf[i*nQp+q]); } break;
+            case MathOp::Csc: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = 1.0 / std::sin(in_buf[i*nQp+q]); } break;
+            
+            // --- Trigonométrie Inverse ---
+            case MathOp::Asin: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::asin(in_buf[i*nQp+q]); } break;
+            case MathOp::Acos: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::acos(in_buf[i*nQp+q]); } break;
+            case MathOp::Atan: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::atan(in_buf[i*nQp+q]); } break;
+            case MathOp::Acot: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = M_PI_2 - std::atan(in_buf[i*nQp+q]); } break;
+            case MathOp::Asec: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::acos(1.0 / in_buf[i*nQp+q]); } break;
+            case MathOp::Acsc: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::asin(1.0 / in_buf[i*nQp+q]); } break;
+            
+            // --- Fonctions Hyperboliques ---
+            case MathOp::Sinh:  for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::sinh(in_buf[i*nQp+q]); } break;
+            case MathOp::Cosh:  for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::cosh(in_buf[i*nQp+q]); } break;
+            case MathOp::Tanh:  for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::tanh(in_buf[i*nQp+q]); } break;
+            case MathOp::Asinh: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::asinh(in_buf[i*nQp+q]); } break;
+            case MathOp::Acosh: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::acosh(in_buf[i*nQp+q]); } break;
+            case MathOp::Atanh: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::atanh(in_buf[i*nQp+q]); } break;
+            
+            // --- Fonctions Exponentielles & Spéciales ---
+            case MathOp::Exp:   for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::exp(in_buf[i*nQp+q]); } break;
+            case MathOp::Log:   for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = (in_buf[i*nQp+q] > 0) ? std::log(in_buf[i*nQp+q]) : -1e20; } break;
+            case MathOp::Gamma: for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::tgamma(in_buf[i*nQp+q]); } break;
+            case MathOp::Erf:   for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::erf(in_buf[i*nQp+q]); } break;
+            case MathOp::Erfc:  for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::erfc(in_buf[i*nQp+q]); } break;
+            case MathOp::Zeta:  for(int i=0; i<m_dimOut; ++i) { for(int q=0; q<nQp; ++q) out[i*nQp+q] = std::riemann_zeta(in_buf[i*nQp+q]); } break;
+            
+            default:
+                CFEM_THROW("Unsupported math operation.");
+                break;
+        }
+
+        // Libération de la mémoire de l'Arena
+        ctx.releaseToBookmark(bookmark);
+    }
+
     inline CfemInt UnaryExpression::precedence() const{
         return 5;
     }

@@ -83,7 +83,18 @@ namespace cfem::sym
         }
         CfemInt getNumComponents() const override { return m_expr->getNumComponents() * 3; }
         void prepare() const override { m_expr->prepare(); }
-        void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
+
+
+        void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override
+        {
+            m_expr->evaluateGradient(cellId, xi, out, ctx);
+        }
+
+        void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext &ctx) const override
+        {
+            m_expr->evaluateGradientBatch(cellId, nQp, outValues, ctx);
+        }
+
         ExpressionType getType() const override { return ExpressionType::Gradient; }
         bool dependsOnFEField() const override { return m_expr->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_expr->dependsOnShape(); }

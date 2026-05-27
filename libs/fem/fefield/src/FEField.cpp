@@ -253,39 +253,24 @@ namespace cfem
         }
     }
 
+
     /**
-     * @brief Evaluates finite element field values across a whole batch of quadrature points using dense matrix contraction.
-     * @param cellId Local index of the computational cell.
-     * @param shapeBatch Contiguous batch structure holding precomputed shape functions [nQp x nNodes].
-     * @param outValuesBatch Destination matrix to store the physical field results [nQp x m_dim].
-     * @param ctx Unified high-performance evaluation context.
+     * @brief Implementation of the CfemExpression evaluation interface.
      */
-    void FEField::evaluateBatch(CfemInt cellId, 
-                                const ShapeInfoBatch& shapeBatch, 
-                                DynamicMatrix<CfemReal>& outValuesBatch, 
-                                EvalContext& ctx) const
+    void FEField::evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
     {
-        // Gather all local cell coefficients into cache-friendly dense layout
-        this->extractCellDofs(cellId, ctx.scratchCellDofs, ctx);
-        
-        const CfemInt nQp    = shapeBatch.numQuadraturePoints;
-        const CfemInt nNodes = shapeBatch.numNodes;
-        const CfemInt fDim   = this->getNumComponents();
-
-        outValuesBatch.resize(nQp, fDim);
-        outValuesBatch.setZero(); 
-
-        // Vectorized dense matrix contraction: Out[q][d] = Sum_i ( Shape[q][i] * CellDofs[i][d] )
-        for (CfemInt q = 0; q < nQp; ++q) {
-            const auto* values = shapeBatch.values(q);
-            for (CfemInt i = 0; i < nNodes; ++i) {
-                const CfemReal Ni = values[i];
-                for (CfemInt d = 0; d < fDim; ++d) {
-                    outValuesBatch[q][d] += Ni * ctx.scratchCellDofs[i][d];
-                }
+        if (m_boundIndex >= 0) {
+            const auto& data = ctx.getSpaceData(m_boundIndex);
+            
+            if (data.shapeSingle != nullptr) {
+                this->evaluateWithShape(cellId, *(data.shapeSingle), out);
+                return;
             }
         }
+
+        this->evaluateWithoutShape(cellId, xi, out, ctx);
     }
+
 
     /**
      * @brief Evaluates the standard field value at a single local coordinate xi without pre-computed shapes.
@@ -446,81 +431,169 @@ namespace cfem
         }
     }
 
-    /**
-     * @brief Interpolates physical spatial derivatives of the field for the entire batch of integration points.
-     * @param cellId Local index of the computational cell.
-     * @param mappingBatch Contiguous metric batch structure holding physical derivatives (dN/dx, dN/dy, dN/dz).
-     * @param outGradientsBatch Destination matrix to store the spatial physical gradients [nQp x (m_dim * spatialDimension)].
-     * @param ctx Unified high-performance evaluation context.
-     */
-    void FEField::evaluateGradientBatch(CfemInt cellId, 
-                                        const MappingInfoBatch& mappingBatch, 
-                                        DynamicMatrix<CfemReal>& outGradientsBatch, 
-                                        EvalContext& ctx) const
-    {
-        // Gather all local cell coefficients into the memory arena scratchpad matrix
-        this->extractCellDofs(cellId, ctx.scratchCellDofs, ctx);
 
-        const CfemInt nQp      = mappingBatch.numQuadraturePoints;
-        const CfemInt nNodes   = mappingBatch.numNodes;
-        const CfemInt fDim     = this->getNumComponents();
-        const CfemInt spatialDimension = m_space->getMesh()->getSpatialDimension();
+    // ========================================================================
+    // BATCH EVALUATION (VALEURS)
+    // ========================================================================
 
-        // Allocate output footprint: Rows = Quadrature Points, Columns = Combined Gradient Matrix Components
-        outGradientsBatch.resize(nQp, fDim * spatialDimension);
-        outGradientsBatch.setZero();
-
-        // Optimized Multi-Component Contraction Loop
-        for (CfemInt q = 0; q < nQp; ++q) 
-        {
-            // Loop over field dimensions (components) first to establish continuous row offsets
-            const auto* dN_dx = mappingBatch.dN_dx(q);
-            const auto* dN_dy = mappingBatch.dN_dy(q);
-            const auto* dN_dz = mappingBatch.dN_dz(q);
-            for (CfemInt d = 0; d < fDim; ++d) 
-            {
-                const CfemInt rowOffset = d * spatialDimension;
-                CfemReal grad_x = 0.0;
-                CfemReal grad_y = 0.0;
-                CfemReal grad_z = 0.0;
-
-                // Deepest loop operates over element nodes: perfectly contiguous column memory read
-                for (CfemInt i = 0; i < nNodes; ++i) 
-                {
-                    const CfemReal u_nodal = ctx.scratchCellDofs[i][d];
-                    
-                    grad_x += dN_dx[i] * u_nodal;
-                    grad_y += dN_dy[i] * u_nodal;
-                    if (spatialDimension == 3) {
-                        grad_z += dN_dz[i] * u_nodal;
-                    }
-                }
-
-                // Continuous sequential store inside the active row segment
-                outGradientsBatch[q][rowOffset + 0] = grad_x;
-                outGradientsBatch[q][rowOffset + 1] = grad_y;
-                if (spatialDimension == 3) {
-                    outGradientsBatch[q][rowOffset + 2] = grad_z;
-                }
-            }
-        }
-    }
-
-    /**
-     * @brief Implementation of the CfemExpression evaluation interface.
-     */
-    void FEField::evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const
+    void FEField::evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const
     {
         if (m_boundIndex >= 0) {
-            const auto& data = ctx.getSpaceData(m_boundIndex);
+            const auto* shapeBatch = ctx.getShapeBatch(m_boundIndex);
             
-            if (data.shapeSingle != nullptr) {
-                this->evaluateWithShape(cellId, *(data.shapeSingle), out);
+            if (shapeBatch != nullptr) {
+                this->evaluateBatchWithShape(cellId, nQp, *shapeBatch, outValues, ctx);
                 return;
             }
         }
 
-        this->evaluateWithoutShape(cellId, xi, out, ctx);
+        this->evaluateBatchWithoutShape(cellId, nQp, outValues, ctx);
+    }
+
+    void FEField::evaluateBatchWithShape(CfemInt cellId, CfemInt nQp, const ShapeInfoBatch& shapeBatch, std::span<CfemReal> outValues, EvalContext& ctx) const
+    {
+        const CfemInt nComp = this->getNumComponents();
+        const CfemInt nNodes = shapeBatch.numNodes;
+
+        // On s'assure que le buffer de sortie a la bonne taille (SoA)
+        CFEM_ASSERT(outValues.size() >= nComp * nQp, "FEField::evaluateBatchWithShape - Output buffer too small");
+        std::fill_n(outValues.data(), nComp * nQp, 0.0);
+
+        auto bookmark = ctx.getBookmark();
+        this->extractCellDofs(cellId, ctx.scratchCellDofs, ctx); 
+
+        for (CfemInt c = 0; c < nComp; ++c) {
+            for (CfemInt q = 0; q < nQp; ++q) {
+                const CfemReal* N = shapeBatch.values(q);
+                
+                CfemReal sum = 0.0;
+
+                for (CfemInt i = 0; i < nNodes; ++i) {
+                    sum += N[i] * ctx.scratchCellDofs[i][c];
+                }
+                outValues[c * nQp + q] = sum;
+            }
+        }
+
+        ctx.releaseToBookmark(bookmark);
+    }
+
+    void FEField::evaluateBatchWithoutShape(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const
+    {
+        // Récupération sécurisée des coordonnées xiBatch depuis le contexte (doit être configuré par l'intégrateur)
+        const auto* xiBatch = ctx.batchWS.xi;
+
+        CFEM_ASSERT(xiBatch != nullptr && xiBatch->size() >= static_cast<size_t>(nQp), "FEField::evaluateBatchWithoutShape requires xiBatch to be populated in EvalContext.");
+
+        const Cell &cell = m_space->getMesh()->getCell(cellId);
+        const auto &refEl = ReferenceElementFactory::getReferenceElement(cell.type, m_space->getOrderInt());
+
+        // Configuration temporaire du ShapeInfoBatch dans le contexte
+        ctx.batchWS.shape->setup(nQp, refEl.getNumNodes(), false);
+        ctx.batchWS.shape->validFlags |= ShapeEvaluationFlags::Value;
+        
+        refEl.evaluateShapesValuesBatch(*xiBatch, *(ctx.batchWS.shape));
+        
+        this->evaluateBatchWithShape(cellId, nQp, *(ctx.batchWS.shape), outValues, ctx);
+    }
+
+
+    // ========================================================================
+    // BATCH EVALUATION (GRADIENTS)
+    // ========================================================================
+
+    void FEField::evaluateGradientBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const
+    {
+        if (m_boundIndex >= 0) {
+            const auto* mappingBatch = ctx.getMappingBatch(m_boundIndex);
+            
+            if (mappingBatch != nullptr) {
+                this->evaluateGradientBatchWithCachedMapping(cellId, nQp, *mappingBatch, outValues, ctx);
+                return;
+            }
+            CFEM_INFO << "WARNING: Bound index present but no MappingBatch cached for FEField::evaluateGradientBatch";
+        }
+
+        this->evaluateGradientBatchWithoutCachedMapping(cellId, nQp, outValues, ctx);
+    }
+
+    void FEField::evaluateGradientBatchWithCachedMapping(CfemInt cellId, CfemInt nQp, const MappingInfoBatch& mappingBatch, std::span<CfemReal> outValues, EvalContext& ctx) const
+    {
+        const CfemInt nComp = this->getNumComponents();
+        const CfemInt spatialDim = m_space->getMesh()->getSpatialDimension();
+        const CfemInt nNodes = mappingBatch.numNodes;
+
+        // Le format de sortie pour un tenseur (ou gradient de vecteur) en SoA:
+        // Taille : (nComp * spatialDim) * nQp
+        const CfemInt expectedSize = nComp * spatialDim * nQp;
+        CFEM_ASSERT(outValues.size() >= static_cast<size_t>(expectedSize), "FEField::evaluateGradientBatchWithCachedMapping - Output buffer too small");
+        std::fill_n(outValues.data(), expectedSize, 0.0);
+
+        auto bookmark = ctx.getBookmark();
+        this->extractCellDofs(cellId, ctx.scratchCellDofs, ctx); 
+
+        // Boucle sur les composantes du champ (ex: u_x, u_y, u_z)
+        for (CfemInt c = 0; c < nComp; ++c) 
+        {
+            const CfemInt baseRow = c * spatialDim; // Offset pour la composante c
+
+            // Boucle interne sur les QP : parfait pour la prédiction de branchement et le chargement cache !
+            for (CfemInt q = 0; q < nQp; ++q) 
+            {
+                const CfemReal* gx = mappingBatch.dN_dx(q);
+                const CfemReal* gy = (spatialDim >= 2) ? mappingBatch.dN_dy(q) : nullptr;
+                const CfemReal* gz = (spatialDim == 3) ? mappingBatch.dN_dz(q) : nullptr;
+
+                CfemReal sumX = 0.0, sumY = 0.0, sumZ = 0.0;
+
+                // Contraction locale (nœuds)
+                for (CfemInt i = 0; i < nNodes; ++i) 
+                {
+                    const CfemReal dofVal = ctx.scratchCellDofs[i][c];
+                    sumX += dofVal * gx[i];
+                    if (spatialDim >= 2) sumY += dofVal * gy[i];
+                    if (spatialDim == 3) sumZ += dofVal * gz[i];
+                }
+
+                // Écriture respectant le layout SoA : out[(composante_tensorielle) * nQp + q]
+                outValues[(baseRow + 0) * nQp + q] = sumX;
+                if (spatialDim >= 2) outValues[(baseRow + 1) * nQp + q] = sumY;
+                if (spatialDim == 3) outValues[(baseRow + 2) * nQp + q] = sumZ;
+            }
+        }
+
+        ctx.releaseToBookmark(bookmark);
+    }
+
+    void FEField::evaluateGradientBatchWithoutCachedMapping(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const
+    {
+        // Pareil que pour la valeur batch : on a besoin de xiBatch (via EvalContext)
+        const auto& xiBatch = ctx.batchWS.xi;
+        CFEM_ASSERT(xiBatch != nullptr && xiBatch->size() >= static_cast<size_t>(nQp), "FEField::evaluateGradientBatchWithoutCachedMapping requires xiBatch");
+
+        const auto &refEl = m_space->getReferenceElement(cellId);
+        
+        m_space->getMesh()->getCellVerticesCoords(cellId, ctx.scratchCoords);
+        const CfemInt expectedNodes = refEl.getNumNodes();
+        if (ctx.scratchCoords.size() > static_cast<size_t>(expectedNodes)) {
+            ctx.scratchCoords.resize(expectedNodes);
+        }
+
+        // On demande à l'élément de référence de construire la totale pour nQp points
+        ctx.batchWS.shape->shapeMustBeUpdated = false;
+
+        const bool isAffine = (m_space->getMesh()->getOrderInt() == 1) || m_space->getMesh()->isCellAffine(cellId);
+        
+        refEl.computeMappingBatch(
+            *xiBatch, 
+            ctx.scratchCoords,
+            ShapeEvaluationFlags::FirstDerivatives,
+            MappingEvaluationFlags::PhysicalFirstDerivatives,
+            *(ctx.batchWS.shape), 
+            *(ctx.batchWS.mapping)
+        );
+        
+        this->evaluateGradientBatchWithCachedMapping(cellId, nQp, *(ctx.batchWS.mapping), outValues, ctx);
     }
 
     /**

@@ -35,7 +35,7 @@ namespace cfem::reference_elem::utils {
             case 1: return Vector3D(1.0, u, 0.0);   // Face {1,2} : x=1
             case 2: return Vector3D(-u, 1.0, 0.0);  // Face {2,3} : y=1
             case 3: return Vector3D(-1.0, -u, 0.0); // Face {3,0} : x=-1
-            default: CFEM_ERROR << "Invalid facet ID for Quad cell";
+            default: CFEM_THROW("Invalid facet ID for Quad cell");
         }
         return Vector3D{}; // Make the compiler happy
     }

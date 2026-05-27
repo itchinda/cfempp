@@ -56,6 +56,22 @@ namespace cfem::sym
             for (CfemInt i = 0; i < 9; ++i) m_components[i]->evaluate(cellId, xi, out.subspan(i, 1), ctx);
         }
 
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+            // Un tenseur 3x3 évalué sur nQp points nécessite 9 * nQp espaces mémoire
+            CFEM_ASSERT(outValues.size() >= 9 * nQp, "Batch evaluation output buffer too small for 3D Tensor");
+
+            // =========================================================================
+            // FORMAT SoA (Structure of Arrays) - Optimisé pour le cache et le SIMD
+            // Le buffer de sortie sera organisé ainsi :
+            // [xx_0..xx_n, xy_0..xy_n, xz_0..xz_n, yx_0..yx_n, yy_0..yy_n, yz_0..yz_n, zx_0..zx_n, zy_0..zy_n, zz_0..zz_n]
+            // =========================================================================
+
+            for (CfemInt i=0; i<9; ++i){
+                m_components[i]->evaluateBatch(cellId, nQp, outValues.subspan(i * nQp, nQp), ctx);
+            }
+        }
+
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override;
 
         // TODO Implement grad()
@@ -80,7 +96,7 @@ namespace cfem::sym
     private:
         std::shared_ptr<const ScalarSymbolicExpression> m_components[9];
         std::shared_ptr<const CfemExpression> createGradient() const override { 
-            CFEM_ERROR << "Gradient is not yet supported for tensor expressions. It would required a 3rd order tensor which is not implemented.";
+            CFEM_THROW("Gradient is not yet supported for tensor expressions. It would required a 3rd order tensor which is not implemented.");
             return nullptr; 
         }
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override;

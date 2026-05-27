@@ -57,6 +57,17 @@ namespace cfem
             return std::make_shared<sym::GradExpression>(shared_from_this());
         }
 
+        void evaluateWithShape(CfemInt cellId, const ShapeInfo& shape, std::span<CfemReal> out) const;
+        void evaluateWithoutShape(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext &ctx) const;
+        void evaluateBatchWithShape(CfemInt cellId, CfemInt nQp, const ShapeInfoBatch& shapeBatch, std::span<CfemReal> outValues, EvalContext& ctx) const;
+        void evaluateBatchWithoutShape(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const;
+
+
+        void evaluateGradientWithCachedMapping(CfemInt cellId, const MappingInfo& mapping, std::span<CfemReal> out) const;
+        void evaluateGradientWithoutCachedMapping(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const;
+        void evaluateGradientBatchWithCachedMapping(CfemInt cellId, CfemInt nQp, const MappingInfoBatch& mappingBatch, std::span<CfemReal> outValues, EvalContext& ctx) const;
+        void evaluateGradientBatchWithoutCachedMapping(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const;
+
     public:
         FEField(ConstructorToken, std::shared_ptr<FESpace> space, const std::string &name);
         virtual ~FEField() = default;
@@ -103,39 +114,13 @@ namespace cfem
         SkewSymTensor3D get3DSkewSymTensorFieldAtNode(CfemInt meshNodeId) const;
 
         void extractCellDofs(CfemInt cellId, DynamicMatrix<CfemReal>& localDofs, EvalContext& ctx) const;
-        void evaluateWithoutShape(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext &ctx) const;
-        void evaluateWithShape(CfemInt cellId, const ShapeInfo& shape, std::span<CfemReal> out) const;
         void evaluateGradient(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
-        void evaluateGradientWithoutCachedMapping(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const;
-        void evaluateGradientWithCachedMapping(CfemInt cellId, const MappingInfo& mapping, std::span<CfemReal> out) const;
 
         // ====================================================================
         // --- Vectorized Batch (SoA) Evaluation Extensions
         // ====================================================================
-
-        /**
-         * @brief Evaluates the finite element field values across a whole batch of quadrature points.
-         * @param cellId Local index of the computational cell.
-         * @param shapeBatch Contiguous batch structure holding precomputed shape functions [nQp x nNodes].
-         * @param outValuesBatch Destination matrix to store the physical field results [nQp x m_dim].
-         * @param ctx Unified high-performance evaluation context.
-         */
-        void evaluateBatch(CfemInt cellId, 
-                           const ShapeInfoBatch& shapeBatch, 
-                           DynamicMatrix<CfemReal>& outValuesBatch, 
-                           EvalContext& ctx) const;
-
-        /**
-         * @brief Evaluates the physical spatial gradients (du/dx, du/dy, du/dz) across a batch of quadrature points.
-         * @param cellId Local index of the computational cell.
-         * @param mappingBatch Contiguous metric batch structure holding physical derivatives (dN/dx, dN/dy, dN/dz).
-         * @param outGradientsBatch Destination matrix to store the spatial physical gradients [nQp x (m_dim * spaceDim)].
-         * @param ctx Unified high-performance evaluation context.
-         */
-        void evaluateGradientBatch(CfemInt cellId, 
-                                   const MappingInfoBatch& mappingBatch, 
-                                   DynamicMatrix<CfemReal>& outGradientsBatch, 
-                                   EvalContext& ctx) const;
+        void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override;
+        void evaluateGradientBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override;
 
         void interpolate(const sym::CfemExpression& recipe);
         void interpolate(std::shared_ptr<const sym::CfemExpression> recipe) {

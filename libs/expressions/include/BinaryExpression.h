@@ -102,6 +102,7 @@ namespace cfem::sym
         }
 
         void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
+        void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> out, EvalContext &ctx) const override;
         
         std::shared_ptr<const CfemExpression> getLHS() const { return m_lhs; }
         std::shared_ptr<const CfemExpression> getRHS() const { return m_rhs; }
