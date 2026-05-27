@@ -271,6 +271,7 @@ void FunctionIntegrator::integrate(const std::vector<EvaluationTarget> &targets,
         struct SpaceCacheBatch {
             CfemInt contextIndex;
             ShapeInfoBatch shapesBatch;
+            CfemInt paddedNodeStride;
         };
 
         struct CellCacheEntryBatch {
@@ -310,6 +311,8 @@ void FunctionIntegrator::integrate(const std::vector<EvaluationTarget> &targets,
                 
                 refElSpace.evaluateShapesBatch(fastCache[idx].xiPoints, fieldShapesFlags, spCache.shapesBatch);
                 spCache.shapesBatch.shapeMustBeUpdated = false;
+
+                spCache.paddedNodeStride = kernel_utils::computePaddedStride(spCache.shapesBatch.numNodes);
                 
                 fastCache[idx].spaceCaches.push_back(std::move(spCache));
             }
@@ -392,25 +395,16 @@ void FunctionIntegrator::integrate(const std::vector<EvaluationTarget> &targets,
                 for (size_t sIdx = 0; sIdx < cache->spaceCaches.size(); ++sIdx) {
                     const auto& spCache = cache->spaceCaches[sIdx];
                     
-                    // 1. Zéro-Copie : La vue métier hérite de la vue géométrique
                     spaceMappingsViews[sIdx] = geoView;
 
-                    // 2. Allocation locale via l'Arena et calcul de la physique
                     if (needsFieldFirstDerivatives) {
                         
                         // L'intégrateur demande la mémoire continue à l'Arena
-                        CfemInt paddedNodes = kernel_utils::computePaddedStride(spCache.shapesBatch.numNodes);
+                        CfemInt paddedNodes = spCache.paddedNodeStride;
                         std::span<CfemReal> arenaStorage = ctx.getBuffer(spatialDim * nQp * paddedNodes);
                         
-                        // La vue configure ses pointeurs internes
-
-                        // CFEM_INFO << "IIIIIIIIIIIIIIIIIIIII";
                         spaceMappingsViews[sIdx].setupPhysicalDerivativesMemory(arenaStorage, spCache.shapesBatch.numNodes, spatialDim, nQp);
-
-                        
-                        // Le noyau vectorisé calcule la physique
                         refElGeo->computePhysicalFirstDerivativesBatch(spCache.shapesBatch, spaceMappingsViews[sIdx]);
-                        // CFEM_INFO << "OK";
                     }
                 }
 
