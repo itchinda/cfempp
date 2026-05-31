@@ -17,6 +17,7 @@
 //************************************************************************
 
 #include <gtest/gtest.h>
+
 #include "FixedMatrix.h"
 
 using namespace cfem;

@@ -19,9 +19,11 @@
 #ifndef CFEM_REFERENCE_HEXAHEDRON
 #define CFEM_REFERENCE_HEXAHEDRON
 
-#include "ReferenceElement.h"
 #include <array>
+#include <cstring>
 #include <span>
+
+#include "ReferenceElement.h"
 
 namespace cfem::reference_elem::utils
 {

@@ -18,8 +18,9 @@
 
 #pragma once
 
-#include "cfemutils.h"
 #include <limits>
+
+#include "cfemutils.h"
 
 namespace cfem
 {

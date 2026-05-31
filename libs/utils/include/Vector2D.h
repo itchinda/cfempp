@@ -29,10 +29,11 @@
 
 #pragma once
 
-#include "cfemutils.h"
+#include <algorithm>
 #include <cmath>
 #include <ostream>
-#include <algorithm>
+
+#include "cfemutils.h"
 
 namespace cfem
 {

@@ -19,9 +19,10 @@
 #ifndef CFEM_REFERENCE_PRISM
 #define CFEM_REFERENCE_PRISM
 
-#include "ReferenceElement.h"
 #include <span>
 #include <vector>
+
+#include "ReferenceElement.h"
 
 namespace cfem::reference_elem::utils{
 

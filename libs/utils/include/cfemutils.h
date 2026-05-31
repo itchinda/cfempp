@@ -19,16 +19,16 @@
 #ifndef CFEMUTILS_
 #define CFEMUTILS_
 
-#include <petscsys.h>
-#include <vector>
-#include <type_traits>
-#include <sstream>
 #include <iomanip>
+#include <petscsys.h>
+#include <sstream>
+#include <type_traits>
+#include <vector>
 
-#include "ContractException.h"
 #include "CfemLogger.h"
 #include "cfemtypes.h"
 #include "ChronoManager.h"
+#include "ContractException.h"
 //#include "numeric_policy.h"
 
 /**

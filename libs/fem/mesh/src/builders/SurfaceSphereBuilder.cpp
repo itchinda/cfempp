@@ -17,8 +17,9 @@
 //************************************************************************
 
 
-#include "SurfaceSphereBuilder.h"
 #include <map>
+
+#include "SurfaceSphereBuilder.h"
 
 namespace cfem {
 

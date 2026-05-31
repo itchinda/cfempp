@@ -16,14 +16,14 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include "VTUExporter.h"
-#include "CfemExpression.h"
-
 #include <algorithm>
-#include <iomanip>
-#include <fstream>
-#include <unordered_map>
 #include <cstdint>
+#include <fstream>
+#include <iomanip>
+#include <unordered_map>
+
+#include "CfemExpression.h"
+#include "VTUExporter.h"
 
 namespace cfem
 {

@@ -26,10 +26,11 @@
 #ifndef CFEM_STATIC_MATRIX
 #define CFEM_STATIC_MATRIX
 
-#include "cfemutils.h"
-#include "FixedVector.h"
 #include <iostream>
 #include <utility>
+
+#include "cfemutils.h"
+#include "FixedVector.h"
 
 namespace cfem
 {

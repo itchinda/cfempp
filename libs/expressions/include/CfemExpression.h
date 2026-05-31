@@ -18,15 +18,16 @@
 
 #pragma once
 
-#include "cfemutils.h"
-#include "EvalContext.h"
-#include "Vector3D.h"
-#include "Tensor3D.h"
-#include "FESpace.h"
-#include <set>
-#include <span>
 #include <memory>
 #include <ostream>
+#include <set>
+#include <span>
+
+#include "cfemutils.h"
+#include "EvalContext.h"
+#include "FESpace.h"
+#include "Tensor3D.h"
+#include "Vector3D.h"
 
 
 namespace cfem::sym

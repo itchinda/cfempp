@@ -16,8 +16,9 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include <gtest/gtest.h>
 #include <fstream>
+#include <gtest/gtest.h>
+
 #include "Mesh.h"
 
 using namespace cfem;

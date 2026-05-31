@@ -16,8 +16,8 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include <gtest/gtest.h>
 #include <cmath>
+#include <gtest/gtest.h>
 
 #include "ReferenceElements.h"
 

@@ -16,9 +16,8 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include "SolidSphereBuilder.h"
-
 #include "Mesh.h"
+#include "SolidSphereBuilder.h"
 
 namespace cfem {
 

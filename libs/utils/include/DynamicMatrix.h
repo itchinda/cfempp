@@ -27,14 +27,15 @@
 #ifndef CFEM_DYNAMIC_MATRIX
 #define CFEM_DYNAMIC_MATRIX
 
-#include "cfemutils.h"
-#include "FixedMatrix.h"
-#include "DynamicVector.h"
-#include <vector>
-#include <iostream>
-#include <cmath>
 #include <algorithm>
+#include <cmath>
+#include <iostream>
 #include <span>
+#include <vector>
+
+#include "cfemutils.h"
+#include "DynamicVector.h"
+#include "FixedMatrix.h"
 
 namespace cfem
 {

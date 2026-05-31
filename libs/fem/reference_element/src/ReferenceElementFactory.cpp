@@ -16,9 +16,9 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
+#include "FESpace.h"
 #include "ReferenceElementFactory.h"
 #include "ReferenceElements.h"
-#include "FESpace.h"
 
 namespace cfem {
 

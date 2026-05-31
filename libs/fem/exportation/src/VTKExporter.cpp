@@ -16,11 +16,12 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include "VTKExporter.h"
-#include "CfemExpression.h"
 #include <algorithm>
-#include <iomanip>
 #include <fstream>
+#include <iomanip>
+
+#include "CfemExpression.h"
+#include "VTKExporter.h"
 
 namespace cfem
 {

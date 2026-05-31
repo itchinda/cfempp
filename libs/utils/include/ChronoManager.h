@@ -19,12 +19,13 @@
 #ifndef PROFILER_HPP
 #define PROFILER_HPP
 
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
 #include <chrono>
+#include <fstream>
+#include <iostream>
+#include <string>
 #include <unistd.h>
+#include <vector>
+
 #include "ContractException.h"
 
 namespace cfem

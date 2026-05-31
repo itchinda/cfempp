@@ -16,13 +16,13 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include "LagrangeSpace.h"
-#include "ReferenceElements.h"
-#include "ReferenceElementFactory.h"
-#include "Mesh.h"
-
-#include <set>
 #include <algorithm>
+#include <set>
+
+#include "LagrangeSpace.h"
+#include "Mesh.h"
+#include "ReferenceElementFactory.h"
+#include "ReferenceElements.h"
 
 namespace cfem {
 

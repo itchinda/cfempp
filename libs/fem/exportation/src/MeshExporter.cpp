@@ -16,13 +16,14 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include "MeshExporter.h"
-#include <regex>
 #include <filesystem>
+#include <regex>
+
+#include "CfemExpression.h"
+#include "FEField.h"
 #include "Mesh.h"
 #include "MeshEntity.h"
-#include "FEField.h"
-#include "CfemExpression.h"
+#include "MeshExporter.h"
 
 namespace fs = std::filesystem;
 

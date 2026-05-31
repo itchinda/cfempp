@@ -17,8 +17,9 @@
 //************************************************************************
 
 #include <gtest/gtest.h>
-#include "VariableExpression.h"
+
 #include "MathOperators.h" // Your symbolic headers
+#include "VariableExpression.h"
 
 using namespace cfem::sym;
 using namespace cfem::sym::symengine;

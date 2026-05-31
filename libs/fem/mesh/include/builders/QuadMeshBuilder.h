@@ -19,10 +19,10 @@
 #ifndef CFEM_QUAD_MESH_BUILDER_H
 #define CFEM_QUAD_MESH_BUILDER_H
 
-#include "cfemutils.h"
-#include "Vector3D.h"
 #include "cfem_topology.h"
+#include "cfemutils.h"
 #include "Mesh.h"
+#include "Vector3D.h"
 
 namespace cfem{
     using QuadElementType   = Mesh::QuadElementType;   /// Alias to Mesh element type for 2D quad meshes.

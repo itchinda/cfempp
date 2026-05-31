@@ -19,11 +19,11 @@
 #ifndef CFEM_CONTRACT_EXCEPTION_H
 #define CFEM_CONTRACT_EXCEPTION_H
 
-#include <stdexcept>
-#include <string>
-#include <sstream>
 #include <petsc.h>
 #include <regex>
+#include <sstream>
+#include <stdexcept>
+#include <string>
 
 #include "cfemtypes.h"
 

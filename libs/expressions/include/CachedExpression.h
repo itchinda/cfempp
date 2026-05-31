@@ -19,9 +19,10 @@
 
 #pragma once
 
-#include "CfemExpression.h"
 #include <memory>
 #include <utility>
+
+#include "CfemExpression.h"
 
 namespace cfem::sym {
 

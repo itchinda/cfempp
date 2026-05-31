@@ -16,13 +16,14 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include <gtest/gtest.h>
-#include <vector>
-#include <map>
-#include <set>
-#include <cmath>
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <gtest/gtest.h>
+#include <map>
+#include <set>
+#include <vector>
+
 #include "cfemutils.h"
 #include "Mesh.h"
 

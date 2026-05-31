@@ -16,8 +16,8 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include "symengine/TensorSymbolicExpression.h"
 #include "symengine/SymEngineSymbols.h"
+#include "symengine/TensorSymbolicExpression.h"
 
 namespace cfem::sym
 {

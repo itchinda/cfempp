@@ -17,6 +17,7 @@
 //************************************************************************
 
 #include <gtest/gtest.h>
+
 #include "DynamicVector.h"
 #include "FixedVector.h"
 

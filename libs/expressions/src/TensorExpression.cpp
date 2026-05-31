@@ -16,9 +16,9 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
+#include "MathOperators.h"
 #include "TensorExpression.h"
 #include "VectorExpression.h"
-#include "MathOperators.h"
 
 
 namespace cfem::sym

@@ -19,10 +19,11 @@
 #ifndef CFEM_REFERENCE_TETRAHEDRON
 #define CFEM_REFERENCE_TETRAHEDRON
 
-#include "ReferenceElement.h"
-#include <cstring>
 #include <array>
+#include <cstring>
 #include <span>
+
+#include "ReferenceElement.h"
 
 namespace cfem::reference_elem::utils{
 

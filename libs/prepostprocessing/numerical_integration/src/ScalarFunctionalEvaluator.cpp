@@ -16,23 +16,21 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include "ScalarFunctionalEvaluator.h"
-#include "ReferenceElementFactory.h"
-#include "LagrangeSpace.h"
-#include "MathOperators.h"
-#include "Mesh.h"
-#include "MeshEntity.h"
-#include "EvalContext.h"
+#include <map>
+#include <set>
 
-#include "ShapeInfo.h"
-#include "ShapeInfoBatch.h"
+#include "EvalContext.h"
+#include "LagrangeSpace.h"
 #include "MappingInfo.h"
 #include "MappingInfoBatch.h"
 #include "MappingInfoBatchView.h"
-
-
-#include <set>
-#include <map>
+#include "MathOperators.h"
+#include "Mesh.h"
+#include "MeshEntity.h"
+#include "ReferenceElementFactory.h"
+#include "ScalarFunctionalEvaluator.h"
+#include "ShapeInfo.h"
+#include "ShapeInfoBatch.h"
 
 namespace cfem
 {

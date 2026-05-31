@@ -17,6 +17,7 @@
 //************************************************************************
 
 #include <gtest/gtest.h>
+
 #include "FixedVector.h"
 
 using namespace cfem;

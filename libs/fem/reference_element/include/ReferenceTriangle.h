@@ -19,12 +19,12 @@
 #ifndef CFEM_REFERENCE_TRIANGLE
 #define CFEM_REFERENCE_TRIANGLE
 
+#include <array>
+#include <cstring>
+#include <span>
+
 #include "ReferenceElement.h"
 #include "Vector3D.h"
-
-#include <array>
-#include <span>
-#include <cstring>
 
 namespace cfem::reference_elem::utils{
 

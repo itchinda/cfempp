@@ -19,9 +19,10 @@
 #ifndef CFEM_MESHENTITY_
 #define CFEM_MESHENTITY_
 
-#include <vector>
-#include <string>
 #include <algorithm>
+#include <string>
+#include <vector>
+
 #include "cfemutils.h"
 
 

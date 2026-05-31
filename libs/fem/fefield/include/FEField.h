@@ -19,23 +19,23 @@
 #ifndef CFEM_FEFIELD_H_2
 #define CFEM_FEFIELD_H_2
 
-#include "cfemutils.h"
-#include "CfemExpression.h"
-#include "Argument.h"
-#include "GradExpression.h"
-#include "EvalContext.h"
-#include "FESpace.h"
-#include "PetscVector.h"
-#include <string>
-#include <vector>
 #include <memory>
 #include <set>
 #include <span>
+#include <string>
+#include <vector>
 
-#include "Vector2D.h"
-#include "Vector3D.h"
+#include "Argument.h"
+#include "CfemExpression.h"
+#include "cfemutils.h"
+#include "EvalContext.h"
+#include "FESpace.h"
+#include "GradExpression.h"
+#include "PetscVector.h"
 #include "Tensor2D.h"
 #include "Tensor3D.h"
+#include "Vector2D.h"
+#include "Vector3D.h"
 
 namespace cfem
 {

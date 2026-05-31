@@ -19,12 +19,11 @@
 #pragma once
 
 #include "cfemutils.h"
-#include "kernel_utils.h"
-
-#include "EvaluationFlags.h"
-#include "Tensor3D.h"
-#include "DynamicVector.h"
 #include "DynamicMatrix.h"
+#include "DynamicVector.h"
+#include "EvaluationFlags.h"
+#include "kernel_utils.h"
+#include "Tensor3D.h"
 
 namespace cfem
 {

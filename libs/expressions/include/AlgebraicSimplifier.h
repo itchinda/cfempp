@@ -18,8 +18,9 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
+#include <vector>
+
 #include "CfemExpression.h"
 
 namespace cfem::sym

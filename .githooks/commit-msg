@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+# The file containing the temporary commit message
+MSG_FILE=$1
+COMMIT_TITLE=$(head -n 1 "$MSG_FILE")
+
+# ANSI colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# Standard definition
+TYPES="(FEAT|FIX|BUG|QA|REFACTOR|PERF|DOCS|TEST|CHORE)"
+MODULES="(ASSEMBLY|CORE|GEOM|MATH|IO|SYM|MESH|HPC)"
+PATTERN="^${TYPES}\(${MODULES}\): .+"
+
+if [[ ! $COMMIT_TITLE =~ $PATTERN ]]; then
+    echo -e "${RED}${BOLD}===============================================================${NC}"
+    echo -e "${RED}${BOLD} ERROR: Invalid commit message format.${NC}"
+    echo -e "${RED}${BOLD}===============================================================${NC}"
+    echo -e " Your message : '${YELLOW}$COMMIT_TITLE${NC}'\n"
+    echo -e "   Required format is: ${CYAN}${BOLD}TYPE(MODULE): description${NC} (in lowercase)\n"
+    echo -e "   Allowed ${CYAN}TYPES${NC}:"
+    echo -e "   ${GREEN}FEAT${NC}     : New feature (e.g., new element type)"
+    echo -e "   ${GREEN}FIX / BUG${NC}: Bug fix or crash resolution (e.g., fixed segfault)"
+    echo -e "   ${GREEN}QA${NC}       : Quality Assurance (assertions, error handling)"
+    echo -e "   ${GREEN}REFACTOR${NC} : Code restructuring without behavior change"
+    echo -e "   ${GREEN}PERF${NC}     : HPC Optimization (SIMD, Arena, Caching)"
+    echo -e "   ${GREEN}DOCS${NC}     : Documentation additions or changes (Doxygen)"
+    echo -e "   ${GREEN}TEST${NC}     : Adding unit tests (GTest)"
+    echo -e "   ${GREEN}CHORE${NC}    : Maintenance tasks (CMake, scripts, cleanup)\n"
+    echo -e "   Allowed ${CYAN}MODULES${NC}:"
+    echo -e "   ${YELLOW}ASSEMBLY, CORE, GEOM, MATH, IO, SYM, MESH, HPC${NC}\n"
+    echo -e "   Valid example: ${GREEN}PERF(HPC): implement zero-copy Arena allocator${NC}"
+    echo -e "${RED}${BOLD}===============================================================${NC}"
+    exit 1
+fi
+
+exit 0

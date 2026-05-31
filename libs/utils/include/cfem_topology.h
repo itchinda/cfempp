@@ -19,12 +19,13 @@
 #ifndef CFEM_TOPOLOGY_H
 #define CFEM_TOPOLOGY_H
 
-#include "cfemutils.h"
-#include "Vector3D.h"
 #include <algorithm>
 #include <cstddef>
 #include <iostream>
 #include <span>
+
+#include "cfemutils.h"
+#include "Vector3D.h"
 
 namespace cfem{
 

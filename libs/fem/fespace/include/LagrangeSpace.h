@@ -19,9 +19,10 @@
 #ifndef CFEM_LAGRANGESPACE_H
 #define CFEM_LAGRANGESPACE_H
 
-#include "FESpace.h"
-#include "DynamicVector.h"
 #include <map>
+
+#include "DynamicVector.h"
+#include "FESpace.h"
 
 namespace cfem {
 

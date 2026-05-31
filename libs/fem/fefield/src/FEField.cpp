@@ -16,13 +16,13 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
+#include <iostream>
+#include <stdexcept>
+
+#include "DynamicVector.h"
 #include "FEField.h"
 #include "Mesh.h"
-#include "DynamicVector.h"
 #include "ReferenceElementFactory.h"
-
-#include <stdexcept>
-#include <iostream>
 
 namespace cfem
 {

@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include "UnaryExpression.h"
 #include "ConstantExpression.h"
+#include "UnaryExpression.h"
 
 namespace cfem::sym
 {

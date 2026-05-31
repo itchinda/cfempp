@@ -179,3 +179,20 @@ if(BUILD_TESTING)
     include(GoogleTest)
     add_subdirectory(tests)
 endif()
+
+# ==============================================================================
+# Git Hooks Configuration
+# ==============================================================================
+# Automatically configure Git to use the custom hooks directory if it exists
+if(EXISTS "${CMAKE_SOURCE_DIR}/.githooks")
+    execute_process(
+        COMMAND git config core.hooksPath .githooks
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        RESULT_VARIABLE GIT_HOOKS_RESULT
+        OUTPUT_QUIET
+        ERROR_QUIET
+    )
+    if(GIT_HOOKS_RESULT EQUAL 0)
+        message(STATUS "Git hooks correctly configured to use .githooks/")
+    endif()
+endif()

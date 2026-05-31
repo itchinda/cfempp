@@ -16,11 +16,12 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include "MeshConformityChecker.h"
-#include <queue>
 #include <algorithm>
-#include <map>
 #include <cmath>
+#include <map>
+#include <queue>
+
+#include "MeshConformityChecker.h"
 
 namespace cfem {
 

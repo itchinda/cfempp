@@ -20,12 +20,13 @@
 #define CFEM_QUADRATURE_H
 
 #include <map>
-#include <utility>
 #include <string>
-#include "cfemutils.h"
-#include "Vector3D.h"
-#include "DynamicVector.h"
+#include <utility>
+
 #include "cfem_topology.h"
+#include "cfemutils.h"
+#include "DynamicVector.h"
+#include "Vector3D.h"
 
 namespace cfem {
 

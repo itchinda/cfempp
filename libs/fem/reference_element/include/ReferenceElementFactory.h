@@ -24,8 +24,8 @@
 #ifndef CFEM_REFERENCE_ELEMENT_FACTORY_H
 #define CFEM_REFERENCE_ELEMENT_FACTORY_H
 
-#include "ReferenceElement.h"
 #include "cfem_topology.h" // For CellType definition
+#include "ReferenceElement.h"
 
 namespace cfem {
 

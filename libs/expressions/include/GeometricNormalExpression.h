@@ -20,8 +20,8 @@
 
 #include "CfemExpression.h"
 #include "EvalContext.h"
-#include "Vector3D.h"
 #include "EvaluationFlags.h"
+#include "Vector3D.h"
 
 namespace cfem::sym
 {
