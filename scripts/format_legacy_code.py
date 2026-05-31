@@ -1,38 +1,48 @@
 #!/usr/bin/env python3
+
 import os
+import sys
 
-# --- Configuration ---
-DIRECTORIES_TO_SCAN = ['src', 'include', 'libs', 'tests'] # Ajoute tes dossiers ici
+DIRECTORIES_TO_SCAN = ['libs', 'tests']
 EXTENSIONS = ('.h', '.hpp', '.cpp', '.cc', '.cxx', '.tpp')
+TEMPLATE_PATH = ".github/COPYRIGHT_TEMPLATE.txt"
 
-COPYRIGHT_HEADER = [
-    "//************************************************************************\n",
-    "// --- CFEM++ Library\n",
-    "// ---\n",
-    "// --- Copyright 2024-2026 Ismaël Tchinda Ngueyong et al.\n",
-    "// --- ALL RIGHTS RESERVED\n",
-    "// ---\n",
-    "// --- This software is protected by international copyright laws.\n",
-    "// --- Use, distribution, or modification of this software in any form,\n",
-    "// --- source or binary, for personal, academic, or non-commercial \n",
-    "// --- purposes is permitted free of charge, provided that this \n",
-    "// --- copyright notice and this permission notice appear in all \n",
-    "// --- copies and supporting documentation.\n",
-    "// ---\n",
-    "// --- The authors and contributors provide this code \"as is\" without \n",
-    "// --- any express or implied warranty. In no event shall they be \n",
-    "// --- held liable for any damages arising from the use of this software.\n",
-    "//************************************************************************\n"
-]
+def load_copyright_template():
+    """Reads the copyright template from the external file."""
+    if not os.path.exists(TEMPLATE_PATH):
+        print(f"ERROR: Copyright template not found at {TEMPLATE_PATH}")
+        sys.exit(1)
+    with open(TEMPLATE_PATH, 'r', encoding='utf-8') as f:
+        # We read lines and keep the trailing newlines
+        return f.readlines()
+
+# Load the template globally
+COPYRIGHT_HEADER = load_copyright_template()
 
 def fix_copyright(lines):
-    """Add copyright notice if not already added."""
-    # Si le fichier commence déjà par des étoiles ou 'CFEM++', on assume qu'il a un header
-    if lines and len(lines) > 5 and "CFEM++" in "".join(lines[:10]):
+    """Checks if the copyright header is present and identical to the template."""
+    header_len = len(COPYRIGHT_HEADER)
+    
+    # If the file is shorter than the header, inject the header
+    if len(lines) < header_len:
+        return COPYRIGHT_HEADER + ["\n"] + lines, True
+    
+    # Compare line by line, ignoring trailing whitespaces to be robust
+    header_is_correct = True
+    for i in range(header_len):
+        if lines[i].rstrip() != COPYRIGHT_HEADER[i].rstrip():
+            header_is_correct = False
+            break
+            
+    if header_is_correct:
         return lines, False
     
-    # Sinon, on injecte le header avec une ligne vide
-    return COPYRIGHT_HEADER + ["\n"] + lines, True
+    # If incorrect, clean old header/comments at the top and insert new one
+    start_point = 0
+    while start_point < len(lines) and (lines[start_point].startswith("//") or lines[start_point].strip() == ""):
+        start_point += 1
+        
+    return COPYRIGHT_HEADER + ["\n"] + lines[start_point:], True
 
 def fix_includes(lines):
     """Sort and create two groups respectively for external library and local files."""
