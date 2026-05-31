@@ -73,6 +73,11 @@ protected:
         return nullptr;
     }
 
+    void doCollectSpaceRequirements( SpaceRequirements& reqs, ShapeEvaluationFlags inheritedFlags) const override 
+    {
+        reqs.addRequirement(m_space.get(), inheritedFlags);
+    }
+
 public:
 
     /**
@@ -162,10 +167,35 @@ public:
      */
     virtual void evaluate(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext& ctx) const override 
     {
-        CFEM_ERROR << "Invalid call: Argument '" << m_name 
+        CFEM_THROW("Invalid call: Argument '" << m_name 
                    << "' cannot be evaluated as a field. "
                    << "Arguments are placeholders for basis functions and can only be "
-                   << "evaluated via evaluateBasis() during assembly.";
+                   << "evaluated via evaluateBasis() during assembly.");
+    }
+
+    void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+    {
+        CFEM_THROW("Invalid call: Argument '" << m_name 
+                   << "' cannot be evaluated as a field. "
+                   << "Arguments are placeholders for basis functions and can only be "
+                   << "evaluated via evaluateBasis() during assembly.");
+    }
+
+    void evaluateGradient(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext& ctx) const override 
+    {
+        CFEM_THROW("Invalid call: Argument '" << m_name 
+                   << "' cannot be evaluated as a field. "
+                   << "Arguments are placeholders for basis functions and can only be "
+                   << "evaluated via evaluateBasis() OR evaluateBasisGradients()  during assembly.");
+    }
+
+
+    void evaluateGradientBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+    {
+        CFEM_THROW("Invalid call: Argument '" << m_name 
+                   << "' cannot be evaluated as a field. "
+                   << "Arguments are placeholders for basis functions and can only be "
+                   << "evaluated via evaluateBasis() OR evaluateBasisGradients()  during assembly.");
     }
 
     /**
@@ -179,7 +209,7 @@ public:
         CFEM_ASSERT(m_boundIndex >= 0, "Argument not bound before evaluation!");
         const auto& data = ctx.getSpaceData(m_boundIndex);
 
-        const ShapeInfo* shape = data.shape;
+        const ShapeInfo* shape = data.shapeSingle;
 
         CFEM_ASSERT(shape != nullptr, "ShapeInfo is null in EvalContext!");
         CFEM_ASSERT(out.size() >= m_space->getNumComponents(), "Output span too small!");
@@ -190,7 +220,7 @@ public:
         const CfemInt comp = static_cast<int>(localDofIdx % dim);
 
         std::fill(out.begin(), out.end(), 0.0);
-        out[comp] = shape->values[node];
+        out[comp] = shape->values()[node];
     }
 
     /**
@@ -201,19 +231,21 @@ public:
      */
     virtual void evaluateBasisGradient(CfemInt localDofIdx, std::span<CfemReal> out, EvalContext& ctx) const {
         const auto& data = ctx.getSpaceData(m_boundIndex);
-        const MappingInfo* mapping = data.mapping;
+        const MappingInfo* mapping = data.mappingSingle;
 
         const CfemInt dim = m_space->getNumComponents();
         const CfemInt node = static_cast<int>(localDofIdx / dim);
         const CfemInt comp = static_cast<int>(localDofIdx % dim);
 
-        const auto& g = mapping->physicalShapeGradients[node];
+        const auto& gx = mapping->dN_dx()[node];
+        const auto& gy = mapping->dN_dy()[node];
+        const auto& gz = mapping->dN_dz()[node];
 
         std::fill(out.begin(), out.end(), 0.0);
         // Output span contains full gradient: [dxUx, dyUx, dzUx, dxUy, dyUy, dzUy, dxUz, dyUz, dzUz]
-        out[comp * 3 + 0] = g.x;
-        out[comp * 3 + 1] = g.y;
-        out[comp * 3 + 2] = g.z;
+        out[comp * 3 + 0] = gx;
+        out[comp * 3 + 1] = gy;
+        out[comp * 3 + 2] = gz;
     }
 
     /**

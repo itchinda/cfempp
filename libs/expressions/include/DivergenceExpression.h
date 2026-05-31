@@ -34,7 +34,7 @@ namespace cfem::sym
      **************************************************************************** */
     class DivergenceExpression : public CfemExpression
     {
-    private:
+    protected:
         std::shared_ptr<const CfemExpression> m_expr;
         CfemInt m_dimIn;
         CfemInt m_dimOut;
@@ -52,6 +52,30 @@ namespace cfem::sym
         std::shared_ptr<const CfemExpression> createGradient() const override {
             CFEM_THROW("The gradient of a divergence node requires a dedicated GradExpression fallback.");
             return nullptr;
+        }
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            ShapeEvaluationFlags childFlags = ShapeEvaluationFlags::None;
+            
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::Value)) {
+                childFlags |= ShapeEvaluationFlags::FirstDerivatives;
+            }
+
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::FirstDerivatives)) {
+                childFlags |= ShapeEvaluationFlags::SecondDerivatives;
+            }
+
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::SecondDerivatives)) {
+                CFEM_THROW("Error in AST: A differential operator was asked for its Second Derivatives. "
+                           "This requires Third Derivatives from the underlying field, which are not "
+                           "supported by the current CFEM++ implementation.");
+            }
+
+            if (m_expr) {
+                m_expr->collectSpaceRequirements(reqs, childFlags); 
+            }
         }
 
     public:
@@ -79,12 +103,16 @@ namespace cfem::sym
         bool isPointwise() const override { return m_expr->isPointwise(); }
         bool dependsOnFEField() const override { return m_expr->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_expr->dependsOnShape(); }
+
+        bool dependsOnGeometricNormal() const override { 
+            return m_expr->dependsOnGeometricNormal(); 
+        }
         
         ShapeEvaluationFlags requiredShapeFlags() const override {
             if (!dependsOnShape())
                 return ShapeEvaluationFlags::None;
 
-            return m_expr->requiredShapeFlags() | ShapeEvaluationFlags::Gradient; 
+            return m_expr->requiredShapeFlags() | ShapeEvaluationFlags::FirstDerivatives; 
         }
 
         void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
@@ -122,6 +150,50 @@ namespace cfem::sym
                 out[1] = buf_dx[3] + buf_dy[4] + buf_dz[5]; // Row 2
                 out[2] = buf_dx[6] + buf_dy[7] + buf_dz[8]; // Row 3
             }
+        }
+
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+            CFEM_ASSERT(outValues.size() >= static_cast<size_t>(m_dimOut * nQp), 
+                        "DivergenceExpression: Batch output buffer too small!");
+
+            // 1. Sauvegarde de la mémoire et allocation des buffers SoA via l'Arena (coût = 0)
+            auto bookmark = ctx.getBookmark();
+            
+            std::span<CfemReal> span_dx = ctx.getBuffer(m_dimIn * nQp);
+            std::span<CfemReal> span_dy = ctx.getBuffer(m_dimIn * nQp);
+            std::span<CfemReal> span_dz = ctx.getBuffer(m_dimIn * nQp);
+
+            // 2. Évaluation des sous-arbres dérivés
+            m_dx->evaluateBatch(cellId, nQp, span_dx, ctx);
+            m_dy->evaluateBatch(cellId, nQp, span_dy, ctx);
+            m_dz->evaluateBatch(cellId, nQp, span_dz, ctx);
+
+            // =========================================================================
+            // 3. FORMAT SoA : Contraction (Divergence)
+            // L'accès séquentiel span[composante * nQp + q] garantit le SIMD
+            // =========================================================================
+            if (m_dimIn == 3) {
+                // div(Vecteur) = Scalaire
+                // outValues a une taille de 1 * nQp
+                for (CfemInt q = 0; q < nQp; ++q) {
+                    outValues[q] = span_dx[0 * nQp + q] + 
+                                   span_dy[1 * nQp + q] + 
+                                   span_dz[2 * nQp + q];
+                }
+            } 
+            else if (m_dimIn == 9) {
+                // div(Tenseur) = Vecteur
+                // outValues a une taille de 3 * nQp
+                for (CfemInt q = 0; q < nQp; ++q) {
+                    outValues[0 * nQp + q] = span_dx[0 * nQp + q] + span_dy[1 * nQp + q] + span_dz[2 * nQp + q]; // Ligne 1
+                    outValues[1 * nQp + q] = span_dx[3 * nQp + q] + span_dy[4 * nQp + q] + span_dz[5 * nQp + q]; // Ligne 2
+                    outValues[2 * nQp + q] = span_dx[6 * nQp + q] + span_dy[7 * nQp + q] + span_dz[8 * nQp + q]; // Ligne 3
+                }
+            }
+
+            // 4. Libération instantanée de la mémoire temporaire
+            ctx.releaseToBookmark(bookmark);
         }
 
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override {

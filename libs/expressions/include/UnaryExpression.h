@@ -47,7 +47,8 @@ namespace cfem::sym
 
         bool dependsOnFEField() const override { return m_expr->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_expr->dependsOnShape(); }
-        
+        bool dependsOnGeometricNormal() const override { return m_expr->dependsOnGeometricNormal();}
+
         ShapeEvaluationFlags requiredShapeFlags() const override {
             return m_expr->requiredShapeFlags();
         }
@@ -60,8 +61,8 @@ namespace cfem::sym
             if (m_expr) m_expr->collectRequiredSpaces(spaces);
         }
 
-        void evaluate(CfemInt cellIdx, const Vector3D& point, 
-                      std::span<CfemReal> out, EvalContext& ctx) const override;
+        void evaluate(CfemInt cellIdx, const Vector3D& point, std::span<CfemReal> out, EvalContext& ctx) const override;
+        void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> out, EvalContext &ctx) const override;
 
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override;
         std::shared_ptr<const CfemExpression> div() const override;
@@ -70,7 +71,7 @@ namespace cfem::sym
         CfemInt precedence() const override;
         ExpressionType getType() const override { return ExpressionType::Unary; }
 
-    private:
+    protected:
         std::shared_ptr<const CfemExpression> m_expr;
         MathOp m_op;
         CfemInt m_dimIn;
@@ -80,6 +81,12 @@ namespace cfem::sym
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
 
         std::shared_ptr<const CfemExpression> getDerivativeWrtInner() const;
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            if(m_expr) m_expr->collectSpaceRequirements(reqs, inheritedFlags);   
+        }
     };
 }
 

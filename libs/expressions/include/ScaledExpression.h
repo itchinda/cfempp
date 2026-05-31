@@ -43,6 +43,25 @@ namespace cfem::sym {
             }
         }
 
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+
+            CfemInt dim = nQp * m_base->getNumComponents();
+            // Un tenseur 3x3 évalué sur nQp points nécessite 9 * nQp espaces mémoire
+            CFEM_ASSERT(outValues.size() >= dim, "Batch evaluation output buffer too small for 3D Tensor");
+
+            // =========================================================================
+            // FORMAT SoA (Structure of Arrays) - Optimisé pour le cache et le SIMD
+            // Le buffer de sortie sera organisé ainsi :
+            // [xx_0..xx_n, xy_0..xy_n, xz_0..xz_n, yx_0..yx_n, yy_0..yy_n, yz_0..yz_n, zx_0..zx_n, zy_0..zy_n, zz_0..zz_n]
+            // =========================================================================
+
+            m_base->evaluateBatch(cellId, nQp, outValues, ctx);
+            for (CfemInt i = 0; i < dim; ++i) {
+                outValues[i] *= m_coeff; 
+            }
+        }
+
         CfemInt getNumComponents() const override { return m_base->getNumComponents(); }
 
         bool isContinuous() const override {
@@ -50,6 +69,8 @@ namespace cfem::sym {
         }
         bool dependsOnFEField() const override { return m_base->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_base->dependsOnShape(); }
+        bool dependsOnGeometricNormal() const override {  return m_base->dependsOnGeometricNormal(); }
+        
         ShapeEvaluationFlags requiredShapeFlags() const override {
             return m_base->requiredShapeFlags();
         }
@@ -100,7 +121,7 @@ namespace cfem::sym {
             return coeffStr + " * " + baseStr;
         }
 
-    private:
+    protected:
         CfemReal m_coeff;
         std::shared_ptr<const CfemExpression> m_base;
 
@@ -116,6 +137,12 @@ namespace cfem::sym {
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override{
             CFEM_ASSERT(m_base, "ScaledExpression::createTimeFDerivative: base expression must be valid");
             return std::make_shared<ScaledExpression>(m_coeff, m_base->timeDerivative());
+        }
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            if (m_base) m_base->collectSpaceRequirements(reqs, inheritedFlags);
         }
     };
 }

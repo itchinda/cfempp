@@ -1,5 +1,5 @@
 add_library(cfem_numerical_integration
-    src/FunctionIntegrator.cpp
+    src/ScalarFunctionalEvaluator.cpp
 )
 
 target_include_directories(cfem_numerical_integration
@@ -7,11 +7,12 @@ target_include_directories(cfem_numerical_integration
 )
 
 target_link_libraries(cfem_numerical_integration
-    PUBLIC cfem_utils
-           cfem_openmp_interface
-           cfem_reference_element
-           cfem_quadrature
-           cfem_mesh
-           cfem_fespace
-           cfem_expressions
+    PUBLIC  cfem_utils
+            cfem_kernel
+            cfem_openmp_interface
+            cfem_reference_element
+            cfem_quadrature
+            cfem_mesh
+            cfem_fespace
+            cfem_expressions
 )

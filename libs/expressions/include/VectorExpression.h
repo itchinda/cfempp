@@ -35,10 +35,18 @@ namespace cfem::sym
      **************************************************************************** */
     class VectorExpression : public CfemExpression
     {
-    private:
+    protected:
         std::shared_ptr<const CfemExpression> m_components[3];
         std::shared_ptr<const CfemExpression> createGradient() const override;
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            m_components[0]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[1]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[2]->collectSpaceRequirements(reqs, inheritedFlags);  
+        }
 
     public:
         VectorExpression (std::shared_ptr<const CfemExpression> expr_x,
@@ -73,11 +81,25 @@ namespace cfem::sym
 
         inline void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override
         {
-            CFEM_ASSERT(out.size() >= 3, "Expected a buffer of size >=9.");
+            CFEM_ASSERT(out.size() >= 3, "VectorExpression: Expected a buffer of size >= 3.");
 
             for (CfemInt i = 0; i < 3; ++i){
                 m_components[i]->evaluate(cellId, xi, out.subspan(i, 1), ctx);
             }
+        }
+
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+            CFEM_ASSERT(outValues.size() >= 3 * nQp, "Batch evaluation output buffer too small for 3D Vector");
+
+            // =========================================================================
+            // FORMAT SoA (Structure of Arrays) - Optimisé pour le cache et le SIMD
+            // [x_0, x_1, ..., x_n,  y_0, y_1, ..., y_n,  z_0, z_1, ..., z_n]
+            // =========================================================================
+            
+            m_components[0]->evaluateBatch(cellId, nQp, outValues.subspan(0 * nQp, nQp), ctx);
+            m_components[1]->evaluateBatch(cellId, nQp, outValues.subspan(1 * nQp, nQp), ctx);
+            m_components[2]->evaluateBatch(cellId, nQp, outValues.subspan(2 * nQp, nQp), ctx);
         }
 
         inline std::shared_ptr<const CfemExpression> getComponent(int i) const
@@ -96,6 +118,12 @@ namespace cfem::sym
             return m_components[0]->dependsOnShape() || 
                    m_components[1]->dependsOnShape() ||
                    m_components[2]->dependsOnShape(); 
+        }
+
+        bool dependsOnGeometricNormal() const override { 
+            return m_components[0]->dependsOnGeometricNormal() || 
+                   m_components[1]->dependsOnGeometricNormal() ||
+                   m_components[2]->dependsOnGeometricNormal(); 
         }
 
         ShapeEvaluationFlags requiredShapeFlags() const override {

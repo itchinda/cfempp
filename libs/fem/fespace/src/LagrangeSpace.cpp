@@ -18,6 +18,7 @@
 
 #include "LagrangeSpace.h"
 #include "ReferenceElements.h"
+#include "ReferenceElementFactory.h"
 #include "Mesh.h"
 
 #include <set>
@@ -35,8 +36,8 @@ namespace cfem {
         : FESpace(mesh, order, Continuity::CG, field_type) 
     {
         if (m_order == Order::P0){
-            CFEM_ERROR << "Invalid Order: LagrangeSpace is designed for C0-continuity and requires at least Order::P1. "
-                    << "For piecewise constants, use a DGSpace.";
+            CFEM_THROW( "Invalid Order: LagrangeSpace is designed for C0-continuity and requires at least Order::P1. "
+                     << "For piecewise constants, use a DGSpace.");
         }
     }
 
@@ -44,7 +45,7 @@ namespace cfem {
         FESpace::validate();
         MeshOrder meshOrder = m_mesh->getOrder();
         if (m_order == Order::P2 && (meshOrder == MeshOrder::None || meshOrder == MeshOrder::Linear)) {
-            CFEM_ERROR << "LagrangeSpace Order Mismatch: P2 Space requires a Quadratic Mesh.";
+            CFEM_THROW("LagrangeSpace Order Mismatch: P2 Space requires a Quadratic Mesh.");
         }
     }
 
@@ -61,8 +62,8 @@ namespace cfem {
                                                  FieldType field_type) {
 
         if (order == Order::P0) {
-            CFEM_ERROR << "LagrangeSpace Error: P0 is a discontinuous space and is not supported by LagrangeSpace. "
-                       "Please use DGSpace or upgrade the order to P1.";
+            CFEM_THROW("LagrangeSpace Error: P0 is a discontinuous space and is not supported by LagrangeSpace. "
+                       << "Please use DGSpace or upgrade the order to P1.");
         }
 
         if (order == Order::P2 && mesh->getOrder() == MeshOrder::Linear) {
@@ -246,34 +247,57 @@ void LagrangeSpace::getElementDofs(CfemInt cellId, std::vector<CfemInt>& globalI
     }
 }
 
-// --- MATH & EVALUATION ---
+// MATH & EVALUATION
 
-void LagrangeSpace::evaluateBasis(CfemInt cellId, const Vector3D& xi, std::vector<CfemReal>& values) const {
+void LagrangeSpace::evaluateBasis(CfemInt cellId, const Vector3D& xi, ShapeInfo& shape, std::vector<CfemReal>& values) const {
     const Cell& cell = m_mesh->getCell(cellId);
-    const ReferenceElement& refEl = getRefElement(cell.type);
+    const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement( cell.type, getOrderInt() );
 
-    ShapeInfo shape;
-    refEl.evaluate(xi, ShapeEvaluationFlags::Value, shape);
+    shape.setup(refEl.getNumNodes(), false);
+    shape.validFlags = ShapeEvaluationFlags::Value;
 
-    values.assign(shape.values.begin(), shape.values.end());
+    refEl.evaluateShapesValues(xi, shape);
+
+    const CfemReal* ptr = shape.values();
+    values.assign(ptr, ptr + shape.numNodes);
 }
 
-void LagrangeSpace::evaluateGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const {
+void LagrangeSpace::evaluateBasisFirstDerivatives(CfemInt cellId, const Vector3D& xi, ShapeInfo& shape, MappingInfo& map) const 
+{
     const Cell& cell = m_mesh->getCell(cellId);
-    const ReferenceElement& refEl = getRefElement(cell.type);
+    const ReferenceElement& refEl = ReferenceElementFactory::getReferenceElement(cell.type, getOrderInt());
     
     // Thread-local scratchpad to ensure OpenMP safety and avoid allocations
     static thread_local DynamicVector<Vector3D> t_physicalCoords;
     m_mesh->getCellVerticesCoords(cellId, t_physicalCoords);
 
-    ShapeInfo shape;
-    MappingInfo map;
-    refEl.computeMapping(xi, t_physicalCoords, ShapeEvaluationFlags::Gradient, shape, map);
+    refEl.computeMapping(
+        xi, 
+        t_physicalCoords,
+        ShapeEvaluationFlags::FirstDerivatives,
+        MappingEvaluationFlags::PhysicalFirstDerivatives,
+        shape, 
+        map
+    );
 
-    grads.assign(map.physicalShapeGradients.begin(), map.physicalShapeGradients.end());
+    // const CfemInt nNodes = map.numNodes;
+    // const CfemInt spatialDimension = m_mesh->getSpatialDimension();
+
+    // grads.resize(nNodes);
+
+    // const auto& dNdx = map.dN_dx();
+    // const auto& dNdy = map.dN_dy();
+    // const auto& dNdz = map.dN_dz();
+
+    // for (CfemInt i = 0; i < nNodes; ++i)
+    // {
+    //     grads[i].x = dNdx[i];
+    //     grads[i].y = (spatialDimension >= 2) ? dNdy[i] : 0.0;
+    //     grads[i].z = (spatialDimension == 3) ? dNdz[i] : 0.0;
+    // }
 }
 
-// --- PETSc & SYSTEM SUPPORT ---
+//PETSc & SYSTEM SUPPORT
 
 /**
  * @brief Computes the number of non-zeros (nnz) per row for PETSc matrix pre-allocation.

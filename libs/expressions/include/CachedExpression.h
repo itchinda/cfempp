@@ -59,12 +59,29 @@ namespace cfem::sym {
             ctx.storeInCache(this, out);
         }
 
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+
+            CFEM_THROW("CachedExpression::evaluateBatch is explicitly not supported. "
+                       "Remove cache() wrappers when running full-batch integration, "
+                       "or implement an Arena-safe Batch-level caching strategy.");
+        }
+
+        inline void evaluateGradientBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext &ctx) const override 
+        {
+            CFEM_THROW("CachedExpression::evaluateGradientBatch is explicitly not supported.");
+        }
+
+
         bool isConstant() const override { return m_inner->isConstant(); }
         bool isContinuous() const override {
             return  m_inner->isContinuous();
         }
         bool dependsOnFEField() const override { return m_inner->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_inner->dependsOnShape(); }
+        bool dependsOnGeometricNormal() const override { 
+            return m_inner->dependsOnGeometricNormal(); 
+        }
         ShapeEvaluationFlags requiredShapeFlags() const override {
             return m_inner->requiredShapeFlags();
         }
@@ -82,7 +99,7 @@ namespace cfem::sym {
 
         
 
-    private:
+    protected:
         std::shared_ptr<const CfemExpression> m_inner;
 
         std::shared_ptr<const CfemExpression> createGradient() const override {
@@ -91,6 +108,12 @@ namespace cfem::sym {
 
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override {
             return std::make_shared<const CachedExpression>(m_inner->timeDerivative());
+        }
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            if (m_inner) m_inner->collectSpaceRequirements(reqs, inheritedFlags);
         }
     };
 

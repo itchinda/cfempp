@@ -20,6 +20,8 @@
 #define CFEM_REFERENCE_PRISM
 
 #include "ReferenceElement.h"
+#include <span>
+#include <vector>
 
 namespace cfem::reference_elem::utils{
 
@@ -43,7 +45,7 @@ namespace cfem::reference_elem::utils{
         return Vector3D{}; // Make the compiler happy
     }
 
-    static const std::vector<std::vector<int>> prism6_face_nodes = {
+    static const std::vector<std::vector<CfemInt>> prism6_face_nodes = {
         {0, 2, 1},       // Face 0 (Tri)
         {3, 4, 5},       // Face 1 (Tri)
         {0, 1, 4, 3},    // Face 2 (Quad)
@@ -51,7 +53,7 @@ namespace cfem::reference_elem::utils{
         {2, 0, 3, 5}     // Face 4 (Quad)
     };
 
-    static const std::vector<std::vector<int>> prism18_face_nodes = {
+    static const std::vector<std::vector<CfemInt>> prism18_face_nodes = {
         {0, 2, 1, 8, 7, 6},                         // Face 0 (Tri6)
         {3, 4, 5, 9, 10, 11},                       // Face 1 (Tri6)
         {0, 1, 4, 3, 6, 13, 9, 12, 15},             // Face 2 (Quad9)
@@ -59,67 +61,380 @@ namespace cfem::reference_elem::utils{
         {2, 0, 3, 5, 8, 12, 11, 14, 17}             // Face 4 (Quad9)
     };
 
-    static const std::vector<std::vector<int>> prism1_face_nodes = {
+    static const std::vector<std::vector<CfemInt>> prism1_face_nodes = {
         {0}, {0}, {0}, {0}, {0}
     };
 }
 
+namespace cfem::reference_elem::kernels {
+
+    struct P1PrismKernel {
+        static constexpr CfemReal o2 = 0.5;
+
+        [[gnu::always_inline]] static inline void values(CfemReal x, CfemReal y, CfemReal z, 
+                                                         CfemReal* __restrict N) noexcept 
+        {
+            const CfemReal Nt[3] = {1.0 - x - y, x, y};
+            const CfemReal Nl[2] = {o2 * (1.0 - z), o2 * (1.0 + z)};
+
+            for (CfemInt t = 0; t < 3; ++t) {
+                for (CfemInt l = 0; l < 2; ++l) {
+                    N[t + l * 3] = Nt[t] * Nl[l];
+                }
+            }
+        }
+
+        [[gnu::always_inline]] static inline void grads(CfemReal x, CfemReal y, CfemReal z, 
+                                                        CfemReal* __restrict dx, 
+                                                        CfemReal* __restrict dy, 
+                                                        CfemReal* __restrict dz) noexcept 
+        {
+            const CfemReal Nt[3]      = {1.0 - x - y, x, y};
+            const CfemReal dNt_dx[3]  = {-1.0, 1.0, 0.0};
+            const CfemReal dNt_dy[3]  = {-1.0, 0.0, 1.0};
+            
+            const CfemReal Nl[2]      = {o2 * (1.0 - z), o2 * (1.0 + z)};
+            const CfemReal dNl_dz[2]  = {-o2, o2};
+
+            for (CfemInt t = 0; t < 3; ++t) {
+                for (CfemInt l = 0; l < 2; ++l) {
+                    const int node = t * 2 + l;
+                    dx[node] = dNt_dx[t] * Nl[l];
+                    dy[node] = dNt_dy[t] * Nl[l];
+                    dz[node] = Nt[t] * dNl_dz[l];
+                }
+            }
+        }
+
+        [[gnu::always_inline]] static inline void hess(CfemReal x, CfemReal y, CfemReal z, 
+                                                       CfemReal* __restrict d2x, CfemReal* __restrict d2y, CfemReal* __restrict d2z, 
+                                                       CfemReal* __restrict dxy, CfemReal* __restrict dxz, CfemReal* __restrict dyz) noexcept 
+        {
+            const CfemReal dNt_dx[3]  = {-1.0, 1.0, 0.0};
+            const CfemReal dNt_dy[3]  = {-1.0, 0.0, 1.0};
+            const CfemReal dNl_dz[2]  = {-o2, o2};
+
+            for (CfemInt t = 0; t < 3; ++t) {
+                for (CfemInt l = 0; l < 2; ++l) {
+                    const int node = t * 2 + l;
+                    // Pure second derivatives are zero
+                    d2x[node] = d2y[node] = d2z[node] = dxy[node] = 0.0;
+                    // Mixed derivatives with z
+                    dxz[node] = dNt_dx[t] * dNl_dz[l];
+                    dyz[node] = dNt_dy[t] * dNl_dz[l];
+                }
+            }
+        }
+    };
+
+    struct P2PrismKernel {
+        // Mapping strict selon la connectivité de P2ReferencePrism
+        // t (Triangle P2) : 0..5
+        // l (Ligne P2)    : 0 (-1), 1 (0), 2 (+1)
+        static constexpr CfemInt node_map[6][3] = {
+            {0, 12, 3}, {1, 13, 4}, {2, 14, 5},
+            {6, 15, 9}, {7, 16, 10}, {8, 17, 11}
+        };
+
+        [[gnu::always_inline]] static inline void eval2D_tri_all(CfemReal x, CfemReal y, 
+                                          CfemReal* N, CfemReal* dNx, CfemReal* dNy, 
+                                          CfemReal* d2Nx, CfemReal* d2Ny, CfemReal* d2Nxy) noexcept
+        {
+            const CfemReal L1 = x, L2 = y, L0 = 1.0 - x - y;
+
+            N[0] = L0 * (2.0*L0 - 1.0);  N[1] = L1 * (2.0*L1 - 1.0);  N[2] = L2 * (2.0*L2 - 1.0);
+            N[3] = 4.0 * L0 * L1;        N[4] = 4.0 * L1 * L2;        N[5] = 4.0 * L2 * L0;
+
+            dNx[0] = -3.0 + 4.0*L1 + 4.0*L2; dNy[0] = -3.0 + 4.0*L1 + 4.0*L2;
+            dNx[1] =  4.0*L1 - 1.0;          dNy[1] =  0.0;
+            dNx[2] =  0.0;                   dNy[2] =  4.0*L2 - 1.0;
+            dNx[3] =  4.0 - 8.0*L1 - 4.0*L2; dNy[3] = -4.0*L1;
+            dNx[4] =  4.0*L2;                dNy[4] =  4.0*L1;
+            dNx[5] = -4.0*L2;                dNy[5] =  4.0 - 4.0*L1 - 8.0*L2;
+
+            d2Nx[0] =  4.0; d2Ny[0] =  4.0; d2Nxy[0] =  4.0;
+            d2Nx[1] =  4.0; d2Ny[1] =  0.0; d2Nxy[1] =  0.0;
+            d2Nx[2] =  0.0; d2Ny[2] =  4.0; d2Nxy[2] =  0.0;
+            d2Nx[3] = -8.0; d2Ny[3] =  0.0; d2Nxy[3] = -4.0;
+            d2Nx[4] =  0.0; d2Ny[4] =  0.0; d2Nxy[4] =  4.0;
+            d2Nx[5] =  0.0; d2Ny[5] = -8.0; d2Nxy[5] = -4.0;
+        }
+
+        [[gnu::always_inline]] static inline void eval1D_line_all(CfemReal z, CfemReal* N, CfemReal* dNz, CfemReal* d2Nz) noexcept
+        {
+            const CfemReal z2 = z * z;
+            N[0] = 0.5 * (z2 - z); dNz[0] = z - 0.5;  d2Nz[0] = 1.0;
+            N[1] = 1.0 - z2;       dNz[1] = -2.0 * z; d2Nz[1] = -2.0;
+            N[2] = 0.5 * (z2 + z); dNz[2] = z + 0.5;  d2Nz[2] = 1.0;
+        }
+
+        [[gnu::always_inline]] static inline void values(CfemReal x, CfemReal y, CfemReal z, 
+                                                         CfemReal* __restrict N) noexcept 
+        {
+            CfemReal Nt[6], dNtx[6], dNty[6], d2Ntx[6], d2Nty[6], d2Ntxy[6];
+            CfemReal Nl[3], dNlz[3], d2Nlz[3];
+
+            eval2D_tri_all(x, y, Nt, dNtx, dNty, d2Ntx, d2Nty, d2Ntxy);
+            eval1D_line_all(z, Nl, dNlz, d2Nlz);
+
+            for (CfemInt t = 0; t < 6; ++t) {
+                for (CfemInt l = 0; l < 3; ++l) {
+                    N[node_map[t][l]] = Nt[t] * Nl[l];
+                }
+            }
+        }
+
+        [[gnu::always_inline]] static inline void grads(CfemReal x, CfemReal y, CfemReal z, 
+                                                        CfemReal* __restrict dx, 
+                                                        CfemReal* __restrict dy, 
+                                                        CfemReal* __restrict dz) noexcept 
+        {
+            CfemReal Nt[6], dNtx[6], dNty[6], d2Ntx[6], d2Nty[6], d2Ntxy[6];
+            CfemReal Nl[3], dNlz[3], d2Nlz[3];
+
+            eval2D_tri_all(x, y, Nt, dNtx, dNty, d2Ntx, d2Nty, d2Ntxy);
+            eval1D_line_all(z, Nl, dNlz, d2Nlz);
+
+            for (CfemInt t = 0; t < 6; ++t) {
+                for (CfemInt l = 0; l < 3; ++l) {
+                    const int node = node_map[t][l];
+                    dx[node] = dNtx[t] * Nl[l];
+                    dy[node] = dNty[t] * Nl[l];
+                    dz[node] = Nt[t]   * dNlz[l];
+                }
+            }
+        }
+
+        [[gnu::always_inline]] static inline void hess(CfemReal x, CfemReal y, CfemReal z, 
+                                                       CfemReal* __restrict d2x, CfemReal* __restrict d2y, CfemReal* __restrict d2z, 
+                                                       CfemReal* __restrict dxy, CfemReal* __restrict dxz, CfemReal* __restrict dyz) noexcept 
+        {
+            CfemReal Nt[6], dNtx[6], dNty[6], d2Ntx[6], d2Nty[6], d2Ntxy[6];
+            CfemReal Nl[3], dNlz[3], d2Nlz[3];
+
+            eval2D_tri_all(x, y, Nt, dNtx, dNty, d2Ntx, d2Nty, d2Ntxy);
+            eval1D_line_all(z, Nl, dNlz, d2Nlz);
+
+            for (CfemInt t = 0; t < 6; ++t) {
+                for (CfemInt l = 0; l < 3; ++l) {
+                    const int node = node_map[t][l];
+                    
+                    d2x[node] = d2Ntx[t]  * Nl[l];
+                    d2y[node] = d2Nty[t]  * Nl[l];
+                    d2z[node] = Nt[t]     * d2Nlz[l];
+                    
+                    dxy[node] = d2Ntxy[t] * Nl[l];
+                    dxz[node] = dNtx[t]   * dNlz[l];
+                    dyz[node] = dNty[t]   * dNlz[l];
+                }
+            }
+        }
+    };
+
+    struct MiniPrismKernel {
+        [[gnu::always_inline]] static inline void values(CfemReal x, CfemReal y, CfemReal z, 
+                                                         CfemReal* __restrict N) noexcept 
+        {
+            constexpr CfemReal o6 = 1.0 / 6.0;
+
+            const CfemReal L[3] = {1.0 - x - y, x, y};
+            const CfemReal M[2] = {0.5 * (1.0 - z), 0.5 * (1.0 + z)};
+
+            // Calcul de la Bulle (Nœud 6)
+            const CfemReal triB = 27.0 * L[0] * L[1] * L[2];
+            const CfemReal zB = 1.0 - z * z;
+            const CfemReal B = triB * zB;
+
+            N[6] = B;
+
+            // Fonctions des Sommets (0-5) avec correction
+            const CfemReal correction = B * o6;
+            for (CfemInt i = 0; i < 6; ++i) {
+                const int iT = i % 3;
+                const int iZ = i / 3;
+                N[i] = L[iT] * M[iZ] - correction;
+            }
+        }
+
+        [[gnu::always_inline]] static inline void grads(CfemReal x, CfemReal y, CfemReal z, 
+                                                        CfemReal* __restrict dx, 
+                                                        CfemReal* __restrict dy, 
+                                                        CfemReal* __restrict dz) noexcept 
+        {
+            constexpr CfemReal o6 = 1.0 / 6.0;
+
+            const CfemReal L[3] = {1.0 - x - y, x, y};
+            const CfemReal M[2] = {0.5 * (1.0 - z), 0.5 * (1.0 + z)};
+            const CfemReal dM[2] = {-0.5, 0.5};
+
+            // Gradients de la bulle
+            const CfemReal triB = 27.0 * L[0] * L[1] * L[2];
+            const CfemReal zB = 1.0 - z * z;
+
+            const CfemReal gBx = 27.0 * y * (1.0 - 2.0*x - y) * zB;
+            const CfemReal gBy = 27.0 * x * (1.0 - x - 2.0*y) * zB;
+            const CfemReal gBz = triB * (-2.0 * z);
+
+            dx[6] = gBx;
+            dy[6] = gBy;
+            dz[6] = gBz;
+
+            // Gradients des sommets avec correction
+            const CfemReal c_dx = gBx * o6;
+            const CfemReal c_dy = gBy * o6;
+            const CfemReal c_dz = gBz * o6;
+
+            for (CfemInt i = 0; i < 6; ++i) {
+                const int iT = i % 3;
+                const int iZ = i / 3;
+                const CfemReal drL = (iT == 0 ? -1.0 : (iT == 1 ? 1.0 : 0.0));
+                const CfemReal dsL = (iT == 0 ? -1.0 : (iT == 2 ? 1.0 : 0.0));
+
+                dx[i] = drL * M[iZ] - c_dx;
+                dy[i] = dsL * M[iZ] - c_dy;
+                dz[i] = L[iT] * dM[iZ] - c_dz;
+            }
+        }
+
+        [[gnu::always_inline]] static inline void hess(CfemReal x, CfemReal y, CfemReal z, 
+                                                       CfemReal* __restrict d2x, CfemReal* __restrict d2y, CfemReal* __restrict d2z, 
+                                                       CfemReal* __restrict dxy, CfemReal* __restrict dxz, CfemReal* __restrict dyz) noexcept 
+        {
+            constexpr CfemReal o6 = 1.0 / 6.0;
+
+            const CfemReal L[3] = {1.0 - x - y, x, y};
+            const CfemReal dM[2] = {-0.5, 0.5};
+
+            const CfemReal triB = 27.0 * L[0] * L[1] * L[2];
+            const CfemReal zB = 1.0 - z * z;
+
+            // Hessiens de la bulle
+            const CfemReal hBxx = -54.0 * y * zB;
+            const CfemReal hByy = -54.0 * x * zB;
+            const CfemReal hBzz = -2.0 * triB;
+            const CfemReal hBxy =  27.0 * (1.0 - 2.0*x - 2.0*y) * zB;
+            const CfemReal hBxz = -54.0 * y * z * (1.0 - 2.0*x - y); 
+            const CfemReal hByz = -54.0 * x * z * (1.0 - x - 2.0*y); 
+
+            d2x[6] = hBxx;
+            d2y[6] = hByy;
+            d2z[6] = hBzz;
+            dxy[6] = hBxy;
+            dxz[6] = hBxz;
+            dyz[6] = hByz;
+
+            // Hessiens des sommets avec correction
+            const CfemReal c_xx = hBxx * o6;
+            const CfemReal c_yy = hByy * o6;
+            const CfemReal c_zz = hBzz * o6;
+            const CfemReal c_xy = hBxy * o6;
+            const CfemReal c_xz = hBxz * o6;
+            const CfemReal c_yz = hByz * o6;
+
+            for (CfemInt i = 0; i < 6; ++i) {
+                const int iT = i % 3;
+                const int iZ = i / 3;
+                const CfemReal drL = (iT == 0 ? -1.0 : (iT == 1 ? 1.0 : 0.0));
+                const CfemReal dsL = (iT == 0 ? -1.0 : (iT == 2 ? 1.0 : 0.0));
+
+                d2x[i] = -c_xx;
+                d2y[i] = -c_yy;
+                d2z[i] = -c_zz;
+                dxy[i] = -c_xy;
+                dxz[i] = drL * dM[iZ] - c_xz;
+                dyz[i] = dsL * dM[iZ] - c_yz;
+            }
+        }
+    };
+
+    // =========================================================================
+    // KERNEL PRISME P0 (1 nœud, constant)
+    // =========================================================================
+    struct P0PrismKernel {
+        [[gnu::always_inline]] static inline void values(CfemReal* __restrict N) noexcept {
+            N[0] = 1.0;
+        }
+
+        [[gnu::always_inline]] static inline void grads(CfemReal* __restrict dx, 
+                                                        CfemReal* __restrict dy, 
+                                                        CfemReal* __restrict dz) noexcept {
+            dx[0] = dy[0] = dz[0] = 0.0;
+        }
+
+        [[gnu::always_inline]] static inline void hess(CfemReal* __restrict d2x, CfemReal* __restrict d2y, CfemReal* __restrict d2z, 
+                                                       CfemReal* __restrict dxy, CfemReal* __restrict dxz, CfemReal* __restrict dyz) noexcept {
+            d2x[0] = d2y[0] = d2z[0] = dxy[0] = dxz[0] = dyz[0] = 0.0;
+        }
+    };
+
+}
+
 namespace cfem{
 
+    /**
+     * @brief P1 Reference Prism (Wedge) (6 nodes, P1)
+     */
     class P1ReferencePrism : public ReferenceElement {
     public:
         P1ReferencePrism() {
             m_numNodes = 6;
             m_dimension = 3;
             m_nodes.resize(m_numNodes);
-            // Ordre VTK : Triangle inférieur Z=-1 (0,1,2), puis supérieur Z=1 (3,4,5)
+            // VTK order : Tri Z=-1 (0,1,2), puis Z=1 (3,4,5)
             m_nodes[0] = {0,0,-1}; m_nodes[1] = {1,0,-1}; m_nodes[2] = {0,1,-1};
             m_nodes[3] = {0,0, 1}; m_nodes[4] = {1,0, 1}; m_nodes[5] = {0,1, 1};
         }
 
-        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const CfemInt n = 6;
-            if (out.values.size() != n) out.setup(n);
-            if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n)
-                out.hessians.assign(n, SymTensor3D());
+        // =========================================================================
+        // SCALAR INTERFACES
+        // =========================================================================
 
-            const CfemReal r = xi.x, s = xi.y, t = xi.z;
-            
-            // Fonctions Triangle P1
-            CfemReal LT[3] = { 1.0 - r - s, r, s };
-            CfemReal dLT_r[3] = { -1.0, 1.0, 0.0 };
-            CfemReal dLT_s[3] = { -1.0, 0.0, 1.0 };
-
-            // Fonctions Segment P1 (sur t de -1 à 1)
-            CfemReal LZ[2] = { 0.5 * (1.0 - t), 0.5 * (1.0 + t) };
-            CfemReal dLZ_t[2] = { -0.5, 0.5 };
-
-            for (CfemInt i = 0; i < 6; ++i) {
-                CfemInt triIdx = i % 3;      // 0, 1, 2
-                CfemInt zIdx   = i / 3;      // 0 pour Z=-1, 1 pour Z=1
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Value))
-                    out.values[i] = LT[triIdx] * LZ[zIdx];
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
-                    out.gradients[i].x = dLT_r[triIdx] * LZ[zIdx];
-                    out.gradients[i].y = dLT_s[triIdx] * LZ[zIdx];
-                    out.gradients[i].z = LT[triIdx]    * dLZ_t[zIdx];
-                }
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                    out.hessians[i].setZero();
-                    // Dérivées croisées (Plan x Hauteur)
-                    out.hessians[i].xz() = dLT_r[triIdx] * dLZ_t[zIdx];
-                    out.hessians[i].yz() = dLT_s[triIdx] * dLZ_t[zIdx];
-                    // Les dérivées d2N/drds sont nulles ici car Triangle P1 est linéaire.
-                }
-            }
-            out.validFlags = requested;
+        void evaluateShapesValues(const Vector3D& xi, ShapeInfo& info) const override {
+            reference_elem::kernels::P1PrismKernel::values(xi.x, xi.y, xi.z, info.values());
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override{
-            return cfem::reference_elem::utils::projectFacetRefCoordToPrismRefCoord(localFacetId, xiFacet); // Make the compiler happy
+        void evaluateShapesDerivatives(const Vector3D& xi, ShapeInfo& info) const override {
+            reference_elem::kernels::P1PrismKernel::grads(xi.x, xi.y, xi.z, 
+                                                          info.dN_dxi(), info.dN_deta(), info.dN_dzeta());
+        }
+
+        void evaluateShapesSecondDerivatives(const Vector3D& xi, ShapeInfo& info) const override {
+            reference_elem::kernels::P1PrismKernel::hess(xi.x, xi.y, xi.z, 
+                                                         info.d2N_dxi2(), info.d2N_deta2(), info.d2N_dzeta2(), 
+                                                         info.d2N_dxideta(), info.d2N_dxidzeta(), info.d2N_detadzeta());
+        }
+
+        // =====================================================================
+        // HPC BATCH INTERFACES
+        // =====================================================================
+
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::P1PrismKernel::values(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                                shapeBatch.values(q));
+            }
+        }
+
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::P1PrismKernel::grads(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                              shapeBatch.dN_dxi(q), shapeBatch.dN_deta(q), shapeBatch.dN_dzeta(q));
+            }
+        }
+
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::P1PrismKernel::hess(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                             shapeBatch.d2N_dxi2(q), shapeBatch.d2N_deta2(q), shapeBatch.d2N_dzeta2(q),
+                                                             shapeBatch.d2N_dxideta(q), shapeBatch.d2N_dxidzeta(q), shapeBatch.d2N_detadzeta(q));
+            }
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
+            return cfem::reference_elem::utils::projectFacetRefCoordToPrismRefCoord(localFacetId, xiFacet);
         }
 
         std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
@@ -128,6 +443,9 @@ namespace cfem{
     };
 
 
+    /**
+     * @brief P2 Reference Prism (Wedge) (18 nodes, P2)
+     */
     class P2ReferencePrism : public ReferenceElement {
     public:
         P2ReferencePrism() {
@@ -150,69 +468,56 @@ namespace cfem{
             m_nodes[15]= {0.5, 0.0,  0.0}; m_nodes[16]= {0.5, 0.5,  0.0}; m_nodes[17]= {0.0, 0.5,  0.0};
         }
 
-        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const CfemInt n = 18;
-            if (out.values.size() != n) out.setup(n);
-            if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n) {
-                out.hessians.assign(n, SymTensor3D());
-            }
+        // =========================================================================
+        // SCALAR INTERFACES
+        // =========================================================================
 
-            const CfemReal r = xi.x;
-            const CfemReal s = xi.y;
-            const CfemReal t = xi.z;
-            const CfemReal L0 = 1.0 - r - s;
-
-            // Fonctions 2D Triangle P2
-            CfemReal fT[6]   = { L0*(2*L0-1), r*(2*r-1), s*(2*s-1), 4*r*L0, 4*r*s, 4*s*L0 };
-            CfemReal dfTr[6] = { -3.0+4*r+4*s, 4*r-1, 0, 4-8*r-4*s, 4*s, -4*s };
-            CfemReal dfTs[6] = { -3.0+4*r+4*s, 0, 4*s-1, -4*r, 4*r, 4-4*r-8*s };
-            
-            // Hessiennes constantes du triangle P2 (d2N/dr2, d2N/ds2, d2N/drds)
-            static const CfemReal hT[6][3] = {
-                {4, 4, 4}, {4, 0, 0}, {0, 4, 0}, {-8, 0, -4}, {0, 0, 4}, {0, -8, -4}
-            };
-
-            // Fonctions 1D Segment P2 (sur t)
-            CfemReal fZ[3]   = { 0.5*t*(t-1), 0.5*t*(t+1), 1-t*t }; // Bas, Haut, Milieu
-            CfemReal dfZt[3] = { t-0.5, t+0.5, -2.0*t };
-            CfemReal ddfZtt[3]= { 1.0, 1.0, -2.0 };
-
-            // Mapping Topologique VTK (Index Triangle, Index Segment)
-            static const CfemInt mapT[18] = {0,1,2, 0,1,2, 3,4,5, 3,4,5, 0,1,2, 3,4,5};
-            static const CfemInt mapZ[18] = {0,0,0, 1,1,1, 0,0,0, 1,1,1, 2,2,2, 2,2,2};
-
-            for (CfemInt i = 0; i < 18; ++i) {
-                CfemInt iT = mapT[i];
-                CfemInt iZ = mapZ[i];
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
-                    out.values[i] = fT[iT] * fZ[iZ];
-                }
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
-                    out.gradients[i].x = dfTr[iT] * fZ[iZ];
-                    out.gradients[i].y = dfTs[iT] * fZ[iZ];
-                    out.gradients[i].z = fT[iT]   * dfZt[iZ];
-                }
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                    out.hessians[i].setZero();
-                    // d2N/dr2, d2N/ds2, d2N/drds
-                    out.hessians[i].xx() = hT[iT][0] * fZ[iZ];
-                    out.hessians[i].yy() = hT[iT][1] * fZ[iZ];
-                    out.hessians[i].xy() = hT[iT][2] * fZ[iZ];
-                    // d2N/dt2
-                    out.hessians[i].zz() = fT[iT] * ddfZtt[iZ];
-                    // Croisées (Plan x t)
-                    out.hessians[i].xz() = dfTr[iT] * dfZt[iZ];
-                    out.hessians[i].yz() = dfTs[iT] * dfZt[iZ];
-                }
-            }
-            out.validFlags = requested;
+        void evaluateShapesValues(const Vector3D& xi, ShapeInfo& info) const override {
+            reference_elem::kernels::P2PrismKernel::values(xi.x, xi.y, xi.z, info.values());
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override{
-            return cfem::reference_elem::utils::projectFacetRefCoordToPrismRefCoord(localFacetId, xiFacet); // Make the compiler happy
+        void evaluateShapesDerivatives(const Vector3D& xi, ShapeInfo& info) const override {
+            reference_elem::kernels::P2PrismKernel::grads(xi.x, xi.y, xi.z, 
+                                                          info.dN_dxi(), info.dN_deta(), info.dN_dzeta());
+        }
+
+        void evaluateShapesSecondDerivatives(const Vector3D& xi, ShapeInfo& info) const override {
+            reference_elem::kernels::P2PrismKernel::hess(xi.x, xi.y, xi.z, 
+                                                         info.d2N_dxi2(), info.d2N_deta2(), info.d2N_dzeta2(), 
+                                                         info.d2N_dxideta(), info.d2N_dxidzeta(), info.d2N_detadzeta());
+        }
+
+        // =====================================================================
+        // HPC BATCH INTERFACES
+        // =====================================================================
+
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::P2PrismKernel::values(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                               shapeBatch.values(q));
+            }
+        }
+
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::P2PrismKernel::grads(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                              shapeBatch.dN_dxi(q), shapeBatch.dN_deta(q), shapeBatch.dN_dzeta(q));
+            }
+        }
+
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::P2PrismKernel::hess(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                             shapeBatch.d2N_dxi2(q), shapeBatch.d2N_deta2(q), shapeBatch.d2N_dzeta2(q),
+                                                             shapeBatch.d2N_dxideta(q), shapeBatch.d2N_dxidzeta(q), shapeBatch.d2N_detadzeta(q));
+            }
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
+            return cfem::reference_elem::utils::projectFacetRefCoordToPrismRefCoord(localFacetId, xiFacet);
         }
 
         std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
@@ -220,117 +525,130 @@ namespace cfem{
         }
     };
 
+    /**
+     * @brief Mini Reference Prism (7 nodes: 6 vertices + 1 bubble)
+     */
     class MiniReferencePrism : public ReferenceElement {
     public:
         MiniReferencePrism() {
             m_numNodes = 7;
             m_dimension = 3;
-            m_nodes.resize(7);
-            m_nodes[0]={0,0,-1}; m_nodes[1]={1,0,-1}; m_nodes[2]={0,1,-1};
-            m_nodes[3]={0,0, 1}; m_nodes[4]={1,0, 1}; m_nodes[5]={0,1, 1};
-            m_nodes[6]={1.0/3.0, 1.0/3.0, 0.0}; // Bulle
+            m_nodes.resize(m_numNodes);
+            m_nodes[0] = {0.0, 0.0, -1.0}; m_nodes[1] = {1.0, 0.0, -1.0}; m_nodes[2] = {0.0, 1.0, -1.0};
+            m_nodes[3] = {0.0, 0.0,  1.0}; m_nodes[4] = {1.0, 0.0,  1.0}; m_nodes[5] = {0.0, 1.0,  1.0};
+            m_nodes[6] = {1.0/3.0, 1.0/3.0, 0.0}; // Bulle au centre de gravité
         }
 
-        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const CfemInt n = 7;
-            if (out.values.size() != n) out.setup(n);
-            if (hasFlag(requested, ShapeEvaluationFlags::Hessian) && out.hessians.size() != n)
-                out.hessians.assign(n, SymTensor3D());
+        // =========================================================================
+        // SCALAR INTERFACES
+        // =========================================================================
 
-            const CfemReal r = xi.x, s = xi.y, t = xi.z;
-            const CfemReal L[3] = {1.0 - r - s, r, s};
-            const CfemReal triB = 27.0 * L[0] * L[1] * L[2];
-            const CfemReal zB = 1.0 - t*t;
+        void evaluateShapesValues(const Vector3D& xi, ShapeInfo& info) const override {
+            reference_elem::kernels::MiniPrismKernel::values(xi.x, xi.y, xi.z, info.values());
+        }
 
-            // 1. Calcul de la Bulle (Nœud 6)
-            const CfemReal B = triB * zB;
-            Vector3D gB = { 27.0 * s * (1.0 - 2.0*r - s) * zB, 
-                            27.0 * r * (1.0 - r - 2.0*s) * zB, 
-                            triB * (-2.0 * t) };
-            
-            SymTensor3D hB; hB.setZero();
-            if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                hB.xx() = -54.0 * s * zB;
-                hB.yy() = -54.0 * r * zB;
-                hB.zz() = -2.0 * triB;
-                hB.xy() = 27.0 * (1.0 - 2.0*r - 2.0*s) * zB;
-                hB.xz() = gB.x / zB * (-2.0 * t);
-                hB.yz() = gB.y / zB * (-2.0 * t);
+        void evaluateShapesDerivatives(const Vector3D& xi, ShapeInfo& info) const override {
+            reference_elem::kernels::MiniPrismKernel::grads(xi.x, xi.y, xi.z, 
+                                                            info.dN_dxi(), info.dN_deta(), info.dN_dzeta());
+        }
+
+        void evaluateShapesSecondDerivatives(const Vector3D& xi, ShapeInfo& info) const override {
+            reference_elem::kernels::MiniPrismKernel::hess(xi.x, xi.y, xi.z, 
+                                                           info.d2N_dxi2(), info.d2N_deta2(), info.d2N_dzeta2(), 
+                                                           info.d2N_dxideta(), info.d2N_dxidzeta(), info.d2N_detadzeta());
+        }
+
+        // =====================================================================
+        // HPC BATCH INTERFACES
+        // =====================================================================
+
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::MiniPrismKernel::values(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                                 shapeBatch.values(q));
             }
+        }
 
-            // 2. Fonctions des Sommets (0-5) corrigées par -B/6
-            const CfemReal M[2] = {0.5*(1.0-t), 0.5*(1.0+t)};
-            const CfemReal dM[2] = {-0.5, 0.5};
-
-            for (CfemInt i = 0; i < 6; ++i) {
-                CfemInt iT = i % 3, iZ = i / 3;
-                CfemReal drL = (iT==0?-1:(iT==1?1:0)), dsL = (iT==0?-1:(iT==2?1:0));
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Value))
-                    out.values[i] = L[iT] * M[iZ] - B / 6.0;
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
-                    out.gradients[i].x = drL * M[iZ] - gB.x / 6.0;
-                    out.gradients[i].y = dsL * M[iZ] - gB.y / 6.0;
-                    out.gradients[i].z = L[iT] * dM[iZ] - gB.z / 6.0;
-                }
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                    out.hessians[i].setZero();
-                    out.hessians[i].xz() = drL * dM[iZ] - hB.xz() / 6.0;
-                    out.hessians[i].yz() = dsL * dM[iZ] - hB.yz() / 6.0;
-                    out.hessians[i].xx() = -hB.xx() / 6.0;
-                    out.hessians[i].yy() = -hB.yy() / 6.0;
-                    out.hessians[i].zz() = -hB.zz() / 6.0;
-                    out.hessians[i].xy() = -hB.xy() / 6.0;
-                }
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::MiniPrismKernel::grads(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                                shapeBatch.dN_dxi(q), shapeBatch.dN_deta(q), shapeBatch.dN_dzeta(q));
             }
+        }
 
-            if (hasFlag(requested, ShapeEvaluationFlags::Value))    out.values[6] = B;
-            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) out.gradients[6] = gB;
-            if (hasFlag(requested, ShapeEvaluationFlags::Hessian))  out.hessians[6] = hB;
-
-            out.validFlags = requested;
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::MiniPrismKernel::hess(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                               shapeBatch.d2N_dxi2(q), shapeBatch.d2N_deta2(q), shapeBatch.d2N_dzeta2(q),
+                                                               shapeBatch.d2N_dxideta(q), shapeBatch.d2N_dxidzeta(q), shapeBatch.d2N_detadzeta(q));
+            }
         }
 
         Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
-            return reference_elem::utils::projectFacetRefCoordToPrismRefCoord(localFacetId, xiFacet);
+            return cfem::reference_elem::utils::projectFacetRefCoordToPrismRefCoord(localFacetId, xiFacet);
         }
+
         std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
-            return reference_elem::utils::prism6_face_nodes[iFace];
+            return cfem::reference_elem::utils::prism6_face_nodes[iFace];
         }
     };
 
+    /**
+     * @brief P0 Reference Prism (1 node, piecewise constant)
+     */
     class P0ReferencePrism : public ReferenceElement {
     public:
         P0ReferencePrism() {
             m_numNodes = 1;
             m_dimension = 3;
-            m_nodes.resize(m_numNodes);
-            // Un seul nœud au centre de gravité du prisme de référence
-            // Triangle base (0,0), (1,0), (0,1) -> (1/3, 1/3)
-            // Segment Z de -1 à 1 -> 0
-            m_nodes = { {1.0/3.0, 1.0/3.0, 0.0} };
+            // Un seul nœud au centre de gravité
+            m_nodes = { Vector3D{1.0/3.0, 1.0/3.0, 0.0} };
         }
 
-        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const CfemInt n = 1;
-            if (out.values.size() != n) out.setup(n);
+        // =========================================================================
+        // SCALAR INTERFACES
+        // =========================================================================
 
-            if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
-                out.values[0] = 1.0;
+        void evaluateShapesValues(const Vector3D&, ShapeInfo& info) const override {
+            reference_elem::kernels::P0PrismKernel::values(info.values());
+        }
+
+        void evaluateShapesDerivatives(const Vector3D&, ShapeInfo& info) const override {
+            reference_elem::kernels::P0PrismKernel::grads(info.dN_dxi(), info.dN_deta(), info.dN_dzeta());
+        }
+
+        void evaluateShapesSecondDerivatives(const Vector3D&, ShapeInfo& info) const override {
+            reference_elem::kernels::P0PrismKernel::hess(info.d2N_dxi2(), info.d2N_deta2(), info.d2N_dzeta2(), 
+                                                         info.d2N_dxideta(), info.d2N_dxidzeta(), info.d2N_detadzeta());
+        }
+
+        // =====================================================================
+        // HPC BATCH INTERFACES
+        // =====================================================================
+
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::P0PrismKernel::values(shapeBatch.values(q));
             }
+        }
 
-            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
-                out.gradients[0] = Vector3D{0.0, 0.0, 0.0};
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::P0PrismKernel::grads(shapeBatch.dN_dxi(q), shapeBatch.dN_deta(q), shapeBatch.dN_dzeta(q));
             }
+        }
 
-            if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                if (out.hessians.size() != n) out.hessians.assign(n, SymTensor3D());
-                out.hessians[0].setZero();
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D>& xiPoints, ShapeInfoBatch& shapeBatch) const override {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::P0PrismKernel::hess(shapeBatch.d2N_dxi2(q), shapeBatch.d2N_deta2(q), shapeBatch.d2N_dzeta2(q),
+                                                             shapeBatch.d2N_dxideta(q), shapeBatch.d2N_dxidzeta(q), shapeBatch.d2N_detadzeta(q));
             }
-
-            out.validFlags = requested;
         }
 
         Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
@@ -341,7 +659,6 @@ namespace cfem{
             return cfem::reference_elem::utils::prism1_face_nodes[iFace];
         }
     };
-
+}
 #endif
 
-}

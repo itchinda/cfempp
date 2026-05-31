@@ -65,6 +65,41 @@ namespace cfem::sym
             ctx.releaseToBookmark(bookmark);
         }
     }
+
+    inline void MagnitudeSqExpression::evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const
+    {
+        // La magnitude au carré produit un scalaire. Le buffer de sortie doit faire au moins nQp.
+        CFEM_ASSERT(outValues.size() >= static_cast<size_t>(nQp), "Batch evaluation output buffer too small for scalar result");
+
+        // Initialisation de la somme à zéro pour tous les points de quadrature
+        for (CfemInt q = 0; q < nQp; ++q) {
+            outValues[q] = 0.0;
+        }
+
+        // Sauvegarde de l'Arena et allocation du buffer SoA pour l'expression interne
+        auto bookmark = ctx.getBookmark();
+        std::span<CfemReal> in_buf = ctx.getBuffer(m_innerDim * nQp);
+
+        m_expr->evaluateBatch(cellId, nQp, in_buf, ctx);
+
+        // =========================================================================
+        // FORMAT SoA: in_buf[composante * nQp + q]
+        // MagnitudeSq = Somme des carrés des composantes.
+        // La boucle externe sur les composantes (i) assure la vectorisation SIMD
+        // de la boucle interne (q).
+        // =========================================================================
+        for (CfemInt i = 0; i < m_innerDim; ++i) {
+            CfemInt i_x_nQp = i * nQp;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                CfemReal val = in_buf[i_x_nQp + q];
+                outValues[q] += val * val;
+            }
+        }
+
+        // Libération de la mémoire
+        ctx.releaseToBookmark(bookmark);
+    }
+
      /**
      * @brief Computes 2 * u * grad(u).
      * Since u is dim N and grad(u) is dim N*3, the dot product results in dim 3.

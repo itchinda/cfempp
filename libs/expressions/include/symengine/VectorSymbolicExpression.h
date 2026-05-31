@@ -55,6 +55,24 @@ namespace cfem::sym
             m_components[2]->evaluate(cellId, xi, out.subspan(2, 1), ctx);
         }
 
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+            // Un vecteur 3D évalué sur nQp points nécessite 3 * nQp espaces mémoire
+            CFEM_ASSERT(outValues.size() >= 3 * nQp, "Batch evaluation output buffer too small for 3D vector");
+
+            // =========================================================================
+            // FORMAT SoA (Structure of Arrays) - Optimisé pour le cache et le SIMD
+            // Le buffer de sortie sera organisé ainsi :
+            // [x_0, x_1, ..., x_n,  y_0, y_1, ..., y_n,  z_0, z_1, ..., z_n]
+            // =========================================================================
+            
+            m_components[0]->evaluateBatch(cellId, nQp, outValues.subspan(0, nQp), ctx);
+            m_components[1]->evaluateBatch(cellId, nQp, outValues.subspan(nQp, nQp), ctx);
+            m_components[2]->evaluateBatch(cellId, nQp, outValues.subspan(2 * nQp, nQp), ctx);
+        }
+
+
+
         inline std::shared_ptr<const ScalarSymbolicExpression> getComponent(CfemInt i) const
         {
             CFEM_ASSERT(i < 3 && i >= 0, "Index out of bounds.");

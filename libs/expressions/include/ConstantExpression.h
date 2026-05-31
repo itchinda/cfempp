@@ -78,6 +78,26 @@ namespace cfem::sym
             std::copy(m_value.begin(), m_value.end(), out.begin());
         }
 
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+            CfemInt nComp = m_value.size();
+            
+            CFEM_ASSERT(outValues.size() >= static_cast<size_t>(nComp * nQp), 
+                        "Batch evaluation output buffer too small for ConstantExpression");
+
+            // =========================================================================
+            // FORMAT SoA: outValues[composante * nQp + q]
+            // Pour une constante, la même valeur est répétée sur tous les points q
+            // =========================================================================
+            for (CfemInt i = 0; i < nComp; ++i) {
+                const CfemReal val = m_value[i];
+                
+                for (CfemInt q = 0; q < nQp; ++q) {
+                    outValues[i * nQp + q] = val;
+                }
+            }
+        }
+
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override {
             return std::make_shared<ZeroExpression>(this->getNumComponents());
         }

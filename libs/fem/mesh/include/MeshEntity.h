@@ -70,7 +70,8 @@ public:
     }
 
     bool containsCell(CfemInt cell_id) const {
-        return std::binary_search(m_cell_ids.begin(), m_cell_ids.end(), cell_id);
+        CFEM_ASSERT(0 <= cell_id && cell_id < m_cellMask.size(), "cell_id out of bounds");
+        return m_cellMask[cell_id];
     }
 
     void update();
@@ -103,6 +104,7 @@ private:
     std::string m_name;
     CfemInt m_topologicalDimension; 
     std::vector<CfemInt> m_cell_ids;
+    std::vector<uint8_t> m_cellMask;
     std::vector<CfemInt> m_facet_ids;
     std::vector<CfemInt> m_vertex_ids;
 

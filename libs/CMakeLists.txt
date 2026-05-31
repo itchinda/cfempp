@@ -1,5 +1,6 @@
 add_subdirectory(expressions)
 add_subdirectory(fem)
+add_subdirectory(kernel)
 add_subdirectory(prepostprocessing)
 add_subdirectory(solvers)
 add_subdirectory(utils)

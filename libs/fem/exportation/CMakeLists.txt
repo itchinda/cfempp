@@ -10,8 +10,11 @@ target_include_directories(cfem_exporter
 )
 
 target_link_libraries(cfem_exporter
-    PUBLIC cfem_mesh
-           cfem_expressions
-           cfem_fefield
-           cfem_reference_element
+    PUBLIC 
+    cfem_utils
+    cfem_kernel
+    cfem_mesh
+    cfem_expressions
+    cfem_fefield
+    cfem_reference_element
 )

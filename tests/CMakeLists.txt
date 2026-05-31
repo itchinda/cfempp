@@ -11,6 +11,7 @@ add_executable(unit_tests
     fem/test_fefield.cpp
     mesh/test_mesh.cpp
     mesh/test_gmsh_parser.cpp
+    utils/test_dynamic_matrix.cpp
     utils/test_dynamic_vector.cpp
     utils/test_vector3d.cpp
     utils/test_fixed_vector.cpp
@@ -24,13 +25,15 @@ add_executable(unit_tests
 target_link_libraries(unit_tests
     PRIVATE
         GTest::gtest
-	cfem_openmp_interface
+	    cfem_openmp_interface
         cfem_solvers
         cfem_utils
+        cfem_kernel
         cfem_quadrature
         cfem_reference_element
         cfem_mesh
         cfem_fespace
+        cfem_fefield
         cfem_expressions
         cfem_numerical_integration
 )

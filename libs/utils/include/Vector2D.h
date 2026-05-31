@@ -100,10 +100,9 @@ namespace cfem
          * @note If the scalar is near zero (below cfem::ZERO_TOLERANCE), a CFEM_ERROR is logged, 
          * but the division proceeds (which may result in Inf or NaN values).
          */
-        [[nodiscard]] inline Vector2D operator/(CfemReal scalar) const noexcept
+        [[nodiscard]] inline Vector2D operator/(CfemReal scalar) const
         {
-            if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
-                CFEM_ERROR << "Division by zero in Vector2D operator/";
+            CFEM_ASSERT(std::abs(scalar) > ZERO_TOLERANCE, "Division by zero in Vector2D::operator/");
             
             CfemReal inv = 1.0 / scalar;
             return {x * inv, y * inv};
@@ -144,10 +143,10 @@ namespace cfem
          * @note If the scalar is near zero (below cfem::ZERO_TOLERANCE), a CFEM_ERROR is logged, 
          * but the division proceeds (which may result in Inf or NaN values).
          */
-        inline Vector2D &operator/=(CfemReal scalar) noexcept
+        constexpr Vector2D &operator/=(CfemReal scalar)
         {
-            if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
-                CFEM_ERROR << "Division by zero in Vector2D operator/=";
+            CFEM_ASSERT(std::abs(scalar) > ZERO_TOLERANCE, "Division by zero in Vect::operator/=");
+
             CfemReal inv = 1.0 / scalar;
             x *= inv;
             y *= inv;
@@ -192,7 +191,7 @@ namespace cfem
         /** 
          * @brief Read-only access by index (0=x, 1=y, 2=z). 
          */
-        [[nodiscard]] constexpr CfemReal operator[](CfemInt i) const {
+        [[nodiscard]] inline CfemReal operator[](CfemInt i) const {
             CFEM_ASSERT(0 <= i && i < 2, "Index out of bound in Vector2D::operator[] const.");
             return (i == 0) ? x : y;
         }
@@ -200,7 +199,7 @@ namespace cfem
         /** 
          * @brief Read-write access by index (0=x, 1=y, 2=z). 
          */
-        [[nodiscard]] constexpr CfemReal& operator[](CfemInt i) {
+        [[nodiscard]] inline CfemReal& operator[](CfemInt i) {
             CFEM_ASSERT(0 <= i && i < 2, "Index out of bound in Vector2D::operator[].");
             return (i == 0) ? x : y;
         }

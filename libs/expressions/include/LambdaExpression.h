@@ -54,11 +54,11 @@ namespace cfem::sym
             auto result = [&]() {
                 // Signature: f(Vector3D, CfemReal) -> Spatiotemporal
                 if constexpr (std::is_invocable_v<F, const Vector3D&, CfemReal>) {
-                    return m_f(ctx.physPos, ctx.currentTime);
+                    return m_f(ctx.singleWS.physPos, ctx.currentTime);
                 } 
                 // Signature: f(Vector3D) -> Pure Spatial
                 else if constexpr (std::is_invocable_v<F, const Vector3D&>) {
-                    return m_f(ctx.physPos);
+                    return m_f(ctx.singleWS.physPos);
                 }
                 else {
                     static_assert(sizeof(F) == 0, "Invalid Lambda signature. Use f(X) or f(X, t).");
@@ -76,6 +76,60 @@ namespace cfem::sym
             else if constexpr (std::is_same_v<ResultType, Tensor3D>) {
                 const CfemReal* data = result.data;
                 for(int i = 0; i < 9; ++i) out[i] = data[i];
+            }
+        }
+
+        // ====================================================================
+        // --- Vectorized Batch (SoA) Evaluation
+        // ====================================================================
+        void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+            CFEM_ASSERT(outValues.size() >= static_cast<size_t>(m_dimension * nQp), 
+                        "LambdaExpression: Batch buffer too small.");
+            
+            // Accès direct au tableau des positions physiques
+            const auto* physPos_ptr = ctx.batchWS.physPos; 
+            CFEM_ASSERT(physPos_ptr != nullptr && (*physPos_ptr).size() >= nQp, "LambdaExpression requires physical positions in batchWS.");
+
+            const auto& physPos = *physPos_ptr;
+
+            
+            const CfemReal t = ctx.currentTime;
+
+            // Boucle sur les points de quadrature
+            for (CfemInt q = 0; q < nQp; ++q) 
+            {
+                const Vector3D& pos = physPos[q];
+
+                // 1. Appel du functor à la compilation
+                auto result = [&]() {
+                    if constexpr (std::is_invocable_v<F, const Vector3D&, CfemReal>) {
+                        return m_f(pos, t);
+                    } 
+                    else if constexpr (std::is_invocable_v<F, const Vector3D&>) {
+                        return m_f(pos);
+                    }
+                    else {
+                        static_assert(sizeof(F) == 0, "Invalid Lambda signature.");
+                    }
+                }();
+
+                // 2. Écriture au format SoA: out[composante * nQp + q]
+                using ResultType = decltype(result);
+                if constexpr (std::is_arithmetic_v<ResultType>) {
+                    outValues[q] = static_cast<CfemReal>(result);
+                } 
+                else if constexpr (std::is_same_v<ResultType, Vector3D>) {
+                    outValues[0 * nQp + q] = result.x;
+                    outValues[1 * nQp + q] = result.y;
+                    outValues[2 * nQp + q] = result.z;
+                }
+                else if constexpr (std::is_same_v<ResultType, Tensor3D>) {
+                    // Le compilateur va dérouler (unroll) cette petite boucle
+                    for(int i = 0; i < 9; ++i) {
+                        outValues[i * nQp + q] = result.data[i];
+                    }
+                }
             }
         }
 

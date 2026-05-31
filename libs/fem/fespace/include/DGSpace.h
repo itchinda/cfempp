@@ -71,8 +71,8 @@ public:
     void computeSparsityPattern(std::vector<CfemInt>& nnz) const override;
     void getEntityDofs(CfemInt internalEntityId, std::vector<CfemInt>& boundaryDofs) const override;
 
-    void evaluateBasis(CfemInt cellId, const Vector3D& xi, std::vector<CfemReal>& values) const override;
-    void evaluateGradients(CfemInt cellId, const Vector3D& xi, std::vector<Vector3D>& grads) const override;
+    void evaluateBasis(CfemInt cellId, const Vector3D& xi, ShapeInfo& shape, std::vector<CfemReal>& values) const override;
+    void evaluateBasisFirstDerivatives(CfemInt cellId, const Vector3D& xi, ShapeInfo& shape, MappingInfo& map) const override;
 };
 
 } // namespace cfem

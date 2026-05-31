@@ -135,7 +135,14 @@ protected:
             // L'appel à computeMapping déclenche toute ta chaîne : 
             // evaluate() -> computeJacobian() -> detJ
 
-            ref.computeMapping(pt.xi, nodes,  ShapeEvaluationFlags::Jacobian, shape, map);
+            ref.computeMapping(
+                pt.xi,
+                nodes,
+                ShapeEvaluationFlags::FirstDerivatives,
+                MappingEvaluationFlags::Determinant,
+                shape, 
+                map
+            );
             
             // Intégrale = Somme( |detJ| * w )
             volume += std::abs(map.detJ) * pt.weight;
@@ -185,6 +192,8 @@ TEST_F(MappingAccuracyTest, InterpolationConsistency) {
     Q1ReferenceQuad ref;
     ShapeInfo shape;
     shape.setup(ref.getNumNodes());
+    //shape.setup(ref.getNumNodes());
+    
     
     // On définit un carré de côté 2, centré sur (5,5)
     DynamicVector<Vector3D> nodes(4);
@@ -195,7 +204,7 @@ TEST_F(MappingAccuracyTest, InterpolationConsistency) {
 
     // On teste au centre de l'élément de référence (0,0)
     Vector3D xi_center{0.0, 0.0, 0.0};
-    ref.evaluate(xi_center, ShapeEvaluationFlags::Value, shape);
+    ref.evaluateShapes(xi_center, ShapeEvaluationFlags::Value, shape);
 
     // L'interpolation des coordonnées des noeuds doit donner le centre physique (5,5)
     Vector3D x_phys = ref.interpolate(shape, nodes);
@@ -211,8 +220,8 @@ TEST_F(MappingAccuracyTest, PhysicalGradientLinearField) {
     const QuadratureRule& q = scheme.getRule(CellType::TRI3, 1);
     ShapeInfo shape;
     MappingInfo map;
-    shape.setup(3);
-    map.setup(3);
+    shape.setup(ref.getNumNodes());
+    map.setup(ref.getNumNodes());
 
     // Triangle : (0,0), (1,0), (0,1)
     DynamicVector<Vector3D> nodes = {{0,0,0}, {1,0,0}, {0,1,0}};
@@ -221,7 +230,14 @@ TEST_F(MappingAccuracyTest, PhysicalGradientLinearField) {
     // Gradient physique attendu : [2, 3, 0]
     DynamicVector<CfemReal> nodalValues = {0.0, 2.0, 3.0};
 
-    ref.computeMapping(q.getPoints()[0].xi, nodes, ShapeEvaluationFlags::Gradient, shape, map);
+    ref.computeMapping(
+        q.getPoints()[0].xi,
+        nodes,
+        ShapeEvaluationFlags::FirstDerivatives,
+        MappingEvaluationFlags::PhysicalFirstDerivatives,
+        shape,
+        map
+    );
     Vector3D gradU = ref.interpolateGradient(map, nodalValues);
 
     EXPECT_NEAR(gradU.x, 2.0, 1e-13);
@@ -265,7 +281,14 @@ TEST_F(MappingAccuracyTest, SlantedGradient3D) {
     // Sur le noeud 1 (s,0,s), u = s + s = sqrt(2)
     DynamicVector<CfemReal> nodalValues = {0.0, std::sqrt(2.0), 0.0};
 
-    ref.computeMapping(ref.referenceNodes()[1], nodes, ShapeEvaluationFlags::Gradient, shape, map);
+    ref.computeMapping(
+        ref.getReferenceNodes()[1],
+        nodes,
+        ShapeEvaluationFlags::FirstDerivatives,
+        MappingEvaluationFlags::PhysicalFirstDerivatives,
+        shape,
+        map
+    );
     Vector3D gradU = ref.interpolateGradient(map, nodalValues);
 
     // Le gradient de x+z est [1, 0, 1]
@@ -307,7 +330,14 @@ TEST_F(MappingAccuracyTest, PolynomialIntegrationOnRealElement) {
     CfemReal numeric = 0.0;
     for (const auto& pt : q.getPoints()) {
         // Mapping complet au point de quadrature
-        ref.computeMapping(pt.xi, nodes, ShapeEvaluationFlags::PhysicalPosition | ShapeEvaluationFlags::Jacobian, shape, map);
+        ref.computeMapping(
+            pt.xi,
+            nodes,
+            ShapeEvaluationFlags::Value | ShapeEvaluationFlags::FirstDerivatives,
+            MappingEvaluationFlags::PhysicalPosition | MappingEvaluationFlags::Determinant, 
+            shape,
+            map
+        );
         
         // On récupère la position physique x(xi) et le poids detJ * w
         numeric += f(map.physicalPosition) * std::abs(map.detJ) * pt.weight;

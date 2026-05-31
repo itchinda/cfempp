@@ -16,6 +16,4 @@ target_link_libraries(cfem_fespace
         cfem_utils
         cfem_reference_element
         cfem_mesh
-        cfem_expressions
-        cfem_fefield
 )

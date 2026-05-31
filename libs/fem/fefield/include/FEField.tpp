@@ -41,59 +41,61 @@ namespace cfem
      */
     template <typename Func>
     requires (!std::is_base_of_v<sym::CfemExpression, std::decay_t<Func>> && 
-              !std::is_convertible_v<std::decay_t<Func>, std::shared_ptr<const sym::CfemExpression>>)
+            !std::is_convertible_v<std::decay_t<Func>, std::shared_ptr<const sym::CfemExpression>>)
     void FEField::interpolate(const Func& func)
     {
-        CFEM_INFO << "Projecting functional lambda/constant into field '" << getName() << "'";
+        CFEM_INFO << "Interpolating functional lambda/constant into field '" << getName() << "'";
 
         const auto& mesh = m_space->getMesh();
         Vec& petscVec = m_data.getRaw();
-        CfemInt nComp = this->getNumComponents();
+        const CfemInt nComp = this->getNumComponents();
 
-        // Compile-time type analysis of the input
+        // Compile-time type analysis of the input parameter
         constexpr bool is_constant = std::is_arithmetic_v<std::decay_t<Func>>;
         constexpr bool is_callable = std::is_invocable_v<Func, Vector3D>;
+        
         static_assert(is_constant || is_callable, 
             "FEField::interpolate requires either a numeric constant or a callable taking a Vector3D.");
 
-        // MPI Ownership Range
-        CfemInt low, high;
+        // Retrieve local partition layout boundaries for the parallel MPI distributed vector
+        CfemInt low = 0;
+        CfemInt high = 0;
         VecGetOwnershipRange(petscVec, &low, &high);
         m_localValues.assign(high - low, 0.0);
 
-        CfemInt numPositions = m_space->getNumUniquePositions();
+        const CfemInt numPositions = m_space->getNumUniquePositions();
         std::vector<uint8_t> visited(numPositions, 0);
 
         #pragma omp parallel
         {
+            // Allocate thread-local context workspace safely isolating scratch matrix buffers
             EvalContext evctx;
             
             #pragma omp for schedule(guided)
             for (CfemInt cellId = 0; cellId < mesh->getNumCells(); ++cellId)
             {
-                auto cell_type = mesh->getCell(cellId).type;
+                const auto cell_type = mesh->getCell(cellId).type;
                 const auto& refEl = ReferenceElementFactory::getReferenceElement(cell_type, m_space->getOrderInt());
                 const auto& refElGeo = ReferenceElementFactory::getReferenceElement(cell_type, mesh->getOrderInt());
 
-                // Load coordinates into EvalContext scratchpad
+                // Load contiguous cell node physical coordinates into context scratchpad
                 mesh->getCellVerticesCoords(cellId, evctx.scratchCoords);
 
-                for (CfemInt i = 0; i < (CfemInt)refEl.getNumNodes(); ++i)
+                const CfemInt nNodes = static_cast<CfemInt>(refEl.getNumNodes());
+                for (CfemInt i = 0; i < nNodes; ++i)
                 {
-                    CfemInt posId = m_space->getPositionId(cellId, i);
+                    const CfemInt posId = m_space->getPositionId(cellId, i);
                     if (posId == -1) continue;
 
-                    // Atomic visiting check to handle shared nodes (CG)
+                    // Atomic boundary test-and-set to guarantee unique thread evaluation per geometric node
                     if (visited[posId]) continue;
                     if (__atomic_test_and_set(&visited[posId], __ATOMIC_RELAXED)) continue;
 
                     if constexpr (is_constant) 
                     {
-                        // --- FAST PATH: Constant Value ---
-                        // No geometry mapping needed. Just apply the constant to the DOFs.
                         for (CfemInt d = 0; d < nComp; ++d)
                         {
-                            CfemInt globalIdx = m_space->getGlobalDofIdx(cellId, i, d);
+                            const CfemInt globalIdx = m_space->getGlobalDofIdx(cellId, i, d);
                             if (globalIdx >= low && globalIdx < high) 
                             {
                                 m_localValues[globalIdx - low] = static_cast<CfemReal>(func);
@@ -102,28 +104,28 @@ namespace cfem
                     } 
                     else 
                     {
-                        // --- STANDARD PATH: Callable Lambda ---
-                        // Precise Geometry: Find physical position of the node
-                        Vector3D xi = refEl.getNodeCoords(i);
-                        refElGeo.evaluate(xi, ShapeEvaluationFlags::Value, evctx.scratchShape);
+                        // STANDARD PATH: Callable Analytic Function 
+                        const Vector3D xi = refEl.getNodeCoords(i);
+
                         refElGeo.computeMapping(
                             xi, 
-                            evctx.scratchCoords, 
-                            ShapeEvaluationFlags::PhysicalPosition, 
-                            static_cast<const ShapeInfo&>(evctx.scratchShape), 
-                            evctx.scratchMapping);
+                            evctx.scratchCoords,
+                            ShapeEvaluationFlags::Value,
+                            MappingEvaluationFlags::PhysicalPosition, 
+                            evctx.singleWS.shape,
+                            evctx.singleWS.mapping
+                        );
 
-                        // Evaluate lambda
-                        auto result = func(evctx.scratchMapping.physicalPosition);
+                        // Evaluate user-provided function lambda at computed physical spatial coordinates
+                        auto result = func(evctx.singleWS.mapping.physicalPosition);
                         
-                        // Safely deduce return type (array vs scalar) inside the isolated branch
                         using LocalResultType = decltype(result);
                         constexpr bool returns_scalar = std::is_arithmetic_v<LocalResultType>;
 
-                        // Global Assembly (Local Buffer)
+                        // Map the calculated physical properties to the local distributed ownership buffer
                         for (CfemInt d = 0; d < nComp; ++d)
                         {
-                            CfemInt globalIdx = m_space->getGlobalDofIdx(cellId, i, d);
+                            const CfemInt globalIdx = m_space->getGlobalDofIdx(cellId, i, d);
                             if (globalIdx >= low && globalIdx < high) 
                             {
                                 if constexpr (returns_scalar) {
@@ -138,8 +140,8 @@ namespace cfem
             }
         }
 
-        // Direct PETSc update
-        PetscScalar *array;
+        // Unify distributed MPI vectors into the global parallel algebraic architecture
+        PetscScalar *array = nullptr;
         VecGetArray(petscVec, &array);
         std::copy(m_localValues.begin(), m_localValues.end(), array);
         VecRestoreArray(petscVec, &array);

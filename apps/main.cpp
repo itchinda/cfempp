@@ -33,7 +33,7 @@
 // #include "Mesh.h"
 // #include "FEField.h"
 // #include "MathOperators.h"
-// #include "FunctionIntegrator.h"
+// #include "ScalarFunctionalEvaluator.h"
 // #include "LagrangeSpace.h"
 // #include "VTUExporter.h"
 
@@ -61,7 +61,7 @@
 //     // Error Analysis (Clean syntax, no explicit scheme params needed)
 //     CfemReal l2Norm_U, h1SemiNorm_U;
 //     IntegrationSchemeParams schemes_params{}; // Use default number of integration points
-//     FunctionIntegrator integrator(mesh, schemes_params);
+//     ScalarFunctionalEvaluator integrator(mesh, schemes_params);
 //     integrator.L2Norm(u - analytical_u, &l2Norm_U, &h1SemiNorm_U);    
 //     CFEM_INFO << "L2-norm error on u: " << l2Norm_U;
 //     CFEM_INFO << "H1-semi norm error on u: " << h1SemiNorm_U;
@@ -82,7 +82,7 @@
 #include "LagrangeSpace.h"
 #include "DGSpace.h"
 #include "FEField.h"
-#include "FunctionIntegrator.h"
+#include "ScalarFunctionalEvaluator.h"
 #include "VTKExporter.h"
 #include "VTUExporter.h"
 #include "MathOperators.h"
@@ -101,7 +101,7 @@ static char help[] = "CFEM Example: Field interpolation on a quadratic mesh.\n\n
 
 int main(int argc, char **argv)
 {
-    omp_set_num_threads(1);
+    // omp_set_num_threads(1);
     Environment::initialize(argc, argv, help);
     {
         #define CFEM_USE_DYNAMIC_SPACE_CACHE
@@ -112,17 +112,10 @@ int main(int argc, char **argv)
         CfemReal y0 = 0;
         CfemReal z0 = 0;
         CfemReal r0 = 0.5;
-        CfemReal h = 0.25;
+        CfemReal h = 0.0625;
+
         {
             PROFILE_SCOPE("MeshBuilding");
-
-            SymTensor3D A;
-            SymTensor3D B;
-            auto ApB = A + B;
-            auto AmB = A - B;
-            auto AfB = A * B;
-            
-
 
             // mesh = Mesh::quad(
             //     MeshOrder::Linear,
@@ -131,34 +124,37 @@ int main(int argc, char **argv)
             //         Vector3D{0., 0., 0.},
             //         Vector3D{1., 1., 0.}
             //     ),
-            //     Mesh::QuadElementType::Quadrilateral
+            //     Mesh::QuadElementType::TriangleCrissCross
             // );
 
             // mesh = Mesh::disk(MeshOrder::Quadratic, 0.1, Vector3D{0,0,0}, 0.5);
 
             mesh = Mesh::block(
                 MeshOrder::Linear,
-                Mesh::BlockSubdivisions{10, 10, 10}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
+                Mesh::BlockSubdivisions{150, 150, 150}, // Mesh::BlockSubdivisions{5*(2<<i), 5*(2<<i), 5*(2<<i)},
                 Mesh::BlockBounds(
                     Vector3D{0., 0., 0.},
                     Vector3D{1., 1., 1.}
                 ),
-                Mesh::BlockElementType::Tetrahedron 
+                Mesh::BlockElementType::Tetrahedron
             );
 
-            //mesh = Mesh::loadFromGmsh("../tests/grenier/stanford_bunny/bunny.msh");
+            // mesh = Mesh::loadFromGmsh("../tests/grenier/stanford_bunny/bunny.msh");
             // mesh = Mesh::loadFromGmsh("../tests/grenier/wheel/wheel.msh");
 
-            // mesh = Mesh::sphere( MeshOrder::Quadratic,
-            //                      0.25,
+            // mesh = Mesh::sphere( MeshOrder::Linear,
+            //                      h,
             //                      Vector3D{0,0,0},
-            //                      0.5);
+            //                      r0
+            //                 );
 
             
-            // mesh = Mesh::surface_sphere( MeshOrder::Quadratic,
-            //                      h,
-            //                      Vector3D{x0,y0,z0},
-            //                      r0);
+            // mesh = Mesh::surface_sphere( 
+            //     MeshOrder::Quadratic,
+            //     h,
+            //     Vector3D{x0,y0,z0},
+            //     r0
+            // );
             // mesh = Mesh::sphere( MeshOrder::Quadratic,
             //                      0.25,
             //                      Vector3D{0,0,0},
@@ -179,11 +175,13 @@ int main(int argc, char **argv)
         auto q = Test (Q, "q");
         auto v = Test (V, "v");
 
-        // auto analytical_p = scalar(x + y + 1.0); 
+        // auto analytical_p = scalar(x*x + y + 1.0); 
         // auto analytical_u = vector( x*y + y*y +  x + y,
         //                             y*y  + x*x +  x*y + 1,              
         //                             0.0);
 
+        // auto analytical_p = scalar(x + 10); 
+        // auto analytical_u = vector( 0.0, 1, 0.0);
         
         // auto analytical_p = scalar(exp(x * y * z)); 
         // auto analytical_u = vector( x * x + y * y +  x + y,
@@ -208,8 +206,8 @@ int main(int argc, char **argv)
         {
             PROFILE_SCOPE("L2Norm");
             IntegrationSchemeParams schemes_params{};
-            FunctionIntegrator integrator(mesh, schemes_params);
-            // schemes_params.NumIntgPtHexElem = 1;
+            // schemes_params.NumIntgPtTetElem = 33;
+            ScalarFunctionalEvaluator integrator(mesh, schemes_params);
             CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
             integrator.L2Norm(p - analytical_p, &l2Norm_P, &h1SemiNorm_P);
             integrator.L2Norm(u - analytical_u, &l2Norm_U, &h1SemiNorm_U);
@@ -219,7 +217,8 @@ int main(int argc, char **argv)
             // auto Proj = tensor(1 -normaleX*normaleX,   -normaleX*normaleY,   -normaleX*normaleZ,
             //                   -normaleY*normaleX, 1 -normaleY*normaleY,   -normaleY*normaleZ,
             //                   -normaleZ*normaleX,   -normaleZ*normaleY, 1 -normaleZ*normaleZ);
-            // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr( grad(u) - grad(analytical_u)*P ) ) );
+            // CfemReal s = integrator.computeIntegral(scalar(1), SYS_BOUNDARY_ID);
+            // CFEM_INFO << " Boundary surface = " << s << " Exact value: " << 4 * CFEM_PI * r0 * r0  << " Error " << std::abs( s - 4 * CFEM_PI * r0 * r0) ;
 
             // auto gradPanal = Proj*grad(analytical_p); //grad(analytical_p) - dot(grad(analytical_p), normale) * normale;
             // auto gradP = Proj*grad(p);  //grad(p) - dot(grad(p), normale) * normale;
@@ -227,8 +226,8 @@ int main(int argc, char **argv)
 
             // CfemReal lseminorm_p = sqrt( integrator.computeIntegral( mag_sqr( grad_s(p) - grad_s(analytical_p) ) ) );
             // CfemReal lseminorm_u = sqrt( integrator.computeIntegral( mag_sqr( grad_s(u) - grad_s(analytical_u) ) ) );
-            // CFEM_INFO << "surface gradien error for p  = " << lseminorm_p;
-            // CFEM_INFO << "surface gradien error for u  = " << lseminorm_u;
+            // CFEM_INFO << "surface gradient error for p  = " << lseminorm_p;
+            // CFEM_INFO << "surface gradient error for u  = " << lseminorm_u;
 
             // auto gradUanal = dot(grad(analytical_u), Proj); //grad(analytical_p) - dot(grad(analytical_p), normale) * normale;
             // auto gradU = dot(grad(u), Proj);  //grad(p) - dot(grad(p), normale) * normale;
@@ -247,16 +246,17 @@ int main(int argc, char **argv)
             // VTKExporter vtu_exporter(*mesh);
             // vtu_exporter.addExpression("U", u);
             // vtu_exporter.addExpression("P", p);
-            // vtu_exporter.setExportedEntities({"Mag_external_surface", "Bande_de_roulement", "Caoutchouc"});
-            // //vtu_exporter.addExpression("N", geometric_normal());
+            // // vtu_exporter.setExportedEntities({"Mag_external_surface", "Bande_de_roulement", "Caoutchouc"});
+            // vtu_exporter.addExpression("N", geometric_normal());
             
             // vtu_exporter.setFormat(VTKExportFormat::BINARY);
             // vtu_exporter.exportCellQuality(true);
             // vtu_exporter.write("result_global");
-            // vtu_exporter.write("Gomme", "Gomme");
-            // vtu_exporter.write("Mag_external_surface", "Mag_external_surface");
-            // vtu_exporter.write("Bande_de_roulement", "Bande_de_roulement");
-            // vtu_exporter.write("Caoutchouc", "Caoutchouc");
+            // vtu_exporter.write("result_boundary", SYS_BOUNDARY_ID);
+            // // vtu_exporter.write("Gomme", "Gomme");
+            // // vtu_exporter.write("Mag_external_surface", "Mag_external_surface");
+            // // vtu_exporter.write("Bande_de_roulement", "Bande_de_roulement");
+            // // vtu_exporter.write("Caoutchouc", "Caoutchouc");
 
         }
     }

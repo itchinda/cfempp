@@ -22,7 +22,7 @@
 #include "Mesh.h"
 #include "FEField.h"
 #include "MathOperators.h"
-#include "FunctionIntegrator.h"
+#include "ScalarFunctionalEvaluator.h"
 #include "LagrangeSpace.h"
 #include "DGSpace.h"
 
@@ -162,7 +162,7 @@ TEST_F(FEFieldTest, CG_Scalar_P1_Exactness)
     f->interpolate(analytical);
 
     CfemReal l2, h1;
-    FunctionIntegrator(m_mesh).L2Norm(f - analytical, &l2, &h1);
+    ScalarFunctionalEvaluator(m_mesh).L2Norm(f - analytical, &l2, &h1);
     EXPECT_NEAR(l2, 0.0, 1e-12);
     EXPECT_NEAR(h1, 0.0, 1e-11);
 }
@@ -174,7 +174,7 @@ TEST_F(FEFieldTest, CG_Vector_P1_Exactness)
     velocity->interpolate(analytical);
 
     CfemReal l2Norm, h1SemiNorm;
-    FunctionIntegrator integrator(m_mesh, IntegrationSchemeParams{});
+    ScalarFunctionalEvaluator integrator(m_mesh, IntegrationSchemeParams{});
     integrator.L2Norm(velocity - analytical, &l2Norm, &h1SemiNorm);
 
     EXPECT_NEAR(l2Norm, 0.0, 1e-12) << "P1 GC Vector L2 interpolation failed.";
@@ -188,7 +188,7 @@ TEST_F(FEFieldTest, CG_Scalar_P2_Exactness)
     f->interpolate(analytical);
 
     CfemReal l2, h1;
-    FunctionIntegrator(m_mesh).L2Norm(f - analytical, &l2, &h1);
+    ScalarFunctionalEvaluator(m_mesh).L2Norm(f - analytical, &l2, &h1);
     EXPECT_NEAR(l2, 0.0, 1e-12);
     EXPECT_NEAR(h1, 0.0, 1e-11);
 }
@@ -203,7 +203,7 @@ TEST_F(FEFieldTest, CG_Vector_P2_Lambda_OpenMP)
 
     auto analytical = vector(x*x, y*x, x*z);
     CfemReal l2;
-    FunctionIntegrator(m_mesh).L2Norm(u - analytical, &l2, nullptr);
+    ScalarFunctionalEvaluator(m_mesh).L2Norm(u - analytical, &l2, nullptr);
     EXPECT_NEAR(l2, 0.0, 1e-11);
     EXPECT_NEAR(l2, 0.0, 1e-11);
 }
@@ -215,7 +215,7 @@ TEST_F(FEFieldTest, DG_Scalar_P0_Constant)
     f->interpolate(analytical);
 
     CfemReal l2;
-    FunctionIntegrator(m_mesh).L2Norm(f - analytical, &l2, nullptr);
+    ScalarFunctionalEvaluator(m_mesh).L2Norm(f - analytical, &l2, nullptr);
     EXPECT_NEAR(l2, 0.0, 1e-12);
 }
 
@@ -226,7 +226,7 @@ TEST_F(FEFieldTest, DG_Vector_P0_Constant)
     u->interpolate(analytical);
 
     CfemReal l2;
-    FunctionIntegrator(m_mesh).L2Norm(u - analytical, &l2, nullptr);
+    ScalarFunctionalEvaluator(m_mesh).L2Norm(u - analytical, &l2, nullptr);
     EXPECT_NEAR(l2, 0.0, 1e-12);
 }
 
@@ -237,7 +237,7 @@ TEST_F(FEFieldTest, DG_Scalar_P1_Exactness)
     f->interpolate(analytical);
 
     CfemReal l2, h1;
-    FunctionIntegrator(m_mesh).L2Norm(f - analytical, &l2, &h1);
+    ScalarFunctionalEvaluator(m_mesh).L2Norm(f - analytical, &l2, &h1);
     EXPECT_NEAR(l2, 0.0, 1e-12);
     EXPECT_NEAR(h1, 0.0, 1e-11);
 }
@@ -251,7 +251,7 @@ TEST_F(FEFieldTest, DG_Vector_P1_Lambda)
 
     auto analytical = vector(x + 1.0, y - 2.0, z);
     CfemReal l2;
-    FunctionIntegrator(m_mesh).L2Norm(u - analytical, &l2, nullptr);
+    ScalarFunctionalEvaluator(m_mesh).L2Norm(u - analytical, &l2, nullptr);
     EXPECT_NEAR(l2, 0.0, 1e-12);
 }
 
@@ -262,7 +262,7 @@ TEST_F(FEFieldTest, DG_Scalar_P2_Exactness)
     f->interpolate(analytical);
 
     CfemReal l2, h1;
-    FunctionIntegrator(m_mesh).L2Norm(f - analytical, &l2, &h1);
+    ScalarFunctionalEvaluator(m_mesh).L2Norm(f - analytical, &l2, &h1);
     EXPECT_NEAR(l2, 0.0, 1e-12);
 }
 
@@ -273,7 +273,7 @@ TEST_F(FEFieldTest, DG_Vector_P2_Exactness)
     u->interpolate(analytical);
 
     CfemReal l2, h1;
-    FunctionIntegrator(m_mesh).L2Norm(u - analytical, &l2, &h1);
+    ScalarFunctionalEvaluator(m_mesh).L2Norm(u - analytical, &l2, &h1);
     EXPECT_NEAR(l2, 0.0, 1e-12);
 }
 
@@ -290,7 +290,7 @@ TEST_F(FEFieldTest, GradientEvaluation_P2_CG)
     f->interpolate(analytical);
 
     // L'intégrateur H1 semi-norm calcule ||grad(f) - grad(analytique)||
-    CfemReal h1 = sqrt( FunctionIntegrator(m_mesh).computeIntegral(mag_sqr( grad(f - analytical) ) ) );
+    CfemReal h1 = sqrt( ScalarFunctionalEvaluator(m_mesh).computeIntegral(mag_sqr( grad(f - analytical) ) ) );
     
     EXPECT_NEAR(h1, 0.0, 1e-11) << "Gradient evaluation failed for P2 CG field.";
 }
@@ -330,7 +330,7 @@ TEST_F(FEFieldTest, DGScalarP0Projection)
     density->interpolate(analytical);
 
     CfemReal l2Norm = 1.0;
-    FunctionIntegrator integrator(m_mesh, IntegrationSchemeParams{});
+    ScalarFunctionalEvaluator integrator(m_mesh, IntegrationSchemeParams{});
     integrator.L2Norm(density - analytical, &l2Norm, nullptr);
 
     EXPECT_NEAR(l2Norm, 0.0, 1e-12) << "P0 DG interpolation L2-error is too high. Check cell-center mapping.";

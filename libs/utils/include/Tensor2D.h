@@ -185,12 +185,10 @@ namespace cfem
                     data[idx_xy] * scalar};
         }
 
-        [[nodiscard]] inline SymTensor2D operator/(CfemReal scalar) const noexcept
+        [[nodiscard]] constexpr SymTensor2D operator/(CfemReal scalar) const
         {
-            if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
-            {
-                CFEM_ERROR << "Division by zero in SymTensor2D::operator/";
-            }
+            CFEM_ASSERT(std::abs(scalar) > ZERO_TOLERANCE, "Division by zero in SymTensor2D::operator/");
+
             const CfemReal inv = 1.0 / scalar;
             return {data[idx_xx] * inv,
                     data[idx_yy] * inv,
@@ -229,12 +227,9 @@ namespace cfem
             return *this;
         }
 
-        inline SymTensor2D &operator/=(CfemReal scalar) noexcept
+        constexpr SymTensor2D &operator/=(CfemReal scalar)
         {
-            if (std::abs(scalar) < cfem::ZERO_TOLERANCE)
-            {
-                CFEM_ERROR << "Division by zero in SymTensor2D::operator/=";
-            }
+            CFEM_ASSERT(std::abs(scalar) > ZERO_TOLERANCE, "Division by zero in SymTensor2D::operator/");
 
             CfemReal inv = 1.0 / scalar;
             data[idx_xx] *= inv;

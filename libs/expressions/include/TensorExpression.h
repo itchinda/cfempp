@@ -35,13 +35,27 @@ namespace cfem::sym
      **************************************************************************** */
     class TensorExpression : public CfemExpression
     {
-    private:
+    protected:
         std::shared_ptr<const CfemExpression> m_components[9];
         std::shared_ptr<const CfemExpression> createGradient() const override { 
             CFEM_THROW("Gradient is not yet supported for tensor expressions. It would required a 3rd order tensor which is not implemented.");
             return nullptr; 
         }
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            m_components[0]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[1]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[2]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[3]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[4]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[5]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[6]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[7]->collectSpaceRequirements(reqs, inheritedFlags); 
+            m_components[8]->collectSpaceRequirements(reqs, inheritedFlags);     
+        }
 
     public:
         TensorExpression (std::shared_ptr<const CfemExpression> expr_xx, std::shared_ptr<const CfemExpression> expr_xy, std::shared_ptr<const CfemExpression> expr_xz,
@@ -95,6 +109,22 @@ namespace cfem::sym
             }
         }
 
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+            // Un tenseur 3x3 évalué sur nQp points nécessite 9 * nQp espaces mémoire
+            CFEM_ASSERT(outValues.size() >= 9 * nQp, "Batch evaluation output buffer too small for 3D Tensor");
+
+            // =========================================================================
+            // FORMAT SoA (Structure of Arrays) - Optimisé pour le cache et le SIMD
+            // Le buffer de sortie sera organisé ainsi :
+            // [xx_0..xx_n, xy_0..xy_n, xz_0..xz_n, yx_0..yx_n, yy_0..yy_n, yz_0..yz_n, zx_0..zx_n, zy_0..zy_n, zz_0..zz_n]
+            // =========================================================================
+
+            for (CfemInt i=0; i<9; ++i){
+                m_components[i]->evaluateBatch(cellId, nQp, outValues.subspan(i * nQp, nQp), ctx);
+            }
+        }
+
         inline std::shared_ptr<const CfemExpression> getComponent(int i) const
         {
             CFEM_ASSERT(i < 9 && i >= 0, "Index out of bounds.");
@@ -124,6 +154,18 @@ namespace cfem::sym
                    m_components[7]->dependsOnShape() ||
                    m_components[8]->dependsOnShape(); 
         
+        }
+
+        bool dependsOnGeometricNormal() const override { 
+            return m_components[0]->dependsOnGeometricNormal() || 
+                   m_components[1]->dependsOnGeometricNormal() ||
+                   m_components[2]->dependsOnGeometricNormal() ||
+                   m_components[3]->dependsOnGeometricNormal() || 
+                   m_components[4]->dependsOnGeometricNormal() ||
+                   m_components[5]->dependsOnGeometricNormal() ||
+                   m_components[6]->dependsOnGeometricNormal() || 
+                   m_components[7]->dependsOnGeometricNormal() ||
+                   m_components[8]->dependsOnGeometricNormal(); 
         }
 
         ShapeEvaluationFlags requiredShapeFlags() const override {

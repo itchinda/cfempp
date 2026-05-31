@@ -57,6 +57,14 @@ namespace cfem::sym
             std::ranges::fill(out, 0.0);
         }
 
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+            CFEM_ASSERT(outValues.size() >= m_dim * nQp, "Batch evaluation output buffer too small for 3D Vector");
+
+            std::ranges::fill(outValues, 0.0);
+        }
+
+
         std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override {
             return std::make_shared<ZeroExpression>(this->getNumComponents());
         }

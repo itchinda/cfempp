@@ -6,13 +6,13 @@
 // ---
 // --- This software is protected by international copyright laws.
 // --- Use, distribution, or modification of this software in any form,
-// --- source or binary, for personal, academic, or non-commercial 
-// --- purposes is permitted free of charge, provided that this 
-// --- copyright notice and this permission notice appear in all 
+// --- source or binary, for personal, academic, or non-commercial
+// --- purposes is permitted free of charge, provided that this
+// --- copyright notice and this permission notice appear in all
 // --- copies and supporting documentation.
 // ---
-// --- The authors and contributors provide this code "as is" without 
-// --- any express or implied warranty. In no event shall they be 
+// --- The authors and contributors provide this code "as is" without
+// --- any express or implied warranty. In no event shall they be
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
@@ -20,341 +20,737 @@
 #define CFEM_REFERENCE_HEXAHEDRON
 
 #include "ReferenceElement.h"
+#include <array>
+#include <span>
 
-namespace cfem::reference_elem::utils{
+namespace cfem::reference_elem::utils
+{
 
-    inline Vector3D projectFacetRefCoordToHexaRefCoord(CfemInt localFacetId, 
-                                                      const Vector3D& xiFacet) 
+    inline Vector3D projectFacetRefCoordToHexaRefCoord(CfemInt localFacetId,
+                                                       const Vector3D &xiFacet)
     {
         const CfemReal u = xiFacet.x;
         const CfemReal v = xiFacet.y;
 
-        switch (localFacetId) {
-            case 0: return Vector3D(v, u, -1.0);               // Face {0,3,2,1} : z=-1
-            case 1: return Vector3D(u, v, 1.0);                // Face {4,5,6,7} : z=1
-            case 2: return Vector3D(u, -1.0, v);               // Face {0,1,5,4} : y=-1
-            case 3: return Vector3D(1.0, u, v);                // Face {1,2,6,5} : x=1
-            case 4: return Vector3D(-u, 1.0, v);               // Face {2,3,7,6} : y=1
-            case 5: return Vector3D(-1.0, -u, v);              // Face {3,0,4,7} : x=-1
-            default: CFEM_ERROR << "Invalid facet ID for Hexa";
+        switch (localFacetId)
+        {
+        case 0:
+            return Vector3D(v, u, -1.0); // Face {0,3,2,1} : z=-1
+        case 1:
+            return Vector3D(u, v, 1.0); // Face {4,5,6,7} : z=1
+        case 2:
+            return Vector3D(u, -1.0, v); // Face {0,1,5,4} : y=-1
+        case 3:
+            return Vector3D(1.0, u, v); // Face {1,2,6,5} : x=1
+        case 4:
+            return Vector3D(-u, 1.0, v); // Face {2,3,7,6} : y=1
+        case 5:
+            return Vector3D(-1.0, -u, v); // Face {3,0,4,7} : x=-1
+        default:
+            CFEM_ERROR << "Invalid facet ID for Hexa";
         }
         return Vector3D{}; // Make the compiler happy
     }
 
-    static const std::vector<std::vector<int>> hex8_face_nodes = {
+    static constexpr std::array<std::array<int, 4>, 6> hex8_face_nodes = {{
         {0, 3, 2, 1}, // Face 0 (Bottom)
         {4, 5, 6, 7}, // Face 1 (Top)
         {0, 1, 5, 4}, // Face 2 (Front)
         {1, 2, 6, 5}, // Face 3 (Right)
         {2, 3, 7, 6}, // Face 4 (Back)
         {3, 0, 4, 7}  // Face 5 (Left)
-    };
+    }};
 
-    static const std::vector<std::vector<int>> hex27_face_nodes = {
-        {0, 3, 2, 1, 11, 10, 9, 8, 24},          // Face 0
-        {4, 5, 6, 7, 12, 13, 14, 15, 25},        // Face 1
-        {0, 1, 5, 4, 8, 17, 12, 16, 22},         // Face 2
-        {1, 2, 6, 5, 9, 18, 13, 17, 21},         // Face 3
-        {2, 3, 7, 6, 10, 19, 14, 18, 23},        // Face 4
-        {3, 0, 4, 7, 11, 16, 15, 19, 20}         // Face 5 
-    };
+    static constexpr std::array<std::array<CfemInt, 9>, 6> hex27_face_nodes = {{
+        {0, 3, 2, 1, 11, 10, 9, 8, 24},   // Face 0
+        {4, 5, 6, 7, 12, 13, 14, 15, 25}, // Face 1
+        {0, 1, 5, 4, 8, 17, 12, 16, 22},  // Face 2
+        {1, 2, 6, 5, 9, 18, 13, 17, 21},  // Face 3
+        {2, 3, 7, 6, 10, 19, 14, 18, 23}, // Face 4
+        {3, 0, 4, 7, 11, 16, 15, 19, 20}  // Face 5
+    }};
 
-    static const std::vector<std::vector<int>> hex1_face_nodes = {
+    static constexpr std::array<std::array<CfemInt, 1>, 6> hex1_face_nodes = {{
         {0}, {0}, {0}, {0}, {0}, {0}
-    };
+    }};
 }
 
-namespace cfem{
-
-    class Q1ReferenceHexahedron : public ReferenceElement {
-    public:
-        Q1ReferenceHexahedron() {
-            m_numNodes = 8;
-            m_dimension = 3;
-            m_nodes.resize(m_numNodes);
-            // Ordre VTK : Face Z=-1 (0,1,2,3), puis Face Z=1 (4,5,6,7)
-            m_nodes[0] = {-1,-1,-1}; m_nodes[1] = { 1,-1,-1}; m_nodes[2] = { 1, 1,-1}; m_nodes[3] = {-1, 1,-1};
-            m_nodes[4] = {-1,-1, 1}; m_nodes[5] = { 1,-1, 1}; m_nodes[6] = { 1, 1, 1}; m_nodes[7] = {-1, 1, 1};
+namespace cfem::reference_elem::kernels {
+    // =========================================================================
+    // Q0 HEX KERNEL (1 node, constant)
+    // =========================================================================
+    struct Q0HexaKernel {
+        [[gnu::always_inline]] static inline void values(CfemReal* __restrict N) noexcept {
+            N[0] = 1.0;
         }
 
-        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const CfemInt n = m_numNodes;
-            if (out.values.size() != n) out.setup(n);
-            if ((hasFlag(requested, ShapeEvaluationFlags::Hessian)) && out.hessians.size() != n)
-                out.hessians.assign(n, SymTensor3D());
-
-            const CfemReal r = xi.x, s = xi.y, t = xi.z;
-            const CfemReal xr[8] = {-1, 1, 1, -1, -1, 1, 1, -1};
-            const CfemReal xs[8] = {-1, -1, 1, 1, -1, -1, 1, 1};
-            const CfemReal xt[8] = {-1, -1, -1, -1, 1, 1, 1, 1};
-
-            for (CfemInt i = 0; i < n; ++i) {
-                CfemReal pr = 1.0 + xr[i]*r;
-                CfemReal ps = 1.0 + xs[i]*s;
-                CfemReal pt = 1.0 + xt[i]*t;
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Value)) 
-                    out.values[i] = 0.125 * pr * ps * pt;
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
-                    out.gradients[i].x = 0.125 * xr[i] * ps * pt;
-                    out.gradients[i].y = 0.125 * xs[i] * pr * pt;
-                    out.gradients[i].z = 0.125 * xt[i] * pr * ps;
-                }
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                    out.hessians[i].setZero();
-                    out.hessians[i].xy() = 0.125 * xr[i] * xs[i] * pt;
-                    out.hessians[i].xz() = 0.125 * xr[i] * ps * xt[i];
-                    out.hessians[i].yz() = 0.125 * pr * xs[i] * xt[i];
-                }
-            }
-            out.validFlags = requested;
+        [[gnu::always_inline]] static inline void grads(CfemReal* __restrict dx, 
+                                                        CfemReal* __restrict dy, 
+                                                        CfemReal* __restrict dz) noexcept {
+            dx[0] = dy[0] = dz[0] = 0.0;
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override{
-            return cfem::reference_elem::utils::projectFacetRefCoordToHexaRefCoord(localFacetId, xiFacet); // Make the compiler happy
-        }
-
-        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
-            return cfem::reference_elem::utils::hex8_face_nodes[iFace];
+        [[gnu::always_inline]] static inline void hess(CfemReal* __restrict d2x, CfemReal* __restrict d2y, CfemReal* __restrict d2z, 
+                                                       CfemReal* __restrict dxy, CfemReal* __restrict dxz, CfemReal* __restrict dyz) noexcept {
+            d2x[0] = d2y[0] = d2z[0] = dxy[0] = dxz[0] = dyz[0] = 0.0;
         }
     };
 
+    // =========================================================================
+    // MINI HEX KERNEL  (9 nodes : 8 vertices Q1 + 1 bubble)
+    // =========================================================================
+    struct MiniHexaKernel {
+    private:
+        static constexpr CfemReal xr[8] = {-1.0, 1.0, 1.0, -1.0, -1.0,  1.0, 1.0, -1.0};
+        static constexpr CfemReal ys[8] = {-1.0, -1.0, 1.0,  1.0, -1.0, -1.0, 1.0,  1.0};
+        static constexpr CfemReal zt[8] = {-1.0, -1.0,-1.0, -1.0,  1.0,  1.0, 1.0,  1.0};
+        static constexpr CfemReal o8 = 0.125;
 
-    class Q2ReferenceHexahedron : public ReferenceElement {
     public:
-        Q2ReferenceHexahedron() {
-            m_numNodes = 27;
-            m_dimension = 3;
-            m_nodes.resize(m_numNodes);
-            // On définit les positions 1D pour r, s, t : -1.0, 0.0, 1.0
-            CfemReal pos[3] = {-1.0, 0.0, 1.0};
+        [[gnu::always_inline]] static inline void values(CfemReal x, CfemReal y, CfemReal z, 
+                                                         CfemReal* __restrict N) noexcept 
+        {
+            const CfemReal b = (1.0 - x * x) * (1.0 - y * y) * (1.0 - z * z);
+            N[8] = b;
 
-            // Mapping VTK pour HEX27 (i, j, k correspondent aux indices de pos[3])
-            // Cet ordre est crucial pour passer le test de Kronecker
-            CfemInt vtk_map[3][3][3];
-            // Sommets
-            vtk_map[0][0][0] = 0; vtk_map[2][0][0] = 1; vtk_map[2][2][0] = 2; vtk_map[0][2][0] = 3;
-            vtk_map[0][0][2] = 4; vtk_map[2][0][2] = 5; vtk_map[2][2][2] = 6; vtk_map[0][2][2] = 7;
-            // Milieux d'arêtes
-            vtk_map[1][0][0] = 8;  vtk_map[2][1][0] = 9;  vtk_map[1][2][0] = 10; vtk_map[0][1][0] = 11;
-            vtk_map[1][0][2] = 12; vtk_map[2][1][2] = 13; vtk_map[1][2][2] = 14; vtk_map[0][1][2] = 15;
-            vtk_map[0][0][1] = 16; vtk_map[2][0][1] = 17; vtk_map[2][2][1] = 18; vtk_map[0][2][1] = 19;
-            // Centres de faces
-            vtk_map[0][1][1] = 20; vtk_map[2][1][1] = 21; vtk_map[1][0][1] = 22;
-            vtk_map[1][2][1] = 23; vtk_map[1][1][0] = 24; vtk_map[1][1][2] = 25;
-            // Centre volume
-            vtk_map[1][1][1] = 26;
-
-            for (CfemInt i = 0; i < 3; ++i)
-                for (CfemInt j = 0; j < 3; ++j)
-                    for (CfemInt k = 0; k < 3; ++k)
-                        m_nodes[vtk_map[i][j][k]] = {pos[i], pos[j], pos[k]};
+            const CfemReal correction = b * o8;
+            for (CfemInt i = 0; i < 8; ++i) {
+                const CfemReal px = 1.0 + xr[i] * x;
+                const CfemReal py = 1.0 + ys[i] * y;
+                const CfemReal pz = 1.0 + zt[i] * z;
+                N[i] = (o8 * px * py * pz) - correction;
+            }
         }
 
-        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const CfemInt n = m_numNodes;
-            if (out.values.size() != n) out.setup(n);
-            if ((hasFlag(requested, ShapeEvaluationFlags::Hessian)) && out.hessians.size() != n)
-                out.hessians.assign(n, SymTensor3D());
+        [[gnu::always_inline]] static inline void grads(CfemReal x, CfemReal y, CfemReal z, 
+                                                        CfemReal* __restrict dx, 
+                                                        CfemReal* __restrict dy, 
+                                                        CfemReal* __restrict dz) noexcept 
+        {
+            const CfemReal mx2 = 1.0 - x * x;
+            const CfemReal my2 = 1.0 - y * y;
+            const CfemReal mz2 = 1.0 - z * z;
 
-            const CfemReal r = xi.x, s = xi.y, t = xi.z;
+            const CfemReal db_dx = -2.0 * x * my2 * mz2;
+            const CfemReal db_dy = -2.0 * y * mx2 * mz2;
+            const CfemReal db_dz = -2.0 * z * mx2 * my2;
 
-            // Fonctions 1D P2 et leurs dérivées
-            CfemReal fr[3] = {0.5*r*(r-1.0), 1.0-r*r, 0.5*r*(r+1.0)};
-            CfemReal fs[3] = {0.5*s*(s-1.0), 1.0-s*s, 0.5*s*(s+1.0)};
-            CfemReal ft[3] = {0.5*t*(t-1.0), 1.0-t*t, 0.5*t*(t+1.0)};
+            dx[8] = db_dx; dy[8] = db_dy; dz[8] = db_dz;
 
-            CfemReal dfr[3] = {r-0.5, -2.0*r, r+0.5};
-            CfemReal dfs[3] = {s-0.5, -2.0*s, s+0.5};
-            CfemReal dft[3] = {t-0.5, -2.0*t, t+0.5};
+            const CfemReal corr_dx = db_dx * o8;
+            const CfemReal corr_dy = db_dy * o8;
+            const CfemReal corr_dz = db_dz * o8;
 
-            CfemReal ddfr[3] = {1.0, -2.0, 1.0};
-            CfemReal ddfs[3] = {1.0, -2.0, 1.0};
-            CfemReal ddft[3] = {1.0, -2.0, 1.0};
+            for (CfemInt i = 0; i < 8; ++i) {
+                const CfemReal px = 1.0 + xr[i] * x;
+                const CfemReal py = 1.0 + ys[i] * y;
+                const CfemReal pz = 1.0 + zt[i] * z;
 
-            // Re-déclaration locale du map pour la boucle (ou utilisation d'un membre static)
-            static const CfemInt map[3][3][3] = {
-                {{0, 16, 4}, {11, 20, 15}, {3, 19, 7}},
-                {{8, 22, 12}, {24, 26, 25}, {10, 23, 14}},
-                {{1, 17, 5}, {9, 21, 13}, {2, 18, 6}}
-            };
+                dx[i] = (o8 * xr[i] * py * pz) - corr_dx;
+                dy[i] = (o8 * ys[i] * px * pz) - corr_dy;
+                dz[i] = (o8 * zt[i] * px * py) - corr_dz;
+            }
+        }
 
-            for (CfemInt i = 0; i < 3; ++i) { // r
-                for (CfemInt j = 0; j < 3; ++j) { // s
-                    for (CfemInt k = 0; k < 3; ++k) { // t
-                        CfemInt idx = map[i][j][k];
+        [[gnu::always_inline]] static inline void hess(CfemReal x, CfemReal y, CfemReal z, 
+                                                       CfemReal* __restrict d2x, CfemReal* __restrict d2y, CfemReal* __restrict d2z, 
+                                                       CfemReal* __restrict dxy, CfemReal* __restrict dxz, CfemReal* __restrict dyz) noexcept 
+        {
+            const CfemReal mx2 = 1.0 - x * x;
+            const CfemReal my2 = 1.0 - y * y;
+            const CfemReal mz2 = 1.0 - z * z;
 
-                        // if (hasFlag(requested, ShapeEvaluationFlags::Value))
-                        //     out.values[idx] = fr[i] * fs[j] * ft[idx < 0 ? 0 : k]; // Correction logique simple
+            const CfemReal d2b_dx2 = -2.0 * my2 * mz2;
+            const CfemReal d2b_dy2 = -2.0 * mx2 * mz2;
+            const CfemReal d2b_dz2 = -2.0 * mx2 * my2;
+            const CfemReal d2b_dxy =  4.0 * x * y * mz2;
+            const CfemReal d2b_dxz =  4.0 * x * z * my2;
+            const CfemReal d2b_dyz =  4.0 * y * z * mx2;
 
-                        // Plus proprement :
-                        CfemReal val_i = fr[i], val_j = fs[j], val_k = ft[k];
-                        
-                        if (hasFlag(requested, ShapeEvaluationFlags::Value))
-                            out.values[idx] = val_i * val_j * val_k;
+            d2x[8] = d2b_dx2; d2y[8] = d2b_dy2; d2z[8] = d2b_dz2;
+            dxy[8] = d2b_dxy; dxz[8] = d2b_dxz; dyz[8] = d2b_dyz;
 
-                        if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
-                            out.gradients[idx].x = dfr[i] * val_j * val_k;
-                            out.gradients[idx].y = val_i * dfs[j] * val_k;
-                            out.gradients[idx].z = val_i * val_j * dft[k];
-                        }
+            const CfemReal corr_dx2 = d2b_dx2 * o8;
+            const CfemReal corr_dy2 = d2b_dy2 * o8;
+            const CfemReal corr_dz2 = d2b_dz2 * o8;
+            const CfemReal corr_dxy = d2b_dxy * o8;
+            const CfemReal corr_dxz = d2b_dxz * o8;
+            const CfemReal corr_dyz = d2b_dyz * o8;
 
-                        if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                            out.hessians[idx].setZero();
-                            // Diagonales
-                            out.hessians[idx].xx() = ddfr[i] * val_j * val_k;
-                            out.hessians[idx].yy() = val_i * ddfs[j] * val_k;
-                            out.hessians[idx].zz() = val_i * val_j * ddft[k];
-                            // Croisées
-                            out.hessians[idx].xy() = dfr[i] * dfs[j] * val_k;
-                            out.hessians[idx].xz() = dfr[i] * val_j * dft[k];
-                            out.hessians[idx].yz() = val_i * dfs[j] * dft[k];
-                        }
+            for (CfemInt i = 0; i < 8; ++i) {
+                const CfemReal px = 1.0 + xr[i] * x;
+                const CfemReal py = 1.0 + ys[i] * y;
+                const CfemReal pz = 1.0 + zt[i] * z;
+
+                d2x[i] = -corr_dx2; // Pure Q1 second derivatives are 0
+                d2y[i] = -corr_dy2;
+                d2z[i] = -corr_dz2;
+                dxy[i] = (o8 * xr[i] * ys[i] * pz) - corr_dxy;
+                dxz[i] = (o8 * xr[i] * py * zt[i]) - corr_dxz;
+                dyz[i] = (o8 * px * ys[i] * zt[i]) - corr_dyz;
+            }
+        }
+    };
+
+    // =========================================================================
+    // Q1 HEX KERNEL (8 nodes, trilinear)
+    // =========================================================================
+    struct Q1HexaKernel {
+        [[gnu::always_inline]] static inline void values(CfemReal x, CfemReal y, CfemReal z, 
+                                                         CfemReal* __restrict N) noexcept 
+        {
+            const CfemReal xm = 1.0 - x; const CfemReal xp = 1.0 + x;
+            const CfemReal ym = 1.0 - y; const CfemReal yp = 1.0 + y;
+            const CfemReal zm = 1.0 - z; const CfemReal zp = 1.0 + z;
+
+            constexpr CfemReal o8 = 0.125; // 1.0 / 8.0
+
+            N[0] = o8 * xm * ym * zm;
+            N[1] = o8 * xp * ym * zm;
+            N[2] = o8 * xp * yp * zm;
+            N[3] = o8 * xm * yp * zm;
+            N[4] = o8 * xm * ym * zp;
+            N[5] = o8 * xp * ym * zp;
+            N[6] = o8 * xp * yp * zp;
+            N[7] = o8 * xm * yp * zp;
+        }
+
+        [[gnu::always_inline]] static inline void grads(CfemReal x, CfemReal y, CfemReal z, 
+                                                        CfemReal* __restrict dx, 
+                                                        CfemReal* __restrict dy, 
+                                                        CfemReal* __restrict dz) noexcept 
+        {
+            const CfemReal xm = 1.0 - x; const CfemReal xp = 1.0 + x;
+            const CfemReal ym = 1.0 - y; const CfemReal yp = 1.0 + y;
+            const CfemReal zm = 1.0 - z; const CfemReal zp = 1.0 + z;
+
+            constexpr CfemReal o8 = 0.125;
+
+            // d / dx
+            dx[0] = -o8 * ym * zm; dx[1] =  o8 * ym * zm;
+            dx[2] =  o8 * yp * zm; dx[3] = -o8 * yp * zm;
+            dx[4] = -o8 * ym * zp; dx[5] =  o8 * ym * zp;
+            dx[6] =  o8 * yp * zp; dx[7] = -o8 * yp * zp;
+
+            // d / dy
+            dy[0] = -o8 * xm * zm; dy[1] = -o8 * xp * zm;
+            dy[2] =  o8 * xp * zm; dy[3] =  o8 * xm * zm;
+            dy[4] = -o8 * xm * zp; dy[5] = -o8 * xp * zp;
+            dy[6] =  o8 * xp * zp; dy[7] =  o8 * xm * zp;
+
+            // d / dz
+            dz[0] = -o8 * xm * ym; dz[1] = -o8 * xp * ym;
+            dz[2] = -o8 * xp * yp; dz[3] = -o8 * xm * yp;
+            dz[4] =  o8 * xm * ym; dz[5] =  o8 * xp * ym;
+            dz[6] =  o8 * xp * yp; dz[7] =  o8 * xm * yp;
+        }
+
+        [[gnu::always_inline]] static inline void hess(CfemReal x, CfemReal y, CfemReal z, 
+                                                       CfemReal* __restrict d2x, CfemReal* __restrict d2y, CfemReal* __restrict d2z, 
+                                                       CfemReal* __restrict dxy, CfemReal* __restrict dxz, CfemReal* __restrict dyz) noexcept 
+        {
+            const CfemReal xm = 1.0 - x; const CfemReal xp = 1.0 + x;
+            const CfemReal ym = 1.0 - y; const CfemReal yp = 1.0 + y;
+            const CfemReal zm = 1.0 - z; const CfemReal zp = 1.0 + z;
+
+            constexpr CfemReal o8 = 0.125;
+
+            // Pure second derivatives are strictly zero for trilinear fields
+            for (CfemInt i = 0; i < 8; ++i) {
+                d2x[i] = 0.0;
+                d2y[i] = 0.0;
+                d2z[i] = 0.0;
+            }
+
+            // Cross derivatives: d2N / (dx * dy)
+            dxy[0] =  o8 * zm; dxy[1] = -o8 * zm; dxy[2] =  o8 * zm; dxy[3] = -o8 * zm;
+            dxy[4] =  o8 * zp; dxy[5] = -o8 * zp; dxy[6] =  o8 * zp; dxy[7] = -o8 * zp;
+
+            // Cross derivatives: d2N / (dx * dz)
+            dxz[0] =  o8 * ym; dxz[1] = -o8 * ym; dxz[2] = -o8 * yp; dxz[3] =  o8 * yp;
+            dxz[4] = -o8 * ym; dxz[5] =  o8 * ym; dxz[6] =  o8 * yp; dxz[7] = -o8 * yp;
+
+            // Cross derivatives: d2N / (dy * dz)
+            dyz[0] =  o8 * xm; dyz[1] =  o8 * xp; dyz[2] = -o8 * xp; dyz[3] = -o8 * xm;
+            dyz[4] = -o8 * xm; dyz[5] = -o8 * xp; dyz[6] =  o8 * xp; dyz[7] =  o8 * xm;
+        }
+    };
+
+    // =========================================================================
+    // Q2 HEX KERNEL (27 nodes, tri-quadratic)
+    // =========================================================================
+    struct Q2HexaKernel {
+    public:
+        // i (X) parcourt : 0 (-1), 1 (0), 2 (+1)
+        // j (Y) parcourt : 0 (-1), 1 (0), 2 (+1)
+        // k (Z) parcourt : 0 (-1), 1 (0), 2 (+1)
+        static constexpr CfemInt node_map[3][3][3] = {
+            { {0, 16, 4},   {11, 20, 15}, {3, 19, 7} },
+            { {8, 22, 12},  {24, 26, 25}, {10, 23, 14} },
+            { {1, 17, 5},   {9, 21, 13},  {2, 18, 6} }
+        };
+
+    private:
+        static inline void eval1D_shape(CfemReal u, CfemReal *N) noexcept {
+            const CfemReal u2 = u * u;
+            N[0] = 0.5 * (u2 - u);
+            N[1] = 1.0 - u2;
+            N[2] = 0.5 * (u2 + u);
+        }
+
+        static inline void eval1D_deriv(CfemReal u, CfemReal *N, CfemReal *dN) noexcept {
+            const CfemReal u2 = u * u;
+            N[0] = 0.5 * (u2 - u); dN[0] = u - 0.5;
+            N[1] = 1.0 - u2;       dN[1] = -2.0 * u;
+            N[2] = 0.5 * (u2 + u); dN[2] = u + 0.5;
+        }
+
+        static inline void eval1D_hessian(CfemReal u, CfemReal *N, CfemReal *dN, CfemReal *d2N) noexcept {
+            const CfemReal u2 = u * u;
+            N[0] = 0.5 * (u2 - u); dN[0] = u - 0.5;  d2N[0] = 1.0;
+            N[1] = 1.0 - u2;       dN[1] = -2.0 * u; d2N[1] = -2.0;
+            N[2] = 0.5 * (u2 + u); dN[2] = u + 0.5;  d2N[2] = 1.0;
+        }
+
+    public:
+        [[gnu::always_inline]] static inline void values(CfemReal x, CfemReal y, CfemReal z, 
+                                                         CfemReal* __restrict N) noexcept 
+        {
+            CfemReal Nx[3], Ny[3], Nz[3];
+            eval1D_shape(x, Nx);
+            eval1D_shape(y, Ny);
+            eval1D_shape(z, Nz);
+
+            for (CfemInt i = 0; i < 3; ++i) {
+                for (CfemInt j = 0; j < 3; ++j) {
+                    for (CfemInt k = 0; k < 3; ++k) {
+                        N[node_map[i][j][k]] = Nx[i] * Ny[j] * Nz[k];
                     }
                 }
             }
-            out.validFlags = requested;
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override{
-            return cfem::reference_elem::utils::projectFacetRefCoordToHexaRefCoord(localFacetId, xiFacet); // Make the compiler happy
+        [[gnu::always_inline]] static inline void grads(CfemReal x, CfemReal y, CfemReal z, 
+                                                        CfemReal* __restrict dx, 
+                                                        CfemReal* __restrict dy, 
+                                                        CfemReal* __restrict dz) noexcept 
+        {
+            CfemReal Nx[3], Ny[3], Nz[3], dNx[3], dNy[3], dNz[3];
+            eval1D_deriv(x, Nx, dNx);
+            eval1D_deriv(y, Ny, dNy);
+            eval1D_deriv(z, Nz, dNz);
+
+            for (CfemInt i = 0; i < 3; ++i) {
+                for (CfemInt j = 0; j < 3; ++j) {
+                    for (CfemInt k = 0; k < 3; ++k) {
+                        const CfemInt node = node_map[i][j][k];
+                        dx[node] = dNx[i] * Ny[j] * Nz[k];
+                        dy[node] = Nx[i] * dNy[j] * Nz[k];
+                        dz[node] = Nx[i] * Ny[j] * dNz[k];
+                    }
+                }
+            }
         }
 
-        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
-            return cfem::reference_elem::utils::hex27_face_nodes[iFace];
+        [[gnu::always_inline]] static inline void hess(CfemReal x, CfemReal y, CfemReal z, 
+                                                       CfemReal* __restrict d2x, CfemReal* __restrict d2y, CfemReal* __restrict d2z, 
+                                                       CfemReal* __restrict dxy, CfemReal* __restrict dxz, CfemReal* __restrict dyz) noexcept 
+        {
+            CfemReal Nx[3], Ny[3], Nz[3], dNx[3], dNy[3], dNz[3], d2Nx[3], d2Ny[3], d2Nz[3];
+            eval1D_hessian(x, Nx, dNx, d2Nx);
+            eval1D_hessian(y, Ny, dNy, d2Ny);
+            eval1D_hessian(z, Nz, dNz, d2Nz);
+
+            for (CfemInt i = 0; i < 3; ++i) {
+                for (CfemInt j = 0; j < 3; ++j) {
+                    for (CfemInt k = 0; k < 3; ++k) {
+                        const CfemInt node = node_map[i][j][k];
+                        
+                        d2x[node] = d2Nx[i] * Ny[j] * Nz[k];
+                        d2y[node] = Nx[i] * d2Ny[j] * Nz[k];
+                        d2z[node] = Nx[i] * Ny[j] * d2Nz[k];
+
+                        dxy[node] = dNx[i] * dNy[j] * Nz[k];
+                        dxz[node] = dNx[i] * Ny[j] * dNz[k];
+                        dyz[node] = Nx[i] * dNy[j] * dNz[k];
+                    }
+                }
+            }
         }
     };
+}
 
-    class MiniReferenceHexahedron : public ReferenceElement {
+namespace cfem
+{
+    /**
+     * @brief Constant Reference Hexahedron (1 node, Q0)
+     */
+    class Q0ReferenceHexahedron : public ReferenceElement
+    {
     public:
-        MiniReferenceHexahedron() {
-            m_numNodes = 9; // 8 sommets + 1 bulle
-            m_dimension = 3;
-            m_nodes.resize(m_numNodes);
-            
-            // Ordre VTK Q1
-            m_nodes[0] = {-1,-1,-1}; m_nodes[1] = { 1,-1,-1}; m_nodes[2] = { 1, 1,-1}; m_nodes[3] = {-1, 1,-1};
-            m_nodes[4] = {-1,-1, 1}; m_nodes[5] = { 1,-1, 1}; m_nodes[6] = { 1, 1, 1}; m_nodes[7] = {-1, 1, 1};
-            // Nœud Bulle au centre
-            m_nodes[8] = {0, 0, 0};
-        }
-
-        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const CfemInt n = m_numNodes;
-            if (out.values.size() != n) out.setup(n);
-            if ((hasFlag(requested, ShapeEvaluationFlags::Hessian)) && out.hessians.size() != n)
-                out.hessians.assign(n, SymTensor3D());
-
-            const CfemReal x = xi.x, y = xi.y, z = xi.z;
-            const CfemReal xr[8] = {-1, 1, 1, -1, -1, 1, 1, -1};
-            const CfemReal ys[8] = {-1, -1, 1, 1, -1, -1, 1, 1};
-            const CfemReal zt[8] = {-1, -1, -1, -1, 1, 1, 1, 1};
-
-            // Calcul de la Bulle
-            CfemReal b = (1.0 - x*x) * (1.0 - y*y) * (1.0 - z*z);
-            CfemReal db_dx = -2.0 * x * (1.0 - y*y) * (1.0 - z*z);
-            CfemReal db_dy = -2.0 * y * (1.0 - x*x) * (1.0 - z*z);
-            CfemReal db_dz = -2.0 * z * (1.0 - x*x) * (1.0 - y*y);
-
-            if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
-                out.values[8] = b;
-            }
-            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
-                out.gradients[8] = Vector3D{db_dx, db_dy, db_dz};
-            }
-            if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                out.hessians[8].setZero();
-                out.hessians[8].xx() = -2.0 * (1.0 - y*y) * (1.0 - z*z);
-                out.hessians[8].yy() = -2.0 * (1.0 - x*x) * (1.0 - z*z);
-                out.hessians[8].zz() = -2.0 * (1.0 - x*x) * (1.0 - y*y);
-                out.hessians[8].xy() =  4.0 * x * y * (1.0 - z*z);
-                out.hessians[8].xz() =  4.0 * x * z * (1.0 - y*y);
-                out.hessians[8].yz() =  4.0 * y * z * (1.0 - x*x);
-            }
-
-            // Calcul des fonctions Q1 corrigées
-            for (CfemInt i = 0; i < 8; ++i) {
-                CfemReal px = 1.0 + xr[i]*x;
-                CfemReal py = 1.0 + ys[i]*y;
-                CfemReal pz = 1.0 + zt[i]*z;
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
-                    out.values[i] = (0.125 * px * py * pz) - (b / 8.0);
-                }
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
-                    out.gradients[i].x = (0.125 * xr[i] * py * pz) - (db_dx / 8.0);
-                    out.gradients[i].y = (0.125 * ys[i] * px * pz) - (db_dy / 8.0);
-                    out.gradients[i].z = (0.125 * zt[i] * px * py) - (db_dz / 8.0);
-                }
-
-                if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                    out.hessians[i].setZero();
-                    out.hessians[i].xx() = -out.hessians[8].xx() / 8.0;
-                    out.hessians[i].yy() = -out.hessians[8].yy() / 8.0;
-                    out.hessians[i].zz() = -out.hessians[8].zz() / 8.0;
-                    // Les croisées ont une partie Q1 + la correction bulle
-                    out.hessians[i].xy() = (0.125 * xr[i] * ys[i] * pz) - (out.hessians[8].xy() / 8.0);
-                    out.hessians[i].xz() = (0.125 * xr[i] * py * zt[i]) - (out.hessians[8].xz() / 8.0);
-                    out.hessians[i].yz() = (0.125 * px * ys[i] * zt[i]) - (out.hessians[8].yz() / 8.0);
-                }
-            }
-            out.validFlags = requested;
-        }
-
-        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
-            return cfem::reference_elem::utils::projectFacetRefCoordToHexaRefCoord(localFacetId, xiFacet);
-        }
-
-        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
-            return cfem::reference_elem::utils::hex8_face_nodes[iFace];
-        }
-    };
-
-    class Q0ReferenceHexahedron : public ReferenceElement {
-    public:
-        Q0ReferenceHexahedron() {
+        Q0ReferenceHexahedron()
+        {
             m_numNodes = 1;
             m_dimension = 3;
-            m_nodes.resize(m_numNodes);
-            // Un seul nœud au centre du cube de référence [-1, 1]^3
-            m_nodes = { {0.0, 0.0, 0.0} };
+            // Single node at the reference center [-1, 1]^3
+            m_nodes = {Vector3D{0.0, 0.0, 0.0}};
         }
 
-        void evaluate(const Vector3D& xi, ShapeEvaluationFlags requested, ShapeInfo& out) const override {
-            const CfemInt n = m_numNodes;
-            if (out.values.size() != n) out.setup(n);
+        // =========================================================================
+        // SCALAR INTERFACES
+        // =========================================================================
 
-            if (hasFlag(requested, ShapeEvaluationFlags::Value)) {
-                out.values[0] = 1.0;
-            }
-
-            if (hasFlag(requested, ShapeEvaluationFlags::Gradient)) {
-                out.gradients[0] = Vector3D{0.0, 0.0, 0.0};
-            }
-
-            if (hasFlag(requested, ShapeEvaluationFlags::Hessian)) {
-                if (out.hessians.size() != n) out.hessians.assign(n, SymTensor3D());
-                out.hessians[0].setZero();
-            }
-
-            out.validFlags = requested;
+        void evaluateShapesValues(const Vector3D &, ShapeInfo& info) const override
+        {
+            reference_elem::kernels::Q0HexaKernel::values(info.values());
         }
 
-        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D& xiFacet) const override {
+        void evaluateShapesDerivatives(const Vector3D &, ShapeInfo& info) const override
+        {
+            reference_elem::kernels::Q0HexaKernel::grads(info.dN_dxi(), info.dN_deta(), info.dN_dzeta());
+        }
+
+        void evaluateShapesSecondDerivatives(const Vector3D &, ShapeInfo& info) const override
+        {
+            reference_elem::kernels::Q0HexaKernel::hess(info.d2N_dxi2(), info.d2N_deta2(), info.d2N_dzeta2(),
+                                                        info.d2N_dxideta(), info.d2N_dxidzeta(), info.d2N_detadzeta());
+        }
+
+        // =====================================================================
+        // HPC BATCH INTERFACES (Full Memcpy Broadcasting)
+        // =====================================================================
+
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            if (nQp == 0) return;
+
+            reference_elem::kernels::Q0HexaKernel::values(shapeBatch.values(0));
+
+            const size_t bytesToCopy = m_numNodes * sizeof(CfemReal);
+            for (CfemInt q = 1; q < nQp; ++q) {
+                std::memcpy(shapeBatch.values(q), shapeBatch.values(0), bytesToCopy);
+            }
+        }
+
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            if (nQp == 0) return;
+
+            reference_elem::kernels::Q0HexaKernel::grads(shapeBatch.dN_dxi(0), shapeBatch.dN_deta(0), shapeBatch.dN_dzeta(0));
+
+            const size_t bytesToCopy = m_numNodes * sizeof(CfemReal);
+            for (CfemInt q = 1; q < nQp; ++q) {
+                std::memcpy(shapeBatch.dN_dxi(q),   shapeBatch.dN_dxi(0),   bytesToCopy);
+                std::memcpy(shapeBatch.dN_deta(q),  shapeBatch.dN_deta(0),  bytesToCopy);
+                std::memcpy(shapeBatch.dN_dzeta(q), shapeBatch.dN_dzeta(0), bytesToCopy);
+            }
+        }
+
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            if (nQp == 0) return;
+
+            reference_elem::kernels::Q0HexaKernel::hess(shapeBatch.d2N_dxi2(0), shapeBatch.d2N_deta2(0), shapeBatch.d2N_dzeta2(0),
+                                                        shapeBatch.d2N_dxideta(0), shapeBatch.d2N_dxidzeta(0), shapeBatch.d2N_detadzeta(0));
+
+            const size_t bytesToCopy = m_numNodes * sizeof(CfemReal);
+            for (CfemInt q = 1; q < nQp; ++q) {
+                std::memcpy(shapeBatch.d2N_dxi2(q),      shapeBatch.d2N_dxi2(0),      bytesToCopy);
+                std::memcpy(shapeBatch.d2N_deta2(q),     shapeBatch.d2N_deta2(0),     bytesToCopy);
+                std::memcpy(shapeBatch.d2N_dzeta2(q),    shapeBatch.d2N_dzeta2(0),    bytesToCopy);
+                std::memcpy(shapeBatch.d2N_dxideta(q),   shapeBatch.d2N_dxideta(0),   bytesToCopy);
+                std::memcpy(shapeBatch.d2N_dxidzeta(q),  shapeBatch.d2N_dxidzeta(0),  bytesToCopy);
+                std::memcpy(shapeBatch.d2N_detadzeta(q), shapeBatch.d2N_detadzeta(0), bytesToCopy);
+            }
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D &xiFacet) const override
+        {
             return cfem::reference_elem::utils::projectFacetRefCoordToHexaRefCoord(localFacetId, xiFacet);
         }
 
-        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override {
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override
+        {
             return cfem::reference_elem::utils::hex1_face_nodes[iFace];
         }
     };
 
+    /**
+     * @brief Trilinear Reference Hexahedron (8 nodes, Q1)
+     */
+    class Q1ReferenceHexahedron : public ReferenceElement
+    {
+    public:
+        Q1ReferenceHexahedron()
+        {
+            m_numNodes = 8;
+            m_dimension = 3;
+            m_nodes.resize(m_numNodes);
+            // VTK order : Face Z=-1 (0,1,2,3), puis Face Z=1 (4,5,6,7)
+            m_nodes[0] = {-1.0, -1.0, -1.0};
+            m_nodes[1] = { 1.0, -1.0, -1.0};
+            m_nodes[2] = { 1.0,  1.0, -1.0};
+            m_nodes[3] = {-1.0,  1.0, -1.0};
+            m_nodes[4] = {-1.0, -1.0,  1.0};
+            m_nodes[5] = { 1.0, -1.0,  1.0};
+            m_nodes[6] = { 1.0,  1.0,  1.0};
+            m_nodes[7] = {-1.0,  1.0,  1.0};
+        }
+
+        // =========================================================================
+        // SCALAR INTERFACES
+        // =========================================================================
+        
+        void evaluateShapesValues(const Vector3D &xi, ShapeInfo& info) const override
+        {
+            reference_elem::kernels::Q1HexaKernel::values(xi.x, xi.y, xi.z, info.values());
+        }
+
+        void evaluateShapesDerivatives(const Vector3D &xi, ShapeInfo& info) const override
+        {
+            reference_elem::kernels::Q1HexaKernel::grads(xi.x, xi.y, xi.z, 
+                                                         info.dN_dxi(), info.dN_deta(), info.dN_dzeta());
+        }
+
+        void evaluateShapesSecondDerivatives(const Vector3D &xi, ShapeInfo& info) const override
+        {
+            reference_elem::kernels::Q1HexaKernel::hess(xi.x, xi.y, xi.z, 
+                                                        info.d2N_dxi2(), info.d2N_deta2(), info.d2N_dzeta2(),
+                                                        info.d2N_dxideta(), info.d2N_dxidzeta(), info.d2N_detadzeta());
+        }
+
+        // =====================================================================
+        // HPC BATCH INTERFACES
+        // =====================================================================
+        
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q)
+            {
+                reference_elem::kernels::Q1HexaKernel::values(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                              shapeBatch.values(q));
+            }
+        }
+
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q)
+            {
+                reference_elem::kernels::Q1HexaKernel::grads(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                             shapeBatch.dN_dxi(q), shapeBatch.dN_deta(q), shapeBatch.dN_dzeta(q));
+            }
+        }
+
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q)
+            {
+                reference_elem::kernels::Q1HexaKernel::hess(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                            shapeBatch.d2N_dxi2(q), shapeBatch.d2N_deta2(q), shapeBatch.d2N_dzeta2(q),
+                                                            shapeBatch.d2N_dxideta(q), shapeBatch.d2N_dxidzeta(q), shapeBatch.d2N_detadzeta(q));
+            }
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D &xiFacet) const override
+        {
+            return cfem::reference_elem::utils::projectFacetRefCoordToHexaRefCoord(localFacetId, xiFacet); 
+        }
+
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override
+        {
+            return cfem::reference_elem::utils::hex8_face_nodes[iFace];
+        }
+    };
+
+    /**
+     * @brief Q1-Mini Reference Hexahedron (9 nodes: 8 vertices + 1 bubble)
+     */
+    class MiniReferenceHexahedron : public ReferenceElement
+    {
+    public:
+        MiniReferenceHexahedron()
+        {
+            m_numNodes = 9; // 8 sommets + 1 bulle
+            m_dimension = 3;
+            m_nodes.resize(m_numNodes);
+
+            // VTK order Q1
+            m_nodes[0] = {-1.0, -1.0, -1.0};
+            m_nodes[1] = { 1.0, -1.0, -1.0};
+            m_nodes[2] = { 1.0,  1.0, -1.0};
+            m_nodes[3] = {-1.0,  1.0, -1.0};
+            m_nodes[4] = {-1.0, -1.0,  1.0};
+            m_nodes[5] = { 1.0, -1.0,  1.0};
+            m_nodes[6] = { 1.0,  1.0,  1.0};
+            m_nodes[7] = {-1.0,  1.0,  1.0};
+            // Bubble node (center)
+            m_nodes[8] = { 0.0,  0.0,  0.0};
+        }
+
+        // =========================================================================
+        // SCALAR INTERFACES
+        // =========================================================================
+
+        void evaluateShapesValues(const Vector3D &xi, ShapeInfo& info) const override
+        {
+            reference_elem::kernels::MiniHexaKernel::values(xi.x, xi.y, xi.z, info.values());
+        }
+
+        void evaluateShapesDerivatives(const Vector3D &xi, ShapeInfo& info) const override
+        {
+            reference_elem::kernels::MiniHexaKernel::grads(xi.x, xi.y, xi.z, 
+                                                           info.dN_dxi(), info.dN_deta(), info.dN_dzeta());
+        }
+
+        void evaluateShapesSecondDerivatives(const Vector3D &xi, ShapeInfo& info) const override
+        {
+            reference_elem::kernels::MiniHexaKernel::hess(xi.x, xi.y, xi.z, 
+                                                          info.d2N_dxi2(), info.d2N_deta2(), info.d2N_dzeta2(),
+                                                          info.d2N_dxideta(), info.d2N_dxidzeta(), info.d2N_detadzeta());
+        }
+
+        // =====================================================================
+        // HPC BATCH INTERFACES
+        // =====================================================================
+
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::MiniHexaKernel::values(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                                shapeBatch.values(q));
+            }
+        }
+
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::MiniHexaKernel::grads(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                               shapeBatch.dN_dxi(q), shapeBatch.dN_deta(q), shapeBatch.dN_dzeta(q));
+            }
+        }
+
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            // Les dérivées dépendent de la position, pas de memcpy
+            for (CfemInt q = 0; q < nQp; ++q) {
+                reference_elem::kernels::MiniHexaKernel::hess(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                              shapeBatch.d2N_dxi2(q), shapeBatch.d2N_deta2(q), shapeBatch.d2N_dzeta2(q),
+                                                              shapeBatch.d2N_dxideta(q), shapeBatch.d2N_dxidzeta(q), shapeBatch.d2N_detadzeta(q));
+            }
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D &xiFacet) const override
+        {
+            return cfem::reference_elem::utils::projectFacetRefCoordToHexaRefCoord(localFacetId, xiFacet);
+        }
+
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override
+        {
+            return cfem::reference_elem::utils::hex8_face_nodes[iFace]; // Les faces n'incluent pas la bulle (noeud 8)
+        }
+    };
+
+    /**
+     * @brief Tri-Quadratic Reference Hexahedron (27 nodes, Q2)
+     */
+    class Q2ReferenceHexahedron : public ReferenceElement
+    {
+    public:
+        Q2ReferenceHexahedron()
+        {
+            m_numNodes = 27;
+            m_dimension = 3;
+            m_nodes.resize(m_numNodes);
+            
+            // Define 1D positions r, s, t : -1.0, 0.0, 1.0
+            CfemReal pos[3] = {-1.0, 0.0, 1.0};
+
+            for (CfemInt i = 0; i < 3; ++i) {
+                for (CfemInt j = 0; j < 3; ++j) {
+                    for (CfemInt k = 0; k < 3; ++k) {
+                        m_nodes[reference_elem::kernels::Q2HexaKernel::node_map[i][j][k]] = {pos[i], pos[j], pos[k]};
+                    }
+                }
+            }
+        }
+
+        // =========================================================================
+        // SCALAR INTERFACES
+        // =========================================================================
+
+        void evaluateShapesValues(const Vector3D &xi, ShapeInfo& info) const override
+        {
+            reference_elem::kernels::Q2HexaKernel::values(xi.x, xi.y, xi.z, info.values());
+        }
+
+        void evaluateShapesDerivatives(const Vector3D &xi, ShapeInfo& info) const override
+        {
+            reference_elem::kernels::Q2HexaKernel::grads(xi.x, xi.y, xi.z, 
+                                                         info.dN_dxi(), info.dN_deta(), info.dN_dzeta());
+        }
+
+        void evaluateShapesSecondDerivatives(const Vector3D &xi, ShapeInfo& info) const override
+        {
+            reference_elem::kernels::Q2HexaKernel::hess(xi.x, xi.y, xi.z, 
+                                                        info.d2N_dxi2(), info.d2N_deta2(), info.d2N_dzeta2(),
+                                                        info.d2N_dxideta(), info.d2N_dxidzeta(), info.d2N_detadzeta());
+        }
+
+        // =====================================================================
+        // HPC BATCH INTERFACES
+        // =====================================================================
+
+        void evaluateShapesValuesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q)
+            {
+                reference_elem::kernels::Q2HexaKernel::values(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                              shapeBatch.values(q));
+            }
+        }
+
+        void evaluateShapesDerivativesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q)
+            {
+                reference_elem::kernels::Q2HexaKernel::grads(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                             shapeBatch.dN_dxi(q), shapeBatch.dN_deta(q), shapeBatch.dN_dzeta(q));
+            }
+        }
+
+        void evaluateShapesSecondDerivativesBatch(const DynamicVector<Vector3D> &xiPoints, ShapeInfoBatch& shapeBatch) const override
+        {
+            const CfemInt nQp = shapeBatch.numQuadraturePoints;
+            for (CfemInt q = 0; q < nQp; ++q)
+            {
+                reference_elem::kernels::Q2HexaKernel::hess(xiPoints[q].x, xiPoints[q].y, xiPoints[q].z, 
+                                                            shapeBatch.d2N_dxi2(q), shapeBatch.d2N_deta2(q), shapeBatch.d2N_dzeta2(q),
+                                                            shapeBatch.d2N_dxideta(q), shapeBatch.d2N_dxidzeta(q), shapeBatch.d2N_detadzeta(q));
+            }
+        }
+
+        Vector3D projectFacetRefCoordToCellRefCoord(CfemInt localFacetId, const Vector3D &xiFacet) const override
+        {
+            return cfem::reference_elem::utils::projectFacetRefCoordToHexaRefCoord(localFacetId, xiFacet); 
+        }
+
+        std::span<const CfemInt> getFaceNodes(CfemInt iFace) const override
+        {
+            return cfem::reference_elem::utils::hex27_face_nodes[iFace];
+        }
+    };
 
 }
-
-
 
 #endif

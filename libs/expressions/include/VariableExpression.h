@@ -31,7 +31,7 @@ namespace cfem::sym
 {
 
     class VariableExpression : public CfemExpression {
-    private:
+    protected:
         std::string m_name;
         const CfemReal* m_dataPtr;
         CfemInt m_dim;
@@ -57,6 +57,28 @@ namespace cfem::sym
             return m_timeDerivExpr;
         }
 
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            ShapeEvaluationFlags gradFlags = ShapeEvaluationFlags::None;
+
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::FirstDerivatives)) {
+                gradFlags |= ShapeEvaluationFlags::Value;
+            }
+
+            if (hasFlag(inheritedFlags, ShapeEvaluationFlags::SecondDerivatives)) {
+                gradFlags |= ShapeEvaluationFlags::FirstDerivatives;
+            }
+
+            if (m_gradExpr && gradFlags != ShapeEvaluationFlags::None) {
+                m_gradExpr->collectSpaceRequirements(reqs, gradFlags);
+            }
+            else if (!m_gradExpr && gradFlags != ShapeEvaluationFlags::None) {
+                CFEM_THROW("Error in AST: Derivatives requested from a LambdaExpression, "
+                           "but no analytical gradient expression was provided during its construction.");
+            }
+        }
+
     public:
         VariableExpression(const std::string& name, const CfemReal* ptr, 
                         CfemInt dim, 
@@ -69,6 +91,11 @@ namespace cfem::sym
 
         void evaluate(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext& ctx) const override {
             for (CfemInt i = 0; i < m_dim; ++i) out[i] = m_dataPtr[i];
+        }
+
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+            CFEM_THROW("Batch evaluation not allowed for VariableExpression");
         }
 
         // std::shared_ptr<const CfemExpression> diff(CfemInt var_idx) const override {

@@ -36,12 +36,17 @@ namespace cfem::sym
      **************************************************************************** */
     class MagnitudeSqExpression : public CfemExpression
     {
-    private:
+    protected:
         CfemInt m_innerDim = 0;
         std::shared_ptr<const CfemExpression> m_expr;
         std::shared_ptr<const CfemExpression> createGradient() const override;
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
         
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            if (m_expr) m_expr->collectSpaceRequirements(reqs, inheritedFlags);
+        }
 
     public:
         explicit MagnitudeSqExpression(std::shared_ptr<const CfemExpression> expr)
@@ -58,6 +63,9 @@ namespace cfem::sym
 
         bool dependsOnFEField() const override { return m_expr->dependsOnFEField(); }
         bool dependsOnShape() const override { return m_expr->dependsOnShape(); }
+        bool dependsOnGeometricNormal() const override { 
+            return m_expr->dependsOnGeometricNormal();
+        }
         ShapeEvaluationFlags requiredShapeFlags() const override {
             return m_expr->requiredShapeFlags();
         }
@@ -73,6 +81,7 @@ namespace cfem::sym
         void prepare() const override { m_expr->prepare(); }
 
         void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override;
 
         std::shared_ptr<const CfemExpression> getInner() const { return m_expr; }
 

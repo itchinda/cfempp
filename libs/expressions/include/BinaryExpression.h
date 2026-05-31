@@ -36,7 +36,7 @@ namespace cfem::sym
      **************************************************************************** */
     class BinaryExpression : public CfemExpression
     {
-    private:
+    protected:
         std::shared_ptr<const CfemExpression> m_lhs;
         std::shared_ptr<const CfemExpression> m_rhs;
         MathOp                                m_op;
@@ -46,6 +46,13 @@ namespace cfem::sym
     
         std::shared_ptr<const CfemExpression> createGradient() const override;
         std::shared_ptr<const CfemExpression> createTimeDerivative() const override;
+
+        void doCollectSpaceRequirements(SpaceRequirements& reqs, 
+                                        ShapeEvaluationFlags inheritedFlags) const override 
+        {
+            if (m_lhs) m_lhs->collectSpaceRequirements(reqs, inheritedFlags);
+            if (m_rhs) m_rhs->collectSpaceRequirements(reqs, inheritedFlags);
+        }
 
     public:
         BinaryExpression(std::shared_ptr<const CfemExpression> lhs,
@@ -74,6 +81,11 @@ namespace cfem::sym
             return m_lhs->dependsOnShape() || m_rhs->dependsOnShape();
         }
 
+        bool dependsOnGeometricNormal() const override { 
+            return m_lhs->dependsOnGeometricNormal() || 
+                   m_rhs->dependsOnGeometricNormal(); 
+        }
+
         ShapeEvaluationFlags requiredShapeFlags() const override {
             return m_lhs->requiredShapeFlags() | m_rhs->requiredShapeFlags();
         }
@@ -90,6 +102,7 @@ namespace cfem::sym
         }
 
         void evaluate(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
+        void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> out, EvalContext &ctx) const override;
         
         std::shared_ptr<const CfemExpression> getLHS() const { return m_lhs; }
         std::shared_ptr<const CfemExpression> getRHS() const { return m_rhs; }

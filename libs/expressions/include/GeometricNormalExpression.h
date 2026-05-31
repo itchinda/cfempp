@@ -21,7 +21,7 @@
 #include "CfemExpression.h"
 #include "EvalContext.h"
 #include "Vector3D.h"
-#include "ShapeEvaluationFlags.h"
+#include "EvaluationFlags.h"
 
 namespace cfem::sym
 {
@@ -61,6 +61,8 @@ namespace cfem::sym
             return ExpressionType::Variable; 
         }
 
+        virtual bool dependsOnGeometricNormal() const override { return true; }
+
         /** 
          * @brief Evaluates the normal vector at a specific quadrature point.
          * 
@@ -83,6 +85,28 @@ namespace cfem::sym
             out[0] = n.x;
             out[1] = n.y;
             out[2] = n.z;
+        }
+
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+            CFEM_ASSERT(outValues.size() >= static_cast<size_t>(3 * nQp), 
+                        "GeometricNormalExpression: Batch output buffer too small for 3D normal vectors.");
+
+            const auto* geoBatch = ctx.geometricMappingBatch;
+            CFEM_ASSERT(geoBatch != nullptr, "Geometric mapping batch must be set in EvalContext to evaluate normal.");
+
+            // =========================================================================
+            // FORMAT SoA: [n_x0..n_xn, n_y0..n_yn, n_z0..n_zn]
+            // Extraction directe depuis le tableau pré-calculé geoBatch->normals
+            // =========================================================================
+            for (CfemInt q = 0; q < nQp; ++q) 
+            {
+                const Vector3D& n = geoBatch->normals[q];
+                
+                outValues[0 * nQp + q] = n.x;
+                outValues[1 * nQp + q] = n.y;
+                outValues[2 * nQp + q] = n.z;
+            }
         }
 
     protected:
@@ -110,7 +134,7 @@ namespace cfem::sym
          * @return ShapeEvaluationFlags::Normal to ensure the mapping computes the normal vector.
          */
         ShapeEvaluationFlags requiredShapeFlags() const override {
-            return ShapeEvaluationFlags::Normal;
+            return ShapeEvaluationFlags::FirstDerivatives;
         }
 
         /** 

@@ -60,8 +60,34 @@ namespace cfem::sym
                 out[0] = ctx.currentTime; return;
             }
 
-            const Vector3D& globalX = ctx.physPos;
+            const Vector3D& globalX = ctx.singleWS.physPos;
             out[0] = globalX[m_dimIndex];
+        }
+
+        inline void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override
+        {
+            CFEM_ASSERT(outValues.size() >= static_cast<size_t>(nQp), 
+                        "CoordinateExpression: Batch output buffer too small.");
+
+            if (m_dimIndex == 3) 
+            {
+                const CfemReal t = ctx.currentTime;
+                for (CfemInt q = 0; q < nQp; ++q) {
+                    outValues[q] = t;
+                }
+                return;
+            }
+
+            // Récupération du tableau contigu des positions physiques (généré à l'Étape 3.1)
+            const auto* physPos_ptr = ctx.batchWS.physPos; 
+            CFEM_ASSERT(physPos_ptr != nullptr && (*physPos_ptr).size() >= nQp, "CoordinateExpression requires physical positions in batchWS.");
+
+            const auto& physPos = *physPos_ptr;
+
+
+            for (CfemInt q = 0; q < nQp; ++q) {
+                outValues[q] = physPos[q][m_dimIndex];
+            }
         }
 
         CfemInt getNumComponents() const override { return 1;}

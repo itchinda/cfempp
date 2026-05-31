@@ -1583,8 +1583,11 @@ namespace cfem
 
         notifyObservers();
 
+#ifndef CFEM_TESTING
+
         CFEM_INFO << "Mesh successfully upgraded to quadratic.";
         CFEM_INFO << this->info();
+#endif
     }
 
     /** ************************************************************************************************************************************

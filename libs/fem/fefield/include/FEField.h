@@ -39,7 +39,7 @@
 
 namespace cfem
 {
-    class FEField : public sym::TrialFunction, public FESpaceObserver 
+    class FEField : public sym::TrialFunction, public FESpaceObserver, public std::enable_shared_from_this<FEField>
     {
     private:
         struct ConstructorToken {};
@@ -57,6 +57,17 @@ namespace cfem
             return std::make_shared<sym::GradExpression>(shared_from_this());
         }
 
+        void evaluateWithShape(CfemInt cellId, const ShapeInfo& shape, std::span<CfemReal> out) const;
+        void evaluateWithoutShape(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext &ctx) const;
+        void evaluateBatchWithShape(CfemInt cellId, CfemInt nQp, const ShapeInfoBatch& shapeBatch, std::span<CfemReal> outValues, EvalContext& ctx) const;
+        void evaluateBatchWithoutShape(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const;
+
+
+        void evaluateGradientWithCachedMapping(CfemInt cellId, const MappingInfo& mapping, std::span<CfemReal> out) const;
+        void evaluateGradientWithoutCachedMapping(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const;
+        void evaluateGradientBatchWithCachedMapping(CfemInt cellId, CfemInt nQp, const MappingInfoBatchView& mappingBatch, std::span<CfemReal> outValues, EvalContext& ctx) const;
+        void evaluateGradientBatchWithoutCachedMapping(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const;
+
     public:
         FEField(ConstructorToken, std::shared_ptr<FESpace> space, const std::string &name);
         virtual ~FEField() = default;
@@ -71,14 +82,6 @@ namespace cfem
         const PetscVector &getData() const { return m_data; }
         bool dependsOnFEField() const override { return true; }
         bool dependsOnShape() const override { return true; }
-
-        ShapeEvaluationFlags requiredShapeFlags() const override {
-            return ShapeEvaluationFlags::Value;
-        }
-
-        void collectRequiredSpaces(std::set<std::shared_ptr<const FESpace>>& spaces) const override {
-            spaces.insert(m_space);
-        }
 
         /**
          * @brief Lie le champ à son index de cache O(1).
@@ -110,12 +113,14 @@ namespace cfem
         SymTensor3D     get3DSymTensorFieldAtNode    (CfemInt meshNodeId) const;
         SkewSymTensor3D get3DSkewSymTensorFieldAtNode(CfemInt meshNodeId) const;
 
-        CfemReal getAt(CfemInt globalDofIdx, CfemInt component) const;
-        void evaluateWithoutShape(CfemInt cellId, const Vector3D& xi, std::span<CfemReal> out, EvalContext &ctx) const;
-        void evaluateWithShape(CfemInt cellId, const ShapeInfo& shape, std::span<CfemReal> out) const;
+        void extractCellDofs(CfemInt cellId, DynamicMatrix<CfemReal>& localDofs, EvalContext& ctx) const;
         void evaluateGradient(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const override;
-        void evaluateGradientWithoutCachedMapping(CfemInt cellId, const Vector3D &xi, std::span<CfemReal> out, EvalContext &ctx) const;
-        void evaluateGradientWithCachedMapping(CfemInt cellId, const MappingInfo& mapping, std::span<CfemReal> out) const;
+
+        // ====================================================================
+        // --- Vectorized Batch (SoA) Evaluation Extensions
+        // ====================================================================
+        void evaluateBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override;
+        void evaluateGradientBatch(CfemInt cellId, CfemInt nQp, std::span<CfemReal> outValues, EvalContext& ctx) const override;
 
         void interpolate(const sym::CfemExpression& recipe);
         void interpolate(std::shared_ptr<const sym::CfemExpression> recipe) {

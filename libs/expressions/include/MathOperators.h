@@ -21,7 +21,7 @@
 #include <memory>
 #include "CfemExpression.h"
 #include "ConstantExpression.h"
-#include "Argument.h"
+// #include "Argument.h"
 // #include "FEField.h"
 // #include "FESpace.h"
 
@@ -31,6 +31,7 @@ namespace cfem
 {
     class FEField;
     class FESpace;
+    class TestFunction;
 }
 namespace cfem::sym
 {
@@ -104,7 +105,7 @@ namespace cfem::sym
     std::shared_ptr<const CfemExpression> log(std::shared_ptr<const CfemExpression> u);
     std::shared_ptr<const CfemExpression> erf(std::shared_ptr<const CfemExpression> u);
     std::shared_ptr<const CfemExpression> erfc(std::shared_ptr<const CfemExpression> u);
-    std::shared_ptr<const CfemExpression>        tgamma(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> tgamma(std::shared_ptr<const CfemExpression> u);
     std::shared_ptr<const CfemExpression> zeta(std::shared_ptr<const CfemExpression> u);
     /** @} */
 

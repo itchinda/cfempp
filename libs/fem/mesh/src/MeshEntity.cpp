@@ -161,8 +161,15 @@ namespace cfem
     }
 
     /**
-     * @brief Ensures all ID vectors are sorted and contain no duplicates.
-     * Should be called after initial construction or significant changes.
+     * @brief Finalize and optimize internal storage.
+     *
+     * Must be called after modifying the entity topology
+     * (cells, facets, vertices)
+     *
+     * After finalize():
+     *  - ids are sorted and uniqued
+     *  - lookup acceleration structures are built
+     *  - containsCell()/containsFacet() become O(1)
      */
     void MeshEntity::finalize()
     {
@@ -173,6 +180,14 @@ namespace cfem
         clean(m_vertex_ids);
         clean(m_facet_ids);
         clean(m_cell_ids);
+
+        m_cellMask.assign(m_mesh->getNumCells(), 0);
+
+        if (!m_cell_ids.empty()){
+            for (CfemInt cid : m_cell_ids){
+                m_cellMask[cid] = 1;
+            }
+        }
     }
 
     /**

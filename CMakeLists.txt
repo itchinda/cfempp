@@ -48,7 +48,7 @@ if(PETSC_CXX_RAW)
         set(CMAKE_CXX_COMPILER ${PETSC_CXX_ABS})
         message(STATUS "SUCCESS: Forcing CXX Compiler from PETSc: ${PETSC_CXX_ABS}")
     else()
-        message(FATAL_ERROR "Impossible de trouver le chemin absolu pour ${PETSC_CXX_RAW}.")
+        message(FATAL_ERROR "Absolute path not found for ${PETSC_CXX_RAW}.")
     endif()
 endif()
 
