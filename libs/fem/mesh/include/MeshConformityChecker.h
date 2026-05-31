@@ -19,10 +19,11 @@
 #ifndef CFEMPP_MESH_CONFORMITY_CHECKER
 #define CFEMPP_MESH_CONFORMITY_CHECKER
 
-#include "Mesh.h"
+#include <sstream>
 #include <string>
 #include <vector>
-#include <sstream>
+
+#include "Mesh.h"
 
 namespace cfem {
 

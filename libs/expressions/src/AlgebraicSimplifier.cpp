@@ -16,17 +16,18 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include "AlgebraicSimplifier.h"
-#include <vector>
 #include <memory>
-#include "CfemExpression.h"
-#include "ScaledExpression.h"
+#include <vector>
+
+#include "AlgebraicSimplifier.h"
 #include "BinaryExpression.h"
+#include "CfemExpression.h"
 #include "ConstantExpression.h"
-#include "UnaryExpression.h"
+#include "ScaledExpression.h"
 #include "symengine/ScalarSymbolicExpression.h"
-#include "symengine/VectorSymbolicExpression.h"
 #include "symengine/TensorSymbolicExpression.h"
+#include "symengine/VectorSymbolicExpression.h"
+#include "UnaryExpression.h"
 
 namespace cfem::sym
 {

@@ -23,10 +23,11 @@
 #ifndef CFEM_VTKFAMILYEXPORTER_H
 #define CFEM_VTKFAMILYEXPORTER_H
 
-#include "MeshExporter.h"
-#include <vector>
 #include <cstdint>
 #include <string>
+#include <vector>
+
+#include "MeshExporter.h"
 
 namespace cfem
 {

@@ -19,9 +19,10 @@
 #ifndef ANNULUS_MESH_BUILDER_H
 #define ANNULUS_MESH_BUILDER_H
 
-#include "Mesh.h"
-#include <vector>
 #include <cmath>
+#include <vector>
+
+#include "Mesh.h"
 
 namespace cfem {
 

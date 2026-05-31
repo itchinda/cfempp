@@ -19,12 +19,12 @@
 #ifndef CFEM_FESPACE_H
 #define CFEM_FESPACE_H
 
-#include "cfemutils.h"
-#include "cfem_topology.h"
-#include "ReferenceElementFactory.h"
-
-#include <vector>
 #include <memory>
+#include <vector>
+
+#include "cfem_topology.h"
+#include "cfemutils.h"
+#include "ReferenceElementFactory.h"
 
 namespace cfem {
 

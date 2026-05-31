@@ -18,9 +18,9 @@
 
 #include "BinaryExpression.h"
 #include "ConstantExpression.h"
+#include "MathOperators.h"
 #include "UnaryExpression.h"
 #include "VectorExpression.h"
-#include "MathOperators.h"
 
 namespace cfem::sym
 {    

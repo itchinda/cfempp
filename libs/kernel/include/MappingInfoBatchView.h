@@ -18,10 +18,11 @@
 
 #pragma once
 
-#include "cfemutils.h"
-#include "kernel_utils.h"
-#include "EvaluationFlags.h"
 #include <span>
+
+#include "cfemutils.h"
+#include "EvaluationFlags.h"
+#include "kernel_utils.h"
 
 namespace cfem 
 {

@@ -53,17 +53,18 @@
 #ifndef CFEM_GMSH_PARSER_H
 #define CFEM_GMSH_PARSER_H
 
-#include "cfemutils.h"
-#include "Vector3D.h"
+#include <algorithm>
 #include <fstream>
 #include <map>
-#include <unordered_map>
-#include <vector>
-#include <string>
-#include <algorithm>
 #include <memory>
 #include <optional>
 #include <set>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "cfemutils.h"
+#include "Vector3D.h"
 
 namespace cfem{
 /**

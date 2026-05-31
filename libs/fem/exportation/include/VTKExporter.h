@@ -24,9 +24,10 @@
 #ifndef CFEM_VTKEXPORTER_H
 #define CFEM_VTKEXPORTER_H
 
-#include <vector>
-#include <string>
 #include <memory>
+#include <string>
+#include <vector>
+
 #include "VTKFamilyExporter.h"
 
 namespace cfem

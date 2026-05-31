@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+# ANSI colors
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+echo ""
+echo -e "${CYAN}${BOLD}========================================================================${NC}"
+echo -e "${GREEN}${BOLD} SUCCESS: Commit successfully recorded! ${NC}"
+echo -e "${CYAN}${BOLD}========================================================================${NC}"
+echo -e "    The CFEM++ code is clean, the includes are perfectly sorted,"
+echo -e "    and the message strictly follows industrial standards."
+echo -e ""
+echo -e "                     ${YELLOW}${BOLD}Excellent work!${NC}"
+echo -e "${CYAN}${BOLD}========================================================================${NC}"
+echo ""
+
+exit 0

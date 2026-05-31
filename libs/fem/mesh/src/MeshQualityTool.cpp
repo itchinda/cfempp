@@ -16,8 +16,8 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include "MeshQualityTool.h"
 #include "Mesh.h"
+#include "MeshQualityTool.h"
 
 namespace cfem
 {

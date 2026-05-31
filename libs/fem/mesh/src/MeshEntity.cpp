@@ -16,10 +16,10 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include "MeshEntity.h"
-#include "Mesh.h"
-
 #include <algorithm>
+
+#include "Mesh.h"
+#include "MeshEntity.h"
 
 namespace cfem
 {

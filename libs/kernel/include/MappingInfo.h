@@ -1,15 +1,29 @@
+//************************************************************************
+// --- CFEM++ Library
+// ---
+// --- Copyright 2024-2026 Ismaël Tchinda Ngueyong et al.
+// --- ALL RIGHTS RESERVED
+// ---
+// --- This software is protected by international copyright laws.
+// --- Use, distribution, or modification of this software in any form,
+// --- source or binary, for personal, academic, or non-commercial 
+// --- purposes is permitted free of charge, provided that this 
+// --- copyright notice and this permission notice appear in all 
+// --- copies and supporting documentation.
+// ---
+// --- The authors and contributors provide this code "as is" without 
+// --- any express or implied warranty. In no event shall they be 
+// --- held liable for any damages arising from the use of this software.
+//************************************************************************
+
 #pragma once
 
 #include "cfemutils.h"
-#include "kernel_utils.h"
 #include "EvaluationFlags.h"
-#include "DynamicMatrix.h"
-#include "DynamicMatrix.h"
-#include "Tensor3D.h"
-#include "Tensor2D.h"
-
+#include "kernel_utils.h"
 #include "ShapeInfo.h"
-
+#include "Tensor2D.h"
+#include "Tensor3D.h"
 
 namespace cfem
 {
@@ -19,7 +33,8 @@ namespace cfem
      *
      * This structure implements a Structure-of-Arrays (SoA) layout to store physical gradients
      * and Hessians for a set of quadrature points.
-     * * ### Performance Design
+     * 
+     * ### Performance Design
      * - **Contiguous Memory:** Derivatives are stored in a single `DynamicVector` allocation.
      * - **Cache Locality:** Optimized for L1/L2 cache prefetching by using padded strides.
      * - **Zero Overhead:** Accessors provide lightweight views (raw pointers) to data without 

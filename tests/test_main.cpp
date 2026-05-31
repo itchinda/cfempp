@@ -17,9 +17,10 @@
 //************************************************************************
 
 #include <gtest/gtest.h>
-#include <petsc.h>
-#include "cfemutils.h"
 #include <omp.h>
+#include <petsc.h>
+
+#include "cfemutils.h"
 
 int main(int argc, char **argv) {
     // omp_set_num_threads(1);

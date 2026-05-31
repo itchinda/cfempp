@@ -18,10 +18,10 @@
 
 #pragma once
 
-#include <symengine/symengine_config.h>
-#include <symengine/lambda_double.h>
-#include <vector>
 #include <memory>
+#include <symengine/lambda_double.h>
+#include <symengine/symengine_config.h>
+#include <vector>
 
 #include "cfemutils.h"
 

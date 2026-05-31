@@ -18,8 +18,9 @@
 
 #pragma once
 
-#include "LambdaExpressionBase.h"
 #include <type_traits>
+
+#include "LambdaExpressionBase.h"
 
 namespace cfem::sym
 {

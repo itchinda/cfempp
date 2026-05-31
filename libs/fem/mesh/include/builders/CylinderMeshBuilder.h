@@ -19,14 +19,15 @@
 #ifndef CFEM_UNIFORM_CYLINDER_MESH_BUILDER_H
 #define CFEM_UNIFORM_CYLINDER_MESH_BUILDER_H
 
-#include "cfemutils.h"
-#include "cfem_topology.h"
-#include "Vector3D.h"
-#include "Mesh.h"
-#include <map>
-#include <vector>
 #include <cmath>
+#include <map>
 #include <string>
+#include <vector>
+
+#include "cfem_topology.h"
+#include "cfemutils.h"
+#include "Mesh.h"
+#include "Vector3D.h"
 
 namespace cfem
 {

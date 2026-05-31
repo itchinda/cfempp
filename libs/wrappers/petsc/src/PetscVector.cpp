@@ -27,9 +27,9 @@
  * 
  *************************************************************************************** */
 
-#include "PetscVector.h"
 #include "cfemutils.h"
 #include "internal/petscUtils.h"
+#include "PetscVector.h"
 
 /** **************************************************************************************
  * @brief Construct a distributed PETSc vector.

@@ -17,11 +17,12 @@
 //************************************************************************
 
 #pragma once
+#include <atomic>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <atomic>
 #include <vector>
+
 #include "ContractException.h" // Intégration de tes contrats
 
 namespace cfem {

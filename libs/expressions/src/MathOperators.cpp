@@ -16,8 +16,7 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include "MathOperators.h"
-
+#include "AlgebraicSimplifier.h"
 #include "BinaryExpression.h"
 #include "CachedExpression.h"
 #include "ConstantExpression.h"
@@ -26,17 +25,17 @@
 #include "GradExpression.h"
 #include "LambdaExpression.h"
 #include "MagnitudeSqExpression.h"
-#include "UnaryExpression.h"
-#include "VariableExpression.h"
+#include "MathOperators.h"
+#include "ScaledExpression.h"
 #include "symengine/ScalarSymbolicExpression.h"
 #include "symengine/SymEngineSymbols.h"
-#include "symengine/VectorSymbolicExpression.h"
 #include "symengine/TensorSymbolicExpression.h"
-#include "VectorExpression.h"
+#include "symengine/VectorSymbolicExpression.h"
 #include "TensorExpression.h"
+#include "UnaryExpression.h"
+#include "VariableExpression.h"
+#include "VectorExpression.h"
 #include "ZeroExpression.h"
-#include "ScaledExpression.h"
-#include "AlgebraicSimplifier.h"
 
 using namespace cfem::sym::utils;
 

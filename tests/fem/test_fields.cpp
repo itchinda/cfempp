@@ -17,10 +17,11 @@
 //************************************************************************
 
 #include <gtest/gtest.h>
+
 #include "cfemutils.h"
-#include "Vector3D.h"
-#include "Tensor3D.h"
 #include "MathOperators.h"
+#include "Tensor3D.h"
+#include "Vector3D.h"
 
 using namespace cfem;
 using namespace cfem::sym;

@@ -19,8 +19,9 @@
 #ifndef CFEM_DGSPACE_H
 #define CFEM_DGSPACE_H
 
-#include "FESpace.h"
 #include <map>
+
+#include "FESpace.h"
 
 namespace cfem {
 

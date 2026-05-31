@@ -18,18 +18,17 @@
 
 #pragma once
 
-#include "ScalarSymbolicExpression.h"
-#include "VectorSymbolicExpression.h"
-#include "TensorSymbolicExpression.h"
-
-#include <vector>
 #include <functional>
-
+#include <symengine/basic.h>
 #include <symengine/expression.h>
+#include <symengine/functions.h>
 #include <symengine/lambda_double.h>
 #include <symengine/symbol.h>
-#include <symengine/functions.h>
-#include <symengine/basic.h>
+#include <vector>
+
+#include "ScalarSymbolicExpression.h"
+#include "TensorSymbolicExpression.h"
+#include "VectorSymbolicExpression.h"
 
 
 namespace cfem::sym

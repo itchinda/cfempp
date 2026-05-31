@@ -42,25 +42,23 @@
 #define CFEMPP_MESH
 
 #include <iostream>
-#include <vector>
-#include <string>
-#include <unordered_set>
-#include <stdexcept>
-#include <memory>
-#include <utility>
 #include <map>
+#include <memory>
+#include <optional>
 #include <set>
 #include <span>
-#include <optional>
+#include <stdexcept>
+#include <string>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
-#include "cfemutils.h"
 #include "cfem_topology.h"
-#include "MeshEntity.h"
-#include "GmshParser.h"
-#include "Vector3D.h"
+#include "cfemutils.h"
 #include "DynamicVector.h"
 #include "GmshParser.h"
-
+#include "MeshEntity.h"
+#include "Vector3D.h"
 
 constexpr CfemInt MAX_CELL_TYPES {static_cast<int>(cfem::CellType::COUNT)};
 namespace cfem{

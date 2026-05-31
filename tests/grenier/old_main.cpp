@@ -27,17 +27,17 @@
  * 5. Exporting data to VTK for Paraview visualization.
  */
 
+#include <cmath>
+#include <iostream>
+#include <memory>
+
 #include "cfemutils.h"
-#include "Vector3D.h"
+#include "FEField.h"
+#include "LagrangeSpace.h"
 #include "Mesh.h"
 #include "MeshConformityChecker.h"
-#include "LagrangeSpace.h"
-#include "FEField.h"
+#include "Vector3D.h"
 #include "VTKExporter.h"
-
-#include <iostream>
-#include <cmath>
-#include <memory>
 
 using namespace cfem;
 

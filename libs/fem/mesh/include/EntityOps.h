@@ -19,11 +19,12 @@
 #ifndef CFEM_ENTITY_OPS_H
 #define CFEM_ENTITY_OPS_H
 
+#include <algorithm>
+#include <string>
+#include <vector>
+
 #include "Mesh.h"
 #include "MeshEntity.h"
-#include <algorithm>
-#include <vector>
-#include <string>
 
 namespace cfem {
 namespace EntityOps {

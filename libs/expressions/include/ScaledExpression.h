@@ -17,9 +17,10 @@
 //************************************************************************
 
 #pragma once
-#include "CfemExpression.h"
-#include "BinaryExpression.h"
 #include <memory>
+
+#include "BinaryExpression.h"
+#include "CfemExpression.h"
 
 namespace cfem::sym {
 

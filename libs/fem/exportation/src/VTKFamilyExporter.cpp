@@ -16,14 +16,13 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include "cfemutils.h"
-
-#include "VTKFamilyExporter.h"
 #include "CfemExpression.h"
+#include "cfemutils.h"
 #include "FEField.h"
 #include "LagrangeSpace.h"
 #include "Mesh.h"
 #include "ReferenceElementFactory.h"
+#include "VTKFamilyExporter.h"
 
 
 namespace cfem

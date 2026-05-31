@@ -27,13 +27,14 @@
 #ifndef CFEM_DYNAMIC_VECTOR_
 #define CFEM_DYNAMIC_VECTOR_
 
+#include <algorithm>
+#include <cmath>
+#include <iostream>
+#include <iterator>
+#include <vector>
+
 #include "cfemutils.h"
 #include "FixedVector.h"
-#include <vector>
-#include <iostream>
-#include <cmath>
-#include <algorithm>
-#include <iterator>
 
 namespace cfem {
 

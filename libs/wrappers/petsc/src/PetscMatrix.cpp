@@ -25,10 +25,9 @@
  * @copyright Copyright (c) 2026
  *************************************************************************************** */
 
-#include "PetscMatrix.h"
-#include "internal/petscUtils.h"
-
 #include "cfemutils.h"
+#include "internal/petscUtils.h"
+#include "PetscMatrix.h"
 
 /** **************************************************************************************
  * @brief Construct a new PetscMatrix and allocate memory.

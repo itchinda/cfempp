@@ -18,8 +18,8 @@
 
 #ifndef CFEM_MESH_TPP
 #define CFEM_MESH_TPP
-#include "Mesh.h"
 #include "DynamicVector.h"
+#include "Mesh.h"
 #endif
 
 namespace cfem

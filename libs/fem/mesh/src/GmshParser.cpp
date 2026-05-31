@@ -16,10 +16,10 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
+#include <iostream>
+
 #include "GmshParser.h"
 #include "Mesh.h"
-
-#include <iostream>
 
 namespace cfem{
 

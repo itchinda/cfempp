@@ -27,11 +27,12 @@
 #ifndef CFEM_STATIC_VECTOR
 #define CFEM_STATIC_VECTOR
 
-#include "cfemutils.h"
-#include "Vector3D.h"
-#include <iostream>
 #include <cmath>
 #include <initializer_list>
+#include <iostream>
+
+#include "cfemutils.h"
+#include "Vector3D.h"
 
 
 namespace cfem{

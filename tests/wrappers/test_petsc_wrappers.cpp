@@ -26,11 +26,11 @@
  * @copyright Copyright (c) 2026
  *************************************************************************************** */
 
-#include <gtest/gtest.h>
-#include "PetscKSPSolver.h"
 #include <cmath>
+#include <gtest/gtest.h>
 
 #include "cfemutils.h"
+#include "PetscKSPSolver.h"
 
 //-------------------------------------------------------------
 // Linear solver correctness: Identity matrix

@@ -18,18 +18,17 @@
 
 #pragma once
 
-#include "cfemutils.h"
-#include "Vector3D.h"
-#include "CfemExpression.h"
-#include "ScalarSymbolicExpression.h"
-#include "EvalContext.h"
-#include <span>
 #include <memory>
-
+#include <span>
 #include <symengine/expression.h>
 #include <symengine/lambda_double.h>
 
+#include "CfemExpression.h"
+#include "cfemutils.h"
+#include "EvalContext.h"
+#include "ScalarSymbolicExpression.h"
 #include "SymbolicEvaluator.h"
+#include "Vector3D.h"
 
 
 namespace cfem::sym

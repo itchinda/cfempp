@@ -18,14 +18,15 @@
 
 #pragma once
 
-#include "CfemExpression.h"
-#include "Quadrature.h"
-#include "cfem_topology.h"
-#include "FESpace.h"
-#include <memory>
 #include <cmath>
-#include <stdexcept>
+#include <memory>
 #include <set>
+#include <stdexcept>
+
+#include "cfem_topology.h"
+#include "CfemExpression.h"
+#include "FESpace.h"
+#include "Quadrature.h"
 
 namespace cfem
 {

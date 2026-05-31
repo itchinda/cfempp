@@ -19,9 +19,10 @@
 #ifndef CFEM_REFERENCE_SEGMENT_H
 #define CFEM_REFERENCE_SEGMENT_H
 
-#include "ReferenceElement.h"
 #include <array>
 #include <span>
+
+#include "ReferenceElement.h"
 
 namespace cfem::reference_elem::utils {
 

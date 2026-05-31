@@ -18,8 +18,8 @@
 
 
 #include "symengine/ScalarSymbolicExpression.h"
-#include "symengine/VectorSymbolicExpression.h"
 #include "symengine/SymEngineSymbols.h"
+#include "symengine/VectorSymbolicExpression.h"
 
 namespace cfem::sym{
 

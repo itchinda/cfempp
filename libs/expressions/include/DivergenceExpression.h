@@ -18,13 +18,14 @@
 
 #pragma once
 
-#include "cfemutils.h"
-#include "Vector3D.h"
-#include "CfemExpression.h"
-#include "EvalContext.h"
-#include <span>
 #include <memory>
+#include <span>
 #include <vector>
+
+#include "CfemExpression.h"
+#include "cfemutils.h"
+#include "EvalContext.h"
+#include "Vector3D.h"
 
 namespace cfem::sym
 {

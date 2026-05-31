@@ -16,17 +16,17 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include <gtest/gtest.h>
-#include <vector>
-#include <memory>
 #include <cmath>
+#include <gtest/gtest.h>
+#include <memory>
+#include <vector>
 
+#include "Quadrature.h"
 #include "ReferenceElement.h"
-#include "ReferenceTriangle.h"
 #include "ReferenceQuad.h"
 #include "ReferenceSegment.h"
 #include "ReferenceTetrahedron.h"
-#include "Quadrature.h" 
+#include "ReferenceTriangle.h"
 
 using namespace cfem;
 

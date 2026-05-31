@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+import sys
+import subprocess
+
+# ANSI colors for Python
+RED = '\033[91m'
+GREEN = '\033[92m'
+YELLOW = '\033[93m'
+CYAN = '\033[96m'
+BOLD = '\033[1m'
+RESET = '\033[0m'
+
+COPYRIGHT_HEADER = [
+    "//************************************************************************",
+    "// --- CFEM++ Library",
+    "// ---",
+    "// --- Copyright 2024-2026 Ismaël Tchinda Ngueyong et al.",
+    "// --- ALL RIGHTS RESERVED",
+    "// ---",
+    "// --- This software is protected by international copyright laws.",
+    "// --- Use, distribution, or modification of this software in any form,",
+    "// --- source or binary, for personal, academic, or non-commercial ",
+    "// --- purposes is permitted free of charge, provided that this ",
+    "// --- copyright notice and this permission notice appear in all ",
+    "// --- copies and supporting documentation.",
+    "// ---",
+    "// --- The authors and contributors provide this code \"as is\" without ",
+    "// --- any express or implied warranty. In no event shall they be ",
+    "// --- held liable for any damages arising from the use of this software.",
+    "//************************************************************************"
+]
+
+def get_staged_cpp_files():
+    """Retrieves modified C++ files staged for commit."""
+    result = subprocess.run(['git', 'diff', '--cached', '--name-only', '--diff-filter=ACM'], 
+                            capture_output=True, text=True)
+    files = result.stdout.split('\n')
+    return [f for f in files if f.endswith(('.h', '.hpp', '.cpp', '.cc', '.cxx', '.tpp'))]
+
+def check_copyright(filepath, lines):
+    """Checks if the file starts with the exact copyright header."""
+    if len(lines) < len(COPYRIGHT_HEADER):
+        has_error = True
+    else:
+        has_error = False
+        # Compare line by line, stripping trailing whitespaces/newlines to avoid OS formatting issues
+        for i, expected_line in enumerate(COPYRIGHT_HEADER):
+            if lines[i].rstrip() != expected_line.rstrip():
+                has_error = True
+                break
+    
+    if has_error:
+        print(f"\n{RED}{BOLD} STANDARD ERROR: Missing or invalid copyright header in '{filepath}'{RESET}")
+        print(f"   {YELLOW}Please place the following exact text at the very top of the file:{RESET}\n")
+        for line in COPYRIGHT_HEADER:
+            print(f"{GREEN}{line}{RESET}")
+        print(f"\n   {CYAN}-------------------------------------------{RESET}")
+        return True
+
+    return False
+
+def check_includes(filepath, lines):
+    """Smartly checks, groups, and sorts includes in the header block."""
+    start_idx = -1
+    end_idx = -1
+    includes = []
+
+    # Extract the main include block at the top of the file
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith('#include'):
+            if start_idx == -1:
+                start_idx = i
+            end_idx = i
+            includes.append(stripped)
+        elif not stripped or stripped.startswith('//') or stripped.startswith('/*') or stripped.startswith('*'):
+            continue # Skip empty lines and comments (like the copyright)
+        elif stripped.startswith('#pragma') or stripped.startswith('#ifndef') or stripped.startswith('#define'):
+            continue # Skip header guards
+        else:
+            # We hit real code. Stop gathering includes.
+            if start_idx != -1:
+                break
+
+    if not includes:
+        return False
+
+    # Separate and remove duplicates using Sets
+    sys_includes = set()
+    loc_includes = set()
+
+    for inc in includes:
+        if '<' in inc and '>' in inc:
+            sys_includes.add(inc)
+        else:
+            loc_includes.add(inc)
+
+    # Sort intelligently (case-insensitive primary, case-sensitive secondary)
+    sys_list = sorted(list(sys_includes), key=lambda x: (x.lower(), x))
+    loc_list = sorted(list(loc_includes), key=lambda x: (x.lower(), x))
+
+    # Build the ideal block
+    ideal_block = []
+    if sys_list:
+        ideal_block.extend(sys_list)
+    if sys_list and loc_list:
+        ideal_block.append("") # Elegant empty line between system and local
+    if loc_list:
+        ideal_block.extend(loc_list)
+
+    ideal_str = "\n".join(ideal_block)
+
+    # Reconstruct the current block to compare
+    current_clean = []
+    for line in lines[start_idx:end_idx+1]:
+        s = line.strip()
+        if s.startswith('#include'):
+            current_clean.append(s)
+        elif s == '' and current_clean and current_clean[-1] != '':
+            current_clean.append('') # Keep only one empty line maximum
+            
+    while current_clean and current_clean[-1] == '':
+        current_clean.pop()
+        
+    current_str = "\n".join(current_clean)
+
+    # Compare and output
+    if ideal_str != current_str:
+        print(f"\n{RED}{BOLD} STANDARD ERROR: Unsorted, messy, or duplicate includes in '{filepath}'{RESET}")
+        print(f"   {CYAN}--- Lines {start_idx + 1} to {end_idx + 1} ---{RESET}")
+        print(f"   {YELLOW}Please replace them with this perfectly formatted block:{RESET}\n")
+        
+        for line in ideal_block:
+            if line == "":
+                print("")
+            else:
+                print(f"{GREEN}{line}{RESET}")
+                
+        print(f"\n   {CYAN}-------------------------------------------{RESET}")
+        return True
+
+    return False
+
+def main():
+    files = get_staged_cpp_files()
+    if not files:
+        sys.exit(0)
+
+    commit_blocked = False
+    for f in files:
+        with open(f, 'r', encoding='utf-8') as file_obj:
+            lines = file_obj.readlines()
+
+        # Run all our quality checks
+        if check_copyright(f, lines):
+            commit_blocked = True
+            
+        if check_includes(f, lines):
+            commit_blocked = True
+
+    if commit_blocked:
+        print(f"\n{RED}{BOLD} Commit aborted. Please fix the errors above and run 'git add <file>' again.{RESET}")
+        sys.exit(1)
+
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()

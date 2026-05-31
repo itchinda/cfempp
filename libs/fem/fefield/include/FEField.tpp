@@ -18,11 +18,11 @@
 
 #pragma once
 
-#include "FEField.h"
-#include "ReferenceElementFactory.h"
-#include "Mesh.h"
-
 #include <type_traits>
+
+#include "FEField.h"
+#include "Mesh.h"
+#include "ReferenceElementFactory.h"
 
 namespace cfem
 {

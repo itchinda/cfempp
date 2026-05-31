@@ -18,13 +18,14 @@
 
 #pragma once
 
-#include "cfemutils.h"
-#include "CfemExpression.h"
-#include "FESpace.h" 
-#include "EvalContext.h"
+#include <map>
 #include <memory>
 #include <string>
-#include <map>
+
+#include "CfemExpression.h"
+#include "cfemutils.h"
+#include "EvalContext.h"
+#include "FESpace.h"
 
 namespace cfem::sym {
 

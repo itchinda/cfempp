@@ -19,12 +19,12 @@
 #include <gtest/gtest.h>
 
 #include "cfemutils.h"
-#include "Mesh.h"
-#include "FEField.h"
-#include "MathOperators.h"
-#include "ScalarFunctionalEvaluator.h"
-#include "LagrangeSpace.h"
 #include "DGSpace.h"
+#include "FEField.h"
+#include "LagrangeSpace.h"
+#include "MathOperators.h"
+#include "Mesh.h"
+#include "ScalarFunctionalEvaluator.h"
 
 using namespace cfem;
 using namespace cfem::sym;

@@ -19,12 +19,11 @@
 #ifndef CFEM_MESH_EXPORTER_H
 #define CFEM_MESH_EXPORTER_H
 
-#include "cfemutils.h"
-#include "cfem_topology.h"
-
-
 #include <memory>
 #include <string>
+
+#include "cfem_topology.h"
+#include "cfemutils.h"
 
 namespace cfem {
 

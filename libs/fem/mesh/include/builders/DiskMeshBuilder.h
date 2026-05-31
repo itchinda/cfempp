@@ -19,13 +19,14 @@
 #ifndef CFEM_DISK_MESH_BUILDER_H
 #define CFEM_DISK_MESH_BUILDER_H
 
-#include "cfemutils.h"
-#include "cfem_topology.h"
-#include "Vector3D.h"
-#include "Mesh.h"
+#include <cmath>
 #include <map>
 #include <vector>
-#include <cmath>
+
+#include "cfem_topology.h"
+#include "cfemutils.h"
+#include "Mesh.h"
+#include "Vector3D.h"
 
 namespace cfem
 {

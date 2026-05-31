@@ -19,15 +19,12 @@
 #ifndef CFEM_ALGEBRA_H
 #define CFEM_ALGEBRA_H
 
-#include "cfemutils.h" 
-
-#include "FixedVector.h"
+#include "cfemutils.h"
 #include "FixedMatrix.h"
-
-#include "Vector2D.h"
-#include "Vector3D.h"
-
+#include "FixedVector.h"
 #include "Tensor2D.h"
 #include "Tensor3D.h"
+#include "Vector2D.h"
+#include "Vector3D.h"
 
 #endif

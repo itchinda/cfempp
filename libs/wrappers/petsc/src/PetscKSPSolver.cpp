@@ -27,11 +27,11 @@
  * 
  *************************************************************************************** */
 
-#include "PetscKSPSolver.h"
-#include "internal/petscUtils.h"
-#include "cfemutils.h"
-
 #include <iostream>
+
+#include "cfemutils.h"
+#include "internal/petscUtils.h"
+#include "PetscKSPSolver.h"
 
 /** **************************************************************************************
  * @brief Construct a new Solver with an optional PETSc prefix.

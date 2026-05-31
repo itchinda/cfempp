@@ -20,8 +20,8 @@
 #define CFEM_SURFACE_SPHERE_BUILDER_H
 
 #include "cfemutils.h"
-#include "Vector3D.h"
 #include "Mesh.h"
+#include "Vector3D.h"
 
 namespace cfem
 {

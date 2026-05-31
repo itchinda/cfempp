@@ -19,10 +19,10 @@
 #ifndef CFEM_BLOCK_MESH_BUILDER_H
 #define CFEM_BLOCK_MESH_BUILDER_H
 
-#include "cfemutils.h"
-#include "Vector3D.h"
 #include "cfem_topology.h"
+#include "cfemutils.h"
 #include "Mesh.h"
+#include "Vector3D.h"
 
 namespace cfem
 {

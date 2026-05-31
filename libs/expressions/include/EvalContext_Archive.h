@@ -18,14 +18,14 @@
 
 #pragma once
 
-#include "cfemutils.h"
-#include "Vector3D.h"
-#include "ReferenceElement.h"
-#include "DynamicVector.h"
-
 #include <deque>
-#include <vector>
 #include <span>
+#include <vector>
+
+#include "cfemutils.h"
+#include "DynamicVector.h"
+#include "ReferenceElement.h"
+#include "Vector3D.h"
 
 namespace cfem {
 

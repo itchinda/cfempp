@@ -18,8 +18,9 @@
 
 #pragma once
 
-#include "cfemutils.h"
 #include <type_traits>
+
+#include "cfemutils.h"
 
 namespace cfem
 {

@@ -19,17 +19,16 @@
 #pragma once
 
 #include "cfemutils.h"
-#include "Vector3D.h"
-#include "DynamicVector.h"
 #include "DynamicMatrix.h"
-#include "Tensor3D.h"
+#include "DynamicVector.h"
 #include "EvaluationFlags.h"
-
-#include "ShapeInfo.h"
-#include "ShapeInfoBatch.h"
 #include "MappingInfo.h"
 #include "MappingInfoBatch.h"
 #include "MappingInfoBatchView.h"
+#include "ShapeInfo.h"
+#include "ShapeInfoBatch.h"
+#include "Tensor3D.h"
+#include "Vector3D.h"
 
 namespace cfem::reference_elem
 {

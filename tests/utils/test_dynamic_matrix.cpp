@@ -17,9 +17,10 @@
 //************************************************************************
 
 #include <gtest/gtest.h>
+
 #include "DynamicMatrix.h"
-#include "FixedMatrix.h"
 #include "DynamicVector.h"
+#include "FixedMatrix.h"
 
 using namespace cfem;
 
