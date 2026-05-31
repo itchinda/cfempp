@@ -105,7 +105,7 @@ namespace cfem::sym
     std::shared_ptr<const CfemExpression> log(std::shared_ptr<const CfemExpression> u);
     std::shared_ptr<const CfemExpression> erf(std::shared_ptr<const CfemExpression> u);
     std::shared_ptr<const CfemExpression> erfc(std::shared_ptr<const CfemExpression> u);
-    std::shared_ptr<const CfemExpression>        tgamma(std::shared_ptr<const CfemExpression> u);
+    std::shared_ptr<const CfemExpression> tgamma(std::shared_ptr<const CfemExpression> u);
     std::shared_ptr<const CfemExpression> zeta(std::shared_ptr<const CfemExpression> u);
     /** @} */
 

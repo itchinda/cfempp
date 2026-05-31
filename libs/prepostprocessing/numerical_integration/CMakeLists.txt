@@ -1,5 +1,5 @@
 add_library(cfem_numerical_integration
-    src/FunctionIntegrator.cpp
+    src/ScalarFunctionalEvaluator.cpp
 )
 
 target_include_directories(cfem_numerical_integration

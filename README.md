@@ -93,7 +93,7 @@ The following example demonstrates how to generate a tetrahedral mesh, interpola
 #include "Mesh.h"
 #include "FEField.h"
 #include "MathOperators.h"
-#include "FunctionIntegrator.h"
+#include "ScalarFunctionalEvaluator.h"
 #include "LagrangeSpace.h"
 #include "VTUExporter.h"
 
@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
     // Error Analysis (Clean syntax, no explicit scheme params needed)
     CfemReal l2Norm_U, h1SemiNorm_U;
     IntegrationSchemeParams schemes_params{}; // Use default number of integration points
-    FunctionIntegrator integrator(mesh, schemes_params);
+    ScalarFunctionalEvaluator integrator(mesh, schemes_params);
     integrator.L2Norm(u - analytical_u, &l2Norm_U, &h1SemiNorm_U);    
     CFEM_INFO << "L2-norm error on u: " << l2Norm_U;
     CFEM_INFO << "H1-semi norm error on u: " << h1SemiNorm_U;

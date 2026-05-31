@@ -39,7 +39,7 @@
 
 namespace cfem
 {
-    class FEField : public sym::TrialFunction, public FESpaceObserver 
+    class FEField : public sym::TrialFunction, public FESpaceObserver, public std::enable_shared_from_this<FEField>
     {
     private:
         struct ConstructorToken {};

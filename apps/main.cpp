@@ -33,7 +33,7 @@
 // #include "Mesh.h"
 // #include "FEField.h"
 // #include "MathOperators.h"
-// #include "FunctionIntegrator.h"
+// #include "ScalarFunctionalEvaluator.h"
 // #include "LagrangeSpace.h"
 // #include "VTUExporter.h"
 
@@ -61,7 +61,7 @@
 //     // Error Analysis (Clean syntax, no explicit scheme params needed)
 //     CfemReal l2Norm_U, h1SemiNorm_U;
 //     IntegrationSchemeParams schemes_params{}; // Use default number of integration points
-//     FunctionIntegrator integrator(mesh, schemes_params);
+//     ScalarFunctionalEvaluator integrator(mesh, schemes_params);
 //     integrator.L2Norm(u - analytical_u, &l2Norm_U, &h1SemiNorm_U);    
 //     CFEM_INFO << "L2-norm error on u: " << l2Norm_U;
 //     CFEM_INFO << "H1-semi norm error on u: " << h1SemiNorm_U;
@@ -82,7 +82,7 @@
 #include "LagrangeSpace.h"
 #include "DGSpace.h"
 #include "FEField.h"
-#include "FunctionIntegrator.h"
+#include "ScalarFunctionalEvaluator.h"
 #include "VTKExporter.h"
 #include "VTUExporter.h"
 #include "MathOperators.h"
@@ -112,7 +112,8 @@ int main(int argc, char **argv)
         CfemReal y0 = 0;
         CfemReal z0 = 0;
         CfemReal r0 = 0.5;
-        CfemReal h = 0.0125;
+        CfemReal h = 0.0625;
+
         {
             PROFILE_SCOPE("MeshBuilding");
 
@@ -141,10 +142,10 @@ int main(int argc, char **argv)
             // mesh = Mesh::loadFromGmsh("../tests/grenier/stanford_bunny/bunny.msh");
             // mesh = Mesh::loadFromGmsh("../tests/grenier/wheel/wheel.msh");
 
-            // mesh = Mesh::sphere( MeshOrder::Quadratic,
-            //                      0.25,
+            // mesh = Mesh::sphere( MeshOrder::Linear,
+            //                      h,
             //                      Vector3D{0,0,0},
-            //                      0.5
+            //                      r0
             //                 );
 
             
@@ -205,8 +206,8 @@ int main(int argc, char **argv)
         {
             PROFILE_SCOPE("L2Norm");
             IntegrationSchemeParams schemes_params{};
-            FunctionIntegrator integrator(mesh, schemes_params);
-            // schemes_params.NumIntgPtTetElem = 1;
+            // schemes_params.NumIntgPtTetElem = 33;
+            ScalarFunctionalEvaluator integrator(mesh, schemes_params);
             CfemReal l2Norm_P, l2Norm_U, h1SemiNorm_P, h1SemiNorm_U;
             integrator.L2Norm(p - analytical_p, &l2Norm_P, &h1SemiNorm_P);
             integrator.L2Norm(u - analytical_u, &l2Norm_U, &h1SemiNorm_U);
@@ -216,7 +217,8 @@ int main(int argc, char **argv)
             // auto Proj = tensor(1 -normaleX*normaleX,   -normaleX*normaleY,   -normaleX*normaleZ,
             //                   -normaleY*normaleX, 1 -normaleY*normaleY,   -normaleY*normaleZ,
             //                   -normaleZ*normaleX,   -normaleZ*normaleY, 1 -normaleZ*normaleZ);
-            // CFEM_INFO << "surface error = " << sqrt( integrator.computeIntegral(mag_sqr( grad(u) - grad(analytical_u)*P ) ) );
+            // CfemReal s = integrator.computeIntegral(scalar(1), SYS_BOUNDARY_ID);
+            // CFEM_INFO << " Boundary surface = " << s << " Exact value: " << 4 * CFEM_PI * r0 * r0  << " Error " << std::abs( s - 4 * CFEM_PI * r0 * r0) ;
 
             // auto gradPanal = Proj*grad(analytical_p); //grad(analytical_p) - dot(grad(analytical_p), normale) * normale;
             // auto gradP = Proj*grad(p);  //grad(p) - dot(grad(p), normale) * normale;

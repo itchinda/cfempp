@@ -649,7 +649,7 @@ namespace cfem
 
     /**
      * @brief Computes physical gradients for the entire batch.
-     * @note Hyper-optimized utilizing SIMD friendly contiguous memory rows. 
+     * @note Optimized utilizing SIMD friendly contiguous memory rows. 
      * Correctly handles embedded manifolds (e.g., 1D/2D elements in 3D ambient space).
      */
     inline void ReferenceElement::computePhysicalFirstDerivativesBatch(const ShapeInfoBatch &shape,

@@ -91,10 +91,10 @@ protected:
 };
 
 
-// --- 1. TEST DE KRONECKER : N_i(node_j) = delta_ij ---
+// TEST DE KRONECKER : N_i(node_j) = delta_ij ---
 TEST_P(ReferenceElementTest, KroneckerDeltaProperty) {
     ReferenceElement* el = GetParam();
-    const auto& nodes = el->referenceNodes();
+    const auto& nodes = el->getReferenceNodes();
     CfemInt n = el->getNumNodes();
 
     for (CfemInt j = 0; j < n; ++j) {
@@ -110,7 +110,7 @@ TEST_P(ReferenceElementTest, KroneckerDeltaProperty) {
 
 TEST_P(ReferenceElementTest, PartitionOfUnity) {
     ReferenceElement* el = GetParam();
-    CfemInt dim = el->dimension();
+    CfemInt dim = el->getDimension();
     
     DynamicVector<Vector3D> test_points = getTestPointsForDim(dim);
 
@@ -129,10 +129,10 @@ TEST_P(ReferenceElementTest, PartitionOfUnity) {
     }
 }
 
-// --- 3. TEST DE LA SOMME DES GRADIENTS : Sum(Grad N_i) = 0 ---
+// TEST DE LA SOMME DES GRADIENTS : Sum(Grad N_i) = 0 ---
 TEST_P(ReferenceElementTest, GradientSumIsZero) {
     ReferenceElement* el = GetParam();
-    CfemInt dim {el->dimension()};
+    CfemInt dim {el->getDimension()};
 
     DynamicVector<Vector3D> test_points = getTestPointsForDim(dim);
 
@@ -157,7 +157,7 @@ TEST_P(ReferenceElementTest, HessianFullConsistency) {
 
     ReferenceElement* el = GetParam();
     const CfemInt n = el->getNumNodes();
-    const CfemInt dim = el->dimension();
+    const CfemInt dim = el->getDimension();
     
     // Réutilisation de tes test_points robustes
     DynamicVector<Vector3D> test_points = getTestPointsForDim(dim); 
@@ -198,7 +198,7 @@ TEST_P(ReferenceElementTest, HessianFullConsistency) {
 }
 
 
-// --- 1. TEST : ÉLÉMENT 2D DANS L'ESPACE 3D ---
+// TEST : ÉLÉMENT 2D DANS L'ESPACE 3D ---
 TEST_F(MappingTest, QuadPlanarMapping) {
     Q1ReferenceQuad quad;
     auto coords = createUnitQuad();
@@ -230,7 +230,7 @@ TEST_F(MappingTest, QuadPlanarMapping) {
     }
 }
 
-// --- 2. TEST : DISTORSION AFFINE (Cisaillement) ---
+// TEST : DISTORSION AFFINE (Cisaillement) ---
 // On teste si J^-T transforme correctement les angles
 TEST_F(MappingTest, Hex8ShearMapping) {
     Q1ReferenceHexahedron hex;
@@ -320,41 +320,7 @@ TEST_F(MappingTest, P2TriangleCurvedHessians) {
     }
 }
 
-
-
-// TEST_F(MappingTest, DegenerateAndInvertedTRIElement) {
-// #ifndef NDEBUG
-//     P1ReferenceTriangle tri;
-//     DynamicVector<Vector3D> coords(3);
-
-//     // CCW Triangle (Valid Orientation)
-//     coords[0] = {0, 0, 0};
-//     coords[1] = {1, 0, 0};
-//     coords[2] = {1, 1, 0};
-
-//     MappingInfo map;
-//     ShapeInfo shape;
-//     Vector3D xi{1.0/3.0, 1.0/3.0, 0}; // Centroid
-    
-//     // IMPORTANT: Evaluate the shape functions first!
-//     tri.evaluate(xi, ShapeEvaluationFlags::Gradient, shape);
-
-//     // 1. Check Initial State: Should be Valid (1)
-//     EXPECT_EQ(tri.checkInversion(shape, coords), 1);
-
-//     // 2. Degenerate State: Collapse nodes 1 and 2
-//     auto backup = coords[2];
-//     coords[2] = coords[1];
-//     EXPECT_EQ(tri.checkInversion(shape, coords), 0);
-//     coords[2] = backup;
-
-//     // 3. Inverted State: Swap 0 and 1 to make it Clockwise
-//     std::swap(coords[0], coords[1]); 
-//     EXPECT_EQ(tri.checkInversion(shape, coords), -1);
-// #endif
-// }
-
-// --- 5. TEST : PHYSICAL GRADIENT SUM = 0 (consistency check in physical space) ---
+// TEST : PHYSICAL GRADIENT SUM = 0 (consistency check in physical space) ---
 TEST_F(MappingTest, PhysicalGradientSumIsZero) {
     Q1ReferenceQuad quad;
     auto coords = createUnitQuad();
@@ -382,7 +348,7 @@ TEST_F(MappingTest, PhysicalGradientSumIsZero) {
     EXPECT_NEAR(sumGrad.z, 0.0, tol);
 }
 
-// --- 6. TEST : J * J_inv ≈ Identity (Jacobian inverse correctness) ---
+// J * J_inv ~= Identity (Jacobian inverse correctness) ---
 TEST_F(MappingTest, JacobianInverseCheck) {
     Q1ReferenceHexahedron hex;
     auto coords = createUnitHex();
@@ -413,89 +379,65 @@ TEST_F(MappingTest, JacobianInverseCheck) {
             EXPECT_NEAR(check(i,j), identity(i,j), tol);
 }
 
-// // --- 7. TEST : HIGH-ORDER 3D ELEMENT CURVATURE (P2 Tetrahedron) ---
-// TEST_F(MappingTest, P2TetraCurvedHessians) {
-//     P2ReferenceTetrahedron tet;
-//     DynamicVector<Vector3D> coords(10);
-
-//     // Unit tetrahedron
-//     coords[0]={0,0,0}; coords[1]={1,0,0}; coords[2]={0,1,0}; coords[3]={0,0,1};
-//     coords[4]={0.5,0,0}; coords[5]={0.5,0.5,0}; coords[6]={0,0.5,0};
-//     coords[7]={0,0,0.5}; coords[8]={0.5,0,0.5}; coords[9]={0,0.5,0.5};
-
-//     // Apply small perturbation to create curvature
-//     coords[5].x += 0.1; coords[5].y += 0.05; coords[9].z += 0.1;
-
-//     MappingInfo map;
-//     ShapeInfo shape;
-//     Vector3D xi{0.25, 0.25, 0.25};
-
-//     ShapeEvaluationFlags req = ShapeEvaluationFlags::Gradient | ShapeEvaluationFlags::Hessian;
-//     tet.computeMapping(xi, coords, req, shape, map);
-
-//     EXPECT_GT(map.detJ, 0.0);
-
-//     bool hasNonZeroHessian = false;
-//     for (CfemInt i=0; i<10; ++i) {
-//         const auto& H = map.physicalShapeHessians[i];
-//         if (std::abs(H.xx())>1e-5 || std::abs(H.yy())>1e-5 || std::abs(H.zz())>1e-5 ||
-//             std::abs(H.xy())>1e-5 || std::abs(H.xz())>1e-5 || std::abs(H.yz())>1e-5) {
-//             hasNonZeroHessian = true;
-//             break;
-//         }
-//     }
-//     EXPECT_TRUE(hasNonZeroHessian);
-// }
-
 /**
  * @test Verify that physical Hessians for a curved P2 Tetrahedron are correct.
  * For a P2 element, if we map the element to a specific quadratic transformation,
  * the physical Hessians should remain consistent with the chain rule.
  */
 TEST_F(MappingTest, P2TetraCurvedHessians) {
-    P2ReferenceTetrahedron tet; // Assuming you have this implemented (10 nodes)
+    P2ReferenceTetrahedron tet;
     const CfemInt n = tet.getNumNodes();
     DynamicVector<Vector3D> coords(n);
 
-    // 1. Define a curved physical geometry
-    // We start with a standard P2 tet and "push" the mid-side nodes to create curvature
-    const auto& refNodes = tet.referenceNodes();
+    // Define a curved physical geometry
+    const auto& refNodes = tet.getReferenceNodes();
     for(CfemInt i = 0; i < n; ++i) {
         coords[i] = refNodes[i];
-        
-        // Apply a quadratic distortion: x_phys = xi + a * xi^2
         coords[i].x += 0.2 * refNodes[i].x * refNodes[i].x;
         coords[i].y += 0.1 * refNodes[i].x * refNodes[i].y;
     }
 
     MappingInfo map;
     ShapeInfo shape;
-    Vector3D xi{0.25, 0.25, 0.25}; // Evaluation point (inside the tet)
+    Vector3D xi{0.25, 0.25, 0.25}; 
     
     ShapeEvaluationFlags shapeFlags = ShapeEvaluationFlags::FirstDerivatives | ShapeEvaluationFlags::SecondDerivatives;
     MappingEvaluationFlags mappingFlags = MappingEvaluationFlags::PhysicalFirstDerivatives | MappingEvaluationFlags::PhysicalSecondDerivatives;
 
     ASSERT_NO_THROW(tet.computeMapping(xi, coords, shapeFlags, mappingFlags, shape, map));
+    
+    // SANITY CHECK
+    EXPECT_GT(map.detJ, 0.0) << "Curved element became inverted!";
+    
+    bool hasNonZeroHessian = false;
+    for (CfemInt i = 0; i < n; ++i) {
+        const auto& H = map.hessian(i);
+        if (std::abs(H.xx())>1e-5 || std::abs(H.yy())>1e-5 || std::abs(H.zz())>1e-5 ||
+            std::abs(H.xy())>1e-5 || std::abs(H.xz())>1e-5 || std::abs(H.yz())>1e-5) {
+            hasNonZeroHessian = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(hasNonZeroHessian) << "All Hessians are zero! Mathematical checks below will falsely pass.";
 
-    //  VALIDATION: The Partition of Unity for Hessians: The sum of physical Hessians must be exactly zero.
+    // MATHEMATICAL CORRECTNESS
+    // The Partition of Unity: Sum of Hessians = 0
     SymTensor3D hessianSum;
     hessianSum.setZero();
     for (CfemInt i = 0; i < n; ++i) {
         hessianSum += map.hessian(i);
     }
-
     for (CfemInt i = 0; i < 6; ++i) {
-        EXPECT_NEAR(hessianSum[i], 0.0, 1e-12) 
+        EXPECT_NEAR(hessianSum[i], 0.0, 1e-12)
             << "Physical Hessian sum (Partition of Unity) failed at component " << i;
     }
 
-    // Linear Field Reproduction: If we interpolate the field u = x_phys + y_phys + z_phys, the second derivative (Hessian) should be zero.
+    // Linear Field Reproduction: u = x + y + z => H(u) = 0
     SymTensor3D fieldHessian;
     fieldHessian.setZero();
     for (CfemInt i = 0; i < n; ++i) {
         fieldHessian += map.hessian(i) * (coords[i].x + coords[i].y + coords[i].z);
     }
-
     for (CfemInt i = 0; i < 6; ++i) {
         EXPECT_NEAR(fieldHessian[i], 0.0, 1e-11) 
             << "Curvature cancellation failed! Component " << i 
@@ -508,7 +450,7 @@ TEST_F(MappingTest, P2TetraQuadraticFieldReproduction) {
     const CfemInt n = tet.getNumNodes();
     DynamicVector<Vector3D> coords(n);
 
-    const auto& refNodes = tet.referenceNodes();
+    const auto& refNodes = tet.getReferenceNodes();
 
     // Create a distorted element using a linear (affine) transformation.
     // This ensures a constant Jacobian, allowing the P2 element to 
@@ -580,7 +522,7 @@ TEST_F(MappingTest, P2TetraInterpolationSuite) {
     
     // 1. Setup Physical Coordinates (Distorted but Affine for exactness)
     DynamicVector<Vector3D> coords(n);
-    const auto& refNodes = tet.referenceNodes();
+    const auto& refNodes = tet.getReferenceNodes();
     for(CfemInt i = 0; i < n; ++i) {
         coords[i].x = 1.2 * refNodes[i].x + 0.1 * refNodes[i].y;
         coords[i].y = 0.9 * refNodes[i].y;

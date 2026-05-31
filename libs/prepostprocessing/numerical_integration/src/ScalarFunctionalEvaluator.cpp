@@ -16,7 +16,7 @@
 // --- held liable for any damages arising from the use of this software.
 //************************************************************************
 
-#include "FunctionIntegrator.h"
+#include "ScalarFunctionalEvaluator.h"
 #include "ReferenceElementFactory.h"
 #include "LagrangeSpace.h"
 #include "MathOperators.h"
@@ -36,16 +36,16 @@
 
 namespace cfem
 {
-    FunctionIntegrator::FunctionIntegrator(std::shared_ptr<const Mesh>    mesh,
+    ScalarFunctionalEvaluator::ScalarFunctionalEvaluator(std::shared_ptr<const Mesh>    mesh,
                            const IntegrationSchemeParams &schemes_params) : 
         m_mesh(std::move(mesh)),
         m_schemes_params(schemes_params)
     {
         if (!m_mesh)
-            CFEM_THROW("FunctionIntegrator requires a valid mesh.");
+            CFEM_THROW("ScalarFunctionalEvaluator requires a valid mesh.");
     }
 
-    void FunctionIntegrator::L2Norm(const std::shared_ptr<const sym::CfemExpression> &expr,
+    void ScalarFunctionalEvaluator::L2Norm(const std::shared_ptr<const sym::CfemExpression> &expr,
                             CfemReal                                         *l2Out,
                             CfemReal                                         *h1SemiOut,
                             const MeshEntity                                 &mesh_entity) 
@@ -60,82 +60,82 @@ namespace cfem
         if (h1SemiOut) *h1SemiOut = std::sqrt(std::max<CfemReal>(0.0, h1semi_sqr));
     }
 
-    void FunctionIntegrator::L2Norm(const std::shared_ptr<const sym::CfemExpression> &expr,
+    void ScalarFunctionalEvaluator::L2Norm(const std::shared_ptr<const sym::CfemExpression> &expr,
                             CfemReal                                         *l2Out, 
                             CfemReal                                         *h1SemiOut, 
                             const std::string                                &entity_name) {
         L2Norm(expr, l2Out, h1SemiOut, m_mesh->getEntityConst(entity_name));
     }
 
-    void FunctionIntegrator::L2Norm(const std::shared_ptr<const sym::CfemExpression> &expr,
+    void ScalarFunctionalEvaluator::L2Norm(const std::shared_ptr<const sym::CfemExpression> &expr,
                                     CfemReal                                         *l2Out,
                                     CfemReal                                         *h1SemiOut,
                                     CfemInt                                           entity_id) {
         L2Norm(expr, l2Out, h1SemiOut, m_mesh->getEntityConst(entity_id));
     }
 
-    void FunctionIntegrator::L2Norm(const std::shared_ptr<const sym::CfemExpression> &expr,
+    void ScalarFunctionalEvaluator::L2Norm(const std::shared_ptr<const sym::CfemExpression> &expr,
                                     CfemReal                                         *l2Out, 
                                     CfemReal                                         *h1SemiOut) {
         L2Norm(expr, l2Out, h1SemiOut, m_mesh->getEntityConst(UNIVERSE_ID));
     }
 
-    CfemReal FunctionIntegrator::computeIntegral(const std::shared_ptr<const sym::CfemExpression> &expr, 
+    CfemReal ScalarFunctionalEvaluator::computeIntegral(const std::shared_ptr<const sym::CfemExpression> &expr, 
                                          const MeshEntity &entity) {
         CfemReal result = 0.0;
         dispatchIntegration({{expr, &result}}, entity, m_mesh->getEntityConst(UNIVERSE_ID));
         return result;
     }
 
-    CfemReal FunctionIntegrator::computeIntegral(const std::shared_ptr<const sym::CfemExpression> &expr) {
+    CfemReal ScalarFunctionalEvaluator::computeIntegral(const std::shared_ptr<const sym::CfemExpression> &expr) {
         return computeIntegral(expr, m_mesh->getEntityConst(UNIVERSE_ID));
     }
 
-    CfemReal FunctionIntegrator::computeIntegral(const std::shared_ptr<const sym::CfemExpression> &expr,
+    CfemReal ScalarFunctionalEvaluator::computeIntegral(const std::shared_ptr<const sym::CfemExpression> &expr,
                                                  const std::string                                &entity_name) {
         return computeIntegral(expr, m_mesh->getEntityConst(entity_name));
     }
 
-    CfemReal FunctionIntegrator::computeIntegral(const std::shared_ptr<const sym::CfemExpression> &expr,
+    CfemReal ScalarFunctionalEvaluator::computeIntegral(const std::shared_ptr<const sym::CfemExpression> &expr,
                                                  CfemInt                                           entity_id) {
         return computeIntegral(expr, m_mesh->getEntityConst(entity_id));
     }
 
     // ********************************************************************************************** 
 
-    CfemReal FunctionIntegrator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
+    CfemReal ScalarFunctionalEvaluator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
                                              CfemInt boundaryId) 
     {
         return computeFlux(expr, m_mesh->getEntityConst(boundaryId), m_mesh->getEntityConst(UNIVERSE_ID));
     }
 
-    CfemReal FunctionIntegrator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
+    CfemReal ScalarFunctionalEvaluator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
                                              const std::string& boundary_name) 
     {
         return computeFlux(expr, m_mesh->getEntityConst(boundary_name), m_mesh->getEntityConst(UNIVERSE_ID));
     }
 
-    CfemReal FunctionIntegrator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
+    CfemReal ScalarFunctionalEvaluator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
                                              const std::string& boundary_name,
                                              const std::string& volume_name) 
     {
         return computeFlux(expr, m_mesh->getEntityConst(boundary_name), m_mesh->getEntityConst(volume_name));
     }
 
-    CfemReal FunctionIntegrator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
+    CfemReal ScalarFunctionalEvaluator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
                                              CfemInt boundary_id,
                                              CfemInt volume_id) 
     {
         return computeFlux(expr, m_mesh->getEntityConst(boundary_id), m_mesh->getEntityConst(volume_id));
     }
 
-    CfemReal FunctionIntegrator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
+    CfemReal ScalarFunctionalEvaluator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
                                              const MeshEntity& boundary_entity) 
     {
         return computeFlux(expr, boundary_entity, m_mesh->getEntityConst(UNIVERSE_ID));
     }
 
-    CfemReal FunctionIntegrator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
+    CfemReal ScalarFunctionalEvaluator::computeFlux(const std::shared_ptr<const sym::CfemExpression>& expr, 
                                             const MeshEntity& boundary_entity, 
                                             const MeshEntity& volume_entity)
     {
@@ -183,7 +183,7 @@ namespace cfem
         return totalFlux;
     }
 
-    void FunctionIntegrator::dispatchIntegration(const std::vector<EvaluationTarget> &targets,
+    void ScalarFunctionalEvaluator::dispatchIntegration(const std::vector<EvaluationTarget> &targets,
                                                  const MeshEntity                    &entity,
                                                  const MeshEntity                    &volume) 
     {
@@ -200,7 +200,7 @@ namespace cfem
         else for (const auto &target : targets) if (target.second) *(target.second) = 0.0;
     }
 
-void FunctionIntegrator::integrate(const std::vector<EvaluationTarget> &targets,
+    void ScalarFunctionalEvaluator::integrate(const std::vector<EvaluationTarget> &targets,
                                        const MeshEntity                    &entity)
     {
         if (targets.empty()) return;
@@ -220,7 +220,7 @@ void FunctionIntegrator::integrate(const std::vector<EvaluationTarget> &targets,
             if (!targets[i].first) continue;
 
             if (targets[i].first->getNumComponents() != 1) {
-                CFEM_THROW("FunctionIntegrator only accepts scalar expressions. "
+                CFEM_THROW("ScalarFunctionalEvaluator only accepts scalar expressions. "
                         << "Please pass each component separately.");
             }
 
@@ -357,7 +357,7 @@ void FunctionIntegrator::integrate(const std::vector<EvaluationTarget> &targets,
                     CfemInt nQp = cache->xiPoints.size();
                     
                     // Seul le Owner géométrique nécessite un redimensionnement (setup)
-                    mapGeoBatch.setup(nQp, refElGeo->getNumNodes(), refElGeo->dimension(), false);
+                    mapGeoBatch.setup(nQp, refElGeo->getNumNodes(), refElGeo->getDimension(), false);
                     
                     if (batchOutVals.size() < static_cast<size_t>(nQp)) {
                         batchOutVals.resize(nQp);
@@ -458,22 +458,28 @@ void FunctionIntegrator::integrate(const std::vector<EvaluationTarget> &targets,
         }
     }
 
-    void FunctionIntegrator::integrateBoundary(const std::vector<EvaluationTarget> &targets,
-                                       const MeshEntity                    &boundary,
-                                       const MeshEntity                    &volume)
+    void ScalarFunctionalEvaluator::integrateBoundary(const std::vector<EvaluationTarget> &targets,
+                                           const MeshEntity                    &boundary,
+                                           const MeshEntity                    &volume)
     {
         if (targets.empty() || !boundary.containsFacets() || !volume.containsCells()) return;
 
+        // ============================================================
+        // BINDING
+        // ============================================================
         std::vector<size_t> activeIdx;
         ShapeEvaluationFlags fieldShapesFlags = ShapeEvaluationFlags::None;
         std::set<std::shared_ptr<const FESpace>> requiredSpaces;
         bool fieldsDependsOnGeoNormal = false;
+        
+        CfemInt geoOrder = m_mesh->getOrderInt();
+        CfemInt spatialDim = m_mesh->getSpatialDimension();
 
         for (size_t i = 0; i < targets.size(); ++i) {
             if (!targets[i].first) continue;
 
             if (targets[i].first->getNumComponents() != 1) {
-                CFEM_THROW( "FunctionIntegrator only accepts scalar expressions. "
+                CFEM_THROW( "ScalarFunctionalEvaluator only accepts scalar expressions. "
                            << "Please pass each component separately.");
             }
 
@@ -500,38 +506,43 @@ void FunctionIntegrator::integrate(const std::vector<EvaluationTarget> &targets,
             targets[idx].first->bind(spaceToId);
         }
 
-        // const bool needsFieldFirstDerivatives = hasFlag(fieldShapesFlags, ShapeEvaluationFlags::Gradient);
-        // const ShapeEvaluationFlags geoFlags = ShapeEvaluationFlags::Value | ShapeEvaluationFlags::Jacobian;
-        // const ShapeEvaluationFlags normalEvalFlag = hasFlag(fieldShapesFlags, ShapeEvaluationFlags::Normal)? ShapeEvaluationFlags::Normal : ShapeEvaluationFlags::None;
-
         const bool needsFieldFirstDerivatives = hasFlag(fieldShapesFlags, ShapeEvaluationFlags::FirstDerivatives);
         const bool needsFieldSecondDerivatives = hasFlag(fieldShapesFlags, ShapeEvaluationFlags::SecondDerivatives);
         
+        // Facet flags (for dS, Normal et Position) ---
         const MappingEvaluationFlags facetGeoMappingFlags = MappingEvaluationFlags::PhysicalPosition | 
                                                             MappingEvaluationFlags::Determinant |
-                                                            (fieldsDependsOnGeoNormal? MappingEvaluationFlags::Normal : MappingEvaluationFlags::None);
-        const ShapeEvaluationFlags facetGeoShapeFlags = fieldShapesFlags | transformMappingToShapeFlags(facetGeoMappingFlags);
+                                                            (fieldsDependsOnGeoNormal ? MappingEvaluationFlags::Normal : MappingEvaluationFlags::None);
+        const ShapeEvaluationFlags facetGeoShapeFlags = transformMappingToShapeFlags(facetGeoMappingFlags);
+        
+        // Parent flags (Parent geo mapping inverse jacobian for derivatives if required)
         const ShapeEvaluationFlags parentGeoShapeFlags = fieldShapesFlags;
         const MappingEvaluationFlags parentGeoMappingFlags = transformShapeToMappingFlags(fieldShapesFlags);
 
 
         IntegrationScheme scheme;
 
-        struct BoundarySpaceCache {
+        // ============================================================
+        // HIBRID BATCH CACHING (Face + Volume)
+        // ============================================================
+        struct BoundarySpaceCacheBatch {
             CfemInt contextIndex; 
-            std::vector<ShapeInfo> shapes; 
+            ShapeInfoBatch shapesBatch; // Shapes evaluated at the facet nodes projected on the parent cell
+            CfemInt paddedNodeStride;   // This will serve in the MappingInfoBatchView for HPC flat data storage
         };
         
-        struct BoundaryCacheEntry {
+        struct BoundaryCacheEntryBatch {
             const QuadratureRule* quad = nullptr;
-            std::vector<ShapeInfo> geoShapesParent; 
-            std::vector<ShapeInfo> geoShapesFacet;
-            std::vector<BoundarySpaceCache> spaceCaches;
+            DynamicVector<Vector3D> xiFacetPoints;  // Reference facet coords
+            DynamicVector<Vector3D> xiParentPoints; // Projected corrds on the parent cell
+            
+            ShapeInfoBatch geoShapesParentBatch; 
+            ShapeInfoBatch geoShapesFacetBatch;
+            std::vector<BoundarySpaceCacheBatch> spaceCaches;
         };
         
-        std::vector<std::vector<BoundaryCacheEntry>> parentFaceCache(static_cast<int>(CellType::COUNT));
-        
-        CfemInt geoOrder = m_mesh->getOrderInt();
+        // Indexed by: [CellType][LocalFacetId]
+        std::vector<std::vector<BoundaryCacheEntryBatch>> parentFaceCache(static_cast<int>(CellType::COUNT));
 
         for (CellType cType : m_mesh->getCellTypesPresent()) 
         {
@@ -550,51 +561,71 @@ void FunctionIntegrator::integrate(const std::vector<EvaluationTarget> &targets,
 
                 auto& entry = parentFaceCache[cIdx][f_local];
                 entry.quad = &quad;
-                entry.geoShapesParent.resize(lQuadPts.size());
-                entry.geoShapesFacet.resize(lQuadPts.size());
                 
-                for (const auto& space : idToSpace) {
-                    entry.spaceCaches.push_back({spaceToId[space.get()], std::vector<ShapeInfo>(lQuadPts.size())});
+                CfemInt nQp = static_cast<CfemInt>(lQuadPts.size());
+                entry.xiFacetPoints.resize(nQp);
+                entry.xiParentPoints.resize(nQp);
+                
+                // Quadrature points batch pre-projection
+                for (CfemInt q = 0; q < nQp; ++q) {
+                    entry.xiFacetPoints[q] = lQuadPts[q].xi;
+                    entry.xiParentPoints[q] = refElParentGeo.projectFacetRefCoordToCellRefCoord(f_local, lQuadPts[q].xi);
                 }
 
-                for (size_t q = 0; q < lQuadPts.size(); ++q) 
-                {
-                    Vector3D xi_parent = refElParentGeo.projectFacetRefCoordToCellRefCoord(f_local, lQuadPts[q].xi);
+                // Batch shapes evaluations
+                refElFacetGeo.evaluateShapesBatch(entry.xiFacetPoints, facetGeoShapeFlags, entry.geoShapesFacetBatch);
+                entry.geoShapesFacetBatch.shapeMustBeUpdated = false;
+                
+                // Batch shape evaluation on the parent cell using the projected reference facet coords
+                refElParentGeo.evaluateShapesBatch(entry.xiParentPoints, parentGeoShapeFlags, entry.geoShapesParentBatch);
+                entry.geoShapesParentBatch.shapeMustBeUpdated = false;
 
-                    //refElFacetGeo.evaluate(lQuadPts[q].xi, geoFlags, entry.geoShapesFacet[q]);
-                    refElFacetGeo.evaluateShapes(lQuadPts[q].xi, facetGeoShapeFlags, entry.geoShapesFacet[q]);
-                    entry.geoShapesFacet[q].shapeMustBeUpdated = false;
+                // Caching des espaces métiers
+                for (size_t sIdx = 0; sIdx < idToSpace.size(); ++sIdx) {
+                    BoundarySpaceCacheBatch spCache;
+                    spCache.contextIndex = spaceToId[idToSpace[sIdx].get()];
                     
-                    refElParentGeo.evaluateShapes(xi_parent, parentGeoShapeFlags, entry.geoShapesParent[q]);
-                    entry.geoShapesParent[q].shapeMustBeUpdated = false;
-
-                    for (size_t sIdx = 0; sIdx < idToSpace.size(); ++sIdx) {
-                        CfemInt spaceOrder = idToSpace[sIdx]->getOrderInt();
-                        
-                        const auto& refElSpace = ReferenceElementFactory::getReferenceElement(cType, spaceOrder);
-                        refElSpace.evaluateShapes(xi_parent, fieldShapesFlags, entry.spaceCaches[sIdx].shapes[q]);
-                        entry.spaceCaches[sIdx].shapes[q].shapeMustBeUpdated = false;
-                    }
+                    CfemInt spaceOrder = idToSpace[sIdx]->getOrderInt();
+                    const auto& refElSpace = ReferenceElementFactory::getReferenceElement(cType, spaceOrder);
+                    
+                    // Fields/expressions are evaluated at the PROJECTED coordinates (xiParentPoints)
+                    refElSpace.evaluateShapesBatch(entry.xiParentPoints, fieldShapesFlags, spCache.shapesBatch);
+                    spCache.shapesBatch.shapeMustBeUpdated = false;
+                    
+                    spCache.paddedNodeStride = kernel_utils::computePaddedStride(spCache.shapesBatch.numNodes);
+                    
+                    entry.spaceCaches.push_back(std::move(spCache));
                 }
             }
         }
 
         const std::vector<CfemInt> &facet_ids = boundary.getFacetIds();
 
+        // ============================================================
+        // INTEGRATION LOOP USING THE BATCH ARCHITECTURE
+        // ============================================================
     #pragma omp parallel
         {
             std::vector<CfemReal> threadTotals(targets.size(), 0.0);
             EvalContext ctx;
-            CfemReal outVal[9] = {0.0};
-            std::span<CfemReal> spanOut(outVal, 1);
+            std::vector<CfemReal> batchOutVals; 
 
-            MappingInfo mapSurf;   
-            MappingInfo mapParentGeo; 
-            std::vector<MappingInfo> spaceMappings(idToSpace.size()); 
+            // Two geometrics owners :one for the surface, another for the volume
+            MappingInfoBatch mapFacetGeoBatch; 
+            MappingInfoBatch mapParentGeoBatch; 
+            
+            MappingInfoBatchView geoFacetView;
+            std::vector<MappingInfoBatchView> spaceMappingsViews(idToSpace.size()); 
             
             DynamicVector<Vector3D> facetNodes;
             DynamicVector<Vector3D> parentNodes;
-            ShapeInfo facetShape; 
+            
+            CellType lastParentType = CellType::COUNT; 
+            CfemInt lastLocalFacet = -1;
+            
+            const ReferenceElement* refElFacetGeo = nullptr;
+            const ReferenceElement* refElParentGeo = nullptr;
+            const BoundaryCacheEntryBatch* cache = nullptr;
 
     #pragma omp for schedule(static)
             for (CfemInt i = 0; i < boundary.getNumFacets(); ++i)
@@ -615,105 +646,108 @@ void FunctionIntegrator::integrate(const std::vector<EvaluationTarget> &targets,
                 
                 if (parentId == -1) continue;
 
+                const auto &parentCell = m_mesh->getCell(parentId);
                 const bool isAffine = (geoOrder == 1) || m_mesh->isCellAffine(parentId);
 
-                const auto &parentCell = m_mesh->getCell(parentId);
-                const auto& cache = parentFaceCache[static_cast<int>(parentCell.type)][localFacetId];
-                const auto &lQuadPts = cache.quad->getPoints();
+                // Cache and allocationb management
+                if (parentCell.type != lastParentType || localFacetId != lastLocalFacet) {
+                    lastParentType = parentCell.type;
+                    lastLocalFacet = localFacetId;
+                    
+                    refElFacetGeo = &ReferenceElementFactory::getReferenceElement(facet.type, geoOrder);
+                    refElParentGeo = &ReferenceElementFactory::getReferenceElement(parentCell.type, geoOrder);
+                    cache = &parentFaceCache[static_cast<int>(lastParentType)][lastLocalFacet];
+
+                    CfemInt nQp = cache->xiFacetPoints.size();
+                    
+                    mapFacetGeoBatch.setup(nQp, refElFacetGeo->getNumNodes(), refElFacetGeo->getDimension(), false);
+                    mapParentGeoBatch.setup(nQp, refElParentGeo->getNumNodes(), refElParentGeo->getDimension(), false);
+                    
+                    if (batchOutVals.size() < static_cast<size_t>(nQp)) {
+                        batchOutVals.resize(nQp);
+                    }
+                }
 
                 m_mesh->getFacetVerticesCoords(fid, facetNodes);
                 m_mesh->getCellVerticesCoords(parentId, parentNodes);
 
-                mapSurf.setup(static_cast<int>(facetNodes.size()));
-                mapParentGeo.setup(static_cast<int>(parentNodes.size()));
-                
-                for (size_t sIdx = 0; sIdx < idToSpace.size(); ++sIdx) {
-                    spaceMappings[sIdx].setup(static_cast<int>(cache.spaceCaches[sIdx].shapes[0].numNodes)); 
+                // -------------------------------------------------------------
+                // GEOMETRY BATCH EVALUATION (Surface et Volume)
+                // -------------------------------------------------------------
+                mapFacetGeoBatch.isCellAffine = isAffine;
+                mapParentGeoBatch.isCellAffine = isAffine;
+
+                refElFacetGeo->computeMappingBatch(cache->xiFacetPoints, facetNodes, facetGeoMappingFlags, 
+                                                   cache->geoShapesFacetBatch, mapFacetGeoBatch);
+
+                if (needsFieldFirstDerivatives || needsFieldSecondDerivatives) {
+                    refElParentGeo->computeMappingBatch(cache->xiParentPoints, parentNodes, parentGeoMappingFlags, 
+                                                        cache->geoShapesParentBatch, mapParentGeoBatch);
                 }
 
-                const auto &refElFacet = ReferenceElementFactory::getReferenceElement(facet.type, geoOrder);
-                const auto &refElParentGeo = ReferenceElementFactory::getReferenceElement(parentCell.type, geoOrder);
+                geoFacetView = mapFacetGeoBatch.createView();
 
-                if (isAffine) {
-                    refElParentGeo.computeMapping(
-                        lQuadPts[0].xi,
-                        parentNodes, 
-                        parentGeoMappingFlags, 
-                        cache.geoShapesParent[0], 
-                        mapParentGeo
-                    );
-                    refElFacet.computeMapping(
-                        lQuadPts[0].xi,
-                        facetNodes, 
-                        facetGeoMappingFlags,
-                        cache.geoShapesFacet[0],
-                        mapSurf
-                    );
-                }
+                // -------------------------------------------------------------
+                // HYBRID VIEW ON THE MAPPING AND ARENA
+                // -------------------------------------------------------------
+                ctx.resetBuffers(); 
+                CfemInt nQp = cache->xiFacetPoints.size();
 
-                for (size_t q = 0; q < lQuadPts.size(); ++q)
-                {
-                    const auto &qp = lQuadPts[q];
-
-                    Vector3D xi_parent = refElParentGeo.projectFacetRefCoordToCellRefCoord(localFacetId, qp.xi);
-
-                    if (isAffine) {
-                        // On ne calcule QUE la position physique, detJ et invJ sont déjà dans mapSurf
-                        refElFacet.computeMapping(
-                            qp.xi,
-                            facetNodes, 
-                            MappingEvaluationFlags::PhysicalPosition,
-                            cache.geoShapesFacet[q],
-                            mapSurf
-                        );
-                    } else {
-                        if (needsFieldFirstDerivatives || needsFieldSecondDerivatives) {
-                            refElParentGeo.computeMapping(
-                                xi_parent,
-                                parentNodes,
-                                parentGeoMappingFlags,
-                                cache.geoShapesParent[q],
-                                mapParentGeo
-                            );
-                        }
-                        // pour une face courbee, on doit recalculer le jacobien de la transformation
-                        refElFacet.computeMapping(
-                            qp.xi,
-                            facetNodes, 
-                            facetGeoMappingFlags,
-                            cache.geoShapesFacet[q], 
-                            mapSurf
-                        );
-                    }
-
-                    const CfemReal dS = mapSurf.detJ * qp.weight;
+                for (size_t sIdx = 0; sIdx < cache->spaceCaches.size(); ++sIdx) {
+                    const auto& spCache = cache->spaceCaches[sIdx];
                     
-                    ctx.resetBuffers(); 
-                    ctx.currentCellId = parentId;
-                    ctx.singleWS.xi = xi_parent; 
-                    ctx.singleWS.physPos = mapSurf.physicalPosition; 
-                    ctx.geometricMapping = &mapSurf;
+                    // Lightweight view
+                    spaceMappingsViews[sIdx] = geoFacetView; 
+                    
+                    if (needsFieldFirstDerivatives) {
+                        // Here we need the parent inverse mapping jacobian
+                        spaceMappingsViews[sIdx].invJacobians = mapParentGeoBatch.invJacobians;
+                        spaceMappingsViews[sIdx].validFlags |= MappingEvaluationFlags::InverseJacobian;
 
-                    for (size_t sIdx = 0; sIdx < cache.spaceCaches.size(); ++sIdx) {
-                        const auto& spCache = cache.spaceCaches[sIdx];
-                        MappingInfo& mapSpace = spaceMappings[sIdx];
-
-                        if (needsFieldFirstDerivatives) {
-                            mapSpace.detJ = mapParentGeo.detJ;
-                            mapSpace.invJacobian = mapParentGeo.invJacobian;
-                            mapSpace.physicalPosition = mapSurf.physicalPosition;
-                            mapSpace.validFlags |=  MappingEvaluationFlags::PhysicalPosition | MappingEvaluationFlags::InverseJacobian;
-
-                            refElParentGeo.computePhysicalFirstDerivatives(spCache.shapes[q], mapSpace);
-                        }
+                        CfemInt paddedNodes = spCache.paddedNodeStride;
+                        std::span<CfemReal> arenaStorage = ctx.getBuffer(spatialDim * nQp * paddedNodes);
                         
-                        ctx.setSpaceData(spCache.contextIndex, &spCache.shapes[q], &mapSpace);
+                        spaceMappingsViews[sIdx].setupPhysicalDerivativesMemory(arenaStorage, spCache.shapesBatch.numNodes, spatialDim, nQp);
+                        
+                        // CRITICAL: Derivatives are computed using the parent geo mapping
+                        refElParentGeo->computePhysicalFirstDerivativesBatch(spCache.shapesBatch, spaceMappingsViews[sIdx]);
                     }
+                }
 
-                    for (size_t idx : activeIdx) {
-                        targets[idx].first->evaluate(parentId, xi_parent, spanOut, ctx); // Exactement comme l'archive (parentId)
-                        threadTotals[idx] += spanOut[0] * dS;
+                // -------------------------------------------------------------
+                // BINDING IN THE CONTEXT
+                // -------------------------------------------------------------
+                ctx.currentCellId = parentId;
+                ctx.geometricMappingBatch = &geoFacetView;
+                ctx.batchWS.physPos = &mapFacetGeoBatch.physicalPositions;
+
+                for (size_t sIdx = 0; sIdx < cache->spaceCaches.size(); ++sIdx) {
+                    ctx.setSpaceDataBatch(
+                        cache->spaceCaches[sIdx].contextIndex, 
+                        &cache->spaceCaches[sIdx].shapesBatch, 
+                        &spaceMappingsViews[sIdx]
+                    );
+                }
+
+                // -------------------------------------------------------------
+                // FIELD EVALUATION ON THE BOUNDARY
+                // -------------------------------------------------------------
+                const auto &lQuadPts = cache->quad->getPoints();
+                std::span<CfemReal> spanOutBatch(batchOutVals.data(), nQp);
+
+                for (size_t idx : activeIdx) {
+                    auto bookmark = ctx.getBookmark();
+
+                    targets[idx].first->evaluateBatch(parentId, nQp, spanOutBatch, ctx);
+
+                    CfemReal localSum = 0.0;
+                    for (CfemInt q = 0; q < nQp; ++q) {
+                        // Le mapFacetGeoBatch.detJs[q] contient bien le 'dS' surfacique.
+                        localSum += spanOutBatch[q] * mapFacetGeoBatch.detJs[q] * lQuadPts[q].weight;
                     }
+                    threadTotals[idx] += localSum;
+
+                    ctx.releaseToBookmark(bookmark); 
                 }
             }
 

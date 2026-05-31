@@ -282,7 +282,7 @@ TEST_F(MappingAccuracyTest, SlantedGradient3D) {
     DynamicVector<CfemReal> nodalValues = {0.0, std::sqrt(2.0), 0.0};
 
     ref.computeMapping(
-        ref.referenceNodes()[1],
+        ref.getReferenceNodes()[1],
         nodes,
         ShapeEvaluationFlags::FirstDerivatives,
         MappingEvaluationFlags::PhysicalFirstDerivatives,

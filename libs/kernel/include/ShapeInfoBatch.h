@@ -35,9 +35,11 @@ namespace cfem
      * ### HPC Design (Structure of Arrays - SoA)
      * To maximize SIMD auto-vectorization and cache hits, all evaluations (values, gradients, Hessians) 
      * for all quadrature points and all nodes are flattened into a single 1D `DynamicVector`.
-     * * Memory Layout for a given quadrature point `q`:
+     * 
+     * Memory Layout for a given quadrature point `q`:
      * `[ N_nodes... | dxi_nodes... | deta_nodes... | dzeta_nodes... | (Hessians...) ]`
-     * * Each field block is padded to ensure it starts on a SIMD-friendly memory boundary (e.g., 64 bytes).
+     * 
+     * Each field block is padded to ensure it starts on a SIMD-friendly memory boundary (e.g., 64 bytes).
      * Lightweight view accessors (e.g., `dN_dxi(q)`) return raw pointers to these aligned blocks.
      */
     struct ShapeInfoBatch
@@ -63,8 +65,9 @@ namespace cfem
         CfemInt qpStride = 0;            ///< Total stride per quadrature point (all fields combined)
         bool hasSecondDerivatives = false;
 
-        /** * @brief Prepares buffer sizes and strides to prevent runtime reallocations.
-         * * @param nQp Number of quadrature points in the batch.
+        /** 
+         * @brief Prepares buffer sizes and strides to prevent runtime reallocations.
+         * @param nQp Number of quadrature points in the batch.
          * @param nNodes Number of interpolation nodes in the reference element.
          * @param includeSecondDerivatives If true, memory for Hessian-related quantities is allocated.
          */

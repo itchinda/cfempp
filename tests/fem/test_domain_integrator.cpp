@@ -19,7 +19,7 @@
 #include <gtest/gtest.h>
 #include "cfemutils.h"
 #include "Mesh.h"
-#include "FunctionIntegrator.h"
+#include "ScalarFunctionalEvaluator.h"
 #include "MathOperators.h"
 #include "FEField.h"
 #include "LagrangeSpace.h"
@@ -29,7 +29,7 @@ using namespace cfem::sym;
 using namespace cfem::sym::symengine;
 
 // Fixture pour initialiser l'environnement et créer un maillage commun
-class FunctionIntegratorTest : public ::testing::Test {
+class ScalarFunctionalEvaluatorTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // On crée un cube [-1, 1]^3 (Volume = 8.0, Surface d'une face = 4.0)
@@ -41,16 +41,16 @@ protected:
         );
         
         IntegrationSchemeParams params{};
-        integrator = std::make_unique<FunctionIntegrator>(mesh, params);
+        integrator = std::make_unique<ScalarFunctionalEvaluator>(mesh, params);
     }
 
     std::shared_ptr<Mesh> mesh;
-    std::unique_ptr<FunctionIntegrator> integrator;
+    std::unique_ptr<ScalarFunctionalEvaluator> integrator;
     const CfemReal TOL = 1e-12;
 };
 
 // 1. Validation de l'intégration de volume (Fonction constante)
-TEST_F(FunctionIntegratorTest, VolumeIntegralConstant) {
+TEST_F(ScalarFunctionalEvaluatorTest, VolumeIntegralConstant) {
     auto one = scalar(1.0);
     CfemReal volume = integrator->computeIntegral(one);
     // Cube de côté 2 -> Volume = 2^3 = 8
@@ -58,7 +58,7 @@ TEST_F(FunctionIntegratorTest, VolumeIntegralConstant) {
 }
 
 // 2. Validation de l'intégration de surface (Fonction constante sur frontière)
-TEST_F(FunctionIntegratorTest, SurfaceIntegralConstant) {
+TEST_F(ScalarFunctionalEvaluatorTest, SurfaceIntegralConstant) {
     auto one = scalar(1.0);
     // Face "xmin" est à x = -1, de y=-1..1 et z=-1..1 -> Aire = 4.0
     CfemReal area = integrator->computeIntegral(one, "xmin");
@@ -66,7 +66,7 @@ TEST_F(FunctionIntegratorTest, SurfaceIntegralConstant) {
 }
 
 // 3. Validation de l'interpolation et de la norme L2 (Cas Polynomial P2)
-TEST_F(FunctionIntegratorTest, L2NormP2Projection) {
+TEST_F(ScalarFunctionalEvaluatorTest, L2NormP2Projection) {
     auto Q = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);
     auto p = Trial(Q, "p");
 
@@ -84,7 +84,7 @@ TEST_F(FunctionIntegratorTest, L2NormP2Projection) {
 }
 
 // // 4. Test d'un champ vectoriel (Divergence / Gradient)
-// TEST_F(FunctionIntegratorTest, VectorFieldDivergence) {
+// TEST_F(ScalarFunctionalEvaluatorTest, VectorFieldDivergence) {
 //     auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
 //     auto u = Trial(V, "u");
 
@@ -102,7 +102,7 @@ TEST_F(FunctionIntegratorTest, L2NormP2Projection) {
 // }
 
 // 5. Test de symétrie / Coordonnées
-TEST_F(FunctionIntegratorTest, IntegralLinearFunction) {
+TEST_F(ScalarFunctionalEvaluatorTest, IntegralLinearFunction) {
     // L'intégrale de 'x' sur [-1, 1] est 0 par symétrie
     auto expr_x = scalar(x);
     CfemReal val = integrator->computeIntegral(expr_x);
@@ -114,7 +114,7 @@ TEST_F(FunctionIntegratorTest, IntegralLinearFunction) {
 }
 
 // 6. Test de l'erreur sur une face spécifique (Gradient normal)
-TEST_F(FunctionIntegratorTest, SurfaceGradientError) {
+TEST_F(ScalarFunctionalEvaluatorTest, SurfaceGradientError) {
     auto Q = LagrangeSpace::create(mesh, Order::P2, FieldType::Scalar);
     auto p = Trial(Q, "p2");
     
@@ -159,7 +159,7 @@ TEST_F(SurfaceManifoldTest, ComputeFluxOnSphere) {
     u->interpolate(analytical_u);
 
     IntegrationSchemeParams params{};
-    FunctionIntegrator integrator(mesh, params);
+    ScalarFunctionalEvaluator integrator(mesh, params);
 
     CfemReal computedFlux = integrator.computeFlux(u, UNIVERSE_ID);
 
@@ -183,7 +183,7 @@ TEST_F(SurfaceManifoldTest, SurfaceGradientError) {
     p->interpolate(analytical_p);
 
     IntegrationSchemeParams params{};
-    FunctionIntegrator integrator(mesh, params);
+    ScalarFunctionalEvaluator integrator(mesh, params);
 
     CfemReal error_grad_s = sqrt(integrator.computeIntegral(mag_sqr(grad_s(p) - grad_s(analytical_p))));
     EXPECT_LT(error_grad_s, 1e-4);
