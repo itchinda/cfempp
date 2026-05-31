@@ -3,7 +3,7 @@
 import os
 import sys
 
-DIRECTORIES_TO_SCAN = ['libs', 'tests']
+DIRECTORIES_TO_SCAN = ['apps', 'libs', 'tests']
 EXTENSIONS = ('.h', '.hpp', '.cpp', '.cc', '.cxx', '.tpp')
 TEMPLATE_PATH = ".github/COPYRIGHT_TEMPLATE.txt"
 

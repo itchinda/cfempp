@@ -27,72 +27,24 @@
  * 5. Exporting data to VTK for Paraview visualization.
  */
 
-
-
-// #include "cfemutils.h"
-// #include "Mesh.h"
-// #include "FEField.h"
-// #include "MathOperators.h"
-// #include "ScalarFunctionalEvaluator.h"
-// #include "LagrangeSpace.h"
-// #include "VTUExporter.h"
-
-// using namespace cfem;
-// using namespace cfem::sym;
-// using namespace cfem::sym::symengine;
-
-// int main(int argc, char **argv) {
-//     // One call to rule them all: Handles MPI, PETSc, and CFEM internal state
-//     cfem::Environment::initialize(argc, argv);
-
-//     // Generate Mesh
-//     auto mesh = Mesh::block(MeshOrder::Linear, 
-//                             {10, 10, 10}, 
-//                             Mesh::BlockBounds({0,0,0}, {1,1,1}), 
-//                             Mesh::BlockElementType::Tetrahedron);
-
-//     // Setup P2 Vector Space and Field
-//     auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
-//     auto u = FEField::create("u", V);
-        
-//     auto analytical_u = vector(sin(2 * CFEM_PI * x), cos(2 * CFEM_PI * y), sin(CFEM_PI * x * y * z));
-//     u->interpolate(analytical_u);
-
-//     // Error Analysis (Clean syntax, no explicit scheme params needed)
-//     CfemReal l2Norm_U, h1SemiNorm_U;
-//     IntegrationSchemeParams schemes_params{}; // Use default number of integration points
-//     ScalarFunctionalEvaluator integrator(mesh, schemes_params);
-//     integrator.L2Norm(u - analytical_u, &l2Norm_U, &h1SemiNorm_U);    
-//     CFEM_INFO << "L2-norm error on u: " << l2Norm_U;
-//     CFEM_INFO << "H1-semi norm error on u: " << h1SemiNorm_U;
-        
-//     // High-performance Binary Export
-//     VTUExporter vtu_exporter(*mesh);
-//     vtu_exporter.addExpression("u", u);
-//     vtu_exporter.setFormat(VTKExportFormat::BINARY);
-//     vtu_exporter.write("simulation_results");
-
-//     return 0; 
-// }
-
-#include "cfemutils.h"
-#include "Vector3D.h"
-#include "Mesh.h"
-#include "MeshConformityChecker.h"
-#include "LagrangeSpace.h"
-#include "DGSpace.h"
-#include "FEField.h"
-#include "ScalarFunctionalEvaluator.h"
-#include "VTKExporter.h"
-#include "VTUExporter.h"
-#include "MathOperators.h"
-
-#include <iostream>
 #include <cmath>
+#include <iostream>
 #include <memory>
-#include <tuple>
 #include <omp.h>
 #include <span>
+#include <tuple>
+
+#include "cfemutils.h"
+#include "DGSpace.h"
+#include "FEField.h"
+#include "LagrangeSpace.h"
+#include "MathOperators.h"
+#include "Mesh.h"
+#include "MeshConformityChecker.h"
+#include "ScalarFunctionalEvaluator.h"
+#include "Vector3D.h"
+#include "VTKExporter.h"
+#include "VTUExporter.h"
 
 using namespace cfem;
 using namespace cfem::sym;
