@@ -311,17 +311,25 @@ else
     {
       "name": "debug",
       "inherits": ["shared-debug", "user-paths"],
-      "displayName": "My Local Debug"
+      "displayName": "My Local Debug",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "$PETSC_DIR/${OS_PREFIX}-c-debug/bin/mpicc",
+        "CMAKE_CXX_COMPILER": "$PETSC_DIR/${OS_PREFIX}-c-debug/bin/mpicxx"
+      }
     },
     {
       "name": "release",
       "inherits": ["shared-release", "user-paths"],
-      "displayName": "My Local Release"
+      "displayName": "My Local Release",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "$PETSC_DIR/${OS_PREFIX}-c-opt/bin/mpicc",
+        "CMAKE_CXX_COMPILER": "$PETSC_DIR/${OS_PREFIX}-c-opt/bin/mpicxx"
+      }
     }
   ]
 }
 EOF
-    echo -e "${GREEN}[OK] Presets generated.${NC}"
+    echo -e "${GREEN}[OK] Presets generated with MPI compilers.${NC}"
 fi
 
 # ------------------------------------------------------------
