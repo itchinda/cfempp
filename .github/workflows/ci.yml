@@ -87,19 +87,39 @@ jobs:
     # Build CFEM++
     - name: Configure and Build Project
       run: |
-        export PATH=$PETSC_DIR/$P_ARCH/bin:$PATH
-        mkdir -p build && cd build
-        cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-                 -DPETSC_DIR=$PETSC_DIR \
-                 -DPETSC_ARCH=$P_ARCH \
-                 -DSymEngine_DIR=$HOME/symengine_install/lib/cmake/symengine
-        make -j$(nproc)
+        # Convert matrix build_type to lowercase (release/debug)
+        MODE=$(echo "${{ matrix.build_type }}" | tr '[:upper:]' '[:lower:]')
+        
+        # Dynamically generate CMakeUserPresets.json for GitHub Actions
+        cat <<EOF > CMakeUserPresets.json
+        {
+          "version": 3,
+          "configurePresets": [
+            {
+              "name": "ci-env",
+              "inherits": "shared-$MODE",
+              "cacheVariables": {
+                "PETSC_DIR": "$PETSC_DIR",
+                "SymEngine_DIR": "$HOME/symengine_install/lib/cmake/symengine",
+                "CMAKE_C_COMPILER": "$PETSC_DIR/$P_ARCH/bin/mpicc",
+                "CMAKE_CXX_COMPILER": "$PETSC_DIR/$P_ARCH/bin/mpicxx"
+              }
+            }
+          ]
+        }
+        EOF
+        
+        # Configure using our dynamically generated preset
+        cmake --preset ci-env
+        
+        # Build the project (the preset automatically creates 'build_ci-env' directory)
+        cmake --build build_ci-env --parallel $(nproc)
 
     # Run Tests
     - name: Run Unit Tests
       run: |
         export PATH=$PETSC_DIR/$P_ARCH/bin:$PATH
-        cd build
+        cd build_ci-env
         echo "Running ${{ matrix.build_type }} unit tests with ${{ matrix.mpi_ranks }} ranks"
         mpiexec -n ${{ matrix.mpi_ranks }} ./tests/unit_tests --gtest_output="xml:report_${{ matrix.build_type }}_${{ matrix.mpi_ranks }}.xml"
 
@@ -107,5 +127,6 @@ jobs:
       uses: mikepenz/action-junit-report@v4
       if: success() || failure()
       with:
-        report_paths: 'build/report_*.xml'
+        # Make sure this path points to our new preset build directory
+        report_paths: 'build_ci-env/report_*.xml'
         check_name: "GTest Results (${{ matrix.build_type }}, ${{ matrix.mpi_ranks }} ranks)"
