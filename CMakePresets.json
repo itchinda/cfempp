@@ -2,7 +2,7 @@
   "version": 3,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 15,
+    "minor": 20,
     "patch": 0
   },
   "configurePresets": [
@@ -10,7 +10,12 @@
       "name": "base",
       "hidden": true,
       "generator": "Unix Makefiles",
-      "binaryDir": "${sourceDir}/build_${presetName}"
+      "binaryDir": "${sourceDir}/build_${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_CXX_STANDARD": "20",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON"
+      }
     },
     {
       "name": "shared-release",

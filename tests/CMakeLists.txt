@@ -1,3 +1,5 @@
+include(GoogleTest)
+
 add_executable(unit_tests
     test_main.cpp
     wrappers/test_petsc_wrappers.cpp
