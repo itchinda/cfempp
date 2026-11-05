@@ -102,7 +102,7 @@ using namespace cfem::sym;
 using namespace cfem::sym::symengine;
 
 int main(int argc, char **argv) {
-    // One call to rule them all: Handles MPI, PETSc, and CFEM internal state
+    // Initialize CFEM++. This handles MPI, PETSc internal state
     cfem::Environment::initialize(argc, argv);
 
     // Generate Mesh
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
     auto V = LagrangeSpace::create(mesh, Order::P2, FieldType::Vector3D);
     auto u = FEField::create("u", V);
         
-    // JIT-compiled Symbolic Definition
+    // Symbolic Expression
     auto analytical_u = vector(sin(2 * CFEM_PI * x), cos(2 * CFEM_PI * y), sin(CFEM_PI * x * y * z));
     u->interpolate(analytical_u);
 
@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
     CFEM_INFO << "L2-norm error on u: " << l2Norm_U;
     CFEM_INFO << "H1-semi norm error on u: " << h1SemiNorm_U;
         
-    // High-performance Binary Export
+    // Binary Export
     VTUExporter vtu_exporter(*mesh);
     vtu_exporter.addExpression("u", u);
     vtu_exporter.setFormat(VTUExporter::Format::BINARY);
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
     return 0; 
 }
 ```
-**From Preprocessing to Visualization**: Our robust `GmshParser` handles non-trivial manifolds with ease. Shown below is a 3D heart model imported into CFEM++ and visualized in ParaView. The seamless integration ensures that physical tags and boundary conditions remain consistent from the initial `.msh` file to the final visual results.
+**From Preprocessing to Visualization**: Our `GmshParser` handles non-trivial manifolds with ease. Shown below is a 3D heart model imported into CFEM++ and visualized in ParaView. The seamless integration ensures that physical tags and boundary conditions remain consistent from the initial `.msh` file to the final visual results.
 
 <p align="center">
   <img src="tests/grenier/heart.png" width="40%">
