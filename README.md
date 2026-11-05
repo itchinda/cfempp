@@ -18,7 +18,7 @@ Designed to handle **10^7+ Degrees of Freedom (DoFs)**, the project focuses on t
 * **Corner-Based Mapping:** A specialized algorithm for quadratic elements (TET10, HEX27) that identifies physical entities by intersecting geometric vertices (corners), effectively solving the "mismatched diagonal" problem in high-order meshes.
 
 
-### 2. Advanced Symbolic Engine (JIT Accelerated)
+### 2. Symbolic Expression Support
 * **SymEngine Integration:** Define analytical solutions and source terms using natural mathematical syntax.
 * **Just-In-Time (JIT) Compilation:** Leveraging **LLVM** to compile symbolic expressions into machine code at runtime for near-native evaluation speeds during assembly.
 * **Automatic Differentiation:** High-performance `grad()`, `div()`, and `curl()` operators on finite element fields.
@@ -26,9 +26,9 @@ Designed to handle **10^7+ Degrees of Freedom (DoFs)**, the project focuses on t
 
 ### 3. High-Performance Computing (HPC)
 Leveraging **PETSc** for its linear algebra core, CFEM++ provides:
-* **Distributed Computing:** MPI-parallelized operations using `Vec` and `Mat` (AIJ format).
+* **Distributed Computing:** MPI-parallelized operations.
 * **Advanced Solvers:** Optimized for **Preconditioned Conjugate Gradient (PCG)** with **Algebraic Multigrid (GAMG)** preconditioning.
-* **Scalability:** Capable of processing ~8M nodes and ~6M cells in under 30 seconds on standard workstation hardware (32GB RAM).
+* **Scalability:** Capable of processing a large number of DOFs.
 
 
 
@@ -59,7 +59,7 @@ source scripts/setup_env_pub.sh release --bootstrap
 ```
 
 ### Option B: Core Developers (Dev Setup)
-For contributors. This script aggressively checks tools, automatically calls system package managers (apt, dnf, pacman, brew), and generates the CMakeUserPresets.
+For contributors. This script checks tools, automatically calls system package managers (apt, dnf, pacman, brew), and generates the CMakeUserPresets.
 
 **1. Run the developer bootstrap script:**
 ```bash
